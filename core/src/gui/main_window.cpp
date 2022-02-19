@@ -178,10 +178,12 @@ void MainWindow::init() {
     core::configManager.acquire();
     fftMin = core::configManager.conf["min"];
     fftMax = core::configManager.conf["max"];
+    bw = core::configManager.conf["zoomBw"];
     gui::waterfall.setFFTMin(fftMin);
     gui::waterfall.setWaterfallMin(fftMin);
     gui::waterfall.setFFTMax(fftMax);
     gui::waterfall.setWaterfallMax(fftMax);
+
 
     double frequency = core::configManager.conf["frequency"];
 
@@ -192,7 +194,6 @@ void MainWindow::init() {
     gui::freqSelect.frequencyChanged = false;
     sigpath::sourceManager.tune(frequency);
     gui::waterfall.setCenterFrequency(frequency);
-    bw = 1.0;
     gui::waterfall.vfoFreqChanged = false;
     gui::waterfall.centerFreqMoved = false;
     gui::waterfall.selectFirstVFO();
@@ -220,6 +221,8 @@ void MainWindow::init() {
             continue;
         }
     }
+
+    updateWaterfallZoomBandwidth(bw);
 
     autostart = core::args["autostart"].b();
     initComplete = true;
@@ -608,17 +611,10 @@ void MainWindow::draw() {
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - 10 * style::uiScale);
     ImVec2 wfSliderSize(20.0 * style::uiScale, 150.0 * style::uiScale);
     if (ImGui::VSliderFloat("##_7_", wfSliderSize, &bw, 1.0, 0.0, "")) {
-        double factor = (double)bw * (double)bw;
-
-        // Map 0.0 -> 1.0 to 1000.0 -> bandwidth
-        double wfBw = gui::waterfall.getBandwidth();
-        double delta = wfBw - 1000.0;
-        double finalBw = std::min<double>(1000.0 + (factor * delta), wfBw);
-
-        gui::waterfall.setViewBandwidth(finalBw);
-        if (vfo != NULL) {
-            gui::waterfall.setViewOffset(vfo->centerOffset); // center vfo on screen
-        }
+        core::configManager.acquire();
+        core::configManager.conf["zoomBw"] = bw;
+        core::configManager.release(true);
+        updateWaterfallZoomBandwidth(bw);
     }
 
     ImGui::NewLine();
@@ -678,10 +674,6 @@ void MainWindow::setPlayState(bool _playing) {
     }
 }
 
-void MainWindow::setViewBandwidthSlider(float bandwidth) {
-    bw = bandwidth;
-}
-
 bool MainWindow::sdrIsRunning() {
     return playing;
 }
@@ -689,3 +681,22 @@ bool MainWindow::sdrIsRunning() {
 bool MainWindow::isPlaying() {
     return playing;
 }
+
+void MainWindow::updateWaterfallZoomBandwidth(float bw) {
+    ImGui::WaterfallVFO* vfo = NULL;
+    if (gui::waterfall.selectedVFO != "") {
+        vfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
+    }
+    double factor = (double)bw * (double)bw;
+
+    // Map 0.0 -> 1.0 to 1000.0 -> bandwidth
+    double wfBw = gui::waterfall.getBandwidth();
+    double delta = wfBw - 1000.0;
+    double finalBw = std::min<double>(1000.0 + (factor * delta), wfBw);
+
+    gui::waterfall.setViewBandwidth(finalBw);
+    if (vfo != NULL) {
+        gui::waterfall.setViewOffset(vfo->centerOffset); // center vfo on screen
+    }
+}
+

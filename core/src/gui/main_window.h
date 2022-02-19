@@ -15,7 +15,9 @@ class MainWindow {
 public:
     void init();
     void draw();
-    void setViewBandwidthSlider(float bandwidth);
+    void updateZoom() {
+        this->updateWaterfallZoomBandwidth(bw);
+    }
     bool sdrIsRunning();
 
     static float* acquireFFTBuffer(void* ctx);
@@ -46,7 +48,7 @@ private:
     bool startedWithMenuClosed = false;
     float fftMin = -70.0;
     float fftMax = 0.0;
-    float bw = 8000000;
+    float bw = 1.0;             // slider position 0.0 .. 1.0
     bool playing = false;
     bool showCredits = false;
     std::string audioStreamName = "";
@@ -65,4 +67,6 @@ private:
     bool autostart = false;
 
     EventHandler<VFOManager::VFO*> vfoCreatedHandler;
+
+    void updateWaterfallZoomBandwidth(float bw);
 };

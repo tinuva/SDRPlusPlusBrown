@@ -41,16 +41,15 @@ namespace core {
     void setInputSampleRate(double samplerate) {
         // Forward this to the server
         if (args["server"].b()) { server::setInputSampleRate(samplerate); return; }
-        
+
         // Update IQ frontend input samplerate and get effective samplerate
         sigpath::iqFrontEnd.setSampleRate(samplerate);
-        double effectiveSr  = sigpath::iqFrontEnd.getEffectiveSamplerate();
-        
+        double effectiveSr = sigpath::iqFrontEnd.getEffectiveSamplerate();
+
         // Reset zoom
         gui::waterfall.setBandwidth(effectiveSr);
         gui::waterfall.setViewOffset(0);
-        gui::waterfall.setViewBandwidth(effectiveSr);
-        gui::mainWindow.setViewBandwidthSlider(1.0);
+        gui::mainWindow.updateZoom();
 
         // Debug logs
         spdlog::info("New DSP samplerate: {0} (source samplerate is {1})", effectiveSr, samplerate);
@@ -121,6 +120,7 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["fftWindow"] = 2;
     defConfig["frequency"] = 100000000.0;
     defConfig["fullWaterfallUpdate"] = false;
+    defConfig["zoomBw"] = 1.0;
     defConfig["max"] = 0.0;
     defConfig["maximized"] = false;
     defConfig["fullscreen"] = false;
