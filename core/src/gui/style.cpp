@@ -4,6 +4,7 @@
 #include <config.h>
 #include <spdlog/spdlog.h>
 #include <filesystem>
+#include "utils/wstr.h"
 
 namespace style {
     ImFont* baseFont;
@@ -19,7 +20,7 @@ namespace style {
 #endif
 
     bool loadFonts(std::string resDir) {
-        if (!std::filesystem::is_directory(resDir)) {
+        if (!std::filesystem::is_directory(wstr::str2wstr(resDir))) {
             spdlog::error("Invalid resource directory: {0}", resDir);
             return false;
         }
@@ -29,7 +30,7 @@ namespace style {
         builder.AddRanges(fonts->GetGlyphRangesDefault());
         builder.AddRanges(fonts->GetGlyphRangesCyrillic());
         builder.BuildRanges(&ranges);
-        
+
         // Add bigger fonts for frequency select and title
         baseFont = fonts->AddFontFromFileTTF(((std::string)(resDir + "/fonts/Roboto-Medium.ttf")).c_str(), 16.0f * uiScale, NULL, ranges.Data);
         bigFont = fonts->AddFontFromFileTTF(((std::string)(resDir + "/fonts/Roboto-Medium.ttf")).c_str(), 45.0f * uiScale);

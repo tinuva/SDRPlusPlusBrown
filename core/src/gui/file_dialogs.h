@@ -947,9 +947,9 @@ inline internal::file_dialog::file_dialog(type in_type,
                          options](int *exit_code) -> std::string
     {
         (void)exit_code;
-        m_wtitle = internal::str2wstr(title);
-        m_wdefault_path = internal::str2wstr(default_path);
-        auto wfilter_list = internal::str2wstr(filter_list);
+        m_wtitle = wstr::str2wstr(title);
+        m_wdefault_path = wstr::str2wstr(default_path);
+        auto wfilter_list = wstr::str2wstr(filter_list);
 
         // Initialise COM. This is required for the new folder selection window,
         // (see https://github.com/samhocevar/portable-file-dialogs/pull/21)
@@ -993,7 +993,7 @@ inline internal::file_dialog::file_dialog(type in_type,
                 auto buffer = new wchar_t[MAX_PATH];
                 SHGetPathFromIDListW(list, buffer);
                 dll::proc<void WINAPI (LPVOID)>(ole32, "CoTaskMemFree")(list);
-                ret = internal::wstr2str(buffer);
+                ret = wstr::wstr2str(buffer);
                 delete[] buffer;
             }
             return ret;
@@ -1042,7 +1042,7 @@ inline internal::file_dialog::file_dialog(type in_type,
             dll::proc<BOOL WINAPI (LPOPENFILENAMEW)> get_save_file_name(comdlg32, "GetSaveFileNameW");
             if (get_save_file_name(&ofn) == 0)
                 return "";
-            return internal::wstr2str(woutput.c_str());
+            return wstr::wstr2str(woutput.c_str());
         }
         else
         {
@@ -1058,7 +1058,7 @@ inline internal::file_dialog::file_dialog(type in_type,
         std::string prefix;
         for (wchar_t const *p = woutput.c_str(); *p; )
         {
-            auto filename = internal::wstr2str(p);
+            auto filename = wstr::wstr2str(p);
             p += wcslen(p);
             // In multiselect mode, we advance p one wchar further and
             // check for another filename. If there is one and the
@@ -1295,7 +1295,7 @@ inline std::string internal::file_dialog::select_folder_vista(IFileDialog *ifd, 
 
             if (wselected)
             {
-                result = internal::wstr2str(std::wstring(wselected));
+                result = wstr::wstr2str(std::wstring(wselected));
                 dll::proc<void WINAPI (LPVOID)>(ole32_dll(), "CoTaskMemFree")(wselected);
             }
         }
@@ -1372,8 +1372,8 @@ inline notify::notify(std::string const &title,
 
     nid->uTimeout = 5000;
 
-    StringCchCopyW(nid->szInfoTitle, ARRAYSIZE(nid->szInfoTitle), internal::str2wstr(title).c_str());
-    StringCchCopyW(nid->szInfo, ARRAYSIZE(nid->szInfo), internal::str2wstr(message).c_str());
+    StringCchCopyW(nid->szInfoTitle, ARRAYSIZE(nid->szInfoTitle), wstr::str2wstr(title).c_str());
+    StringCchCopyW(nid->szInfo, ARRAYSIZE(nid->szInfo), wstr::str2wstr(message).c_str());
 
     // Display the new icon
     Shell_NotifyIconW(NIM_ADD, nid.get());
@@ -1451,8 +1451,8 @@ inline message::message(std::string const &title,
 
     m_async->start_func([text, title, style](int* exit_code) -> std::string
     {
-        auto wtext = internal::str2wstr(text);
-        auto wtitle = internal::str2wstr(title);
+        auto wtext = wstr::str2wstr(text);
+        auto wtitle = wstr::str2wstr(title);
         // Apply new visual style (required for all Windows versions)
         new_style_context ctx;
         *exit_code = MessageBoxW(GetActiveWindow(), wtext.c_str(), wtitle.c_str(), style);

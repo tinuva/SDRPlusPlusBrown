@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include <filesystem>
+#include "utils/wstr.h"
 
 ConfigManager::ConfigManager() {
 }
@@ -32,7 +33,7 @@ void ConfigManager::load(json def, bool lock) {
     }
 
     try {
-        std::ifstream file(path.c_str());
+        std::ifstream file(wstr::str2wstr(path));
         file >> conf;
         file.close();
     }
@@ -46,7 +47,7 @@ void ConfigManager::load(json def, bool lock) {
 
 void ConfigManager::save(bool lock) {
     if (lock) { mtx.lock(); }
-    std::ofstream file(path.c_str());
+    std::ofstream file(wstr::str2wstr(path));
     file << conf.dump(4);
     file.close();
     if (lock) { mtx.unlock(); }

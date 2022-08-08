@@ -1,6 +1,7 @@
 #include <gui/widgets/bandplan.h>
 #include <fstream>
 #include <spdlog/spdlog.h>
+#include <utils/wstr.h>
 #include <filesystem>
 #include <sstream>
 #include <iomanip>
@@ -74,7 +75,7 @@ namespace bandplan {
     }
 
     void loadBandPlan(std::string path) {
-        std::ifstream file(path.c_str());
+        std::ifstream file(wstr::str2wstr(path.c_str()));
         json data;
         file >> data;
         file.close();

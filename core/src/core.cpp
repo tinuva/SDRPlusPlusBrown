@@ -81,6 +81,7 @@ int sdrpp_main(int argc, char* argv[]) {
 
 #ifdef _WIN32
     if (!core::args["con"].b() && !serverMode) { FreeConsole(); }
+    setlocale(LC_ALL, ".65001"); // Set locale to UTF-8
 #endif
 
     // Check root directory
