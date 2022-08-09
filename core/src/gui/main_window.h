@@ -17,7 +17,6 @@ public:
     void draw();
     void setViewBandwidthSlider(float bandwidth);
     bool sdrIsRunning();
-    void setFirstMenuRender();
 
     static float* acquireFFTBuffer(void* ctx);
     static void releaseFFTBuffer(void* ctx);
