@@ -22,6 +22,12 @@ SDRPP_MOD_INFO{
 
 ConfigManager config;
 
+static bool rtaudioCallbackError;
+static void rtaudioCallback(RtAudioError::Type type, const std::string& errorText) {
+    rtaudioCallbackError = true;
+}
+
+
 class AudioSink : SinkManager::Sink {
 public:
     AudioSink(SinkManager::Stream* stream, std::string streamName) {
@@ -46,7 +52,27 @@ public:
         RtAudio::DeviceInfo info;
         for (int i = 0; i < count; i++) {
             info = audio.getDeviceInfo(i);
-            if (!info.probed) { continue; }
+            if (!info.probed) {
+                RtAudio::StreamParameters parameters;
+                parameters.deviceId = i;
+                parameters.nChannels = 2;
+                unsigned int bufferFrames = sampleRate / 60;
+                RtAudio::StreamOptions opts;
+                opts.flags = RTAUDIO_MINIMIZE_LATENCY;
+                opts.streamName = _streamName;
+                info.probed = true;
+                rtaudioCallbackError = false;
+                try {
+                    audio.openStream(&parameters, NULL, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback, this, &opts, rtaudioCallback);
+                } catch (RtAudioError &err) {
+                    rtaudioCallbackError = true;
+                }
+                if (rtaudioCallbackError) {
+                    continue;
+                }
+                audio.closeStream();
+                info.outputChannels = 2;
+            }
             if (info.outputChannels == 0) { continue; }
             if (info.isDefaultOutput) { defaultDevId = devList.size(); }
             devList.push_back(info);
