@@ -1,10 +1,14 @@
 cmake_minimum_required(VERSION 3.13)
 project(sdrpp)
 
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(CMAKE_INSTALL_PREFIX "/usr/local")
+if(CMAKE_INSTALL_PREFIX MATCHES "^/usr")       # default prefix
+    if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        set(CMAKE_INSTALL_PREFIX "/usr/local")
+    else()
+        set(CMAKE_INSTALL_PREFIX "/usr")
+    endif()
 else()
-    set(CMAKE_INSTALL_PREFIX "/usr")
+    # keep the prefix as user wants
 endif()
 
 # Configure toolchain for android
