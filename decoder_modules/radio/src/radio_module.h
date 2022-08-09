@@ -89,8 +89,31 @@ public:
         // Initialize the sink
         srChangeHandler.ctx = this;
         srChangeHandler.handler = sampleRateChangeHandler;
-        stream.init(afChain.out, &srChangeHandler, audioSampleRate);
-        sigpath::sinkManager.registerStream(name, &stream);
+
+        // multi-sinks setup
+        afsplitter.init(afChain.out);
+        streams.emplace_back(std::make_shared<SinkManager::Stream>());
+        streamNames.emplace_back(name);
+        afsplitter.bindStream(streams.back()->getInput());
+        streams.back()->init(&srChangeHandler, audioSampleRate);
+        sigpath::sinkManager.registerStream(name, streams.front().get());
+
+        sigpath::sinkManager.onAddSubstream.bindHandler(&onAddSubstreamHandler);
+        sigpath::sinkManager.onRemoveSubstream.bindHandler(&onRemoveSubstreamHandler);
+        onAddSubstreamHandler.handler = &addSubstreamHandler;
+        onAddSubstreamHandler.ctx = this;
+        onRemoveSubstreamHandler.handler = &removeSubstreamHandler;
+        onRemoveSubstreamHandler.ctx = this;
+
+        // read config for substreams
+        for(int i=1; i<10; i++) {
+            auto secondaryName = SinkManager::makeSecondaryStreamName(name, i);
+            if (sigpath::sinkManager.configContains(secondaryName)) {
+                addSecondaryStream(secondaryName);
+            }
+        }
+
+
 
         // Select the demodulator
         selectDemodByID((DemodID)selectedDemodID);
@@ -101,8 +124,11 @@ public:
         // Start AF chain
         afChain.start();
 
-        // Start stream, the rest was started when selecting the demodulator
-        stream.start();
+        afsplitter.start();
+
+        for(auto &s: streams) {
+            s->start();
+        }
 
         // Register the menu
         gui::menu.registerEntry(name, menuHandler, this, this);
@@ -111,15 +137,74 @@ public:
         core::modComManager.registerInterface("radio", name, moduleInterfaceHandler, this);
     }
 
+    std::shared_ptr<SinkManager::Stream> addSecondaryStream(std::string secondaryName = "") {
+        if (secondaryName.empty()) {
+            secondaryName = SinkManager::makeSecondaryStreamName(name, streams.size());
+        }
+        streams.emplace_back(std::make_shared<SinkManager::Stream>());
+        afsplitter.bindStream(streams.back()->getInput());
+        streams.back()->init(&srChangeHandler, (float)audioSampleRate);
+        sigpath::sinkManager.registerStream(secondaryName, &*streams.back());
+        streamNames.emplace_back(secondaryName);
+
+        return streams.back();
+
+    }
+
+
     ~RadioModule() {
         core::modComManager.unregisterInterface(name);
         gui::menu.removeEntry(name);
-        stream.stop();
+        afsplitter.stop();
+        for(auto &s: streams) {
+            s->stop();
+        }
         if (enabled) {
             disable();
         }
-        sigpath::sinkManager.unregisterStream(name);
+
+        for(int i=0; i<streams.size(); i++) {
+            sigpath::sinkManager.unregisterStream(SinkManager::makeSecondaryStreamName(name, i));
+        }
+        sigpath::sinkManager.onAddSubstream.unbindHandler(&onAddSubstreamHandler);
+        sigpath::sinkManager.onRemoveSubstream.unbindHandler(&onRemoveSubstreamHandler);
+
     }
+
+    static void addSubstreamHandler(std::string name, void* ctx) {
+        RadioModule* _this = (RadioModule*)ctx;
+        if (name == _this->name) {
+            auto stream = _this->addSecondaryStream();
+            if (_this->enabled) {
+                stream->start();
+            }
+        }
+    }
+    static void removeSubstreamHandler(std::string name, void* ctx) {
+        RadioModule* _this = (RadioModule*)ctx;
+        auto pos = std::find(_this->streamNames.begin(), _this->streamNames.end(), name);
+        if (pos == _this->streamNames.end() || pos == _this->streamNames.begin()) // disable first stream removal as well
+            return;
+        auto index = pos - _this->streamNames.begin();
+        auto stream = _this->streams[index];
+        if (_this->enabled) {
+            stream->stop();
+        }
+        _this->afsplitter.unbindStream(stream->getInput());
+        //        stream->init(&srChangeHandler, audioSampleRate);
+        _this->streams.erase(_this->streams.begin()+index);
+        _this->streamNames.erase(_this->streamNames.begin()+index);
+        sigpath::sinkManager.unregisterStream(name);
+        core::configManager.acquire();
+        auto &streamz = core::configManager.conf["streams"];
+        auto iter = streamz.find(name);
+        if (iter != streamz.end()) {
+            streamz.erase(iter);
+        }
+        core::configManager.release();
+    }
+
+
 
     void postInit() {}
 
@@ -312,7 +397,7 @@ private:
         bw = std::clamp<double>(bw, demod->getMinBandwidth(), demod->getMaxBandwidth());
 
         // Initialize
-        demod->init(name, &config, ifChain.out, bw, stream.getSampleRate());
+        demod->init(name, &config, ifChain.out, bw, streams.front()->getSampleRate());
 
         return demod;
     }
@@ -337,7 +422,7 @@ private:
 
     void selectDemod(demod::Demodulator* demod) {
         // Stopcurrently selected demodulator and select new
-        afChain.setInput(&dummyAudioStream, [=](dsp::stream<dsp::stereo_t>* out){ stream.setInput(out); });
+        afChain.setInput(&dummyAudioStream, [=](dsp::stream<dsp::stereo_t>* out){ afsplitter.setInput(out); });
         if (selectedDemod) {
             selectedDemod->stop();
             delete selectedDemod;
@@ -351,7 +436,7 @@ private:
         selectedDemod->setInput(ifChain.out);
 
         // Set AF chain's input
-        afChain.setInput(selectedDemod->getOutput(), [=](dsp::stream<dsp::stereo_t>* out){ stream.setInput(out); });
+        afChain.setInput(selectedDemod->getOutput(), [=](dsp::stream<dsp::stereo_t>* out){ afsplitter.setInput(out); });
 
         // Load config
         bandwidth = selectedDemod->getDefaultBandwidth();
@@ -442,14 +527,14 @@ private:
             afChain.stop();
             resamp.setInSamplerate(selectedDemod->getAFSampleRate());
             setAudioSampleRate(audioSampleRate);
-            afChain.enableBlock(&resamp, [=](dsp::stream<dsp::stereo_t>* out){ stream.setInput(out); });
+            afChain.enableBlock(&resamp, [=](dsp::stream<dsp::stereo_t>* out){ afsplitter.setInput(out); });
 
             // Configure deemphasis
             setDeemphasisMode(deempModes[deempId]);
         }
         else {
             // Disable everything if post processing is disabled
-            afChain.disableAllBlocks([=](dsp::stream<dsp::stereo_t>* out){ stream.setInput(out); });
+            afChain.disableAllBlocks([=](dsp::stream<dsp::stereo_t>* out){ afsplitter.setInput(out); });
         }
 
         // Start new demodulator
@@ -499,7 +584,7 @@ private:
         if (!postProcEnabled || !selectedDemod) { return; }
         bool deempEnabled = (mode != DEEMP_MODE_NONE);
         if (deempEnabled) { deemp.setTau(deempTaus[mode]); }
-        afChain.setBlockEnabled(&deemp, deempEnabled, [=](dsp::stream<dsp::stereo_t>* out){ stream.setInput(out); });
+        afChain.setBlockEnabled(&deemp, deempEnabled, [=](dsp::stream<dsp::stereo_t>* out){ afsplitter.setInput(out); });
 
         // Save config
         config.acquire();
@@ -643,6 +728,9 @@ private:
     // Handlers
     EventHandler<double> onUserChangedBandwidthHandler;
     EventHandler<float> srChangeHandler;
+    EventHandler<std::string> onAddSubstreamHandler;
+    EventHandler<std::string> onRemoveSubstreamHandler;
+
     EventHandler<dsp::stream<dsp::complex_t>*> ifChainOutputChanged;
     EventHandler<dsp::stream<dsp::stereo_t>*> afChainOutputChanged;
 
@@ -660,7 +748,10 @@ private:
     dsp::multirate::RationalResampler<dsp::stereo_t> resamp;
     dsp::filter::Deemphasis<dsp::stereo_t> deemp;
 
-    SinkManager::Stream stream;
+    dsp::routing::Splitter<dsp::stereo_t> afsplitter;
+    std::vector<std::shared_ptr<SinkManager::Stream>> streams;
+    std::vector<std::string> streamNames;
+
 
     demod::Demodulator* selectedDemod = NULL;
 

@@ -15,13 +15,17 @@ SinkManager::SinkManager() {
 }
 
 SinkManager::Stream::Stream(dsp::stream<dsp::stereo_t>* in, EventHandler<float>* srChangeHandler, float sampleRate) {
-    init(in, srChangeHandler, sampleRate);
+    _in = in;
+    init(srChangeHandler, sampleRate);
 }
 
-void SinkManager::Stream::init(dsp::stream<dsp::stereo_t>* in, EventHandler<float>* srChangeHandler, float sampleRate) {
-    _in = in;
+void SinkManager::Stream::init(EventHandler<float>* srChangeHandler, float sampleRate) {
     srChange.bindHandler(srChangeHandler);
     _sampleRate = sampleRate;
+    if (!_in) {
+        _in = &_in0;
+    }
+
     splitter.init(_in);
     splitter.bindStream(&volumeInput);
     volumeAjust.init(&volumeInput, 1.0f, false);
@@ -135,6 +139,14 @@ void SinkManager::unregisterSinkProvider(std::string name) {
     onSinkProviderUnregistered.emit(name);
 }
 
+bool SinkManager::configContains(const std::string& name) const {
+    core::configManager.acquire();
+    bool available = core::configManager.conf["streams"].contains(name);
+    core::configManager.release();
+    return available;
+}
+
+
 void SinkManager::registerStream(std::string name, SinkManager::Stream* stream) {
     if (streams.find(name) != streams.end()) {
         spdlog::error("Cannot register stream '{0}', this name is already taken", name);
@@ -153,9 +165,7 @@ void SinkManager::registerStream(std::string name, SinkManager::Stream* stream) 
     streamNames.push_back(name);
 
     // Load config
-    core::configManager.acquire();
-    bool available = core::configManager.conf["streams"].contains(name);
-    core::configManager.release();
+    bool available = configContains(name);
     if (available) { loadStreamConfig(name); }
 
     onStreamRegistered.emit(name);
@@ -352,9 +362,11 @@ void SinkManager::showMenu() {
         provStr += '\0';
     }
 
+    std::vector<std::function<void()>> postActions;
     for (auto const& [name, stream] : streams) {
         ImGui::SetCursorPosX((menuWidth / 2.0f) - (ImGui::CalcTextSize(name.c_str()).x / 2.0f));
-        ImGui::Text("%s", name.c_str());
+        auto [primaryName, index] = getSecondaryStreamIndex(name);
+        ImGui::Text("%s", (primaryName + (index <= 0 ? "" : " (output " + std::to_string(index+1) + ")")).c_str());
 
         ImGui::SetNextItemWidth(menuWidth);
         if (ImGui::Combo(CONCAT("##_sdrpp_sink_select_", name), &stream->providerId, provStr.c_str())) {
@@ -366,7 +378,22 @@ void SinkManager::showMenu() {
 
         stream->sink->menuHandler();
 
+        auto v1 = ImGui::GetContentRegionAvail();
         showVolumeSlider(name, "##_sdrpp_sink_menu_vol_", menuWidth);
+        auto v2 = ImGui::GetContentRegionAvail();
+
+        if (!SinkManager::isSecondaryStream(name)) {
+            if (ImGui::Button(("Add secondary for " + name).c_str(), ImVec2(menuWidth, v1.y-v2.y))) {
+                auto name0 = name;
+                postActions.emplace_back([=]{onAddSubstream.emit(name0);});
+            }
+        } else {
+            if (ImGui::Button("Remove secondary", ImVec2(menuWidth, v1.y - v2.y))) {
+                auto name0 = name;
+                postActions.emplace_back([=]{onRemoveSubstream.emit(name0);});
+            }
+        }
+
 
         count++;
         if (count < maxCount) {
@@ -375,6 +402,8 @@ void SinkManager::showMenu() {
         }
         ImGui::Spacing();
     }
+
+    for(auto &_: postActions) _();  // to optionally modify the streams list after loop over it.
 }
 
 std::vector<std::string> SinkManager::getStreamNames() {

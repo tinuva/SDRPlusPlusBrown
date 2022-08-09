@@ -10,7 +10,12 @@
 #include <utils/event.h>
 #include <vector>
 
+
+
 class SinkManager {
+
+    static constexpr auto secondarySuffixSeparator = "__##";
+
 public:
     SinkManager();
 
@@ -24,10 +29,12 @@ public:
 
     class Stream {
     public:
-        Stream() {}
+        Stream() {
+            _in = &_in0;
+        }
         Stream(dsp::stream<dsp::stereo_t>* in, EventHandler<float>* srChangeHandler, float sampleRate);
 
-        void init(dsp::stream<dsp::stereo_t>* in, EventHandler<float>* srChangeHandler, float sampleRate);
+        void init(EventHandler<float>* srChangeHandler, float sampleRate);
 
         void start();
         void stop();
@@ -40,6 +47,10 @@ public:
 
         void setInput(dsp::stream<dsp::stereo_t>* in);
 
+        dsp::stream<dsp::stereo_t>* getInput() {
+            return _in;
+        }
+
         dsp::stream<dsp::stereo_t>* bindStream();
         void unbindStream(dsp::stream<dsp::stereo_t>* stream);
 
@@ -51,7 +62,10 @@ public:
         Event<float> srChange;
 
     private:
-        dsp::stream<dsp::stereo_t>* _in;
+        dsp::stream<dsp::stereo_t> _in0;
+
+        dsp::stream<dsp::stereo_t> *_in = nullptr;
+
         dsp::routing::Splitter<dsp::stereo_t> splitter;
         SinkManager::Sink* sink;
         dsp::stream<dsp::stereo_t> volumeInput;
@@ -63,6 +77,7 @@ public:
         bool running = false;
 
         float guiVolume = 1.0f;
+
     };
 
     struct SinkProvider {
@@ -88,6 +103,27 @@ public:
         dsp::sink::Null<dsp::stereo_t> ns;
     };
 
+
+    static std::string makeSecondaryStreamName(const std::string &name, int index) {
+        std::string x = name;
+        if (index == 0) return x;
+        x.append(secondarySuffixSeparator);
+        x.append(std::to_string(index));
+        return x;
+    }
+
+    static bool isSecondaryStream(const std::string& name) {
+        return name.find(secondarySuffixSeparator) != std::string::npos;
+    }
+
+    static std::pair<std::string, int> getSecondaryStreamIndex(const std::string& name) {
+        auto pos = name.find(secondarySuffixSeparator);
+        if (pos != std::string::npos) {
+            return std::make_pair(name.substr(0, pos), std::atoi(name.substr(pos+ strlen(secondarySuffixSeparator)).c_str()));
+        }
+        return std::make_pair(name, 0);
+    }
+
     void registerSinkProvider(std::string name, SinkProvider provider);
     void unregisterSinkProvider(std::string name);
 
@@ -107,6 +143,7 @@ public:
     void unbindStream(std::string name, dsp::stream<dsp::stereo_t>* stream);
 
     void loadSinksFromConfig();
+    bool configContains(const std::string& name) const;
     void showMenu();
 
     std::vector<std::string> getStreamNames();
@@ -118,6 +155,10 @@ public:
     Event<std::string> onStreamRegistered;
     Event<std::string> onStreamUnregister;
     Event<std::string> onStreamUnregistered;
+
+    Event<std::string> onAddSubstream;
+    Event<std::string> onRemoveSubstream;
+
 
 private:
     void loadStreamConfig(std::string name);

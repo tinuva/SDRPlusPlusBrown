@@ -76,9 +76,22 @@ public:
             if (info.outputChannels == 0) { continue; }
             if (info.isDefaultOutput) { defaultDevId = devList.size(); }
             devList.push_back(info);
-            deviceIds.push_back(i);
             txtDevList += info.name;
             txtDevList += '\0';
+            auto ni = info;
+            ni.name += " -> left";
+            devList.push_back(ni);
+            txtDevList += ni.name;
+            txtDevList += '\0';
+            ni = info;
+            ni.name += " -> right";
+            devList.push_back(ni);
+            txtDevList += ni.name;
+            txtDevList += '\0';
+            deviceIds.push_back(i);
+            deviceIds.push_back(i);
+            deviceIds.push_back(i);
+
         }
 
         selectByName(device);
@@ -168,17 +181,19 @@ public:
             config.release(true);
         }
 
-        ImGui::SetNextItemWidth(menuWidth);
-        if (ImGui::Combo(("##_audio_sink_sr_" + _streamName).c_str(), &srId, sampleRatesTxt.c_str())) {
-            sampleRate = sampleRates[srId];
-            _stream->setSampleRate(sampleRate);
-            if (running) {
-                doStop();
-                doStart();
+        if (SinkManager::getSecondaryStreamIndex(_streamName).second == 0) {
+            // only primary one has frequency selection
+            if (ImGui::Combo(("##_audio_sink_sr_" + _streamName).c_str(), &srId, sampleRatesTxt.c_str())) {
+                sampleRate = sampleRates[srId];
+                _stream->setSampleRate(sampleRate);
+                if (running) {
+                    doStop();
+                    doStart();
+                }
+                config.acquire();
+                config.conf[_streamName]["devices"][devList[devId].name] = sampleRate;
+                config.release(true);
             }
-            config.acquire();
-            config.conf[_streamName]["devices"][devList[devId].name] = sampleRate;
-            config.release(true);
         }
     }
 
@@ -191,6 +206,8 @@ private:
         RtAudio::StreamOptions opts;
         opts.flags = RTAUDIO_MINIMIZE_LATENCY;
         opts.streamName = _streamName;
+        std::replace(opts.streamName.begin(), opts.streamName.end(), '#','_');
+        spdlog::info("Starting RtAudio stream "+_streamName+" parameters.deviceId="+std::to_string(parameters.deviceId));
 
         try {
             audio.openStream(&parameters, NULL, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback, this, &opts);
@@ -199,7 +216,7 @@ private:
             stereoPacker.start();
         }
         catch (RtAudioError& e) {
-            spdlog::error("Could not open audio device");
+            spdlog::error("Could not open audio device: "+e.getMessage());
             return;
         }
 
@@ -207,13 +224,16 @@ private:
     }
 
     void doStop() {
+        spdlog::info("Stopping RtAudio stream:  "+_streamName);
         s2m.stop();
         monoPacker.stop();
         stereoPacker.stop();
         monoPacker.out.stopReader();
         stereoPacker.out.stopReader();
-        audio.stopStream();
-        audio.closeStream();
+        if (audio.isStreamRunning())
+            audio.stopStream();
+        if (audio.isStreamOpen())
+            audio.closeStream();
         monoPacker.out.clearReadStop();
         stereoPacker.out.clearReadStop();
     }
@@ -232,6 +252,22 @@ private:
         // }
 
         memcpy(outputBuffer, _this->stereoPacker.out.readBuf, nBufferFrames * sizeof(dsp::stereo_t));
+        auto channel = _this->devId % 3; // 0=stereo 1=left 2=right
+        auto stereoOut = (dsp::stereo_t *)outputBuffer;
+        switch (channel) {
+        default:
+            break;
+        case 1: // left
+            for (int i = 0; i < nBufferFrames; i++) {
+                stereoOut[i].r = 0;
+            }
+            break;
+        case 2: // right
+            for (int i = 0; i < nBufferFrames; i++) {
+                stereoOut[i].l = 0;
+            }
+            break;
+        }
         _this->stereoPacker.out.flush();
         return 0;
     }
