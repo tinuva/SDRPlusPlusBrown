@@ -113,6 +113,8 @@ namespace dsp::demod {
             else if (_mode == Mode::DSB) {
                 return 0.0;
             }
+            return 0.0;
+
         }
 
         Mode _mode;

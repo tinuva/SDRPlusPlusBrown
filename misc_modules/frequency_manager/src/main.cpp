@@ -788,7 +788,7 @@ private:
 
     void exportBookmarks(std::string path) {
         std::ofstream fs(wstr::str2wstr(path));
-        exportedBookmarks >> fs;
+        fs << exportedBookmarks;
         fs.close();
     }
 

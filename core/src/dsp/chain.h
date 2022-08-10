@@ -167,6 +167,7 @@ namespace dsp {
                 if (ln == block) { return NULL; }
                 if (states[ln]) { return ln; }
             }
+            return NULL;
         }
 
         Processor<T, T>* blockAfter(Processor<T, T>* block) {
