@@ -43,6 +43,7 @@ option(OPT_BUILD_SDRPLAY_SOURCE "Build SDRplay Source Module (Dependencies: libs
 option(OPT_BUILD_SOAPY_SOURCE "Build SoapySDR Source Module (Dependencies: soapysdr)" ON)
 option(OPT_BUILD_SPYSERVER_SOURCE "Build SpyServer Source Module (no dependencies required)" ON)
 option(OPT_BUILD_PLUTOSDR_SOURCE "Build PlutoSDR Source Module (Dependencies: libiio, libad9361)" ON)
+option(OPT_BUILD_HL2_SOURCE "Build Hermes Lite 2 Source Module" ON)
 
 # Sinks
 option(OPT_BUILD_ANDROID_AUDIO_SINK "Build Android Audio Sink Module (Dependencies: AAudio, only for android)" OFF)
@@ -130,6 +131,10 @@ endif (OPT_BUILD_SPYSERVER_SOURCE)
 if (OPT_BUILD_PLUTOSDR_SOURCE)
 add_subdirectory("source_modules/plutosdr_source")
 endif (OPT_BUILD_PLUTOSDR_SOURCE)
+
+if (OPT_BUILD_HL2_SOURCE)
+add_subdirectory("source_modules/hl2_source")
+endif (OPT_BUILD_HL2_SOURCE)
 
 
 # Sink modules

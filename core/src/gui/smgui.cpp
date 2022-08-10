@@ -193,7 +193,15 @@ namespace SmGui {
             else if (elem.step == DRAW_STEP_SET_NEXT_ITEM_WIDTH) {
                 SetNextItemWidth(elements[i].f);
                 i++;
+            } else if (elem.step == DRAW_STEP_POP_STYLE_COLOR) {
+                PopStyleColor(elements[i].i);
+                i++;
             }
+            else if (elem.step == DRAW_STEP_PUSH_STYLE_COLOR) {
+                PushStyleColor(elements[i].i, ImVec4(elements[i+1].f, elements[i+2].f, elements[i+3].f, elements[i+4].f));
+                i+=5;
+            }
+
             else {
                 spdlog::error("Invalid widget in Drawlist");
             }
@@ -771,6 +779,27 @@ namespace SmGui {
             rdl->pushFloat(item_width);
         }
     }
+
+    void PopStyleColor(int count) {
+        if (!serverMode) { ImGui::PopStyleColor(count); return; }
+        if (rdl) {
+            rdl->pushStep(DRAW_STEP_POP_STYLE_COLOR, false);
+            rdl->pushFloat(count);
+        }
+    }
+
+    void PushStyleColor(ImGuiCol idx, const ImVec4& col) {
+        if (!serverMode) { ImGui::PushStyleColor(idx, col); return; }
+        if (rdl) {
+            rdl->pushStep(DRAW_STEP_PUSH_STYLE_COLOR, false);
+            rdl->pushInt((int)idx);
+            rdl->pushFloat(col.x);
+            rdl->pushFloat(col.y);
+            rdl->pushFloat(col.z);
+            rdl->pushFloat(col.w);
+        }
+    }
+
 
     // Config configs
     void ForceSyncForNext() {
