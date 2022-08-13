@@ -8,6 +8,30 @@
 #include <gui/gui.h>
 #include <gui/style.h>
 
+static long long currentTimeMillis() {
+    std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
+    long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
+    return msec;
+}
+
+#define MEASURE_LOCK_GUARD(mtx) \
+    auto t0 = currentTimeMillis();                      \
+    std::lock_guard lck(mtx); \
+    t0 = currentTimeMillis() - t0; \
+    if (t0 > 5) { \
+        spdlog::info("Lock took {0}, line {1}", t0, __LINE__); \
+    }
+
+#define MEASURE_LOCK(mtx) \
+    auto t0 = currentTimeMillis();                      \
+    mtx.lock(); \
+    t0 = currentTimeMillis() - t0; \
+    if (t0 > 5) { \
+        spdlog::info("Lock took {0}, line {1}", t0, __LINE__); \
+    }
+
+
+
 float DEFAULT_COLOR_MAP[][3] = {
     { 0x00, 0x00, 0x20 },
     { 0x00, 0x00, 0x30 },
@@ -745,8 +769,9 @@ namespace ImGui {
         }
     }
 
+
     void WaterFall::updateWaterfallTexturesIfNeeded() {
-        std::lock_guard<std::mutex> lck(texMtx);
+        MEASURE_LOCK_GUARD(texMtx);
         int startRowIndex = waterfallFbHeadRowIndex;
         int sectionIndex = waterfallHeadSectionIndex;
         int sectionHeight = waterfallHeadSectionHeight;
@@ -822,7 +847,7 @@ namespace ImGui {
     }
 
     void WaterFall::onResize() {
-        std::lock_guard lck(latestFFTMtx);
+        MEASURE_LOCK_GUARD(latestFFTMtx);
         // return if widget is too small
         if (widgetSize.x < 100 || widgetSize.y < 100) {
             return;
@@ -910,7 +935,7 @@ namespace ImGui {
     }
 
     void WaterFall::draw() {
-        std::lock_guard lck(buf_mtx);
+        MEASURE_LOCK_GUARD(buf_mtx);
         window = GetCurrentWindow();
 
         widgetPos = ImGui::GetWindowContentRegionMin();
@@ -972,7 +997,7 @@ namespace ImGui {
 
     float* WaterFall::getFFTBuffer() {
         if (rawFFTs == NULL) { return NULL; }
-        buf_mtx.lock();
+        MEASURE_LOCK(buf_mtx);
         if (waterfallVisible) {
             currentFFTLine--;
             fftLines++;
@@ -988,7 +1013,7 @@ namespace ImGui {
      */
     void WaterFall::pushFFT() {
         if (rawFFTs == NULL) { return; }
-        std::lock_guard lck(latestFFTMtx);
+        MEASURE_LOCK_GUARD(latestFFTMtx);
 
         double offsetRatio = viewOffset / (wholeBandwidth / 2.0);
         int drawDataSize = (viewBandwidth / wholeBandwidth) * rawFFTSize;
@@ -1049,7 +1074,7 @@ namespace ImGui {
     }
 
     void WaterFall::updatePallette(float colors[][3], int colorCount) {
-        std::lock_guard lck(buf_mtx);
+        MEASURE_LOCK_GUARD(buf_mtx);
         for (int i = 0; i < WATERFALL_RESOLUTION; i++) {
             int lowerId = floorf(((float)i / (float)WATERFALL_RESOLUTION) * colorCount);
             int upperId = ceilf(((float)i / (float)WATERFALL_RESOLUTION) * colorCount);
@@ -1065,7 +1090,7 @@ namespace ImGui {
     }
 
     void WaterFall::updatePalletteFromArray(float* colors, int colorCount) {
-        std::lock_guard lck(buf_mtx);
+        MEASURE_LOCK_GUARD(buf_mtx);
         for (int i = 0; i < WATERFALL_RESOLUTION; i++) {
             int lowerId = floorf(((float)i / (float)WATERFALL_RESOLUTION) * colorCount);
             int upperId = ceilf(((float)i / (float)WATERFALL_RESOLUTION) * colorCount);
@@ -1081,7 +1106,7 @@ namespace ImGui {
     }
 
     void WaterFall::autoRange() {
-        std::lock_guard lck(latestFFTMtx);
+        MEASURE_LOCK_GUARD(latestFFTMtx);
 
         float min = INFINITY;
         float max = -INFINITY;
@@ -1128,7 +1153,7 @@ namespace ImGui {
     }
 
     void WaterFall::setViewBandwidth(double bandWidth) {
-        std::lock_guard lck(buf_mtx);
+        MEASURE_LOCK_GUARD(buf_mtx);
         if (bandWidth == viewBandwidth) {
             return;
         }
@@ -1153,7 +1178,7 @@ namespace ImGui {
     }
 
     void WaterFall::setViewOffset(double offset) {
-        std::lock_guard lck(buf_mtx);
+        MEASURE_LOCK_GUARD(buf_mtx);
         if (offset == viewOffset) {
             return;
         }
@@ -1193,12 +1218,12 @@ namespace ImGui {
     }
 
     void WaterFall::setFullWaterfallUpdate(bool fullUpdate) {
-        std::lock_guard lck(buf_mtx);
+        MEASURE_LOCK_GUARD(buf_mtx);
         _fullUpdate = fullUpdate;
     }
 
     void WaterFall::setWaterfallMin(float min) {
-        std::lock_guard lck(buf_mtx);
+        MEASURE_LOCK_GUARD(buf_mtx);
         if (min == waterfallMin) {
             return;
         }
@@ -1211,7 +1236,7 @@ namespace ImGui {
     }
 
     void WaterFall::setWaterfallMax(float max) {
-        std::lock_guard lck(buf_mtx);
+        MEASURE_LOCK_GUARD(buf_mtx);
         if (max == waterfallMax) {
             return;
         }
@@ -1240,7 +1265,7 @@ namespace ImGui {
     }
 
     void WaterFall::setRawFFTSize(int size) {
-        std::lock_guard lck(buf_mtx);
+        MEASURE_LOCK_GUARD(buf_mtx);
         rawFFTSize = size;
         int wfSize = std::max<int>(1, waterfallHeight);
         if (rawFFTs != NULL) {
@@ -1437,7 +1462,7 @@ namespace ImGui {
     };
 
     void WaterFall::showWaterfall() {
-        std::lock_guard lck(buf_mtx);
+        MEASURE_LOCK_GUARD(buf_mtx);
         if (rawFFTs == NULL) {
             spdlog::error("Null rawFFT");
         }
@@ -1448,13 +1473,13 @@ namespace ImGui {
     }
 
     void WaterFall::hideWaterfall() {
-        std::lock_guard lck(buf_mtx);
+        MEASURE_LOCK_GUARD(buf_mtx);
         waterfallVisible = false;
         onResize();
     }
 
     void WaterFall::setFFTHeight(int height) {
-        std::lock_guard lck(buf_mtx);
+        MEASURE_LOCK_GUARD(buf_mtx);
         FFTAreaHeight = height;
         newFFTAreaHeight = height;
         onResize();
