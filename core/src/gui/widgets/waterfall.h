@@ -90,6 +90,14 @@ namespace ImGui {
         float* getFFTBuffer();
         void pushFFT();
 
+        /**
+         *
+         * @param offset
+         * @param width             size of input buffer (data)
+         * @param outWidth          size of output buffer (out)
+         * @param data              input data to scale
+         * @param out               output buffer to write scaled data to
+         */
         inline void doZoom(int offset, int width, int outWidth, float* data, float* out) {
             // NOTE: REMOVE THAT SHIT, IT'S JUST A HACKY FIX
             if (offset < 0) {
@@ -248,7 +256,7 @@ namespace ImGui {
         void processInputs();
         void onPositionChange();
         void onResize();
-        void updateWaterfallFb();
+        void updateWaterfallFb(const std::string &where = "");
         void updateWaterfallTexture();
 
         enum {
@@ -289,9 +297,9 @@ namespace ImGui {
         int maxVSteps;
         int maxHSteps;
 
-        int dataWidth;           // Width of the FFT and waterfall
-        int fftHeight;           // Height of the fft graph
-        int waterfallHeight = 0; // Height of the waterfall
+        int dataWidth;           // Width of the FFT/oscilloscope and waterfall, taken from window size, in pixels
+        int fftHeight;           // Height of the fft graph, taken from window size, in pixels
+        int waterfallHeight = 0; // Height of the waterfall, taken from window size, in pixels
 
         double viewBandwidth;
         double viewOffset;
@@ -316,8 +324,8 @@ namespace ImGui {
 
         //std::vector<std::vector<float>> rawFFTs;
         int rawFFTSize;
-        float* rawFFTs = NULL;
-        float* latestFFT;
+        float* rawFFTs = NULL;              // this is where incoming FFTS are stored, multiple lines, (rawFFTSize * waterfallHeight) elements
+        float* latestFFT;                   // output buffer where last line is scaled to (after doZoom)
         float* latestFFTHold;
         int currentFFTLine = 0;
         int fftLines = 0;
@@ -362,5 +370,6 @@ namespace ImGui {
         ImVec2 lastMousePos;
 
         const int rawFFTIndex(double frequency) const;
+        void testAlloc(const std::string& where);
     };
 };

@@ -98,7 +98,6 @@ namespace ImGui {
     }
 
     void WaterFall::drawFFT() {
-        std::lock_guard<std::recursive_mutex> lck(latestFFTMtx);
 
         // Calculate scaling factor
         float startLine = floorf(fftMax / vRange) * vRange;
@@ -187,12 +186,11 @@ namespace ImGui {
     }
 
     void WaterFall::drawWaterfall() {
-        if (waterfallUpdate) {
-            waterfallUpdate = false;
-            updateWaterfallTexturesIfNeeded();
-        }
         {
-            std::lock_guard<std::mutex> lck(texMtx);
+            if (waterfallUpdate) {
+                waterfallUpdate = false;
+                updateWaterfallTexturesIfNeeded();
+            }
             drawWaterfallImages();
         }
         ImVec2 mPos = ImGui::GetMousePos();
@@ -618,7 +616,10 @@ namespace ImGui {
         return std::clamp<int>(((frequency / (wholeBandwidth / 2.0)) * (double)(rawFFTSize / 2)) + (rawFFTSize / 2), 0, rawFFTSize);
     }
 
-    void WaterFall::updateWaterfallFb() {
+    /**
+     * from raw fft to the waterfallDB, using palette. Also, invalidates opengl textures.
+     * */
+    void WaterFall::updateWaterfallFb(const std::string &where) {
         if (!waterfallVisible || rawFFTs == NULL) {
             return;
         }
@@ -631,13 +632,21 @@ namespace ImGui {
         int count = std::min<float>(waterfallHeight, fftLines);
         if (rawFFTs != NULL && fftLines >= 0) {
             const int totalNumberOfPixels = dataWidth * waterfallHeight;
-            int waterfallFbIndex = waterfallFbHeadRowIndex * dataWidth;
+            int waterfallFbIndex;
+            if (totalNumberOfPixels == 0) {
+                waterfallFbIndex = (waterfallFbHeadRowIndex * dataWidth);
+            } else {
+                waterfallFbIndex = (waterfallFbHeadRowIndex * dataWidth) % totalNumberOfPixels;
+            }
             for (int i = 0; i < count; i++) {
                 drawDataSize = (viewBandwidth / wholeBandwidth) * rawFFTSize;
                 drawDataStart = (((double)rawFFTSize / 2.0) * (offsetRatio + 1)) - (drawDataSize / 2);
                 doZoom(drawDataStart, drawDataSize, dataWidth, &rawFFTs[((i + currentFFTLine) % waterfallHeight) * rawFFTSize], tempData);
                 for (int j = 0; j < dataWidth; j++) {
                     pixel = (std::clamp<float>(tempData[j], waterfallMin, waterfallMax) - waterfallMin) / dataRange;
+                    if (waterfallFbIndex >= dataWidth * waterfallHeight) {
+                        abort();
+                    }
                     waterfallFb[waterfallFbIndex++] = waterfallPallet[(int)(pixel * (WATERFALL_RESOLUTION - 1))];
                 }
                 waterfallFbIndex %= totalNumberOfPixels;
@@ -645,6 +654,9 @@ namespace ImGui {
 
             for (int i = count; i < waterfallHeight; i++) {
                 for (int j = 0; j < dataWidth; j++) {
+                    if (waterfallFbIndex >= dataWidth * waterfallHeight) {
+                        abort();
+                    }
                     waterfallFb[waterfallFbIndex++] = (uint32_t)255 << 24;
                 }
                 waterfallFbIndex %= totalNumberOfPixels;
@@ -655,6 +667,10 @@ namespace ImGui {
 
         for (int i = 0; i < WATERFALL_NUMBER_OF_SECTIONS; ++i) {
             setTextureStatus(i, TEXTURE_SPECIFY_REQUIRED);
+        }
+        if (!where.empty()) {
+            // from paint thread
+            updateWaterfallTexturesIfNeeded();
         }
     }
 
@@ -755,7 +771,8 @@ namespace ImGui {
                 // no need to copy, can use a continuous chunk of waterfallFb
                 pixels = reinterpret_cast<uint8_t*>(&waterfallFb[firstPixelIndex]);
             } else {
-                buffer = new uint8_t[dataWidth * WATERFALL_MAX_SECTION_HEIGHT * sizeof(uint32_t)];
+                auto sz = dataWidth * WATERFALL_MAX_SECTION_HEIGHT * sizeof(uint32_t);
+                buffer = new uint8_t[sz];
 
                 int bytesPerRow = dataWidth * sizeof(uint32_t);
 
@@ -765,8 +782,8 @@ namespace ImGui {
                 int firstChunkSizeInBytes = firstChunkHeight * bytesPerRow;
                 int secondChunkSizeInBytes = secondChunkHeight * bytesPerRow;
 
-                memcpy(&buffer[0], &waterfallFb[firstPixelIndex], firstChunkSizeInBytes);
-                memcpy(&buffer[firstChunkSizeInBytes], &waterfallFb[0], secondChunkSizeInBytes);
+                memcpy(buffer, &waterfallFb[firstPixelIndex], firstChunkSizeInBytes);
+                memcpy(buffer + firstChunkSizeInBytes, &waterfallFb[0], secondChunkSizeInBytes);
 
                 pixels = buffer;
             }
@@ -800,21 +817,12 @@ namespace ImGui {
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, dataWidth, WATERFALL_MAX_SECTION_HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     }
 
-    //    void WaterFall::clearTexture(int textureIndex) const {
-    //        if (waterfallTexturesInvalid[textureIndex] > 1 || waterfallTexturesHeights[textureIndex] > 1) {
-    //            const uint32_t pixel = 0;
-    //            specifyTexture(textureIndex, 1, reinterpret_cast<const uint8_t*>(&pixel));
-    //            waterfallTexturesInvalid[textureIndex] = 1;
-    //            waterfallTexturesHeights[textureIndex] = 1;
-    //        }
-    //    }
-
     void WaterFall::onPositionChange() {
         // Nothing to see here...
     }
 
     void WaterFall::onResize() {
-        std::lock_guard<std::recursive_mutex> lck(latestFFTMtx);
+        std::lock_guard lck(latestFFTMtx);
         // return if widget is too small
         if (widgetSize.x < 100 || widgetSize.y < 100) {
             return;
@@ -830,6 +838,7 @@ namespace ImGui {
 
             waterfallHeadSectionIndex = 0;
             waterfallHeadSectionHeight = 0;
+            waterfallFbHeadRowIndex = 0;
         }
         else {
             fftHeight = widgetSize.y - (50.0f * style::uiScale);
@@ -881,7 +890,6 @@ namespace ImGui {
             latestFFT[i] = -1000.0; // Hide everything
             latestFFTHold[i] = -1000.0;
         }
-
         fftAreaMin = ImVec2(widgetPos.x + (50.0f * style::uiScale), widgetPos.y + (9.0f * style::uiScale));
         fftAreaMax = ImVec2(fftAreaMin.x + dataWidth, fftAreaMin.y + fftHeight + 1);
 
@@ -897,12 +905,12 @@ namespace ImGui {
         range = findBestRange(viewBandwidth, maxHSteps);
         vRange = findBestRange(fftMax - fftMin, maxVSteps);
 
-        updateWaterfallFb();
+        updateWaterfallFb("resize2");
         updateAllVFOs();
     }
 
     void WaterFall::draw() {
-        buf_mtx.lock();
+        std::lock_guard lck(buf_mtx);
         window = GetCurrentWindow();
 
         widgetPos = ImGui::GetWindowContentRegionMin();
@@ -960,12 +968,6 @@ namespace ImGui {
             drawBandPlan();
         }
 
-        if (!waterfallVisible) {
-            buf_mtx.unlock();
-            return;
-        }
-
-        buf_mtx.unlock();
     }
 
     float* WaterFall::getFFTBuffer() {
@@ -981,9 +983,12 @@ namespace ImGui {
         return rawFFTs;
     }
 
+    /**
+     * rawFFTs -> (doZoom) -> lastFFT -> (palletizing) -> waterfallFb[current]
+     */
     void WaterFall::pushFFT() {
         if (rawFFTs == NULL) { return; }
-        std::lock_guard<std::recursive_mutex> lck(latestFFTMtx);
+        std::lock_guard lck(latestFFTMtx);
 
         double offsetRatio = viewOffset / (wholeBandwidth / 2.0);
         int drawDataSize = (viewBandwidth / wholeBandwidth) * rawFFTSize;
@@ -1044,7 +1049,7 @@ namespace ImGui {
     }
 
     void WaterFall::updatePallette(float colors[][3], int colorCount) {
-        std::lock_guard<std::recursive_mutex> lck(buf_mtx);
+        std::lock_guard lck(buf_mtx);
         for (int i = 0; i < WATERFALL_RESOLUTION; i++) {
             int lowerId = floorf(((float)i / (float)WATERFALL_RESOLUTION) * colorCount);
             int upperId = ceilf(((float)i / (float)WATERFALL_RESOLUTION) * colorCount);
@@ -1060,7 +1065,7 @@ namespace ImGui {
     }
 
     void WaterFall::updatePalletteFromArray(float* colors, int colorCount) {
-        std::lock_guard<std::recursive_mutex> lck(buf_mtx);
+        std::lock_guard lck(buf_mtx);
         for (int i = 0; i < WATERFALL_RESOLUTION; i++) {
             int lowerId = floorf(((float)i / (float)WATERFALL_RESOLUTION) * colorCount);
             int upperId = ceilf(((float)i / (float)WATERFALL_RESOLUTION) * colorCount);
@@ -1076,7 +1081,7 @@ namespace ImGui {
     }
 
     void WaterFall::autoRange() {
-        std::lock_guard<std::recursive_mutex> lck(latestFFTMtx);
+        std::lock_guard lck(latestFFTMtx);
 
         float min = INFINITY;
         float max = -INFINITY;
@@ -1090,20 +1095,6 @@ namespace ImGui {
         }
         fftMin = min - 5;
         fftMax = max + 5;
-    }
-
-    float* WaterFall::acquireLatestFFT(int& width) {
-        latestFFTMtx.lock();
-        if (!latestFFT) {
-            latestFFTMtx.unlock();
-            return NULL;
-        }
-        width = dataWidth;
-        return latestFFT;
-    }
-
-    void WaterFall::releaseLatestFFT() {
-        latestFFTMtx.unlock();
     }
 
     void WaterFall::setCenterFrequency(double freq) {
@@ -1137,7 +1128,7 @@ namespace ImGui {
     }
 
     void WaterFall::setViewBandwidth(double bandWidth) {
-        std::lock_guard<std::recursive_mutex> lck(buf_mtx);
+        std::lock_guard lck(buf_mtx);
         if (bandWidth == viewBandwidth) {
             return;
         }
@@ -1162,7 +1153,7 @@ namespace ImGui {
     }
 
     void WaterFall::setViewOffset(double offset) {
-        std::lock_guard<std::recursive_mutex> lck(buf_mtx);
+        std::lock_guard lck(buf_mtx);
         if (offset == viewOffset) {
             return;
         }
@@ -1202,12 +1193,12 @@ namespace ImGui {
     }
 
     void WaterFall::setFullWaterfallUpdate(bool fullUpdate) {
-        std::lock_guard<std::recursive_mutex> lck(buf_mtx);
+        std::lock_guard lck(buf_mtx);
         _fullUpdate = fullUpdate;
     }
 
     void WaterFall::setWaterfallMin(float min) {
-        std::lock_guard<std::recursive_mutex> lck(buf_mtx);
+        std::lock_guard lck(buf_mtx);
         if (min == waterfallMin) {
             return;
         }
@@ -1220,7 +1211,7 @@ namespace ImGui {
     }
 
     void WaterFall::setWaterfallMax(float max) {
-        std::lock_guard<std::recursive_mutex> lck(buf_mtx);
+        std::lock_guard lck(buf_mtx);
         if (max == waterfallMax) {
             return;
         }
@@ -1249,7 +1240,7 @@ namespace ImGui {
     }
 
     void WaterFall::setRawFFTSize(int size) {
-        std::lock_guard<std::recursive_mutex> lck(buf_mtx);
+        std::lock_guard lck(buf_mtx);
         rawFFTSize = size;
         int wfSize = std::max<int>(1, waterfallHeight);
         if (rawFFTs != NULL) {
@@ -1446,7 +1437,7 @@ namespace ImGui {
     };
 
     void WaterFall::showWaterfall() {
-        buf_mtx.lock();
+        std::lock_guard lck(buf_mtx);
         if (rawFFTs == NULL) {
             spdlog::error("Null rawFFT");
         }
@@ -1454,22 +1445,19 @@ namespace ImGui {
         onResize();
         memset(rawFFTs, 0, waterfallHeight * rawFFTSize * sizeof(float));
         updateWaterfallFb();
-        buf_mtx.unlock();
     }
 
     void WaterFall::hideWaterfall() {
-        buf_mtx.lock();
+        std::lock_guard lck(buf_mtx);
         waterfallVisible = false;
         onResize();
-        buf_mtx.unlock();
     }
 
     void WaterFall::setFFTHeight(int height) {
+        std::lock_guard lck(buf_mtx);
         FFTAreaHeight = height;
         newFFTAreaHeight = height;
-        buf_mtx.lock();
         onResize();
-        buf_mtx.unlock();
     }
 
     int WaterFall::getFFTHeight() {
