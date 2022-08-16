@@ -9,7 +9,6 @@
 #include "snr_meter.h"
 
 namespace ImGui {
-
     Event<SNRMeterExtPoint> onSNRMeterExtPoint;
 
     void SNRMeter(float val, const ImVec2& size_arg) {
@@ -44,6 +43,6 @@ namespace ImGui {
             window->DrawList->AddText(min + ImVec2(roundf(((float)i * it) - (sz.x / 2.0f)) + 1, 16.0f * style::uiScale), text, buf);
         }
 
-        onSNRMeterExtPoint.emit({.postSnrLocation =  min + ImVec2(0, -min.y), .lastDrawnValue =  drawVal});
+        onSNRMeterExtPoint.emit(SNRMeterExtPoint(min + ImVec2(0, -min.y), drawVal));
     }
 }
