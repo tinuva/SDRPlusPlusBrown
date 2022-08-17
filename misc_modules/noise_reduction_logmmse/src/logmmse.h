@@ -312,10 +312,12 @@ namespace dsp {
                     params->win = div(mul(params->win, params->len2), npsum(params->win));
                 } else {
                     // probably wide band
-                    params->win = npzeros(params->Slen);
-                    for (int i = 0; i < params->win->size(); i++) {
-                        params->win->at(i) = 1.0;
-                    }
+                    params->win = nphanning(params->Slen);
+                    params->win = div(mul(params->win, params->len2), npsum(params->win));
+//                    params->win = npzeros(params->Slen);
+//                    for (int i = 0; i < params->win->size(); i++) {
+//                        params->win->at(i) = 1.0;
+//                    }
                 }
                 params->nFFT = 2 * params->Slen;
                 params->forwardPlan = allocateFFTWPlan(false, params->nFFT);
