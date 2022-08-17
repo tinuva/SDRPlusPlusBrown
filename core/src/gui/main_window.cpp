@@ -558,7 +558,7 @@ void MainWindow::draw() {
     ImGui::BeginChild("Waterfall");
 
     gui::waterfall.draw();
-    onWaterfallDrawn.emit(nullptr);
+    onWaterfallDrawn.emit(GImGui);
 
     ImGui::EndChild();
 
