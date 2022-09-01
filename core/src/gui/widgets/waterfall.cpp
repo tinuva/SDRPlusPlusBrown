@@ -1500,4 +1500,19 @@ namespace ImGui {
     void WaterfallVFO::setSnapInterval(double interval) {
         snapInterval = interval;
     }
+
+    float* WaterFall::acquireLatestFFT(int& width) {
+        latestFFTMtx.lock();
+        if (!latestFFT) {
+            latestFFTMtx.unlock();
+            return NULL;
+        }
+        width = dataWidth;
+        return latestFFT;
+    }
+
+    void WaterFall::releaseLatestFFT() {
+        latestFFTMtx.unlock();
+    }
+
 };
