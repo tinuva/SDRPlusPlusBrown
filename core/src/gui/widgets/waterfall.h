@@ -335,9 +335,8 @@ namespace ImGui {
 
         int waterfallFbHeadRowIndex = 0;
 
-        const int WATERFALL_MAX_SECTION_HEIGHT = 64;
-        const int WATERFALL_MAX_SUPPORTED_HEIGHT = 4320;
-        const int WATERFALL_NUMBER_OF_SECTIONS = (WATERFALL_MAX_SUPPORTED_HEIGHT / WATERFALL_MAX_SECTION_HEIGHT) + 2;
+        const int WATERFALL_NUMBER_OF_SECTIONS = 64;
+        int waterfallMaxSectionHeight = 2;
 
         int waterfallHeadSectionIndex = 0;
         int waterfallHeadSectionHeight = 0;

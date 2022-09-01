@@ -242,10 +242,10 @@ namespace ImGui {
                                        ImVec2(minX, minY),
                                        ImVec2(maxX, maxY),
                                        ImVec2(0, 0),
-                                       ImVec2(1, (float) imageHeight / WATERFALL_MAX_SECTION_HEIGHT));
+                                       ImVec2(1, (float) imageHeight / waterfallMaxSectionHeight));
             rowsToGo -= imageHeight;
             sectionIndex = (sectionIndex + 1) % WATERFALL_NUMBER_OF_SECTIONS;
-            imageHeight = std::min<int>(rowsToGo, WATERFALL_MAX_SECTION_HEIGHT);
+            imageHeight = std::min<int>(rowsToGo, waterfallMaxSectionHeight);
             minY = maxY;
             maxY = minY + imageHeight;
         }
@@ -782,51 +782,33 @@ namespace ImGui {
             rowsToGo -= sectionHeight;
             startRowIndex = (startRowIndex + sectionHeight) % waterfallHeight;
             sectionIndex = (sectionIndex + 1) % WATERFALL_NUMBER_OF_SECTIONS;
-            sectionHeight = WATERFALL_MAX_SECTION_HEIGHT;
+            sectionHeight = waterfallMaxSectionHeight;
         }
     }
 
     void WaterFall::updateWaterfallTextureIfNeeded(int textureIndex, int startRowIndex) {
         const int status = waterfallTexturesStatuses[textureIndex];
-        if (status != TEXTURE_OK) {
-            uint8_t* pixels;
-            uint8_t* buffer = nullptr;
-            const int firstPixelIndex = startRowIndex * dataWidth;
-            if (startRowIndex + WATERFALL_MAX_SECTION_HEIGHT <= waterfallHeight) {
-                // no need to copy, can use a continuous chunk of waterfallFb
-                pixels = reinterpret_cast<uint8_t*>(&waterfallFb[firstPixelIndex]);
-            } else {
-                auto sz = dataWidth * WATERFALL_MAX_SECTION_HEIGHT * sizeof(uint32_t);
-                buffer = new uint8_t[sz];
 
-                int bytesPerRow = dataWidth * sizeof(uint32_t);
-
-                int firstChunkHeight = waterfallHeight - startRowIndex;
-                int secondChunkHeight = WATERFALL_MAX_SECTION_HEIGHT - firstChunkHeight;
-
-                int firstChunkSizeInBytes = firstChunkHeight * bytesPerRow;
-                int secondChunkSizeInBytes = secondChunkHeight * bytesPerRow;
-
-                memcpy(buffer, &waterfallFb[firstPixelIndex], firstChunkSizeInBytes);
-                memcpy(buffer + firstChunkSizeInBytes, &waterfallFb[0], secondChunkSizeInBytes);
-
-                pixels = buffer;
-            }
-
-            switch (status) {
-            case TEXTURE_SPECIFY_REQUIRED:
-                specifyTexture(textureIndex, pixels);
-                break;
-            case TEXTURE_PIXELS_CHANGE_REQUIRED:
-                changeTexturePixels(textureIndex, pixels);
-                break;
-            }
-            setTextureStatus(textureIndex, TEXTURE_OK);
-
-            if (buffer != nullptr) {
-                delete[] buffer;
-            }
+        if (status == TEXTURE_OK) {
+            return;
         }
+
+        const int firstPixelIndex = startRowIndex * dataWidth;
+        auto pixels = reinterpret_cast<uint8_t*>(&waterfallFb[firstPixelIndex]);
+        if (startRowIndex + waterfallMaxSectionHeight > waterfallHeight) {
+            // use wrapped-around rows and extra rows in waterfallFb to create continuous pixels for texture
+            const int numOfRowsToCopy = startRowIndex + waterfallMaxSectionHeight - waterfallHeight;
+            const int numOfBytesToCopy = numOfRowsToCopy * dataWidth * sizeof(uint32_t);
+            memcpy(&waterfallFb[waterfallHeight * dataWidth], waterfallFb, numOfBytesToCopy);
+        }
+
+        if (status == TEXTURE_PIXELS_CHANGE_REQUIRED) {
+            changeTexturePixels(textureIndex, pixels);
+        } else {
+            specifyTexture(textureIndex, pixels);
+        };
+
+        setTextureStatus(textureIndex, TEXTURE_OK);
     }
 
     void WaterFall::specifyTexture(int textureIndex, const uint8_t* pixels) const {
@@ -834,12 +816,12 @@ namespace ImGui {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, dataWidth, WATERFALL_MAX_SECTION_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, dataWidth, waterfallMaxSectionHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     }
 
     void WaterFall::changeTexturePixels(int textureIndex, const uint8_t* pixels) const {
         glBindTexture(GL_TEXTURE_2D, waterfallTexturesIds[textureIndex]); //A texture you have already created storage for
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, dataWidth, WATERFALL_MAX_SECTION_HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, dataWidth, waterfallMaxSectionHeight, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     }
 
     void WaterFall::onPositionChange() {
@@ -864,6 +846,7 @@ namespace ImGui {
             waterfallHeadSectionIndex = 0;
             waterfallHeadSectionHeight = 0;
             waterfallFbHeadRowIndex = 0;
+            waterfallMaxSectionHeight = 2 + (waterfallHeight / std::max<int>(WATERFALL_NUMBER_OF_SECTIONS - 2, 2));
         }
         else {
             fftHeight = widgetSize.y - (50.0f * style::uiScale);
@@ -905,8 +888,10 @@ namespace ImGui {
 
         if (waterfallVisible) {
             delete[] waterfallFb;
-            waterfallFb = new uint32_t[dataWidth * waterfallHeight];
-            memset(waterfallFb, 0, dataWidth * waterfallHeight * sizeof(uint32_t));
+            // allocate extra rows, will be used to create continuous pixels for textures
+            const int sz = dataWidth * (waterfallHeight + 128);
+            waterfallFb = new uint32_t[sz];
+            memset(waterfallFb, 0, sz * sizeof(uint32_t));
 
             delete[] tempDataForUpdateWaterfallFb;
             tempDataForUpdateWaterfallFb = new float[dataWidth];
@@ -1023,7 +1008,7 @@ namespace ImGui {
             doZoom(drawDataStart, drawDataSize, dataWidth, &rawFFTs[currentFFTLine * rawFFTSize], latestFFT);
 
             waterfallHeadSectionHeight++;
-            if (waterfallHeadSectionHeight > WATERFALL_MAX_SECTION_HEIGHT) {
+            if (waterfallHeadSectionHeight > waterfallMaxSectionHeight) {
                 waterfallHeadSectionIndex--;
                 if (waterfallHeadSectionIndex < 0) {
                     waterfallHeadSectionIndex = WATERFALL_NUMBER_OF_SECTIONS - 1;
