@@ -21,6 +21,7 @@ cp $build_dir/source_modules/bladerf_source/Release/bladerf_source.dll sdrpp_win
 cp 'C:/Program Files/PothosSDR/bin/bladeRF.dll' sdrpp_windows_x64/
 
 cp $build_dir/source_modules/file_source/Release/file_source.dll sdrpp_windows_x64/modules/
+cp $build_dir/source_modules/hl2_source/Release/hl2_source.dll sdrpp_windows_x64/modules/
 
 cp $build_dir/source_modules/hackrf_source/Release/hackrf_source.dll sdrpp_windows_x64/modules/
 cp 'C:/Program Files/PothosSDR/bin/hackrf.dll' sdrpp_windows_x64/
@@ -69,6 +70,7 @@ cp $build_dir/misc_modules/frequency_manager/Release/frequency_manager.dll sdrpp
 cp $build_dir/misc_modules/recorder/Release/recorder.dll sdrpp_windows_x64/modules/
 cp $build_dir/misc_modules/rigctl_server/Release/rigctl_server.dll sdrpp_windows_x64/modules/
 cp $build_dir/misc_modules/scanner/Release/scanner.dll sdrpp_windows_x64/modules/
+cp $build_dir/misc_modules/noise_reduction*/Release/noise_red*.dll sdrpp_windows_x64/modules/
 
 
 # Copy supporting libs
