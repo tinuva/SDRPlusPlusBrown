@@ -255,7 +255,7 @@ jobs:
               path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
 
     create_full_archive:
-        needs: ['build_windows', 'build_macos', 'build_debian_buster', 'build_debian_bullseye', 'build_debian_sid', 'build_ubuntu_bionic', 'build_ubuntu_focal', 'build_ubuntu_jammy']
+        needs: ['build_windows', 'build_macos', 'build_debian_buster', 'build_debian_bullseye', 'build_debian_sid', 'build_ubuntu_focal', 'build_ubuntu_jammy']
         runs-on: ubuntu-latest
 
         steps:
@@ -270,7 +270,6 @@ jobs:
             mv sdrpp_debian_buster_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_debian_buster_amd64.deb && 
             mv sdrpp_debian_bullseye_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_debian_bullseye_amd64.deb && 
             mv sdrpp_debian_sid_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_debian_sid_amd64.deb && 
-            mv sdrpp_ubuntu_bionic_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_ubuntu_bionic_amd64.deb && 
             mv sdrpp_ubuntu_focal_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_ubuntu_focal_amd64.deb &&
             mv sdrpp_ubuntu_jammy_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_ubuntu_jammy_amd64.deb 
 
