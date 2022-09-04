@@ -34,6 +34,9 @@ public:
 
     Event<bool> onPlayStateChange;
     Event<ImGuiContext *> onWaterfallDrawn;
+    void setFirstMenuRender() {
+        firstMenuRender = true;
+    }
 
 private:
     static void vfoAddedHandler(VFOManager::VFO* vfo, void* ctx);
