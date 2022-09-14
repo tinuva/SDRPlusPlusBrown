@@ -59,10 +59,9 @@ Please note you must be logged in to GitHub to be able to download the artifacts
 * you need to enable plugins to use most of fork functionality: noise_reduction_logmmse and hl2_source
 * improved waterfall performance
 
-
 ## Feedback
 
-Have an issue? Works worse than original? File an [issue](https://github.com/sannysanoff/SDRPlusPlus/issues).
+``Have an issue? Works worse than original? File an [issue](https://github.com/sannysanoff/SDRPlusPlus/issues).
 
 Good luck.
 
