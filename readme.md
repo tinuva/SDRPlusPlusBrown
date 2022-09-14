@@ -33,6 +33,7 @@ Please note you must be logged in to GitHub to be able to download the artifacts
 * ability to output sound on left or right channel only for particular audio device.
 * Airspy HF+ Discovery - narrowing of baseband to hide attenuated parts.
 * waterfall drawing is greatly optimized for CPU and GPU bandwidth, important for 4K monitors. 
+* small screen option - for android landscape, makes screen layout more accessible. 
 
 ## Version log (oldest first)
 
