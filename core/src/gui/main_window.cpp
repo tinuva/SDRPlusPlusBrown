@@ -376,7 +376,7 @@ void MainWindow::draw() {
     ImGui::SameLine();
     float origY = ImGui::GetCursorPosY();
 
-    sigpath::sinkManager.showVolumeSlider(gui::waterfall.selectedVFO, "##_sdrpp_main_volume_", 248 * style::uiScale, btnSize.x, 5, true);
+    sigpath::sinkManager.showVolumeSlider(gui::waterfall.selectedVFO, "##_sdrpp_main_volume_", (displaymenu::smallScreen ? 248 / 3 : 248) * style::uiScale, btnSize.x, 5, true);
 
     ImGui::SameLine();
 
@@ -527,7 +527,6 @@ void MainWindow::draw() {
             }
 
             ImGui::Checkbox("WF Single Click", &gui::waterfall.VFOMoveSingleClick);
-            ImGui::Checkbox("Lock Menu Order", &gui::menu.locked);
 
             ImGui::Spacing();
         }
@@ -609,10 +608,11 @@ void MainWindow::draw() {
     ImGui::NextColumn();
     ImGui::BeginChild("WaterfallControls");
 
+    ImVec2 wfSliderSize((displaymenu::smallScreen ? 40.0 : 20.0) * style::uiScale, (displaymenu::smallScreen ? 100.0 : 150.0) * style::uiScale);
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - (ImGui::CalcTextSize("Zoom").x / 2.0));
     ImGui::TextUnformatted("Zoom");
-    ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - 10 * style::uiScale);
-    ImVec2 wfSliderSize(20.0 * style::uiScale, 150.0 * style::uiScale);
+    ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - wfSliderSize.x/2);
+
     if (ImGui::VSliderFloat("##_7_", wfSliderSize, &bw, 1.0, 0.0, "")) {
         core::configManager.acquire();
         core::configManager.conf["zoomBw"] = bw;
@@ -620,29 +620,42 @@ void MainWindow::draw() {
         updateWaterfallZoomBandwidth(bw);
     }
 
-    ImGui::NewLine();
 
-    ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - (ImGui::CalcTextSize("Max").x / 2.0));
-    ImGui::TextUnformatted("Max");
-    ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - 10 * style::uiScale);
-    if (ImGui::VSliderFloat("##_8_", wfSliderSize, &fftMax, 0.0, -160.0f, "")) {
-        fftMax = std::max<float>(fftMax, fftMin + 10);
-        core::configManager.acquire();
-        core::configManager.conf["max"] = fftMax;
-        core::configManager.release(true);
-    }
+    auto addMaxSlider = [&]() {
+        ImGui::NewLine();
+        ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - (ImGui::CalcTextSize("Max").x / 2.0));
+        ImGui::TextUnformatted("Max");
+        ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - wfSliderSize.x / 2);
+        if (ImGui::VSliderFloat("##_8_", wfSliderSize, &fftMax, 0.0, -180.0f, "")) {
+            fftMax = std::max<float>(fftMax, fftMin + 10);
+            core::configManager.acquire();
+            core::configManager.conf["max"] = fftMax;
+            core::configManager.release(true);
+        }
 
-    ImGui::NewLine();
+    };
 
-    ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - (ImGui::CalcTextSize("Min").x / 2.0));
-    ImGui::TextUnformatted("Min");
-    ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - 10 * style::uiScale);
-    ImGui::SetItemUsingMouseWheel();
-    if (ImGui::VSliderFloat("##_9_", wfSliderSize, &fftMin, 0.0, -160.0f, "")) {
-        fftMin = std::min<float>(fftMax - 10, fftMin);
-        core::configManager.acquire();
-        core::configManager.conf["min"] = fftMin;
-        core::configManager.release(true);
+    auto addMinSlider = [&]() {
+        ImGui::NewLine();
+        ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - (ImGui::CalcTextSize("Min").x / 2.0));
+        ImGui::TextUnformatted("Min");
+        ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - wfSliderSize.x / 2);
+        ImGui::SetItemUsingMouseWheel();
+        if (ImGui::VSliderFloat("##_9_", wfSliderSize, &fftMin, 0.0, -180.0f, "")) {
+            fftMin = std::min<float>(fftMax - 10, fftMin);
+            core::configManager.acquire();
+            core::configManager.conf["min"] = fftMin;
+            core::configManager.release(true);
+        }
+    };
+
+    if (displaymenu::smallScreen) {
+        // min slider is used much more often, if you ask me. So on small screen there should be no need to scroll down to operate it.
+        addMinSlider();
+        addMaxSlider();
+    } else {
+        addMaxSlider();
+        addMinSlider();
     }
 
     ImGui::EndChild();

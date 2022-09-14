@@ -189,6 +189,8 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["moduleInstances"]["SpyServer Source"]["enabled"] = true;
     defConfig["moduleInstances"]["PlutoSDR Source"]["module"] = "plutosdr_source";
     defConfig["moduleInstances"]["PlutoSDR Source"]["enabled"] = true;
+    defConfig["moduleInstances"]["HL2 Source"]["module"] = "hl2_source";
+    defConfig["moduleInstances"]["HL2 Source"]["enabled"] = true;
 
     defConfig["moduleInstances"]["Audio Sink"] = "audio_sink";
     defConfig["moduleInstances"]["Network Sink"] = "network_sink";
@@ -198,6 +200,8 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["moduleInstances"]["Frequency Manager"] = "frequency_manager";
     defConfig["moduleInstances"]["Recorder"] = "recorder";
     defConfig["moduleInstances"]["Rigctl Server"] = "rigctl_server";
+    defConfig["moduleInstances"]["Noise Reduction logmmse"]["module"] = "noise_reduction_logmmse";
+    defConfig["moduleInstances"]["Noise Reduction logmmse"]["enabled"] = true;
 
 
     // Themes
@@ -231,8 +235,10 @@ int sdrpp_main(int argc, char* argv[]) {
 
 #ifdef __ANDROID__
     defConfig["lockMenuOrder"] = true;
+    defConfig["smallScreen"] = true;
 #else
     defConfig["lockMenuOrder"] = false;
+    defConfig["smallScreen"] = false;
 #endif
 
 #if defined(_WIN32)

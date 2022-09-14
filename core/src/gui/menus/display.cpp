@@ -22,6 +22,7 @@ namespace displaymenu {
     bool restartRequired = false;
     bool fftHold = false;
     int fftHoldSpeed = 60;
+    bool smallScreen = false;
 
     OptionList<float, float> uiScales;
 
@@ -101,6 +102,8 @@ namespace displaymenu {
 
         gui::menu.locked = core::configManager.conf["lockMenuOrder"];
 
+        smallScreen = core::configManager.conf["smallScreen"];
+
         fftHold = core::configManager.conf["fftHold"];
         fftHoldSpeed = core::configManager.conf["fftHoldSpeed"];
         gui::waterfall.setFFTHold(fftHold);
@@ -137,6 +140,13 @@ namespace displaymenu {
             core::configManager.conf["lockMenuOrder"] = gui::menu.locked;
             core::configManager.release(true);
         }
+        ImGui::SameLine();
+        if (ImGui::Checkbox("Small screen##_sdrpp", &smallScreen)) {
+            core::configManager.acquire();
+            core::configManager.conf["smallScreen"] = smallScreen;
+            core::configManager.release(true);
+        }
+
 
         if (ImGui::Checkbox("FFT Hold##_sdrpp", &fftHold)) {
             gui::waterfall.setFFTHold(fftHold);
