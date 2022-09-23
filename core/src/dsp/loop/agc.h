@@ -85,7 +85,7 @@ namespace dsp::loop {
                 }
 
                 // If clipping is detected look ahead and correct
-                if (inAmp*gain > _maxOutputAmp) {
+                if (false && inAmp*gain > _maxOutputAmp) {
                     float maxAmp = 0;
                     for (int j = i; j < count; j++) {
                         if constexpr (std::is_same_v<T, complex_t>) {
