@@ -31,8 +31,10 @@ namespace dsp {
     public:
 
         void setEffectiveSampleRate(int rate) {
-            freq = rate;
-            params.reset();
+            if (rate != freq) {
+                freq = rate;
+                params.reset();
+            }
         }
 
         ComplexArray worker1c;
@@ -61,6 +63,8 @@ namespace dsp {
                 spdlog::info("Resetting IF NR LogMMSE");
                 shouldReset = false;
                 worker1c.reset();
+                freq = (int)sigpath::iqFrontEnd.getSampleRate();
+
             }
             if (!worker1c) {
                 worker1c = npzeros_c(0);
@@ -87,7 +91,7 @@ namespace dsp {
                 std::cout << std::endl << "Sampling initially" << std::endl;
                 LogMMSE::logmmse_sample(worker1c, freq, 0.15f, &params, noiseFrames);
             }
-            auto rv = LogMMSE::logmmse_all(worker1c, 48000, 0.15f, &params);
+            auto rv = LogMMSE::logmmse_all(worker1c, freq, 0.15f, &params);
             freqMutex.unlock();
 
             int limit = rv->size();

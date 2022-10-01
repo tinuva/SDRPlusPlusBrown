@@ -208,8 +208,6 @@ private:
             config.release(true);
 
             actuateIFNR();
-
-
         }
         if (mustShowTooltip("IFNR"))
             ImGui::SetTooltip("Algorithm running on full bandwidth. Can be slow.");
