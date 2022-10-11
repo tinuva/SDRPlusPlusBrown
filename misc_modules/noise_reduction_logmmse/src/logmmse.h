@@ -7,6 +7,9 @@
 #include <list>
 
 namespace dsp {
+
+    // ported from https://github.com/rajivpoddar/logmmse/  by sannysanoff
+
     namespace logmmse {
 
         inline long long currentTimeMillis() {
