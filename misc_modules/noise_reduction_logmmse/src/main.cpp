@@ -223,7 +223,7 @@ private:
                 ImGui::SetTooltip("Noise reduction over the audio frequency.");
             ImGui::SameLine();
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            if (ImGui::SliderInt(("##_radio_logmmse_wf" + k).c_str(), &v->afnrBandwidth, 1, 24, "%d KHz")) {
+            if (ImGui::SliderInt(("##_radio_logmmse_wf" + k).c_str(), &v->afnrBandwidth, 1, 48, "%d KHz")) {
                 v->setProcessingBandwidth(v->afnrBandwidth * 1000);
                 config.acquire();
                 config.conf["AF_NRF_"+k] = v->afnrBandwidth;
