@@ -8,6 +8,7 @@
 #include "../dsp/channel/rx_vfo.h"
 #include "../dsp/sink/handler_sink.h"
 #include "../dsp/processor.h"
+#include "../dsp/math/conjugate.h"
 #include <fftw3.h>
 
 class IQFrontEnd {
@@ -28,6 +29,7 @@ public:
 
     void setBuffering(bool enabled);
     void setDecimation(int ratio);
+    void setInvertIQ(bool enabled);
     void setDCBlocking(bool enabled);
 
     void addPreprocessor(dsp::Processor<dsp::complex_t, dsp::complex_t>* processor, bool enabled);
@@ -70,6 +72,7 @@ protected:
 
     // Pre-processing chain
     dsp::multirate::PowerDecimator<dsp::complex_t> decim;
+    dsp::math::Conjugate conjugate;
     dsp::correction::DCBlocker<dsp::complex_t> dcBlock;
     dsp::chain<dsp::complex_t> preproc;
 
