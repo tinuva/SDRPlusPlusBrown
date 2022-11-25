@@ -7,10 +7,11 @@
 #include <string>
 #include <thread>
 
-#define HERMES_DISCOVER_REPEAT  5
-#define HERMES_DISCOVER_TIMEOUT 1000
+#define HERMES_METIS_REPEAT     5
+#define HERMES_METIS_TIMEOUT    1000
 #define HERMES_METIS_SIGNATURE  0xEFFE
 #define HERMES_HPSDR_USB_SYNC   0x7F
+#define HERMES_I2C_DELAY        50
 
 namespace hermes {
     enum MetisPacketType {
@@ -32,10 +33,15 @@ namespace hermes {
     };
 
     struct Info {
+        net::Address addr;
         uint8_t mac[6];
         uint8_t gatewareVerMaj;
         uint8_t gatewareVerMin;
         BoardID boardId;
+
+        bool operator==(const Info& b) {
+            return !memcmp(mac, b.mac, 6);
+        }
     };
 
     enum HermesLiteReg {
@@ -73,6 +79,11 @@ namespace hermes {
         HL_SAMP_RATE_96KHZ  = 1,
         HL_SAMP_RATE_192KHZ = 2,
         HL_SAMP_RATE_384KHZ = 3
+    };
+
+    enum I2CPort {
+        I2C_PORT_1 = 0,
+        I2C_PORT_2
     };
 
 #pragma pack(push, 1)
@@ -122,8 +133,10 @@ namespace hermes {
         void start();
         void stop();
 
+        void setSamplerate(HermesLiteSamplerate samplerate);
         void setFrequency(double freq);
         void setGain(int gain);
+        void autoFilters(double freq);
 
         dsp::stream<dsp::complex_t> out;
 
@@ -134,16 +147,23 @@ namespace hermes {
         uint32_t readReg(uint8_t addr);
         void writeReg(uint8_t addr, uint32_t val); 
 
+        void writeI2C(I2CPort port, uint8_t addr, uint8_t reg, uint8_t data);
+
+        
+
         void worker();
 
         bool open = true;
+        double freq = 0;
 
         std::thread workerThread;
         std::shared_ptr<net::Socket> sock;
         uint32_t usbSeq = 0;
+        uint8_t lastFilt = 0;
 
     };
 
     std::vector<Info> discover();
     std::shared_ptr<Client> open(std::string host, int port);
+    std::shared_ptr<Client> open(const net::Address& addr);
 }
