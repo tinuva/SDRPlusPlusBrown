@@ -21,7 +21,6 @@ Please note you must be logged in to GitHub to be able to download the artifacts
 
 ## Features compared to original project:
 
-
 * Hermes Lite 2 (hl2) support (receive only) -- note upstream has own version (hermes) as of Nov 2022
 * Noise reduction to benefit SSB/AM - wideband and audio frequency. Wideband is visible on the waterfall. Can turn on both. ***Logmmse*** algorithm is used.
 * Mouse wheel scrolling of sliders
