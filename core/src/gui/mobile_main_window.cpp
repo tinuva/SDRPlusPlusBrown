@@ -5,31 +5,19 @@
 #include "imgui.h"
 #include <stdio.h>
 #include <thread>
-#include <complex>
+#include <algorithm>
 #include <gui/widgets/waterfall.h>
-#include <gui/widgets/frequency_select.h>
-#include <signal_path/iq_frontend.h>
 #include <gui/icons.h>
 #include <gui/widgets/bandplan.h>
 #include <gui/style.h>
-#include <config.h>
-#include <signal_path/signal_path.h>
 #include <core.h>
-#include <gui/menus/source.h>
 #include <gui/menus/display.h>
-#include <gui/menus/bandplan.h>
-#include <gui/menus/sink.h>
-#include <gui/menus/vfo_color.h>
-#include <gui/menus/module_manager.h>
 #include <gui/menus/theme.h>
-#include <gui/dialogs/credits.h>
 #include <filesystem>
-#include <signal_path/source.h>
-#include <gui/dialogs/loading_screen.h>
-#include <gui/colormaps.h>
-#include <gui/widgets/snr_meter.h>
 #include <gui/tuner.h>
 #include "../../decoder_modules/radio/src/radio_module.h"
+
+//using namespace std;
 
 static bool withinRadius(ImVec2 center, float radius, ImVec2 point) {
     if (isnan(point.x)) {
@@ -51,7 +39,7 @@ bool MobileButton::draw() {
 
     auto mouseCoord = ImVec2(ImGui::GetMousePos().x - widgetPos.x, ImGui::GetMousePos().y - widgetPos.y);
 
-    auto diameter = std::min(avail.x, avail.y);
+    auto diameter = std::min<float>(avail.x, avail.y);
     float radius = diameter / 2 * this->sizeFactor;
 
 
