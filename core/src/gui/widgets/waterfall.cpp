@@ -219,7 +219,7 @@ namespace ImGui {
         }
         ImVec2 mPos = ImGui::GetMousePos();
 
-        if (IS_IN_AREA(mPos, wfMin, wfMax) && !gui::mainWindow.lockWaterfallControls && !inputHandled) {
+        if (IS_IN_AREA(mPos, wfMin, wfMax) && !gui::mainWindow.lockWaterfallControls && !inputHandled || alwaysDrawLine) {
             for (auto const& [name, vfo] : vfos) {
                 window->DrawList->AddRectFilled(vfo->wfRectMin, vfo->wfRectMax, vfo->color);
                 if (!vfo->lineVisible) { continue; }

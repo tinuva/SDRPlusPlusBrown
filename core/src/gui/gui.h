@@ -4,7 +4,7 @@
 #include <gui/widgets/menu.h>
 #include <gui/dialogs/loading_screen.h>
 #include <module.h>
-#include <gui/main_window.h>
+#include <gui/mobile_main_window.h>
 #include <gui/theme_manager.h>
 
 namespace gui {
@@ -12,7 +12,7 @@ namespace gui {
     SDRPP_EXPORT FrequencySelect freqSelect;
     SDRPP_EXPORT Menu menu;
     SDRPP_EXPORT ThemeManager themeManager;
-    SDRPP_EXPORT MainWindow mainWindow;
+    SDRPP_EXPORT MobileMainWindow mainWindow;
 
     void selectSource(std::string name);
 };

@@ -262,11 +262,9 @@ void MainWindow::vfoAddedHandler(VFOManager::VFO* vfo, void* ctx) {
     sigpath::vfoManager.setCenterOffset(name, _this->initComplete ? newOffset : offset);
 }
 
-void MainWindow::draw() {
-    ImGui::Begin("Main", NULL, WINDOW_FLAGS);
-    ImVec4 textCol = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+void MainWindow::preDraw(ImGui::WaterfallVFO* &vfo) {
 
-    ImGui::WaterfallVFO* vfo = NULL;
+    vfo = NULL;
     if (gui::waterfall.selectedVFO != "") {
         vfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
     }
@@ -312,7 +310,7 @@ void MainWindow::draw() {
         core::configManager.release(true);
     }
 
-    // Handle dragging the frequency scale
+    // Handle dragging the uency scale
     if (gui::waterfall.centerFreqMoved) {
         gui::waterfall.centerFreqMoved = false;
         sigpath::sourceManager.tune(gui::waterfall.getCenterFrequency());
@@ -334,21 +332,11 @@ void MainWindow::draw() {
         core::configManager.conf["fftHeight"] = fftHeight;
         core::configManager.release(true);
     }
+}
 
-    // To Bar
-    // ImGui::BeginChild("TopBarChild", ImVec2(0, 49.0f * style::uiScale), false, ImGuiWindowFlags_HorizontalScrollbar);
+void MainWindow::drawUpperLine(ImGui::WaterfallVFO* vfo) {
     ImVec2 btnSize(30 * style::uiScale, 30 * style::uiScale);
-    ImGui::PushID(ImGui::GetID("sdrpp_menu_btn"));
-    if (ImGui::ImageButton(icons::MENU, btnSize, ImVec2(0, 0), ImVec2(1, 1), 5, ImVec4(0, 0, 0, 0), textCol) || ImGui::IsKeyPressed(ImGuiKey_Menu, false)) {
-        showMenu = !showMenu;
-        core::configManager.acquire();
-        core::configManager.conf["showMenu"] = showMenu;
-        core::configManager.release(true);
-    }
-    ImGui::PopID();
-
-    ImGui::SameLine();
-
+    ImVec4 textCol = ImGui::GetStyleColorVec4(ImGuiCol_Text);
     bool tmpPlaySate = playing;
     if (playButtonLocked && !tmpPlaySate) { style::beginDisabled(); }
     if (playing) {
@@ -421,6 +409,27 @@ void MainWindow::draw() {
     ImGui::SetNextItemWidth(snrWidth);
     ImGui::SNRMeter((vfo != NULL) ? gui::waterfall.selectedVFOSNR : 0);
 
+}
+void MainWindow::draw() {
+    ImGui::WaterfallVFO* vfo;
+    this->preDraw(vfo);
+    ImGui::Begin("Main", NULL, WINDOW_FLAGS);
+    ImVec4 textCol = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+    // To Bar
+    // ImGui::BeginChild("TopBarChild", ImVec2(0, 49.0f * style::uiScale), false, ImGuiWindowFlags_HorizontalScrollbar);
+    ImVec2 btnSize(30 * style::uiScale, 30 * style::uiScale);
+    ImGui::PushID(ImGui::GetID("sdrpp_menu_btn"));
+    if (ImGui::ImageButton(icons::MENU, btnSize, ImVec2(0, 0), ImVec2(1, 1), 5, ImVec4(0, 0, 0, 0), textCol) || ImGui::IsKeyPressed(ImGuiKey_Menu, false)) {
+        showMenu = !showMenu;
+        core::configManager.acquire();
+        core::configManager.conf["showMenu"] = showMenu;
+        core::configManager.release(true);
+    }
+    ImGui::PopID();
+
+    ImGui::SameLine();
+
+    this->drawUpperLine(vfo);
     // Note: this is what makes the vertical size correct, needs to be fixed
     ImGui::SameLine();
 

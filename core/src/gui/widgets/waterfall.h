@@ -78,6 +78,7 @@ namespace ImGui {
 
         Event<double> onUserChangedBandwidth;
         Event<double> onUserChangedNotch;
+        Event<int> onUserChangedDemodulator;
     };
 
     class WaterFall {
@@ -225,6 +226,7 @@ namespace ImGui {
         };
 
         bool inputHandled = false;
+        bool alwaysDrawLine = false;
         bool VFOMoveSingleClick = false;
         Event<InputHandlerArgs> onInputProcess;
 

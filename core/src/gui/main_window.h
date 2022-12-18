@@ -14,7 +14,9 @@
 class MainWindow {
 public:
     void init();
-    void draw();
+    virtual void preDraw(ImGui::WaterfallVFO* &vfo);
+    virtual void draw();
+    void drawUpperLine(ImGui::WaterfallVFO* vfo);
     void updateZoom() {
         this->updateWaterfallZoomBandwidth(bw);
     }
@@ -38,7 +40,7 @@ public:
         firstMenuRender = true;
     }
 
-private:
+protected:
     static void vfoAddedHandler(VFOManager::VFO* vfo, void* ctx);
 
     // FFT Variables

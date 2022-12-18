@@ -1,7 +1,7 @@
 #include <gui/gui.h>
 
 namespace gui {
-    MainWindow mainWindow;
+    MobileMainWindow mainWindow;
     ImGui::WaterFall waterfall;
     FrequencySelect freqSelect;
     ThemeManager themeManager;

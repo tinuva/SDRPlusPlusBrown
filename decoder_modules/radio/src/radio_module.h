@@ -65,6 +65,10 @@ public:
         onUserChangedBandwidthHandler.ctx = this;
         vfo->wtfVFO->onUserChangedBandwidth.bindHandler(&onUserChangedBandwidthHandler);
 
+        onUserChangedDemodulatorHandler.handler = vfoUserChangedDemodulatorHandler;
+        onUserChangedDemodulatorHandler.ctx = this;
+        vfo->wtfVFO->onUserChangedDemodulator.bindHandler(&onUserChangedDemodulatorHandler);
+
         // Initialize IF DSP chain
         ifChainOutputChanged.ctx = this;
         ifChainOutputChanged.handler = ifChainOutputChangeHandler;
@@ -214,6 +218,7 @@ public:
         if (!vfo) {
             vfo = sigpath::vfoManager.createVFO(name, ImGui::WaterfallVFO::REF_CENTER, 0, 200000, 200000, 50000, 200000, false);
             vfo->wtfVFO->onUserChangedBandwidth.bindHandler(&onUserChangedBandwidthHandler);
+            vfo->wtfVFO->onUserChangedDemodulator.bindHandler(&onUserChangedDemodulatorHandler);
         }
         ifChain.setInput(vfo->output, [=](dsp::stream<dsp::complex_t>* out){ ifChainOutputChangeHandler(out, this); });
         ifChain.start();
@@ -673,6 +678,13 @@ private:
         _this->setBandwidth(newBw);
     }
 
+    static void vfoUserChangedDemodulatorHandler(int newDemodulator, void* ctx) {
+        RadioModule* _this = (RadioModule*)ctx;
+        if (_this->selectedDemodID != (DemodID)newDemodulator) {
+            _this->selectDemodByID((DemodID)newDemodulator);
+        }
+    }
+
     static void sampleRateChangeHandler(float sampleRate, void* ctx) {
         RadioModule* _this = (RadioModule*)ctx;
         _this->setAudioSampleRate(sampleRate);
@@ -748,6 +760,7 @@ private:
 
     // Handlers
     EventHandler<double> onUserChangedBandwidthHandler;
+    EventHandler<int> onUserChangedDemodulatorHandler;
     EventHandler<float> srChangeHandler;
     EventHandler<std::string> onAddSubstreamHandler;
     EventHandler<std::string> onRemoveSubstreamHandler;

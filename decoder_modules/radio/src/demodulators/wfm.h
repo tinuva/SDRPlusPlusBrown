@@ -9,7 +9,7 @@
 #include <dsp/digital/differential_decoder.h>
 #include <gui/widgets/symbol_diagram.h>
 #include <fstream>
-#include <rds.h>
+#include "../rds.h"
 
 namespace demod {
     class WFM : public Demodulator {
