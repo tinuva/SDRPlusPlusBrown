@@ -315,43 +315,44 @@ jobs:
               name: sdrpp_android
               path: ${{runner.workspace}}/sdrpp.apk
 
-    create_full_archive:
-#        needs: ['build_windows', 'build_macos', 'build_debian_buster', 'build_debian_bullseye', 'build_debian_sid', 'build_ubuntu_focal', 'build_ubuntu_jammy', 'build_raspios_bullseye_armhf', 'build_android']
-        needs: ['build_windows', 'build_macos', 'build_debian_buster', 'build_debian_bullseye', 'build_debian_sid', 'build_ubuntu_focal', 'build_android']
-        runs-on: ubuntu-latest
+#    create_full_archive:
+##        needs: ['build_windows', 'build_macos', 'build_debian_buster', 'build_debian_bullseye', 'build_debian_sid', 'build_ubuntu_focal', 'build_ubuntu_jammy', 'build_raspios_bullseye_armhf', 'build_android']
+#        needs: ['build_windows', 'build_macos', 'build_debian_buster', 'build_debian_bullseye', 'build_debian_sid', 'build_ubuntu_focal', 'build_android']
+#        runs-on: ubuntu-latest
+#
+#        steps:
+#        - name: Download All Builds
+#          uses: actions/download-artifact@v3
+#
+#        - name: Create Archive
+#          run: >
+#            mkdir sdrpp_all &&
+#            mv sdrpp_windows_x64/sdrpp_windows_x64.zip sdrpp_all/ &&
+#            mv sdrpp_macos_intel/sdrpp_macos_intel.zip sdrpp_all/ &&
+#            mv sdrpp_debian_buster_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_debian_buster_amd64.deb &&
+#            mv sdrpp_debian_bullseye_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_debian_bullseye_amd64.deb &&
+#            mv sdrpp_debian_sid_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_debian_sid_amd64.deb &&
+#            mv sdrpp_ubuntu_focal_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_ubuntu_focal_amd64.deb &&
+#            (true || mv sdrpp_raspios_bullseye_armhf/sdrpp_debian_armhf.deb sdrpp_all/sdrpp_raspios_bullseye_armhf.deb) &&
+#            mv sdrpp_android/sdrpp.apk sdrpp_all/sdrpp.apk
+#
+#        - uses: actions/upload-artifact@v3
+#          with:
+#            name: sdrpp_all
+#            path: sdrpp_all/
 
-        steps:
-        - name: Download All Builds
-          uses: actions/download-artifact@v3
-
-        - name: Create Archive
-          run: >
-            mkdir sdrpp_all && 
-            mv sdrpp_windows_x64/sdrpp_windows_x64.zip sdrpp_all/ && 
-            mv sdrpp_macos_intel/sdrpp_macos_intel.zip sdrpp_all/ && 
-            mv sdrpp_debian_buster_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_debian_buster_amd64.deb && 
-            mv sdrpp_debian_bullseye_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_debian_bullseye_amd64.deb && 
-            mv sdrpp_debian_sid_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_debian_sid_amd64.deb && 
-            mv sdrpp_ubuntu_focal_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_ubuntu_focal_amd64.deb &&
-            (true || mv sdrpp_raspios_bullseye_armhf/sdrpp_debian_armhf.deb sdrpp_all/sdrpp_raspios_bullseye_armhf.deb) &&
-            mv sdrpp_android/sdrpp.apk sdrpp_all/sdrpp.apk
-
-        - uses: actions/upload-artifact@v3
-          with:
-            name: sdrpp_all
-            path: sdrpp_all/
-
-    update_nightly_release:
-        needs: [create_full_archive]
-        runs-on: ubuntu-latest
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-
-        steps:
-        - name: Download All Builds
-          uses: actions/download-artifact@v3
-
-        - name: Update Nightly
-          run: gh release upload nightly sdrpp_all/* -R ${{github.repository}} --clobber
+#
+#    update_nightly_release:
+#        needs: [create_full_archive]
+#        runs-on: ubuntu-latest
+#        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+#
+#        steps:
+#        - name: Download All Builds
+#          uses: actions/download-artifact@v3
+#
+#        - name: Update Nightly
+#          run: gh release upload nightly sdrpp_all/* -R ${{github.repository}} --clobber
 
     check_spelling:
         runs-on: ubuntu-latest
