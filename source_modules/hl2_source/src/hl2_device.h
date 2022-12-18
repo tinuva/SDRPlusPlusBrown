@@ -105,6 +105,7 @@ struct HL2Device {
     int exciter_power;
     int alex_forward_power;
     int alex_reverse_power;
+    float swr = 1;
     double temperature;
 
     unsigned char output_buffer[1024];
@@ -155,6 +156,40 @@ struct HL2Device {
         deviceControl[0x01].C2 = frequency >> 16;
         deviceControl[0x01].C3 = frequency >> 8;
         deviceControl[0x01].C4 = frequency >> 0;
+    }
+
+    float getSWR() {
+        auto constant1=3.3;
+        auto constant2=1.4;
+        auto fwd_cal_offset=6;
+        auto fwd_power=alex_forward_power;
+        auto rev_power=alex_reverse_power;
+
+
+        if(rev_power>fwd_power) {
+            fwd_power=alex_reverse_power;
+            rev_power=alex_forward_power;
+        }
+
+        fwd_power=fwd_power-fwd_cal_offset;
+        auto v1=((double)fwd_power/4095.0)*constant1;
+        auto fwd=(v1*v1)/constant2;
+
+        auto exciter=0.0;
+
+        auto rev=0.0;
+        if(fwd_power!=0) {
+            v1=((double)rev_power/4095.0)*constant1;
+            rev=(v1*v1)/constant2;
+        }
+
+        double this_swr = (1+ sqrt(rev/fwd)) / (1 - sqrt(rev/fwd));
+        if (this_swr < 0.0) this_swr=1.0;
+
+        // Exponential moving average filter
+        double alpha = 0.7;
+        swr = (alpha * this_swr) + (1 - alpha) * swr;
+        return swr;
     }
 
     void setTune(bool tune) {

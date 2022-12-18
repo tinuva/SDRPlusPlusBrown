@@ -30,6 +30,7 @@ static void rtaudioCallback(RtAudioError::Type type, const std::string& errorTex
 
 class AudioSink : SinkManager::Sink {
 public:
+    RtAudio::DeviceInfo inputDeviceInfo;
     AudioSink(SinkManager::Stream* stream, std::string streamName) {
         _stream = stream;
         _streamName = streamName;
@@ -52,13 +53,18 @@ public:
         RtAudio::DeviceInfo info;
         for (int i = 0; i < count; i++) {
             info = audio.getDeviceInfo(i);
+            if (info.isDefaultInput) {
+                inputDeviceInfo = info;
+                defaultInputDeviceId = i;
+                spdlog::info("Default input: " + info.name+" defaultInputDeviceId="+std::to_string(i));
+            }
             if (!info.probed) {
                 RtAudio::StreamParameters parameters;
                 parameters.deviceId = i;
                 parameters.nChannels = 2;
                 unsigned int bufferFrames = sampleRate / 60;
                 RtAudio::StreamOptions opts;
-                opts.flags = RTAUDIO_MINIMIZE_LATENCY;
+//                opts.flags = RTAUDIO_MINIMIZE_LATENCY;
                 opts.streamName = _streamName;
                 info.probed = true;
                 rtaudioCallbackError = false;
@@ -74,7 +80,7 @@ public:
                 info.outputChannels = 2;
             }
             if (info.outputChannels == 0) { continue; }
-            if (info.isDefaultOutput) { defaultDevId = devList.size(); }
+            if (info.isDefaultOutput) { defaultOutputDevId = devList.size(); }
             devList.push_back(info);
             txtDevList += info.name;
             txtDevList += '\0';
@@ -117,7 +123,7 @@ public:
     }
 
     void selectFirst() {
-        selectById(defaultDevId);
+        selectById(defaultOutputDevId);
     }
 
     void selectByName(std::string name) {
@@ -199,28 +205,56 @@ public:
 
 private:
     void doStart() {
-        RtAudio::StreamParameters parameters;
-        parameters.deviceId = deviceIds[devId];
-        parameters.nChannels = 2;
-        unsigned int bufferFrames = sampleRate / 60;
-        RtAudio::StreamOptions opts;
-        opts.flags = RTAUDIO_MINIMIZE_LATENCY;
-        opts.streamName = _streamName;
-        std::replace(opts.streamName.begin(), opts.streamName.end(), '#','_');
-        spdlog::info("Starting RtAudio stream "+_streamName+" parameters.deviceId="+std::to_string(parameters.deviceId));
 
-        try {
-            audio.openStream(&parameters, NULL, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback, this, &opts);
-            stereoPacker.setSampleCount(bufferFrames);
-            audio.startStream();
-            stereoPacker.start();
+        spdlog::info("Starting RtAudio streams..");
+        RtAudio::StreamParameters inputParameters;
+        inputParameters.deviceId = defaultInputDeviceId;
+        inputParameters.nChannels = 2;
+
+        {
+            RtAudio::StreamParameters outputParameters;
+            outputParameters.deviceId = deviceIds[devId];
+            outputParameters.nChannels = 2;
+            unsigned int bufferFrames = sampleRate / 60;
+            RtAudio::StreamOptions opts;
+//            opts.flags = RTAUDIO_MINIMIZE_LATENCY;
+            opts.streamName = _streamName;
+            std::replace(opts.streamName.begin(), opts.streamName.end(), '#', '_');
+            spdlog::info("Starting RtAudio stream " + _streamName + " parameters.deviceId=" + std::to_string(outputParameters.deviceId));
+
+            try {
+                audio.openStream(&outputParameters, defaultInputDeviceId == outputParameters.deviceId ? &inputParameters : nullptr, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback, this, &opts);
+                stereoPacker.setSampleCount(bufferFrames);
+                audio.startStream();
+                stereoPacker.start();
+            }
+            catch (RtAudioError& e) {
+                spdlog::error("Could not open audio device: " + e.getMessage());
+                return;
+            }
+
+            spdlog::info("RtAudio output stream open");
         }
-        catch (RtAudioError& e) {
-            spdlog::error("Could not open audio device: "+e.getMessage());
-            return;
+        if (defaultInputDeviceId != deviceIds[devId] && defaultInputDeviceId != -1) {
+            // input device differs from output
+            RtAudio::StreamOptions opts;
+//            opts.flags = RTAUDIO_MINIMIZE_LATENCY;
+            opts.streamName = inputDeviceInfo.name;
+            spdlog::info("Starting (separately) RtAudio INPUT stream " + inputDeviceInfo.name + " parameters.deviceId=" + std::to_string(defaultInputDeviceId)+" (output was: "+std::to_string(deviceIds[devId])+")");
+            unsigned int bufferFrames = sampleRate / 60;
+
+            try {
+                audio2.openStream(nullptr, &inputParameters, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback, this, &opts);
+                audio2.startStream();
+                spdlog::info("RtAudio input stream open");
+            }
+            catch (RtAudioError& e) {
+                spdlog::error("Could not open INPUT audio device: " + e.getMessage());
+            }
+
         }
 
-        spdlog::info("RtAudio stream open");
+
     }
 
     void doStop() {
@@ -230,45 +264,71 @@ private:
         stereoPacker.stop();
         monoPacker.out.stopReader();
         stereoPacker.out.stopReader();
-        if (audio.isStreamRunning())
+        if (audio2.isStreamRunning()) {
+            spdlog::info("Stopping RtAudio stream p.3");
+            audio2.stopStream();
+            usleep(200000);
+        }
+        if (audio2.isStreamOpen()) {
+            spdlog::info("Stopping RtAudio stream p.4");
+            audio2.closeStream();
+            usleep(200000);
+        }
+        if (audio.isStreamRunning()) {
+            spdlog::info("Stopping RtAudio stream p.1");
             audio.stopStream();
-        if (audio.isStreamOpen())
+            usleep(200000);
+        }
+        if (audio.isStreamOpen()) {
+            spdlog::info("Stopping RtAudio stream p.2");
             audio.closeStream();
+            usleep(200000);
+        }
         monoPacker.out.clearReadStop();
         stereoPacker.out.clearReadStop();
     }
 
     static int callback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData) {
+
+        if (inputBuffer != nullptr) {
+            static int counter = 0;
+            if (counter++ % 30 == 0) {
+                float* ib = (float*)inputBuffer;
+                printf("ok here input buffer: %f %f %f %f %f %f %f %f\n", ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
+            }
+        }
+
         AudioSink* _this = (AudioSink*)userData;
         int count = _this->stereoPacker.out.read();
-        if (count < 0) { return 0; }
+        if (count >= nBufferFrames) {
 
-        // For debug purposes only...
-        // if (nBufferFrames != count) { spdlog::warn("Buffer size mismatch, wanted {0}, was asked for {1}", count, nBufferFrames); }
-        // for (int i = 0; i < count; i++) {
-        //     if (_this->stereoPacker.out.readBuf[i].l == NAN || _this->stereoPacker.out.readBuf[i].r == NAN) { spdlog::error("NAN in audio data"); }
-        //     if (_this->stereoPacker.out.readBuf[i].l == INFINITY || _this->stereoPacker.out.readBuf[i].r == INFINITY) { spdlog::error("INFINITY in audio data"); }
-        //     if (_this->stereoPacker.out.readBuf[i].l == -INFINITY || _this->stereoPacker.out.readBuf[i].r == -INFINITY) { spdlog::error("-INFINITY in audio data"); }
-        // }
+            // For debug purposes only...
+            // if (nBufferFrames != count) { spdlog::warn("Buffer size mismatch, wanted {0}, was asked for {1}", count, nBufferFrames); }
+            // for (int i = 0; i < count; i++) {
+            //     if (_this->stereoPacker.out.readBuf[i].l == NAN || _this->stereoPacker.out.readBuf[i].r == NAN) { spdlog::error("NAN in audio data"); }
+            //     if (_this->stereoPacker.out.readBuf[i].l == INFINITY || _this->stereoPacker.out.readBuf[i].r == INFINITY) { spdlog::error("INFINITY in audio data"); }
+            //     if (_this->stereoPacker.out.readBuf[i].l == -INFINITY || _this->stereoPacker.out.readBuf[i].r == -INFINITY) { spdlog::error("-INFINITY in audio data"); }
+            // }
 
-        memcpy(outputBuffer, _this->stereoPacker.out.readBuf, nBufferFrames * sizeof(dsp::stereo_t));
-        auto channel = _this->devId % 3; // 0=stereo 1=left 2=right
-        auto stereoOut = (dsp::stereo_t *)outputBuffer;
-        switch (channel) {
-        default:
-            break;
-        case 1: // left
-            for (int i = 0; i < nBufferFrames; i++) {
-                stereoOut[i].r = 0;
+            memcpy(outputBuffer, _this->stereoPacker.out.readBuf, nBufferFrames * sizeof(dsp::stereo_t));
+            auto channel = _this->devId % 3; // 0=stereo 1=left 2=right
+            auto stereoOut = (dsp::stereo_t*)outputBuffer;
+            switch (channel) {
+            default:
+                break;
+            case 1: // left
+                for (int i = 0; i < nBufferFrames; i++) {
+                    stereoOut[i].r = 0;
+                }
+                break;
+            case 2: // right
+                for (int i = 0; i < nBufferFrames; i++) {
+                    stereoOut[i].l = 0;
+                }
+                break;
             }
-            break;
-        case 2: // right
-            for (int i = 0; i < nBufferFrames; i++) {
-                stereoOut[i].l = 0;
-            }
-            break;
+            _this->stereoPacker.out.flush();
         }
-        _this->stereoPacker.out.flush();
         return 0;
     }
 
@@ -284,7 +344,8 @@ private:
     int devId = 0;
     bool running = false;
 
-    unsigned int defaultDevId = 0;
+    unsigned int defaultOutputDevId = 0;         // dev == index in our reduced list
+    unsigned int defaultInputDeviceId = -1;       // device = index in the rtaudio devices
 
     std::vector<RtAudio::DeviceInfo> devList;
     std::vector<unsigned int> deviceIds;
@@ -295,6 +356,7 @@ private:
     unsigned int sampleRate = 48000;
 
     RtAudio audio;
+    RtAudio audio2;
 };
 
 class AudioSinkModule : public ModuleManager::Instance {
