@@ -220,11 +220,11 @@ private:
 //            opts.flags = RTAUDIO_MINIMIZE_LATENCY;
             opts.streamName = _streamName;
             std::replace(opts.streamName.begin(), opts.streamName.end(), '#', '_');
-            spdlog::info("Starting RtAudio stream " + _streamName + " parameters.deviceId=" + std::to_string(outputParameters.deviceId));
+            spdlog::info("Starting RtAudio stream " + _streamName + " parameters.deviceId=" + std::to_string(outputParameters.deviceId)+" it is default input? "+std::to_string(defaultInputDeviceId == outputParameters.deviceId));
 
             try {
                 audio.openStream(&outputParameters, defaultInputDeviceId == outputParameters.deviceId ? &inputParameters : nullptr, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback, this, &opts);
-                stereoPacker.setSampleCount(bufferFrames);
+                stereoPacker.setSampleCount((int)bufferFrames);
                 audio.startStream();
                 stereoPacker.start();
             }
@@ -244,7 +244,7 @@ private:
             unsigned int bufferFrames = sampleRate / 60;
 
             try {
-                audio2.openStream(nullptr, &inputParameters, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback, this, &opts);
+                audio2.openStream(nullptr, &inputParameters, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback2, this, &opts);
                 audio2.startStream();
                 spdlog::info("RtAudio input stream open");
             }
@@ -288,6 +288,17 @@ private:
         stereoPacker.out.clearReadStop();
     }
 
+    static int callback2(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData) {
+        AudioSink* _this = (AudioSink*)userData;
+        if (inputBuffer != nullptr) {
+            static int counter = 0;
+            if (counter++ % 30 == 0) {
+                float* ib = (float*)inputBuffer;
+                printf("ok here input buffer2: %f %f %f %f %f %f %f %f\n", ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
+            }
+        }
+        return 0;
+    }
     static int callback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData) {
 
         if (inputBuffer != nullptr) {

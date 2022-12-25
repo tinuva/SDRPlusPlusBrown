@@ -21,18 +21,10 @@ extern ConfigManager config;
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
-std::map<DeemphasisMode, double> deempTaus = {
-    { DEEMP_MODE_22US, 22e-6 },
-    { DEEMP_MODE_50US, 50e-6 },
-    { DEEMP_MODE_75US, 75e-6 }
-};
+extern std::map<DeemphasisMode, double> deempTaus;
 
-std::map<IFNRPreset, double> ifnrTaps = {
-    { IFNR_PRESET_NOAA_APT, 9},
-    { IFNR_PRESET_VOICE, 15 },
-    { IFNR_PRESET_NARROW_BAND, 31 },
-    { IFNR_PRESET_BROADCAST, 32 }
-};
+extern std::map<IFNRPreset, double> ifnrTaps;
+
 
 class RadioModule : public ModuleManager::Instance {
 public:
