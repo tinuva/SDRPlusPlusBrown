@@ -160,6 +160,10 @@ public:
     Event<std::string> onRemoveSubstream;
 
 
+    dsp::routing::Splitter<dsp::stereo_t> defaultInputAudio;
+
+
+
 private:
     void loadStreamConfig(std::string name);
     void saveStreamConfig(std::string name);

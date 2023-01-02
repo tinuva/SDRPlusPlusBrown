@@ -302,6 +302,28 @@ namespace dsp {
             return retval;
         }
 
+        inline float npmax(const Arg<std::vector<float>>& v) {
+            float m = v->front();
+            auto rvD = v->data();
+            for (int q = 1; q < v->size(); q++) {
+                if (rvD[q] > m) {
+                    m = rvD[q];
+                }
+            }
+            return m;
+        }
+
+        inline float npmin(const Arg<std::vector<float>>& v) {
+            float m = v->front();
+            auto rvD = v->data();
+            for (int q = 1; q < v->size(); q++) {
+                if (rvD[q] < m) {
+                    m = rvD[q];
+                }
+            }
+            return m;
+        }
+
         inline FloatArray npmaximum(const Arg<std::vector<float>>& v, float lim) {
             auto retval = std::make_shared<std::vector<float>>(v->data(), v->data() + v->size());
             auto rvD = retval->data();
@@ -372,6 +394,15 @@ namespace dsp {
             else {
                 retval->resize(v->size());
                 volk_32f_expfast_32f(retval->data(), v->data(), v->size());
+            }
+            return retval;
+        }
+
+        inline FloatArray npsqrt(const Arg<std::vector<float>>& v) {
+            auto retval = std::make_shared<std::vector<float>>();
+            retval->reserve(v->size());
+            for (auto d : *v) {
+                retval->emplace_back(sqrt(d));
             }
             return retval;
         }

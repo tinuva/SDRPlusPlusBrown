@@ -10,18 +10,35 @@
 #include <gui/tuner.h>
 #include "main_window.h"
 
+/*
+ * todo:
+ * - smaller scroll wheel
+ * - fix scroll wheel to scroll properly
+ * - when frequency changed manually, change the band properly on the right.
+ * - tx button -> qso button.
+ * - move the current status labels to the waterfall
+ * - remove circles, use the rectangles. Band selection up/down.
+ * - save recent submode/freq only on band leave with buttons.
+ */
+
+
 struct TheEncoder {
 
     float somePosition = 0; // angle in radians
     float speed = 0;
+    float currentFrequency = 0;
     float delayFactor = 0.96;
 
     float lastMouseAngle = nan("");
 
     std::vector<float> fingerMovement;
 
-    float draw();
+    float draw(ImGui::WaterfallVFO* pVfo);
 };
+
+struct AudioInToFFT;
+struct QSOPanel;
+
 
 struct MobileButton {
     std::string upperText;
@@ -45,11 +62,29 @@ public:
     MobileButton zoomToggle;
     MobileButton modeToggle;
     MobileButton submodeToggle;
+    MobileButton qsoButton;
     MobileButton txButton;
+    std::shared_ptr<QSOPanel> qsoPanel;
+    bool qsoMode = false;       // different ui
     bool shouldInitialize = true;
     std::vector<std::string> modes = { "SSB", "CW", "DIGI", "FM", "AM" };
     std::map<std::string, std::vector<std::string>> subModes = { { "SSB", { "LSB", "USB" } }, { "FM", { "WFM", "NFM" } }, { "AM", { "AM" } }, { "CW", { "CWU", "CWL" } }, { "DIGI", { "FT8", "FT4", "OLIVIA", "PSK31", "SSTV" } } };
-    std::vector<std::string> bands = { "MW", "LW", "160M", "80M", "60M", "40M", "30M", "20M", "18M", "15M", "12M", "10M", "2M" };
+    std::vector<std::string> bands = { "MW", "LW", "160M", "80M", "60M", "40M", "30M", "20M", "17M", "15M", "12M", "10M", "2M" };
+    std::map<std::string, std::pair<int, int>> bandsLimits = {
+        {"MW", {527000, 160000}},
+        {"LW", {148000, 283000}},
+        {"160M", {1800000, 2000000}},
+        {"80M", {3500,3800}},
+        {"60M",{5351000, 5367000}},
+        {"40M", {7000000, 7200000}},
+        {"30M",{10100000, 10150000}},
+        {"20M",{14000000, 14350000}},
+        {"17M",{18068000, 18168000}},
+        {"15M",{21000000, 21350000}},
+        {"12M",{24890000, 24990000}},
+        {"10M",{28000000, 29000000}},
+        {"2M",{144000000, 146000000}}
+    };
     std::map<std::string, float> frequencyDefaults = {
         { "MW", 630 },
         { "LW", 125 },
@@ -89,12 +124,12 @@ public:
         { "20M_FT4", 14080 },
         { "20M_OLIVIA", 14076.4 },
         { "20M_SSTV", 14230 },
-        { "18M", 18120 },
-        { "18M_FT8", 18100 },
-        { "18M_FT4", 18104 },
-        { "18M_CW", 18068 },
-        { "18M_PSK31", 18097 },
-        { "18M_OLIVIA", 18103.4 },
+        { "17M", 18120 },
+        { "17M_FT8", 18100 },
+        { "17M_FT4", 18104 },
+        { "17M_CW", 18068 },
+        { "17M_PSK31", 18097 },
+        { "17M_OLIVIA", 18103.4 },
         { "15M", 21250 },
         { "15M_CW", 21000 },
         { "15M_FT8", 21074 },
@@ -136,22 +171,18 @@ public:
         {"25 KHz", 30000},
         {"3 KHz", 3000},
     };
-    MobileMainWindow() : MainWindow(),
-                         bandUp("14 Mhz", "+"),
-                         bandDown("", "-"),
-                         zoomToggle("custom", "Zoom"),
-                         modeToggle("SSB", "Mode"),
-                         submodeToggle("LSB", "Submode"),
-                         txButton("tx: off", "TX")
-    {
-    }
+    MobileMainWindow();
     void draw() override;
     std::string getCurrentMode();
     void setCurrentMode(std::string);
     std::string getCurrentBand();
-    void setCurrentBand(std::string);
+    void selectCurrentBand(const std::string &band, int leavingFrequency);
     std::string getCurrentModeAttr(std::string key);
     void setCurrentModeAttr(std::string key, std::string val);
     void updateFrequencyAfterChange();
     void updateSubmodeAfterChange();
+    void autoDetectBand(int frequency);
+    const std::string &getBand(int frequency);
+    void leaveBandOrMode(int leavingFrequency);
+    void selectSSBModeForBand(const std::string& band);
 };

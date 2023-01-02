@@ -38,13 +38,14 @@ namespace dsp {
         }
 
         ComplexArray worker1c;
+        std::mutex workerMutex;
         int freq = 192000;
         LogMMSE::SavedParamsC params;
         std::mutex freqMutex;
 
         void doStart() override {
             base_type::doStart();
-            worker1c.reset();
+            shouldReset = true;
         }
 
         void setHold(bool hold) {
@@ -64,7 +65,6 @@ namespace dsp {
                 shouldReset = false;
                 worker1c.reset();
                 freq = (int)sigpath::iqFrontEnd.getSampleRate();
-
             }
             if (!worker1c) {
                 worker1c = npzeros_c(0);

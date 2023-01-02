@@ -137,6 +137,10 @@ struct HL2Device {
         return adc_overload;
     }
 
+    void setBandpassState(bool bandpass[6]) {
+
+    }
+
     void setADCGain(int gain) {
         gain += 12;
         deviceControl[0xA].C4 = gain | 0b1000000;

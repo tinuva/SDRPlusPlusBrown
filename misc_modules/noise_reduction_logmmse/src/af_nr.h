@@ -67,7 +67,7 @@ namespace dsp {
 
         ComplexArray worker1c;
 
-        void init(stream<complex_t>* in) {
+        void init(stream<complex_t>* in) override {
             base_type::init(in);
         }
 

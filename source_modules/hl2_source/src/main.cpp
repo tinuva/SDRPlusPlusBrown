@@ -44,10 +44,13 @@ static long long currentTimeMillis() {
 class HermesLite2SourceModule : public ModuleManager::Instance {
 
     int adcGain = 0;
+    bool sevenRelays[10];
+
 public:
 
     HermesLite2SourceModule(std::string name) {
         this->name = name;
+        memset(sevenRelays, 0, sizeof(sevenRelays));
 
         sampleRate = 48000;
 
@@ -353,6 +356,27 @@ private:
         if (SmGui::SliderInt(("##_radio_agc_gain_" + _this->name).c_str(), &_this->adcGain, -12, +48, SmGui::FMT_STR_INT_DB)) {
             if (_this->device) {
                 _this->device->setADCGain(_this->adcGain);
+            }
+        }
+        for(int q=0; q<7; q++) {
+            char strr[100];
+            sprintf(strr, "%d", q);
+            if (SmGui::RadioButton(strr, _this->sevenRelays[q])) {
+                if (_this->sevenRelays[q]) {
+                    memset(_this->sevenRelays, 0, sizeof(_this->sevenRelays));
+                    if (_this->device) {
+                        _this->device->setSevenRelays(0);
+                    }
+                } else {
+                    memset(_this->sevenRelays, 0, sizeof(_this->sevenRelays));
+                    _this->sevenRelays[q] = !_this->sevenRelays[q];
+                    if (_this->device) {
+                        _this->device->setSevenRelays(1 << q);
+                    }
+                }
+            }
+            if (q != 6) {
+                SmGui::SameLine();
             }
         }
 

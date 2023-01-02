@@ -217,7 +217,7 @@ private:
             outputParameters.nChannels = 2;
             unsigned int bufferFrames = sampleRate / 60;
             RtAudio::StreamOptions opts;
-//            opts.flags = RTAUDIO_MINIMIZE_LATENCY;
+            opts.flags = RTAUDIO_MINIMIZE_LATENCY;
             opts.streamName = _streamName;
             std::replace(opts.streamName.begin(), opts.streamName.end(), '#', '_');
             spdlog::info("Starting RtAudio stream " + _streamName + " parameters.deviceId=" + std::to_string(outputParameters.deviceId)+" it is default input? "+std::to_string(defaultInputDeviceId == outputParameters.deviceId));
@@ -238,7 +238,7 @@ private:
         if (defaultInputDeviceId != deviceIds[devId] && defaultInputDeviceId != -1) {
             // input device differs from output
             RtAudio::StreamOptions opts;
-//            opts.flags = RTAUDIO_MINIMIZE_LATENCY;
+            opts.flags = RTAUDIO_MINIMIZE_LATENCY;
             opts.streamName = inputDeviceInfo.name;
             spdlog::info("Starting (separately) RtAudio INPUT stream " + inputDeviceInfo.name + " parameters.deviceId=" + std::to_string(defaultInputDeviceId)+" (output was: "+std::to_string(deviceIds[devId])+")");
             unsigned int bufferFrames = sampleRate / 60;
@@ -254,11 +254,20 @@ private:
 
         }
 
-
+        sigpath::sinkManager.defaultInputAudio.init(&microphone);
+        sigpath::sinkManager.defaultInputAudio.start();
+        microphone.setBufferSize(sampleRate / 60);
     }
+
+    dsp::stream<dsp::stereo_t> microphone;
+
 
     void doStop() {
         spdlog::info("Stopping RtAudio stream:  "+_streamName);
+
+        sigpath::sinkManager.defaultInputAudio.stop();
+        sigpath::sinkManager.defaultInputAudio.setInput(nullptr);
+
         s2m.stop();
         monoPacker.stop();
         stereoPacker.stop();
@@ -291,11 +300,13 @@ private:
     static int callback2(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData) {
         AudioSink* _this = (AudioSink*)userData;
         if (inputBuffer != nullptr) {
-            static int counter = 0;
-            if (counter++ % 30 == 0) {
-                float* ib = (float*)inputBuffer;
-                printf("ok here input buffer2: %f %f %f %f %f %f %f %f\n", ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
-            }
+//            static int counter = 0;
+//            if (counter++ % 30 == 0) {
+//                float* ib = (float*)inputBuffer;
+//                printf("ok here input buffer2 %d: %f %f %f %f %f %f %f %f\n", nBufferFrames, ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
+//            }
+            memmove(_this->microphone.writeBuf, inputBuffer, nBufferFrames * 2 * sizeof(float));
+            _this->microphone.swap(nBufferFrames);
         }
         return 0;
     }

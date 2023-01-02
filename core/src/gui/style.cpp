@@ -36,8 +36,9 @@ namespace style {
 
         // Create big font range
         ImFontGlyphRangesBuilder bigBuilder;
-        const ImWchar bigRange[] = { '.', '9', '+', '-', 0 };
-        bigBuilder.AddRanges(bigRange);
+//        const ImWchar bigRange[] = { '.', '9', '+', '-', 0 };
+//        bigBuilder.AddRanges(bigRange);
+        bigBuilder.AddRanges(fonts->GetGlyphRangesDefault());
         bigBuilder.BuildRanges(&bigRanges);
 
         // Create huge font range

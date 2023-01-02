@@ -5,4 +5,6 @@ namespace sigpath {
     VFOManager vfoManager;
     SourceManager sourceManager;
     SinkManager sinkManager;
+    Transmitter *transmitter;
+
 };

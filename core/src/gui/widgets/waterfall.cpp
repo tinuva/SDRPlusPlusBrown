@@ -18,7 +18,7 @@ static long long currentTimeMillis() {
     auto t0 = currentTimeMillis();                      \
     std::lock_guard lck(mtx); \
     t0 = currentTimeMillis() - t0; \
-    if (t0 > 5) { \
+    if (false && t0 > 5) { \
         spdlog::info("Lock took {0}, line {1}", t0, __LINE__); \
     }
 
@@ -26,7 +26,7 @@ static long long currentTimeMillis() {
     auto t0 = currentTimeMillis();                      \
     mtx.lock(); \
     t0 = currentTimeMillis() - t0; \
-    if (t0 > 5) { \
+    if (false && t0 > 5) { \
         spdlog::info("Lock took {0}, line {1}", t0, __LINE__); \
     }
 

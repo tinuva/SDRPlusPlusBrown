@@ -140,11 +140,13 @@ namespace displaymenu {
             core::configManager.conf["lockMenuOrder"] = gui::menu.locked;
             core::configManager.release(true);
         }
-        ImGui::SameLine();
-        if (ImGui::Checkbox("Small screen##_sdrpp", &smallScreen)) {
-            core::configManager.acquire();
-            core::configManager.conf["smallScreen"] = smallScreen;
-            core::configManager.release(true);
+        if (false) {
+            ImGui::SameLine();
+            if (ImGui::Checkbox("Small screen##_sdrpp", &smallScreen)) {
+                core::configManager.acquire();
+                core::configManager.conf["smallScreen"] = smallScreen;
+                core::configManager.release(true);
+            }
         }
 
 

@@ -21,9 +21,13 @@ namespace dsp {
             assert(_block_init);
             std::lock_guard<std::recursive_mutex> lck(ctrlMtx);
             tempStop();
-            unregisterInput(_in);
+            if (_in) {
+                unregisterInput(_in);
+            }
             _in = in;
-            registerInput(_in);
+            if (_in) {
+                registerInput(_in);
+            }
             tempStart();
         }
 
