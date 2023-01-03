@@ -276,22 +276,18 @@ private:
         if (audio2.isStreamRunning()) {
             spdlog::info("Stopping RtAudio stream p.3");
             audio2.stopStream();
-            usleep(200000);
         }
         if (audio2.isStreamOpen()) {
             spdlog::info("Stopping RtAudio stream p.4");
             audio2.closeStream();
-            usleep(200000);
         }
         if (audio.isStreamRunning()) {
             spdlog::info("Stopping RtAudio stream p.1");
             audio.stopStream();
-            usleep(200000);
         }
         if (audio.isStreamOpen()) {
             spdlog::info("Stopping RtAudio stream p.2");
             audio.closeStream();
-            usleep(200000);
         }
         monoPacker.out.clearReadStop();
         stereoPacker.out.clearReadStop();
