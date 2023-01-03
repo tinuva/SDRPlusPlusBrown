@@ -82,16 +82,19 @@ jobs:
               path: ${{runner.workspace}}/sdrpp_windows_x64.zip
 
     build_macos:
-        runs-on: macos-11
+      runs-on: macos-11
 
-        steps:
+      steps:
         - uses: actions/checkout@v3
-        
+
         - name: Create Build Environment
           run: cmake -E make_directory ${{runner.workspace}}/build
-          
+
         - name: Update brew repositories
           run: brew update
+
+        - name: Fix python
+          run: rm -f /usr/local/bin/2to3* /usr/local/bin/idle3* /usr/local/bin/pydoc3* /usr/local/bin/python3* /usr/local/bin/python3-config*
 
         - name: Install dependencies
           run: brew install libusb fftw glfw airspy airspyhf portaudio hackrf rtl-sdr libbladerf codec2 zstd && pip3 install mako
@@ -126,9 +129,9 @@ jobs:
         - name: Save Archive
           uses: actions/upload-artifact@v3
           with:
-              name: sdrpp_macos_intel
-              path: ${{runner.workspace}}/sdrpp_macos_intel.zip
-  
+            name: sdrpp_macos_intel
+            path: ${{runner.workspace}}/sdrpp_macos_intel.zip
+
     build_debian_buster:
         runs-on: ubuntu-latest
 
