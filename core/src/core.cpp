@@ -158,7 +158,13 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["menuElements"][7]["name"] = "Display";
     defConfig["menuElements"][7]["open"] = true;
 
+
+
+#ifdef __ANDROID__
+    defConfig["menuWidth"] = 700;
+#else
     defConfig["menuWidth"] = 300;
+#endif
     defConfig["min"] = -120.0;
 
     // Module instances
@@ -222,7 +228,6 @@ int sdrpp_main(int argc, char* argv[]) {
 #endif
 
     defConfig["modules"] = json::array();
-
     defConfig["offsetMode"] = (int)0; // Off
     defConfig["offset"] = 0.0;
     defConfig["showMenu"] = true;

@@ -8,9 +8,7 @@
 #include <gui/gui.h>
 #include <signal_path/signal_path.h>
 #include <core.h>
-#include <gui/style.h>
 #include <config.h>
-#include <gui/widgets/stepped_slider.h>
 #include <iostream>
 
 #include "hl2_device.h"
@@ -35,13 +33,7 @@ std::string discoveredToIp(DISCOVERED &d) {
     return str;
 }
 
-static long long currentTimeMillis() {
-    std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
-    long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
-    return msec;
-}
-
-class HermesLite2SourceModule : public ModuleManager::Instance {
+class HermesLite2SourceModule : public ModuleManager::Instance, public Transmitter {
 
     int adcGain = 0;
     bool sevenRelays[10];
@@ -247,6 +239,7 @@ private:
             _this->device->start();
         }
         _this->running = true;
+        sigpath::transmitter = _this;
         spdlog::info("HL2SourceModule '{0}': Start!", _this->name);
     }
 
@@ -259,6 +252,8 @@ private:
         _this->stream.clearWriteStop();
         spdlog::info("HermerList2SourceModule '{0}': Stop!", _this->name);
         _this->device.reset();
+
+        sigpath::transmitter = nullptr;
     }
 
     static void tune(double freq, void* ctx) {
@@ -401,6 +396,92 @@ private:
     std::vector<uint32_t> sampleRateList;
     std::string sampleRateListTxt;
     std::shared_ptr<HL2Device> device;
+
+
+    int getInputStreamFramerate() override {
+        return 48000;
+    }
+    void setTransmitStatus(bool status) override {
+        device->setTune(false);
+        device->setPTT(status);
+
+    }
+    void setTransmitStream(dsp::stream<dsp::complex_t>* stream) override {
+        std::thread([this, stream]() {
+            std::vector<dsp::complex_t> buffer;
+            int addedBlocks = 0;
+            int readSamples = 0;
+            int nreads = 0;
+            while (true) {
+                int rd = stream->read();
+                if (rd < 0) {
+                    printf("End iq stream for tx");
+                    break;
+                }
+                readSamples += rd;
+                nreads++;
+                for(int q=0; q<rd; q++) {
+                    buffer.push_back(stream->readBuf[q]);
+                    if (buffer.size() == 63) {
+                        addedBlocks++;
+                        if (addedBlocks % 1000 == 0) {
+                            spdlog::info("Added {} blocks to tx buffer, rd samples {}  ndreads {}", addedBlocks, readSamples, nreads);
+                        }
+                        device->samplesToSendLock.lock();
+                        device->samplesToSend.emplace_back(std::make_shared<std::vector<dsp::complex_t>>(buffer));
+                        device->samplesToSendLock.unlock();
+                        buffer.clear();
+                    }
+                }
+                stream->flush();
+            }
+        }).detach();
+    }
+    void setTransmitGain(unsigned char gain) override {
+        device->setPower(gain);
+
+    }
+    void setTransmitFrequency(int freq) override {
+        device->setTxFrequency(freq);
+
+    }
+    void startGenerateTone(int frequency) override {
+        device->setFrequency(frequency);
+        device->setTxFrequency(frequency);
+        device->setTune(true);
+        device->setPTT(true);
+    }
+
+    void setPAEnabled(bool enabled) {
+        device->setPAEnabled(enabled);
+    }
+
+    void stopGenerateTone() override {
+        device->setPTT(false);
+        device->setTune(false);
+    }
+
+    void setToneGain() override {
+    }
+
+    int getTXStatus() override {
+        return device->transmitMode;
+    }
+    float getTransmitPower() override {
+        return device->fwd+device->rev;
+    }
+    float getTransmitSWR() override {
+        return device->getSWR() ;
+    }
+
+    float getFillLevel() override {
+        return device->fill_level;
+    }
+
+    std::string& getTransmitterName() override {
+        static std::string name = "Hermes Lite 2";
+        return name;
+    }
 };
 
 MOD_EXPORT void _INIT_() {

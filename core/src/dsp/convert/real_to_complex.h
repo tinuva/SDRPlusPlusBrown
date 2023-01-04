@@ -12,16 +12,20 @@ namespace dsp::convert {
         ~RealToComplex() {
             if (!base_type::_block_init) { return; }
             base_type::stop();
-            buffer::free(nullBuf);
         }
 
         void init(stream<float>* in) {
-            nullBuf = buffer::alloc<float>(STREAM_BUFFER_SIZE);
-            buffer::clear(nullBuf, STREAM_BUFFER_SIZE);
             base_type::init(in);
         }
 
-        inline int process(int count, const float* in, complex_t* out) {
+        static float *allocNullBuffer() {
+            auto b = buffer::alloc<float>(STREAM_BUFFER_SIZE);
+            buffer::clear(b, STREAM_BUFFER_SIZE);
+            return b;
+        }
+
+        inline static int process(int count, const float* in, complex_t* out) {
+            static float *nullBuf = allocNullBuffer();
             volk_32f_x2_interleave_32fc((lv_32fc_t*)out, in, nullBuf, count);
             return count;
         }

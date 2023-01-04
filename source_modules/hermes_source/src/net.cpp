@@ -286,6 +286,7 @@ namespace net {
 
         // Save data
         for (auto iface = addresses; iface; iface = iface->ifa_next) {
+            if (!iface || !iface->ifa_addr) continue ;
             if (iface->ifa_addr->sa_family != AF_INET) { continue; }
             InterfaceInfo info;
             info.address = ntohl(*(uint32_t*)&iface->ifa_addr->sa_data[2]);

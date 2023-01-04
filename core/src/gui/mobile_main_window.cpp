@@ -18,23 +18,81 @@
 #include <gui/tuner.h>
 #include "../../decoder_modules/radio/src/radio_module.h"
 #include "../../misc_modules/noise_reduction_logmmse/src/arrays.h"
+#include "dsp/convert/stereo_to_mono.h"
+#include "dsp/channel/frequency_xlator.h"
 #include <math.h>
 
 using namespace ::dsp::arrays;
 
-struct QSOPanel {
-    void start();
-    void stop();
-    void draw(ImGui::WaterfallVFO* pVfo);
-    dsp::stream<dsp::stereo_t> audioIn;
-    int readSamples;
-    const int fftFPS = 60;
-    std::shared_ptr<AudioInToFFT> audioInToFFT;
-    std::shared_ptr<std::thread> receiveBuffers;
-    dsp::arrays::FloatArray currentFFTBuffer;
-    std::mutex currentFFTBufferMutex;
-};
 
+struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
+
+    std::string submode;
+    dsp::convert::StereoToMono s2m;
+    dsp::convert::RealToComplex r2c;
+    dsp::channel::FrequencyXlator xlator1;
+    dsp::channel::FrequencyXlator xlator2;
+    dsp::tap<dsp::complex_t> ftaps;
+    dsp::filter::FIR<dsp::complex_t, dsp::complex_t> filter;
+    dsp::loop::AGC<float> audioAgc;
+
+    AudioInToTransmitter(dsp::stream<dsp::stereo_t>* in) {
+        init(in);
+        totalRead = 0;
+    }
+
+    int totalRead;
+
+    void setSubmode(const std::string &submode) {
+        this->submode = submode;
+    }
+
+    void start() override {
+        dsp::Processor<dsp::stereo_t, dsp::complex_t>::start();
+
+        auto bandwidth = 2500.0;
+        if (this->submode == "LSB") {
+            xlator1.init(NULL, -bandwidth / 2, 48000);
+            xlator2.init(NULL, bandwidth / 2, 48000);
+        } else {
+            xlator1.init(NULL, bandwidth / 2, 48000);
+            xlator2.init(NULL, -bandwidth / 2, 48000);
+        }
+        ftaps = dsp::taps::lowPass0<dsp::complex_t>(bandwidth/2, bandwidth/2 * 0.1, 48000);
+        filter.init(NULL, ftaps);
+        float agcAttack = 50.0f;
+        float agcDecay = 5.0f;
+        audioAgc.init(NULL, 1.0, agcAttack / bandwidth, agcDecay / bandwidth, 10e6, 2.0, 1.0);
+    }
+
+    void stop() override {
+        dsp::Processor<dsp::stereo_t, dsp::complex_t>::stop();
+        dsp::taps::free(ftaps);
+    }
+
+    int run() override {
+        int rd = this->_in->read();
+        if (rd < 0) {
+            return rd;
+        }
+        s2m.process(rd, this->_in->readBuf, s2m.out.writeBuf);
+        r2c.process(rd, s2m.out.writeBuf, r2c.out.writeBuf);
+        xlator1.process(rd, r2c.out.writeBuf, xlator1.out.writeBuf);
+        filter.process(rd, xlator1.out.writeBuf, filter.out.writeBuf);
+//        filter.process(rd, filter.out.writeBuf, filter.out.writeBuf);
+        xlator2.process(rd, filter.out.writeBuf, out.writeBuf);
+//
+//        audioAgc.process(rd, s2m.out.writeBuf, audioAgc.out.writeBuf);
+
+        this->_in->flush();
+        if (!out.swap(rd)) {
+            spdlog::info("Does not write to output stream", totalRead);
+            return -1;
+        }
+        return rd;
+    };
+
+};
 
 struct AudioInToFFT : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
 
@@ -74,6 +132,14 @@ struct AudioInToFFT : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
             for(int q=0; q<windowSize; q++) {
                 (*inputArray)[q] = dsp::complex_t{ inputData[q].l, 0 };
             }
+            static int counter = 0;
+            if (counter++ % 30 == 0) {
+                auto ib = (float*)(*inputArray).data();
+                char buf[1000];
+                sprintf(buf, "input: %f %f %f %f %f %f %f %f", ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
+                std::string sbuf = buf;
+                spdlog::info("in qsopanel: {}", sbuf);
+            }
             auto inputMul = muleach(hanningWin, inputArray);
             auto result = dsp::arrays::npfftfft(inputMul, plan);
             std::copy(result->begin(), result->end(), this->out.writeBuf);
@@ -85,7 +151,27 @@ struct AudioInToFFT : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
     };
 };
 
-//using namespace std;
+struct QSOPanel {
+    void start();
+    void stop();
+    void draw(float currentFreq, ImGui::WaterfallVFO* pVfo);
+    dsp::stream<dsp::stereo_t> audioIn;
+    dsp::stream<dsp::stereo_t> audioTowardsTransmitter;
+    int readSamples;
+    const int fftFPS = 60;
+    std::shared_ptr<AudioInToFFT> audioInToFFT;
+    std::shared_ptr<AudioInToTransmitter> audioInToTransmitter;
+    std::shared_ptr<std::thread> receiveBuffers;
+    dsp::arrays::FloatArray currentFFTBuffer;
+    std::mutex currentFFTBufferMutex;
+    void handleTxButton(bool tx, const std::string &submode);
+    float currentFreq;
+    int txGain;
+    bool enablePA;
+    bool transmitting;
+};
+
+
 
 static bool withinRadius(ImVec2 center, float radius, ImVec2 point) {
     if (isnan(point.x)) {
@@ -128,8 +214,12 @@ bool MobileButton::draw() {
     if (pressed) {
         if (isnan(this->pressPoint.x)) {
             this->pressPoint = mouseCoord;
+            if (withinRect(avail, this->pressPoint)) {
+                this->currentlyPressed = true;      // not cleared when finger away of button
+            }
         }
     } else {
+        this->currentlyPressed = false;
         if (startedInside && withinRect(avail, mouseCoord)) {
             // released inside
             retval = true;
@@ -461,7 +551,7 @@ void MobileMainWindow::draw() {
         auto cp = ImGui::GetCursorPos();
         ImGui::SetCursorPos(cp + ImVec2{waterfallRegion.x, 0});
         ImGui::BeginChildEx("QSO", ImGui::GetID("sdrpp_qso"), ImVec2(buttonsWidth, ImGui::GetContentRegionAvail().y), false, 0);
-        qsoPanel->draw(vfo);
+        qsoPanel->draw(currentFreq, vfo);
         ImGui::EndChild(); // buttons
     }
 
@@ -541,7 +631,7 @@ void MobileMainWindow::draw() {
             updateSubmodeAfterChange();
         }
     }
-
+    qsoPanel->handleTxButton(this->txButton.currentlyPressed, submodeToggle.upperText);
 
 }
 std::string MobileMainWindow::getCurrentBand() {
@@ -663,7 +753,7 @@ void QSOPanel::start() {
     sigpath::sinkManager.defaultInputAudio.bindStream(&audioIn);
     audioInToFFT = std::make_shared<AudioInToFFT>(&audioIn);
     audioInToFFT->start();
-    receiveBuffers = std::make_shared<std::thread>(std::function<void()>([this](){
+    std::thread x([this]{
         while (true) {
             auto rd = audioInToFFT->out.read();
             if (rd < 0) {
@@ -687,26 +777,48 @@ void QSOPanel::start() {
             currentFFTBufferMutex.unlock();
             audioInToFFT->out.flush();
         }
-    }));
+    });
+    x.detach();
 }
 
+
+void QSOPanel::handleTxButton(bool tx, const std::string &submode) {
+    if (sigpath::transmitter) {
+        if (tx) {
+            if (!this->transmitting) {
+                this->transmitting = true;
+                sigpath::sinkManager.defaultInputAudio.bindStream(&audioTowardsTransmitter);
+                audioInToTransmitter = std::make_shared<AudioInToTransmitter>(&audioTowardsTransmitter);
+                audioInToTransmitter->setSubmode(submode);
+                audioInToTransmitter->start();
+                sigpath::transmitter->setTransmitStream(&audioInToTransmitter->out);
+                sigpath::transmitter->setTransmitFrequency((int)currentFreq);
+                sigpath::transmitter->setTransmitStatus(true);
+            }
+        } else {
+            sigpath::transmitter->setTransmitStatus(false);
+            if (this->transmitting) {
+                sigpath::sinkManager.defaultInputAudio.unbindStream(&audioTowardsTransmitter);
+                this->transmitting = false;
+                audioInToTransmitter->stop();
+                audioInToTransmitter->out.stopReader();
+            }
+        }
+    }
+}
 
 void QSOPanel::stop() {
+    sigpath::sinkManager.defaultInputAudio.unbindStream(&audioIn);
     spdlog::info("QSOPanel::stop. Calling audioInToFFT->stop()");
     audioInToFFT->stop();
-//    spdlog::info("Calling audioInToFFT->reset()");
-//    audioInToFFT.reset();
+    audioInToFFT->out.stopReader();
+    spdlog::info("Calling audioInToFFT->reset()");
+    audioInToFFT.reset();
     spdlog::info("Reset complete");
-    sigpath::sinkManager.defaultInputAudio.unbindStream(&audioIn);
 }
 
-void QSOPanel::draw(ImGui::WaterfallVFO* pVfo) {
-//    int rd = audioIn.read();
-//    if (rd > 0) {
-//        readSamples+= rd;
-//    }
-//    audioIn.flush();
-//    ImGui::Text("Read samples: %d", readSamples);
+void QSOPanel::draw(float currentFreq, ImGui::WaterfallVFO* pVfo) {
+    this->currentFreq = currentFreq;
     currentFFTBufferMutex.lock();
     if (currentFFTBuffer) {
         ImVec2 space = ImGui::GetContentRegionAvail();
@@ -720,7 +832,18 @@ void QSOPanel::draw(ImGui::WaterfallVFO* pVfo) {
         ImGui::PlotHistogram("##fft", data->data(), currentFFTBuffer->size()/4, 0, NULL, 0, mx, space);
         ImGui::Text("Max: %f", mx0);
         if (sigpath::transmitter) {
-
+            ImGui::Text("TX state: %d", sigpath::transmitter->getTXStatus());
+            ImGui::Text("Fill level: %f", sigpath::transmitter->getFillLevel());
+            ImGui::Text("SWR: %f", sigpath::transmitter->getTransmitSWR());
+            ImGui::Text("PWR: %f", sigpath::transmitter->getTransmitPower());
+            if (ImGui::Checkbox("Enable PA", &this->enablePA)) {
+                sigpath::transmitter->setPAEnabled(this->enablePA);
+            }
+            ImGui::LeftLabel("TX Gain");
+            ImGui::SameLine();
+            if (ImGui::SliderInt("##_radio_tx_gain_", &this->txGain, 0, 255)) {
+                sigpath::transmitter->setTransmitGain(this->txGain);
+            }
         } else {
             ImGui::Text("No transmitter! NO WAI!");
         }

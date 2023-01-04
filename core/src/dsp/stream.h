@@ -20,6 +20,9 @@ namespace dsp {
         virtual void clearReadStop() {}
     };
 
+
+
+
     template <class T>
     class stream : public untyped_stream {
     public:

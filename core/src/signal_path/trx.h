@@ -11,24 +11,28 @@
 #include <vector>
 
 
-class Transmitter {
+struct Transmitter {
 
 
     // for stream transmission
     virtual int getInputStreamFramerate() = 0;      // 48000 hz for hermes lite 2 input stream
     virtual void setTransmitStatus(bool status) = 0;
     virtual void setTransmitStream(dsp::stream<dsp::complex_t> *stream) = 0;
-    virtual void setTransmitGain() = 0;
+    virtual void setTransmitGain(unsigned char gain) = 0;   // 0..255
+    virtual void setTransmitFrequency(int freq) = 0;
 
     // for tone transmission
     virtual void startGenerateTone(int frequency) = 0;
     virtual void stopGenerateTone() = 0;
     virtual void setToneGain() = 0;
 
+    virtual void setPAEnabled(bool enabled) = 0;
+
     virtual int getTXStatus() = 0;      // tone or stream
 
     virtual float getTransmitPower() = 0;
     virtual float getTransmitSWR() = 0;
+    virtual float getFillLevel() = 0;
     virtual std::string &getTransmitterName() = 0;
 
 };

@@ -20,7 +20,7 @@
 // Credit to the ImGui android OpenGL3 example for a lot of this code!
 
 namespace backend {
-    struct android_app* app = NULL;
+    SDRPP_EXPORT struct android_app* app = NULL;
     EGLDisplay _EglDisplay = EGL_NO_DISPLAY;
     EGLSurface _EglSurface = EGL_NO_SURFACE;
     EGLContext _EglContext = EGL_NO_CONTEXT;
@@ -487,4 +487,9 @@ extern "C" {
         char* dummy[] = { "", "-r", rootpath };
         sdrpp_main(3, dummy);
     }
+}
+extern "C"
+JNIEXPORT void JNICALL
+Java_org_sdrpp_sdrpp_AndroidAudioInput_addAudioSamples(JNIEnv *env, jclass clazz, jfloatArray arr) {
+    // TODO: implement addAudioSamples()
 }

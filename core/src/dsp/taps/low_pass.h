@@ -4,9 +4,14 @@
 #include "../window/nuttall.h"
 
 namespace dsp::taps {
-    inline tap<float> lowPass(double cutoff, double transWidth, double sampleRate, bool oddTapCount = false) {
+    template<typename T>
+    inline tap<T> lowPass0(double cutoff, double transWidth, double sampleRate, bool oddTapCount = false) {
         int count = estimateTapCount(transWidth, sampleRate);
         if (oddTapCount && !(count % 2)) { count++; }
-        return windowedSinc<float>(count, cutoff, sampleRate, window::nuttall);
+        return windowedSinc<T>(count, cutoff, sampleRate, window::nuttall);
     }
+    inline tap<float> lowPass(double cutoff, double transWidth, double sampleRate, bool oddTapCount = false) {
+        return lowPass0<float>(cutoff, transWidth, sampleRate, oddTapCount);
+    }
+
 }

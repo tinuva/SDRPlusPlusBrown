@@ -12,13 +12,23 @@
 
 /*
  * todo:
- * - smaller scroll wheel
- * - fix scroll wheel to scroll properly
- * - when frequency changed manually, change the band properly on the right.
- * - tx button -> qso button.
- * - move the current status labels to the waterfall
- * - remove circles, use the rectangles. Band selection up/down.
+ * + smaller scroll wheel
+ * + fix scroll wheel to scroll properly
+ * + when frequency changed manually, change the band properly on the right.
+ * + tx button -> qso button.
+ * + move the current status labels to the waterfall
+ * + remove circles, use the rectangles. Band selection up/down.
+ * - fix frequency restore upon launch
+ * - move tx button to the bottom
  * - save recent submode/freq only on band leave with buttons.
+ * - add proper submode codecs (LSB/SSB at least)
+ * - verify SWR and power readings
+ * - local android build
+ * - add audio input for android mobile
+ * - save/restore settings
+ * - long press zoom shows full band
+ * - up/down band buttons - place side by side horizontally
+ *
  */
 
 
@@ -36,7 +46,6 @@ struct TheEncoder {
     float draw(ImGui::WaterfallVFO* pVfo);
 };
 
-struct AudioInToFFT;
 struct QSOPanel;
 
 
@@ -51,6 +60,7 @@ struct MobileButton {
     }
     float sizeFactor = 0.8;
     bool draw();
+    bool currentlyPressed;
 };
 
 
