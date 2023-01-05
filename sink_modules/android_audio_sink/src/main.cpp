@@ -27,10 +27,8 @@ SDRPP_MOD_INFO{
 ConfigManager config;
 
 namespace backend {
-    extern struct android_app* app = NULL;
+    struct android_app* app = NULL;
 }
-
-
 
 class AudioSink : SinkManager::Sink {
 

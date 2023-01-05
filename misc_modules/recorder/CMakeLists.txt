@@ -3,6 +3,7 @@ project(recorder)
 
 file(GLOB SRC "src/*.cpp")
 
+
 add_library(recorder SHARED ${SRC})
 target_link_libraries(recorder PRIVATE sdrpp_core)
 set_target_properties(recorder PROPERTIES PREFIX "")
