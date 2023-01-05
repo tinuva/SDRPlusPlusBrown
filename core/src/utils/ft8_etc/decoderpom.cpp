@@ -741,7 +741,7 @@ c5:
     }
     goto c1;
 }
-bool PomAll::isStandardCall(const std::string &w)//2.61 same as  MultiAnswerModW
+bool PomAll::isStandardCall(const QString &w)//2.61 same as  MultiAnswerModW
 {
     //static QRegularExpression standard_call_re {
     //  R"(
@@ -752,12 +752,9 @@ bool PomAll::isStandardCall(const std::string &w)//2.61 same as  MultiAnswerModW
     //      \s*$				# optional trailing spaces
     //  )", QRegularExpression::CaseInsensitiveOption | QRegularExpression::ExtendedPatternSyntaxOption};
     //return standard_call_re.match (w).hasMatch ();
-    std::regex rx("^\\s*([A-Z]{0,2}|[A-Z][0-9]|[0-9][A-Z])([0-9][A-Z]{0,3})(/R|/P)?\\s*$", std::regex_constants::icase);
-//    rx.setCaseSensitivity(Qt::CaseInsensitive);
-    std::cmatch m;
-    bool res0 = std::regex_match(w.c_str(), m, rx);
-    abort(); // test me
-//    bool res0 = rx.(w); //qDebug()<<w<<res0;
+    QRegExp rx("^\\s*([A-Z]{0,2}|[A-Z][0-9]|[0-9][A-Z])([0-9][A-Z]{0,3})(/R|/P)?\\s*$");
+    rx.setCaseSensitivity(QRegExp::CaseInsensitive);
+    bool res0 = rx.exactMatch(w); //qDebug()<<w<<res0;
     return res0;                       
 }
 /*bool PomAll::isStandardCall(QString w)
@@ -1480,10 +1477,9 @@ void PomFt::encode174_91_nocrc(bool *message910,bool *codeword)
         {
             for (int j = 0; j < 23; ++j)
             {
-                std::string temp = g_ft8_174_91[i].substr(j,1);
-                int istr;
-                bool ok = 1 == sscanf(temp.c_str(), "%x", &istr);
-                abort(); // test me
+                QString temp = g_ft8_174_91[i].substr(j,1);
+                bool ok;
+                int istr = toInt(temp.str->c_str(), ok, 16);
                 for (int jj = 0; jj < 4; ++jj)
                 {
                     int irow=(j)*4+jj;//irow=(j-1)*4+jj

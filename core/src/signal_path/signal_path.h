@@ -12,6 +12,6 @@ namespace sigpath {
     SDRPP_EXPORT SourceManager sourceManager;
     SDRPP_EXPORT SinkManager sinkManager;
     SDRPP_EXPORT Transmitter *transmitter;
-    Event<bool> txState;
+    SDRPP_EXPORT Event<bool> txState;
 
 };

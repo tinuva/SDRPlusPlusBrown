@@ -4,6 +4,7 @@
  */
 
 #include "mscore.h"
+#include "mshv_support.h"
 #include <algorithm> // zaradi max(
 //#include <unistd.h>
 
@@ -217,16 +218,16 @@ void MsCore::SetMode(int mod_iden)
 //    SetupSettings_((QString)rad_sound_state.dev_capt_name,rate,rad_sound_state.latency_millisecs,
 //                   rad_sound_state.data_poll_usec,rad_sound_state.channel_I,true);
 }
-void MsCore::SetupSettings(const std::string & dev_in_number,int latency,int card_buffer_polls,int channel)// QString,
-{
-    //qDebug()<<"DN="<<dev_in_number<<in_sample_rate;
-//    if ((QString)rad_sound_state.dev_capt_name == dev_in_number && /*rad_sound_state.sample_rate == rate.toInt() &&*/
-//            rad_sound_state.latency_millisecs == latency && rad_sound_state.data_poll_usec == card_buffer_polls &&
-//            rad_sound_state.channel_I == channel)
-//        return;//za da ne garmi pod windows
-//
-//    SetupSettings_(dev_in_number,QString("%1").arg(in_sample_rate),latency,card_buffer_polls,channel,false);
-}
+//void MsCore::SetupSettings(const std::string & dev_in_number,int latency,int card_buffer_polls,int channel)// QString,
+//{
+//    //qDebug()<<"DN="<<dev_in_number<<in_sample_rate;
+////    if ((QString)rad_sound_state.dev_capt_name == dev_in_number && /*rad_sound_state.sample_rate == rate.toInt() &&*/
+////            rad_sound_state.latency_millisecs == latency && rad_sound_state.data_poll_usec == card_buffer_polls &&
+////            rad_sound_state.channel_I == channel)
+////        return;//za da ne garmi pod windows
+////
+////    SetupSettings_(dev_in_number,QString("%1").arg(in_sample_rate),latency,card_buffer_polls,channel,false);
+//}
 void MsCore::record_app()
 {
     //qDebug()<<"Start record_app";
@@ -426,117 +427,117 @@ void MsCore::FastResetSoundCardIn_p()// for pure sound cards
 */
 }
 static int tci_read_ = 0; //2.58 0=stop 1=buff 2=read
-void MsCore::SetupSettings_(const std::string & dev_in_number, const std::string & sample_rate, int latency, int card_buffer_polls,
-                            int channel,bool imidiatly)
-{
-/*
-    if (!imidiatly)
-    {
-        if ((QString)rad_sound_state.dev_capt_name == dev_in_number && in_sample_rate == sample_rate.toInt() &&
-                rad_sound_state.latency_millisecs == latency && rad_sound_state.data_poll_usec == card_buffer_polls &&
-                rad_sound_state.channel_I == channel)
-            return;//za da ne garmi pod windows
-    }
-
-    g_read_snd = false;//true;  // stop reading
-
-    usleep(1000);        //2.37 be6e=1000 1.33=no in sdr 20ms   //     1.34
-
-    close_sound();
-
-    usleep(2000);        //1.33=yes  1.34  wait hardware to clear buffers
-
-    //msk144 //jt65abc pi4 ft8 ft4 q65
-    */
-/*if (s_mod_iden == 0 || s_mod_iden == 7 || s_mod_iden == 8 || s_mod_iden == 9 || s_mod_iden == 10 ||
-            s_mod_iden == 11 || s_mod_iden == 12 || s_mod_iden == 13 ||
-            s_mod_iden == 14 || s_mod_iden == 15 || s_mod_iden == 16 || s_mod_iden == 17)
-    {
-        fftw_sample_rate = (int)ORG_SAMPLE_RATE_12000;
-        in_sample_rate = sample_rate.toInt();
-        koef_resample = (int)((in_sample_rate/(int)ORG_SAMPLE_RATE_12000)-1);
-    }
-    else //if (s_mod_iden>0 && s_mod_iden<7)
-    {
-        fftw_sample_rate = (int)ORG_SAMPLE_RATE_11025;
-        in_sample_rate = sample_rate.toInt();
-        koef_resample = (int)((in_sample_rate/(int)ORG_SAMPLE_RATE_11025)-1);
-    }*//*
-
-    if (s_mod_iden>0 && s_mod_iden<7) //2.65
-    {
-        fftw_sample_rate = (int)ORG_SAMPLE_RATE_11025;
-        in_sample_rate = sample_rate.toInt();
-        koef_resample = (int)((in_sample_rate/(int)ORG_SAMPLE_RATE_11025)-1);
-    }  
-    else  
-    {
-        fftw_sample_rate = (int)ORG_SAMPLE_RATE_12000;
-        in_sample_rate = sample_rate.toInt();
-        koef_resample = (int)((in_sample_rate/(int)ORG_SAMPLE_RATE_12000)-1);
-    }    
-    
-    //for pulse audio max is 512 ???
-    strncpy(rad_sound_state.dev_capt_name,dev_in_number.toUtf8(),127); //127 2.37 be6e SC_SIZE_L
-    //if ((QString)rad_sound_state.dev_capt_name==dev_in_number)
-    //qDebug()<<"mscore="<<(QString)rad_sound_state.dev_capt_name<<dev_in_number;
-    QString str_device_name = (QString)rad_sound_state.dev_capt_name;
-    if (str_device_name=="TCI Client Input") ftci = true;	
-    else ftci = false;  	
-    tci_read_ = 0; //2.58
-    	
-    rad_sound_state.latency_millisecs = latency;//50 be6e hv 50-300
-    rad_sound_state.data_poll_usec = card_buffer_polls;
-    if (channel == 0)
-    {
-        rad_sound_state.channel_I = 0;
-        //rad_sound_state.channel_Q = 1;
-    }
-    else
-    {
-        rad_sound_state.channel_I = 1;
-        //rad_sound_state.channel_Q = 0;
-    }
-
-    THvRawFilter->set_rate(fftw_sample_rate);//2.34
-
-    bool p_read_snd = true;
-#if defined _WIN32_
-    if (!ftci) //tci
-    {
-        p_read_snd = select_device(true);
-        if (p_read_snd) p_read_snd = start_sound();
-    }
-#endif
-#if defined _LINUX_
-    if (str_device_name.mid(0,7)=="pulse: ") is_pulse_a_in = true;
-    else is_pulse_a_in = false;
-    if (!ftci) //tci
-    {
-        rad_open_sound();
-        int c_retry = 0;
-        if (!is_pulse_a_in && !hCapture)
-        {
-            while (!hCapture)
-            {
-                usleep(100000);
-                rad_open_sound();
-                c_retry++;
-                if (c_retry>120) break;
-            }
-        }
-    }
-#endif
-
-    record_app();       // fftw
-
-    usleep(2000);       //1.33=yes 1.34 wait fftw
-
-    last_reset_sc_in = QDateTime::currentDateTimeUtc().toTime_t();// reset time for fast reset
-    g_read_snd = p_read_snd;//false;  // start reading
-*/
-    //qDebug()<<"GrandReset";
-}
+//void MsCore::SetupSettings_(const std::string & dev_in_number, const std::string & sample_rate, int latency, int card_buffer_polls,
+//                            int channel,bool imidiatly)
+//{
+///*
+//    if (!imidiatly)
+//    {
+//        if ((QString)rad_sound_state.dev_capt_name == dev_in_number && in_sample_rate == sample_rate.toInt() &&
+//                rad_sound_state.latency_millisecs == latency && rad_sound_state.data_poll_usec == card_buffer_polls &&
+//                rad_sound_state.channel_I == channel)
+//            return;//za da ne garmi pod windows
+//    }
+//
+//    g_read_snd = false;//true;  // stop reading
+//
+//    usleep(1000);        //2.37 be6e=1000 1.33=no in sdr 20ms   //     1.34
+//
+//    close_sound();
+//
+//    usleep(2000);        //1.33=yes  1.34  wait hardware to clear buffers
+//
+//    //msk144 //jt65abc pi4 ft8 ft4 q65
+//    */
+///*if (s_mod_iden == 0 || s_mod_iden == 7 || s_mod_iden == 8 || s_mod_iden == 9 || s_mod_iden == 10 ||
+//            s_mod_iden == 11 || s_mod_iden == 12 || s_mod_iden == 13 ||
+//            s_mod_iden == 14 || s_mod_iden == 15 || s_mod_iden == 16 || s_mod_iden == 17)
+//    {
+//        fftw_sample_rate = (int)ORG_SAMPLE_RATE_12000;
+//        in_sample_rate = sample_rate.toInt();
+//        koef_resample = (int)((in_sample_rate/(int)ORG_SAMPLE_RATE_12000)-1);
+//    }
+//    else //if (s_mod_iden>0 && s_mod_iden<7)
+//    {
+//        fftw_sample_rate = (int)ORG_SAMPLE_RATE_11025;
+//        in_sample_rate = sample_rate.toInt();
+//        koef_resample = (int)((in_sample_rate/(int)ORG_SAMPLE_RATE_11025)-1);
+//    }*//*
+//
+//    if (s_mod_iden>0 && s_mod_iden<7) //2.65
+//    {
+//        fftw_sample_rate = (int)ORG_SAMPLE_RATE_11025;
+//        in_sample_rate = sample_rate.toInt();
+//        koef_resample = (int)((in_sample_rate/(int)ORG_SAMPLE_RATE_11025)-1);
+//    }
+//    else
+//    {
+//        fftw_sample_rate = (int)ORG_SAMPLE_RATE_12000;
+//        in_sample_rate = sample_rate.toInt();
+//        koef_resample = (int)((in_sample_rate/(int)ORG_SAMPLE_RATE_12000)-1);
+//    }
+//
+//    //for pulse audio max is 512 ???
+//    strncpy(rad_sound_state.dev_capt_name,dev_in_number.toUtf8(),127); //127 2.37 be6e SC_SIZE_L
+//    //if ((QString)rad_sound_state.dev_capt_name==dev_in_number)
+//    //qDebug()<<"mscore="<<(QString)rad_sound_state.dev_capt_name<<dev_in_number;
+//    QString str_device_name = (QString)rad_sound_state.dev_capt_name;
+//    if (str_device_name=="TCI Client Input") ftci = true;
+//    else ftci = false;
+//    tci_read_ = 0; //2.58
+//
+//    rad_sound_state.latency_millisecs = latency;//50 be6e hv 50-300
+//    rad_sound_state.data_poll_usec = card_buffer_polls;
+//    if (channel == 0)
+//    {
+//        rad_sound_state.channel_I = 0;
+//        //rad_sound_state.channel_Q = 1;
+//    }
+//    else
+//    {
+//        rad_sound_state.channel_I = 1;
+//        //rad_sound_state.channel_Q = 0;
+//    }
+//
+//    THvRawFilter->set_rate(fftw_sample_rate);//2.34
+//
+//    bool p_read_snd = true;
+//#if defined _WIN32_
+//    if (!ftci) //tci
+//    {
+//        p_read_snd = select_device(true);
+//        if (p_read_snd) p_read_snd = start_sound();
+//    }
+//#endif
+//#if defined _LINUX_
+//    if (str_device_name.mid(0,7)=="pulse: ") is_pulse_a_in = true;
+//    else is_pulse_a_in = false;
+//    if (!ftci) //tci
+//    {
+//        rad_open_sound();
+//        int c_retry = 0;
+//        if (!is_pulse_a_in && !hCapture)
+//        {
+//            while (!hCapture)
+//            {
+//                usleep(100000);
+//                rad_open_sound();
+//                c_retry++;
+//                if (c_retry>120) break;
+//            }
+//        }
+//    }
+//#endif
+//
+//    record_app();       // fftw
+//
+//    usleep(2000);       //1.33=yes 1.34 wait fftw
+//
+//    last_reset_sc_in = QDateTime::currentDateTimeUtc().toTime_t();// reset time for fast reset
+//    g_read_snd = p_read_snd;//false;  // start reading
+//*/
+//    //qDebug()<<"GrandReset";
+//}
 #define TCIBUFRX_LIM 385024 //=8sec =385024
 #define TCIBUFRX TCIBUFRX_LIM + 16450 //sample is 4096 max from network +=16384
 static short tci_raw2_0[TCIBUFRX]; //mono
@@ -678,7 +679,9 @@ void MsCore::decode_fft_size_samples(short *data_mono, int count)
                 sum += val;
             }
 
-            ptWriteFft->samples[ptWriteFft->index] = ((double)data_mono[i]*0.01);//2.46
+
+            ptWriteFft->samples[ptWriteFft->index][0] = (double)data_mono[i]*0.01;//2.46
+            ptWriteFft->samples[ptWriteFft->index][1] = 0;//2.46
             //if (ptWriteFft->index >= fft_size-1)
             //qDebug()<<"ptWriteFft->index"<<ptWriteFft->index;
             if (++(ptWriteFft->index) >= fft_size)
@@ -720,9 +723,10 @@ void MsCore::decode_fft_size_samples(short *data_mono, int count)
 void MsCore::SetVDispSpeed(int speed)
 {
     s_vdisp_speed = (10-speed);//1.51 10 9-speeds, 6
+    abort();
     //s_vdisp_speed = speed;
-    SetupSettings_((QString)rad_sound_state.dev_capt_name,QString("%1").arg(in_sample_rate),rad_sound_state.latency_millisecs,
-                   rad_sound_state.data_poll_usec,rad_sound_state.channel_I,true);
+//    SetupSettings_((QString)rad_sound_state.dev_capt_name,QString("%1").arg(in_sample_rate),rad_sound_state.latency_millisecs,
+//                   rad_sound_state.data_poll_usec,rad_sound_state.channel_I,true);
 }
 void MsCore::setVDFftwStartStopFreq(int beg,int end)
 {
@@ -731,153 +735,153 @@ void MsCore::setVDFftwStartStopFreq(int beg,int end)
 }
 void MsCore::Get_Graph(int smiter)
 {
-    int i, j, k, n;
-    fft_data * ptFft;
-    double y_scale[DATA_WIDTH+50];////1.39 rem s_data_width/2 1.37 max val
-    double d2;
-
-    ///	double *no_data = NULL;
-
-    //qDebug()<<DATA_WIDTH;
-    //if (!PyArg_ParseTuple (args, ""))
-    //return NULL;
-    // Look for an fft ready to run.  Throw the other away if there are two.
-    if (FFT1 && FFT1->status == READY)
-    {
-        ptFft = FFT1;
-        if (FFT2 && FFT2->status == READY)
-            FFT2->status = EMPTY;
-    }
-    else if (FFT2 && FFT2->status == READY)
-    {
-        ptFft = FFT2;
-        if (FFT1 && FFT1->status == READY)
-            FFT1->status = EMPTY;
-    }
-    else
-    {		// No data yet
-        //Py_INCREF(Py_None);
-        return;
-    }
-    for (i = 0; i < fft_size; ++i)	// multiply by window
-        ptFft->samples[i] *= fft_window[i];
-    //ptFft->samples[i] = ptFft->samples[i]*fft_window[i];
-
-    fftw_execute(ptFft->plan_dsp);	// Calculate FFT
-    // Average the fft data into the graph width
-
-    //double kavg = 0.0;//2.46
-    if (f_disp_v_h)
-    {
-        //int s_freq_end = 2200; //2150hz
-        //int s_freq_beg = 200;  //200hz  1.0 koef
-        double size_6000 = fft_size/2.0;
-        int beg_size = ((double)s_freq_beg*size_6000)/((double)fftw_sample_rate/2.0);
-        int end_size = ((double)s_freq_end*size_6000)/((double)fftw_sample_rate/2.0);
-        double d_koef = (double)(end_size-beg_size)/(double)((double)s_data_width);//1.39 rem s_data_width/2
-        bool retry = false;
-
-        for (i = 0, k = 0; k < s_data_width; k++)//1.39 rem s_data_width/2
-        {
-            int c_kk = 1;
-c6:
-            if (!retry)//2.45
-            {
-                fft_avg[k] += cabs(ptFft->samples[i+beg_size]);
-                //kavg += fft_avg[k];//2.46
-            }
-            else
-            {
-                retry = false;
-                double p0 = cabs(ptFft->samples[i+beg_size]);
-                double p1 = cabs(ptFft->samples[i+beg_size+1]);
-                fft_avg[k] = (p0+p1)/2.0;
-                //kavg += fft_avg[k];//2.46
-            }
-
-            if ((double)i>(double)k*d_koef)// tova pri nedostig
-            {
-                retry = true;
-                continue;
-            }
-
-            i++;
-
-            if ((double)i<(double)k*d_koef)// towa kogato ima mnogo
-            {
-                c_kk++;
-                goto c6;
-            }
-            fft_avg[k]=(fft_avg[k]/(double)c_kk);
-        }
-    }
-    else
-    {
-        n = fft_size / s_data_height /2 ; //HV za positie and negative bez -> / 2
-        if ( n == 0 )//HV za da risuva i pod 20 seconds ina4e n = 0 stava
-            n=1;
-        for (i = 0, k = 0; k < s_data_height; ++k)
-            for (j = 0; j < n; ++j)
-                fft_avg[k] += cabs(ptFft->samples[i++]);
-    }
-    //qDebug()<<"fft_avg="<<k;
-
-    ptFft->status = EMPTY;
-    if (++count_fft < average_count)
-    {
-        //Py_INCREF(Py_None);	// No data yet
-        return;
-    }
-    // We have averaged enough fft's to return the graph data
-    count_fft = 0;
-    //tuple2 = PyTuple_New(DATA_WIDTH);
-
-    i = 0;
-
-    if (f_disp_v_h)
-        i=(s_data_width)-1;//DATA_DSP_HEIGHT-0; //1.39 rem s_data_width/2
-    else
-        i=s_data_dsp_height-1;//DATA_DSP_HEIGHT-0;
-    //i=(150-46)-1;
-
-    if (f_disp_v_h)
-    {
-        //kavg /= s_data_width; //qDebug()<<kavg;//qoter avg
-        //if (kavg < 0.001) kavg = 0.001;	// //2.46
-        //double avg_alcvd = 0.0;
-        for (k = 0; k < s_data_width; ++k)//1.39 rem s_data_width/2
-        {
-            d2 = log10(fft_avg[k] * s_scale); //d2 = log(fft_avg[k] * (s_scale))*0.5;
-            //avg_alcvd += fabs(d2);
-            if (d2 < -10)
-                d2 = -10;
-            fft_avg[k] = 0;
-            y_scale[i] = (50.0 * d2);
-
-            if (i>0)//1.36 i>0 pazi ot -1
-                i--;
-        }
-        //avg_alcvd /= (double)s_data_width;
-        //RefrAlcVD(avg_alcvd);
-    }
-    else
-    {
-        //for (k = FFT_CUT_LOW_FRQ; k < FFT_END_FRQ; k++/*, i--*/)//34
-        for (k = s_fft_cut_low_frq; k < s_fft_end_frq; ++k/*, i--*/)
-        {
-            d2 = log10(fft_avg[k] * s_scale);
-            if (d2 < -10)
-                d2 = -10;
-            fft_avg[k] = 0;
-            y_scale[i] = (50.0 * d2);// 50.0 <- max display is 501
-
-            if (i>0)//1.36 i>0 pazi ot -1
-                i--;
-        }
-    }
-    //qDebug()<<"mmmmmmmmmmmmmmmmmmmmmmmmmmm";
-    emit Set_Graph(y_scale, smiter);
-    //delete y_scale;//rem 1.37
+//    int i, j, k, n;
+//    fft_data * ptFft;
+//    double y_scale[DATA_WIDTH+50];////1.39 rem s_data_width/2 1.37 max val
+//    double d2;
+//
+//    ///	double *no_data = NULL;
+//
+//    //qDebug()<<DATA_WIDTH;
+//    //if (!PyArg_ParseTuple (args, ""))
+//    //return NULL;
+//    // Look for an fft ready to run.  Throw the other away if there are two.
+//    if (FFT1 && FFT1->status == READY)
+//    {
+//        ptFft = FFT1;
+//        if (FFT2 && FFT2->status == READY)
+//            FFT2->status = EMPTY;
+//    }
+//    else if (FFT2 && FFT2->status == READY)
+//    {
+//        ptFft = FFT2;
+//        if (FFT1 && FFT1->status == READY)
+//            FFT1->status = EMPTY;
+//    }
+//    else
+//    {		// No data yet
+//        //Py_INCREF(Py_None);
+//        return;
+//    }
+//    for (i = 0; i < fft_size; ++i)	// multiply by window
+//        ptFft->samples[i] *= fft_window[i];
+//    //ptFft->samples[i] = ptFft->samples[i]*fft_window[i];
+//
+//    fftw_execute(ptFft->plan_dsp);	// Calculate FFT
+//    // Average the fft data into the graph width
+//
+//    //double kavg = 0.0;//2.46
+//    if (f_disp_v_h)
+//    {
+//        //int s_freq_end = 2200; //2150hz
+//        //int s_freq_beg = 200;  //200hz  1.0 koef
+//        double size_6000 = fft_size/2.0;
+//        int beg_size = ((double)s_freq_beg*size_6000)/((double)fftw_sample_rate/2.0);
+//        int end_size = ((double)s_freq_end*size_6000)/((double)fftw_sample_rate/2.0);
+//        double d_koef = (double)(end_size-beg_size)/(double)((double)s_data_width);//1.39 rem s_data_width/2
+//        bool retry = false;
+//
+//        for (i = 0, k = 0; k < s_data_width; k++)//1.39 rem s_data_width/2
+//        {
+//            int c_kk = 1;
+//c6:
+//            if (!retry)//2.45
+//            {
+//                fft_avg[k] += cabs(ptFft->samples[i+beg_size]);
+//                //kavg += fft_avg[k];//2.46
+//            }
+//            else
+//            {
+//                retry = false;
+//                double p0 = cabs(ptFft->samples[i+beg_size]);
+//                double p1 = cabs(ptFft->samples[i+beg_size+1]);
+//                fft_avg[k] = (p0+p1)/2.0;
+//                //kavg += fft_avg[k];//2.46
+//            }
+//
+//            if ((double)i>(double)k*d_koef)// tova pri nedostig
+//            {
+//                retry = true;
+//                continue;
+//            }
+//
+//            i++;
+//
+//            if ((double)i<(double)k*d_koef)// towa kogato ima mnogo
+//            {
+//                c_kk++;
+//                goto c6;
+//            }
+//            fft_avg[k]=(fft_avg[k]/(double)c_kk);
+//        }
+//    }
+//    else
+//    {
+//        n = fft_size / s_data_height /2 ; //HV za positie and negative bez -> / 2
+//        if ( n == 0 )//HV za da risuva i pod 20 seconds ina4e n = 0 stava
+//            n=1;
+//        for (i = 0, k = 0; k < s_data_height; ++k)
+//            for (j = 0; j < n; ++j)
+//                fft_avg[k] += cabs(ptFft->samples[i++]);
+//    }
+//    //qDebug()<<"fft_avg="<<k;
+//
+//    ptFft->status = EMPTY;
+//    if (++count_fft < average_count)
+//    {
+//        //Py_INCREF(Py_None);	// No data yet
+//        return;
+//    }
+//    // We have averaged enough fft's to return the graph data
+//    count_fft = 0;
+//    //tuple2 = PyTuple_New(DATA_WIDTH);
+//
+//    i = 0;
+//
+//    if (f_disp_v_h)
+//        i=(s_data_width)-1;//DATA_DSP_HEIGHT-0; //1.39 rem s_data_width/2
+//    else
+//        i=s_data_dsp_height-1;//DATA_DSP_HEIGHT-0;
+//    //i=(150-46)-1;
+//
+//    if (f_disp_v_h)
+//    {
+//        //kavg /= s_data_width; //qDebug()<<kavg;//qoter avg
+//        //if (kavg < 0.001) kavg = 0.001;	// //2.46
+//        //double avg_alcvd = 0.0;
+//        for (k = 0; k < s_data_width; ++k)//1.39 rem s_data_width/2
+//        {
+//            d2 = log10(fft_avg[k] * s_scale); //d2 = log(fft_avg[k] * (s_scale))*0.5;
+//            //avg_alcvd += fabs(d2);
+//            if (d2 < -10)
+//                d2 = -10;
+//            fft_avg[k] = 0;
+//            y_scale[i] = (50.0 * d2);
+//
+//            if (i>0)//1.36 i>0 pazi ot -1
+//                i--;
+//        }
+//        //avg_alcvd /= (double)s_data_width;
+//        //RefrAlcVD(avg_alcvd);
+//    }
+//    else
+//    {
+//        //for (k = FFT_CUT_LOW_FRQ; k < FFT_END_FRQ; k++/*, i--*/)//34
+//        for (k = s_fft_cut_low_frq; k < s_fft_end_frq; ++k/*, i--*/)
+//        {
+//            d2 = log10(fft_avg[k] * s_scale);
+//            if (d2 < -10)
+//                d2 = -10;
+//            fft_avg[k] = 0;
+//            y_scale[i] = (50.0 * d2);// 50.0 <- max display is 501
+//
+//            if (i>0)//1.36 i>0 pazi ot -1
+//                i--;
+//        }
+//    }
+//    //qDebug()<<"mmmmmmmmmmmmmmmmmmmmmmmmmmm";
+//    emit Set_Graph(y_scale, smiter);
+//    //delete y_scale;//rem 1.37
 }
 void MsCore::Refresh_t()
 {
@@ -905,6 +909,6 @@ void MsCore::Refresh_t()
     else
         tci_read_ = 0;
 
-    emit Refresh_time();
+//    emit Refresh_time();
 }
 

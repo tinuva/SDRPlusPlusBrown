@@ -11,8 +11,10 @@
  * May be used under the terms of the GNU General Public License (GPL)
  */
 
+#include "mshv_support.h"
 #include "decoderms.h"
-#include "../HvMsPlayer/libsound/genpom.h"
+#include "genpom.h"
+#include "gen_ft8.h"
 #include "ft_all_ap_def.h"
 //#include <QtGui>
 
@@ -63,10 +65,10 @@ DecoderFt8::DecoderFt8(int id)
     for (int i= 0; i < 65536; ++i)
     {//do i=0,NTAB-1
         double phi0=(double)i*twopi/65536.0;
-        ctab8_[i]=(cos(phi0)+sin(phi0)*I);
+        ctab8_[i]=mk_complex(cos(phi0), sin(phi0));
     }
-    ctab8_[65536]=0.0+0.0*I;
-    ctab8_[65537]=0.0+0.0*I;
+    ctab8_[65536]= mk_complex(0, 0);
+    ctab8_[65537]=mk_complex(0, 0);
     f_new_p = true;
     //s_time8_prev = "0.0";
     s_cou_dd1 = 162432;  //not necessary  n=47*3456; //=162432
@@ -141,13 +143,13 @@ void DecoderFt8::SetStTxFreq(double f)
 {
     s_nftx8 = f;
 }
-void DecoderFt8::sync8d(double complex *cd0,int i0,double complex *ctwk,int itwk,double &sync)
+void DecoderFt8::sync8d(std::complex<double> *cd0,int i0,std::complex<double> *ctwk,int itwk,double &sync)
 {
     //p(z1)=real(z1)**2 + aimag(z1)**2          !Statement function for power*/
     int NP2=2812;
     //int NDOWN=60;
-    //double complex z1,z2,z3;
-    double complex csync2[36];
+    //std::complex<double> z1,z2,z3;
+    std::complex<double> csync2[36];
 
     //! Set some constants and compute the csync array.
 
@@ -163,7 +165,7 @@ void DecoderFt8::sync8d(double complex *cd0,int i0,double complex *ctwk,int itwk
             double dphi=twopi*(double)icos7_2[i]/32.0;
             for (int j = 0; j < 32; ++j)
             {//do j=1,32
-                csync_ft8_2[i][j]=cos(phi)+sin(phi)*I;//csync(i,j)=cmplx(cos(phi),sin(phi))  !Waveform for 7x7 Costas array
+                csync_ft8_2[i][j]= mk_complex(cos(phi), sin(phi));//csync(i,j)=cmplx(cos(phi),sin(phi))  !Waveform for 7x7 Costas array
                 phi=fmod(phi+dphi,twopi);
             }
         }
@@ -174,9 +176,9 @@ void DecoderFt8::sync8d(double complex *cd0,int i0,double complex *ctwk,int itwk
     //qDebug()<<i0
     for (int i = 0; i < 7; ++i)
     {//do i=0,6      	                            //!Sum over 7 Costas frequencies and
-        double complex z1=0.0+0.0*I;
-        double complex z2=0.0+0.0*I;
-        double complex z3=0.0+0.0*I;
+        std::complex<double> z1=complex_zero;
+        std::complex<double> z2=complex_zero;
+        std::complex<double> z3=complex_zero;
         int i1=i0+i*32;                         //!three Costas arrays
         int i2=i1+36*32;
         int i3=i1+72*32;
@@ -218,7 +220,7 @@ void DecoderFt8::sync8d(double complex *cd0,int i0,double complex *ctwk,int itwk
 //#define K_SUB 1.9840 //2.66
 //#define K_SUB 1.9600 //old 1.96
 //#define K_SUB 1.9998
-void DecoderFt8::ft8_downsample(double *dd,bool &newdat,double f0,double complex *c1)
+void DecoderFt8::ft8_downsample(double *dd,bool &newdat,double f0,std::complex<double> *c1)
 {
     //const int NSPS=1920;
     const int NFFT2=3200;
@@ -312,7 +314,7 @@ void DecoderFt8::ft8_downsample(double *dd,bool &newdat,double f0,double complex
     	c1[i]=0.0;
     }*/
 }
-void DecoderFt8::gen_ft8cwaveRx(int *i4tone,double f_tx,double complex *cwave)
+void DecoderFt8::gen_ft8cwaveRx(int *i4tone,double f_tx,std::complex<double> *cwave)
 {
     //////////////////////// GFSK MODULATOR ///////////////////////////////////////////
     //const int NTAB=65536;
@@ -366,9 +368,9 @@ void DecoderFt8::gen_ft8cwaveRx(int *i4tone,double f_tx,double complex *cwave)
     //qDebug()<<"nsamp="<<k2+nramp-1;
     delete [] dphi;
 }
-double DecoderFt8::BestIdtft8(double *dd,double f0,double dt,double idt,double complex *cref,
-                              double complex *cfilt,double complex *cw_subs,double *endcorr,
-                              double *xdd,double complex *cx)
+double DecoderFt8::BestIdtft8(double *dd,double f0,double dt,double idt,std::complex<double> *cref,
+                              std::complex<double> *cfilt,std::complex<double> *cw_subs,double *endcorr,
+                              double *xdd,std::complex<double> *cx)
 {
     double sqq=0.0;
     const int NFRAME=1920*79;//=151680
@@ -424,7 +426,7 @@ double DecoderFt8::BestIdtft8(double *dd,double f0,double dt,double idt,double c
         int j=nstart+i-1;//0 -1
         if (j>=0 && j<NMAX)
         {
-            double complex cfr = cfilt[i]*cref[i];
+            std::complex<double> cfr = cfilt[i]*cref[i];
             //xdd[j]-=1.96*creal(cfr);//2.41=1.96 2.39=1.97  2.35=1.94   2.26 1.93 no->2.0  //2.07 1.92<-tested    1.5,1.6  ,1.7ok,
             xdd[j]-=K_SUB*creal(cfr);
             t_dd[i]=xdd[j];
@@ -472,8 +474,8 @@ void DecoderFt8::subtractft8(double *dd,int *itone,double f0,double dt,bool lref
     int offset_w = NFILT/2+25;
     //int nstart=dt*DEC_SAMPLE_RATE+1.0;//0 +1.0  -1920
 
-    double complex *cref = new double complex[153681];//151681+ramp      double complex cref[NFRAME+100];
-    double complex *cfilt= new double complex[180200];//NMAX+100
+    std::complex<double> *cref = new std::complex<double>[153681];//151681+ramp      std::complex<double> cref[NFRAME+100];
+    std::complex<double> *cfilt= new std::complex<double>[180200];//NMAX+100
     //double dd66[180192]= {0.0};// __attribute__((aligned(16))) = {0.0};  //32 =190,192,182,206,174
     //pomAll.zero_double_beg_end(dd66,0,180005);
     //double *dd66 = new double[180100];  // <- slow w10
@@ -528,7 +530,7 @@ void DecoderFt8::subtractft8(double *dd,int *itone,double f0,double dt,bool lref
     if (lrefinedt)//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
     {
         double *xdd = new double[180200];//NFFT=180200
-        double complex *cx = new double complex[90400];//NFFT/2=90000
+        std::complex<double> *cx = new std::complex<double>[90400];//NFFT/2=90000
         double sqa = BestIdtft8(dd,f0,dt,-90,cref,cfilt,cw_subsft8,endcorrectionft8,xdd,cx);
         double sqb = BestIdtft8(dd,f0,dt,+90,cref,cfilt,cw_subsft8,endcorrectionft8,xdd,cx);
         double sq0 = BestIdtft8(dd,f0,dt,  0,cref,cfilt,cw_subsft8,endcorrectionft8,xdd,cx);
@@ -574,7 +576,7 @@ void DecoderFt8::subtractft8(double *dd,int *itone,double f0,double dt,bool lref
             int j=nstart+i-1;//0 -1
             if (j>=0 && j<NMAX)
             {
-                double complex cfr = cfilt[i]*cref[i];
+                std::complex<double> cfr = cfilt[i]*cref[i];
                 //dd[j]-=1.96*creal(cfr);//2.41=1.96 2.39=1.97  2.35=1.94   2.26 1.93 no->2.0  //2.07 1.92<-tested    1.5,1.6  ,1.7ok,
                 dd[j]-=K_SUB*creal(cfr);
             }
@@ -586,16 +588,16 @@ void DecoderFt8::subtractft8(double *dd,int *itone,double f0,double dt,bool lref
 bool DecoderFt8::ft8_downs_sync_bmet(double *dd,bool ap7,bool &newdat,double &f1,double &xdt,int &nbadcrc,
                                      int &nsync,double s8_[79][8],double *bmeta,double *bmetb,double *bmetc,double *bmetd)
 {
-    double complex cd0[3350];			   //3200+100  __attribute__((aligned(32)))
-    double complex ctwk[32+5];
+    std::complex<double> cd0[3350];			   //3200+100  __attribute__((aligned(32)))
+    std::complex<double> ctwk[32+5];
     double a[5];
     const int NP2=2812;
     //const int ND=58;//                   !Data symbols
     const int NS=21;//                     !Sync symbols (3 @ Costas 7x7)
     const int NN=NS+58;//                  !Total channel symbols (79)
-    double complex csymb[40];//32+8
+    std::complex<double> csymb[40];//32+8
     //double s8_[NN][8]; 					//real s1(0:7,ND),s2(0:7,NN)
-    double complex cs_[NN][8]; 				//complex cs(0:7,NN)
+    std::complex<double> cs_[NN][8]; 				//complex cs(0:7,NN)
     double s2[512];
     const int graymap[8] =
         {
@@ -641,7 +643,7 @@ bool DecoderFt8::ft8_downs_sync_bmet(double *dd,bool ap7,bool &newdat,double &f1
         double phi=0.0; //qDebug()<<"2-ft8b delfbest="<<delf;
         for (int i = 0; i < 32; ++i)
         {//do i=1,32
-            ctwk[i]=cos(phi)+sin(phi)*I;
+            ctwk[i]= mk_complex(cos(phi), sin(phi));
             phi=fmod(phi+dphi,twopi);
         }
         sync8d(cd0,ibest,ctwk,1,sync);//sync8d(cd0,i0,ctwk,1,sync);
@@ -833,11 +835,11 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
     const int NN=NS+58;//                  !Total channel symbols (79)
     //const int KK=87;//                     !Information bits (75 + CRC12)
 
-    //double complex ctwk[32+5];
+    //std::complex<double> ctwk[32+5];
     //double a[5];
-    //double complex csymb[40];//32+8
+    //std::complex<double> csymb[40];//32+8
     double s8_[NN][8]; //real s1(0:7,ND),s2(0:7,NN)
-    //double complex cs_[NN][8]; //complex cs(0:7,NN)
+    //std::complex<double> cs_[NN][8]; //complex cs(0:7,NN)
     //double s2[512];
 
     double bmeta[174];
@@ -855,7 +857,7 @@ void DecoderFt8::ft8b(double *dd,bool &newdat,int nQSOProgress,double nfqso,doub
     bool cw[194];//174
     bool message91[140];
 
-    //double complex cd0[3350];//3200+100  __attribute__((aligned(32)))
+    //std::complex<double> cd0[3350];//3200+100  __attribute__((aligned(32)))
     //pomAll.zero_double_comp_beg_end(cd0,0,3300);//3200+100
 
     /*int graymap[8] =
@@ -1434,7 +1436,7 @@ void DecoderFt8::get_spectrum_baseline(double *dd,int nfa,int nfb,double *sbase)
     const int NMAX=180000;//NMAX=15*12000
     double savg[NH1+50];
     double x[NFFT1+50];
-    double complex cx[NH1+100];
+    std::complex<double> cx[NH1+100];
     //double ss_[NF+10][NH1+50];//hv no needed  (NH1,NF)
 
     if (first_ft8sbl)
@@ -1512,7 +1514,7 @@ void DecoderFt8::get_spectrum_baseline(double *dd,int nfa,int nfb,double *sbase)
 
     double x[NFFT1+20];//=3840     //real x(NFFT1)
     //double *x = new double[NFFT1+20];
-    double complex cx[NFFT1+20]; //2.09 error-> cx[NH1+20];       //complex cx(0:NH1)
+    std::complex<double> cx[NFFT1+20]; //2.09 error-> cx[NH1+20];       //complex cx(0:NH1)
 
     // old 76 double sync2d[1920+50][76+20];  //real sync2d(NH1,-JZ:JZ) -JZ=-38 JZ=+38 = 76
     // old 76 double (*sync2d)[76+20]=new double[1920+50][76+20];
@@ -1799,7 +1801,7 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
 
     double x[NFFT1+20];//=3840     //real x(NFFT1)
     //double *x = new double[NFFT1+20];
-    double complex cx[NFFT1+20]; //2.09 error-> cx[NH1+20];       //complex cx(0:NH1)
+    std::complex<double> cx[NFFT1+20]; //2.09 error-> cx[NH1+20];       //complex cx(0:NH1)
 
     // old 76 double sync2d[1920+50][76+20];  //real sync2d(NH1,-JZ:JZ) -JZ=-38 JZ=+38 = 76
     // old 76 double (*sync2d)[76+20]=new double[1920+50][76+20];
@@ -2200,8 +2202,8 @@ bool DecoderFt8::isgrid4(QString s)
 int DecoderFt8::ft8_even_odd(QString s)//res=0 (even first), or res=1 (odd second)
 {
     bool res = 0;
-    int time_ss =  s.midRef(4,2).toInt();//get seconds 120023
-    int time_mm =  s.midRef(2,2).toInt();//get min 120023
+    int time_ss =  s.mid(4,2).toInt();//get seconds 120023
+    int time_mm =  s.mid(2,2).toInt();//get min 120023
     int time_p = (time_mm*60)+time_ss;
     //int ntrperiod = 15;
     time_p = time_p % (15*2); //j=mod(nutc/5,2)
@@ -2270,16 +2272,16 @@ void DecoderFt8::ft8_a7d(double *dd0,bool &newdat,QString call_1,QString call_2,
 
     bool std_1,std_2;
     //int NDOWN=60;
-    //double complex cd0[3350];//3200+100  __attribute__((aligned(32)))
+    //std::complex<double> cd0[3350];//3200+100  __attribute__((aligned(32)))
     //pomAll.zero_double_comp_beg_end(cd0,0,3300);//3200+100
     const int NS=21;//
     const int NN=NS+58;//
-    //double complex ctwk[32+5];
+    //std::complex<double> ctwk[32+5];
     //double a[5];
     //int NP2=2812;
-    //double complex csymb[40];//32+8
+    //std::complex<double> csymb[40];//32+8
     double s8_[NN][8]; //real s1(0:7,ND),s2(0:7,NN)
-    //double complex cs_[NN][8]; //complex cs(0:7,NN)
+    //std::complex<double> cs_[NN][8]; //complex cs(0:7,NN)
     //double s2[512];
     double bmeta[174];
     double bmetb[174];
@@ -2552,7 +2554,7 @@ void DecoderFt8::PrintMsg(QString tmm,int nsnr,double xdt,double f1,QString mess
         if (f_new_p)
         {
             f_new_p = false;
-            emit EmitBackColor();
+            EmitBackColor();
         }
         float qual=1.0-(nhr+dmi)/60.0; //scale qual to 0.0-1.0
         if (qual<0.001) qual=0.0;//no show -0.0
@@ -2569,7 +2571,7 @@ void DecoderFt8::PrintMsg(QString tmm,int nsnr,double xdt,double f1,QString mess
         <<message<<str_iaptype
         <<QString("%1").arg(qual,0,'f',1)
         <<QString("%1").arg((int)f1);
-        emit EmitDecodetTextFt(list);//1.27 psk rep fopen bool true, false no file open
+        EmitDecodetTextFt(list);//1.27 psk rep fopen bool true, false no file open
         have_dec = true;
     }
     if (!s_fopen8) ft8_a7_save(tmm,xdt,f1,message);//2.66 for ap7 s_fopen8
@@ -2657,13 +2659,13 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
             msg0[0][jseq][i] = msg0[1][jseq][i];
         }
 
-        int t_ss1 =  s_time8.midRef(4,2).toInt();
-        int t_mm1 =  s_time8.midRef(2,2).toInt();
-        int t_hh1 =  s_time8.midRef(0,2).toInt();
+        int t_ss1 =  s_time8.mid(4,2).toInt();
+        int t_mm1 =  s_time8.mid(2,2).toInt();
+        int t_hh1 =  s_time8.mid(0,2).toInt();
         int t_p1  = (t_hh1*3600)+(t_mm1*60)+t_ss1;
-        t_ss1 =  nutc0.midRef(4,2).toInt();
-        t_mm1 =  nutc0.midRef(2,2).toInt();
-        t_hh1 =  nutc0.midRef(0,2).toInt();
+        t_ss1 =  nutc0.mid(4,2).toInt();
+        t_mm1 =  nutc0.mid(2,2).toInt();
+        t_hh1 =  nutc0.mid(0,2).toInt();
         int t_p0  = (t_hh1*3600)+(t_mm1*60)+t_ss1;
         //bool resss = false;
         if (t_p1-t_p0>45 || c_zerop>2)//2.66 HV add=3p   if (t_p1-t_p0>60 || c_zerop>3)//2.66 HV add=4p

@@ -5,14 +5,15 @@
 #ifndef DECODERMS_H
 #define DECODERMS_H
 
-#include <complex.h>
-#define complex		_Complex
-//#include "../Hv_Lib_fftw/fftw3.h"
+
+#include "mshv_support.h"
 
 #include "decoderpom.h"
+#include "gen_ft4.h"
+#include "gen_ft8.h"
 
-#include "../HvMsPlayer/libsound/HvGenFt8/gen_ft8.h"
-#include <QObject> //2.53
+// #include "../HvMsPlayer/libsound/HvGenFt8/gen_ft8.h"
+//#include <QObject> //2.53
 #define ALL_MSG_SNR 120 //2.63 from 100 to 120
 #define MAXDEC 120
 class DecoderFt8
@@ -21,9 +22,9 @@ public:
     explicit DecoderFt8(int id);
     ~DecoderFt8();
     void SetStMultiAnswerMod(bool f);
-//    void SetStWords(QString,QString,int,int);
-//    void SetStHisCall(QString s1);
-//    void SetStDecode(QString time,int mousebutton,bool);
+    void SetStWords(QString,QString,int,int);
+    void SetStHisCall(QString s1);
+    void SetStDecode(QString time,int mousebutton,bool);
     void SetStDecoderDeep(int d);
     void SetStApDecode(bool f);
     void SetStQSOProgress(int i);
@@ -34,7 +35,7 @@ public:
     void ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqso,bool &f,int id3dec,double,double);
 
 //signals:
-    void EmitDecodetTextFt(/*QStringList*/);
+    void EmitDecodetTextFt(QStringList);
     void EmitBackColor();
 
 private:
@@ -42,7 +43,7 @@ private:
     F2a f2a;
     PomAll pomAll;
     PomFt pomFt;
-//    GenFt8 *TGenFt8;
+    GenFt8 *TGenFt8;
     double DEC_SAMPLE_RATE;
     double twopi;
     double pi;
@@ -60,24 +61,24 @@ private:
     double dd1[182600];
 
     bool first_sync8d;
-    double complex csync_ft8_2[7][32];
-    void sync8d(double complex *cd0,int i0,double complex *ctwk,int itwk,double &sync);
+    std::complex<double> csync_ft8_2[7][32];
+    void sync8d(std::complex<double> *cd0,int i0,std::complex<double> *ctwk,int itwk,double &sync);
 
     bool first_ft8_downsample;
     double taper_ft8_ds[120];
-    double complex cx_ft8[192100];//2.09 ->error //96000+100   //(0:NFFT1/2)  NFFT1=192000 // 96000
-    void ft8_downsample(double *dd0,bool &newdat,double f1,double complex *cd0);
+    std::complex<double> cx_ft8[192100];//2.09 ->error //96000+100   //(0:NFFT1/2)  NFFT1=192000 // 96000
+    void ft8_downsample(double *dd0,bool &newdat,double f1,std::complex<double> *cd0);
 
     double pulse_ft8_rx[5770];          //    !1920*3=5760
-    double complex ctab8_[65536+10];
-    void gen_ft8cwaveRx(int *i4tone,double f_tx,double complex *cwave);
+    std::complex<double> ctab8_[65536+10];
+    void gen_ft8cwaveRx(int *i4tone,double f_tx,std::complex<double> *cwave);
 
     bool first_subsft8;
-    double complex cw_subsft8[180300];//180000+300  15*12000
+    std::complex<double> cw_subsft8[180300];//180000+300  15*12000
     double endcorrectionft8[2200]; //(NFILT/2+1)  NFILT=4000; 4000/2+1=2001
-    double BestIdtft8(double *dd,double f0,double dt,double idt,double complex *cref,
-                      double complex *cfilt,double complex *cw_subs,double *endcorr,
-                      double *xdd,double complex *cx);
+    double BestIdtft8(double *dd,double f0,double dt,double idt,std::complex<double> *cref,
+                      std::complex<double> *cfilt,std::complex<double> *cw_subs,double *endcorr,
+                      double *xdd,std::complex<double> *cx);
     void subtractft8(double *dd,int *itone,double f0,double dt,bool refdt);
 
     bool first_ft8b_2;
@@ -124,10 +125,10 @@ private:
 
 };
 
-#include "../HvMsPlayer/libsound/HvGenFt4/gen_ft4.h"
-class DecoderFt4 : public QObject
+//#include "../HvMsPlayer/libsound/HvGenFt4/gen_ft4.h"
+class DecoderFt4
 {
-    Q_OBJECT
+
 public:
     explicit DecoderFt4(int id);
     ~DecoderFt4();
@@ -144,7 +145,7 @@ public:
     //void SetResetPrevT(QString ptime);
     void ft4_decode(double *dd,double f0a,double f0b,double,double,double fqso,bool &f);
 
-signals:
+//signals:
     void EmitDecodetTextFt(QStringList);
     void EmitBackColor();
 
@@ -162,9 +163,9 @@ private:
     void dshift1(double *a,int cou_a,int ish);//???
 
     bool first_ft4_ds;
-    double complex cx_ft4_ds[40000];     //(0:NMAX/2)=36288   31104                 [NMAX] (NMAX=21*3456)=72576
+    std::complex<double> cx_ft4_ds[40000];     //(0:NMAX/2)=36288   31104                 [NMAX] (NMAX=21*3456)=72576
     double window_ft4_ds[4096]; //(0:NFFT2-1) (NFFT2=NMAX/18)=4032     (0:NFFT2-1) (NFFT2=NMAX/16)=3888
-    void ft4_downsample(double *dd,bool newdata,double f0,double complex *c);
+    void ft4_downsample(double *dd,bool newdata,double f0,std::complex<double> *c);
 
     //void nuttal_window(double *win,int n);
     void ft4_baseline(double *s,int nfa,int nfb,double *sbase);
@@ -175,24 +176,24 @@ private:
                         int maxcand,double candidate[2][115],int &ncand);
 
     bool first_ft4_sync4d;
-    double complex csynca_ft4_sync[70];//(2*NSS) 2*32=64
-    double complex csyncb_ft4_sync[70];
-    double complex csyncc_ft4_sync[70];
-    double complex csyncd_ft4_sync[70];
-    void sync4d(double complex *cd0,int i0,double complex *ctwk,int itwk,double &sync);
+    std::complex<double> csynca_ft4_sync[70];//(2*NSS) 2*32=64
+    std::complex<double> csyncb_ft4_sync[70];
+    std::complex<double> csyncc_ft4_sync[70];
+    std::complex<double> csyncd_ft4_sync[70];
+    void sync4d(std::complex<double> *cd0,int i0,std::complex<double> *ctwk,int itwk,double &sync);
 
     double pulse_ft4_rx[1748];          //576*3=1728    !512*3=1536
-    void gen_ft4cwaveRx(int *i4tone,double f_tx,double complex *cwave);
+    void gen_ft4cwaveRx(int *i4tone,double f_tx,std::complex<double> *cwave);
 
     bool first_subsft4;
-    double complex cw_subsft4[72800];//72576   =62208
+    std::complex<double> cw_subsft4[72800];//72576   =62208
     void subtractft4(double *dd,int *itone,double f0,double dt);
 
     int count_eq_bits(bool *a,int b_a,bool *b,int c);
 
     bool first_ft4bm;
     bool one_ft4_2[8][256];//(0:255,0:7)
-    void get_ft4_bitmetrics(double complex *cd,double bitmetrics_[3][220],bool &badsync);//2*NN=206
+    void get_ft4_bitmetrics(std::complex<double> *cd,double bitmetrics_[3][220],bool &badsync);//2*NN=206
 
     bool first_ft4d;
     int mrrr_ft4[19];
@@ -209,16 +210,16 @@ private:
     QString mycall0_ft4;
     QString hiscall0_ft4;
     double fac_ft4_sync;
-    double complex ctwk2_ft4_[41][70]; //ctwk2(2*NSS,-16:16) 2*32=64
+    std::complex<double> ctwk2_ft4_[41][70]; //ctwk2(2*NSS,-16:16) 2*32=64
     int apbits_ft4[174];//174
     int apmy_ru_ft4[28];
     int aphis_fd_ft4[28];
 
 };
 
-#include <QObject>
-#include <QStringList>
-#include <QElapsedTimer>
+//#include <QObject>
+//#include <QStringList>
+//#include <QElapsedTimer>
 #include <math.h>	//los
 #include <unistd.h> //usleep x86_64 pthread.h
 /*
@@ -227,8 +228,8 @@ private:
 #include "../Hv_Lib_DirectX90c/dsound.h"
 #endif
 */
-#include "../HvMsPlayer/libsound/HvGenMsk/genmesage_msk.h"
-#include "../HvMsPlayer/libsound/HvGen65/gen65.h"
+//#include "../HvMsPlayer/libsound/HvGenMsk/genmesage_msk.h"
+//#include "../HvMsPlayer/libsound/HvGen65/gen65.h"
 
 #define STATIC_DAT_COUNT 12000*90 //1.35 jt65abc 90sec  max 60sec static dufer for decode thread
 #define RECENT_CALLS_COU 6
@@ -237,10 +238,11 @@ private:
 #define MAX_DISP_DEC_COU 40      //max 40 labels for 30s and display_ms.h
 #define MAX_RTD_DISP_DEC_COU 140 //max 140 lines for 30s and display_ms.h
 #include "decoderq65.h"
+#include "gen65.h"
+#include "genmesage_msk.h"
 
-class DecoderMs : public QObject
+class DecoderMs
 {
-    Q_OBJECT
 
 public:
     DecoderMs();
@@ -263,7 +265,7 @@ public:
     void SetThrLevel(int);
     void SetMsk144RxEqual(int);
 
-public slots:
+//public slots:
     void Decode3intFt(bool);//2.39 remm
     void SetZapData(short*dat, int count);
     void SetDecode(short*,int,QString,int t_istart,int mousebutton,bool f_rtd,bool end_rtd,bool fopen);//1.27 psk rep   fopen bool true    false no file open
@@ -302,7 +304,7 @@ public slots:
     //void SetMultiAnswerMod(bool);//for AP MAM ft8 2.03
     ///  END FT8  ////////////////////////
 
-signals:
+//signals:
     void EmitDecodetText(QStringList,bool,bool); //1.27 psk rep   fopen bool true    false no file open
     void EmitDecode(bool,int dec_state);//dec_state no=0 dec=1 rtddec=2
     void EmitBackColor(bool);
@@ -314,7 +316,7 @@ signals:
     void EmitDecodetTextRxFreq(QStringList,bool,bool);
     void EmitTimeElapsed(float);//2.33
 
-private slots:
+//private slots:
     //void SetDecodetTextFt(QStringList);
     //void SetDecodetTextQ65(QStringList);//bool
     void SetDecodetTextFtQ65(QStringList);
@@ -330,7 +332,7 @@ private:
     int s_thr_used;
     bool is_thrTime;
     void CreateStartTimerthr();
-    QElapsedTimer *thrTime;
+//    QElapsedTimer *thrTime;
     F2a f2a;
     PomAll pomAll;
     //PomFt pomFt;
@@ -362,12 +364,12 @@ private:
     QString RemBegEndWSpaces(QString);
     QString RemWSpacesInside(QString);
     QString FormatLongMsg(QString,int);
-    void analytic(double*,int,int,int,double*,double complex*);
-    void xfft(double complex *c,double *d,int nfft);
+    void analytic(double*,int,int,int,double*,std::complex<double>*);
+    void xfft(std::complex<double> *c,double *d,int nfft);
     void ssort(double *x,double *y,int n,int kflag);
     void sort(int nmax,double *tmp);
     double pctile(double *x,int begin_x,double *tmp,int nmax,double npct);
-    void tweak1(double complex *ca,int jz,double f0,double complex *cb);
+    void tweak1(std::complex<double> *ca,int jz,double f0,std::complex<double> *cb);
     void smooth(double *x,int nz);
 
     int ping(double *s,int nz,double dtbuf,int slim,double wmin,double pingdat_[100][3]);
@@ -397,7 +399,7 @@ private:
     char s_msk144_2s8[8];
     double pp_msk144[12];
     double rcw_msk144[12];
-    double complex cb_msk144[42];
+    std::complex<double> cb_msk144[42];
     bool f_first_msk144;
     double dt_msk144;
     double fs_msk144;
@@ -412,26 +414,26 @@ private:
     int last_ntol_msk144;
     double last_df_msk144;
     void dftool_msk144(int ntol, double nrxfreq,double fd);
-    void cshift2(double complex *a,double complex *b,int cou,int ish);//HV for save vareable b in orginal and out is a
-    void mplay_dca_dca_dca(double complex *a,int a_beg,int a_end,double complex *b,int b_beg,double complex *mp,int mp_b,int ord);
-    void mplay_dca_dca_da(double complex *a,int a_beg,int a_end,double complex *b,int b_beg,double *mp,int mp_b,int ord);
+    void cshift2(std::complex<double> *a,std::complex<double> *b,int cou,int ish);//HV for save vareable b in orginal and out is a
+    void mplay_dca_dca_dca(std::complex<double> *a,int a_beg,int a_end,std::complex<double> *b,int b_beg,std::complex<double> *mp,int mp_b,int ord);
+    void mplay_dca_dca_da(std::complex<double> *a,int a_beg,int a_end,std::complex<double> *b,int b_beg,double *mp,int mp_b,int ord);
     void mplay_da_da_i(double *a,int b_a,int e_a,double *b,int b_b,int mp);
-    //void mplay_da_absdca_absdca(double *a,int b_a,int e_a,double complex *b,int b_b,double complex *mp,int mp_b);
-    void mplay_da_absdca_absdca(double *a,int a_c,double complex *b,double complex *mp);
-    void sum_dca_dca_dca(double complex *a,int a_cou,double complex *b,double complex *c);
+    //void mplay_da_absdca_absdca(double *a,int b_a,int e_a,std::complex<double> *b,int b_b,std::complex<double> *mp,int mp_b);
+    void mplay_da_absdca_absdca(double *a,int a_c,std::complex<double> *b,std::complex<double> *mp);
+    void sum_dca_dca_dca(std::complex<double> *a,int a_cou,std::complex<double> *b,std::complex<double> *c);
     //void copy_int_ar(int*a,int a_beg,int a_odd,int*b,int b_beg,int b_end);
     void copy_double_ar_ainc(double*a,int a_beg,int a_inc,double*b,int b_beg,int b_end);
-    void copy_dca_or_sum_max3dca(double complex *a,int a_cou, double complex *b, int b_beg,
-                                 double complex *c=0, int c_beg=-1, double complex *d=0, int d_beg=-1);
+    void copy_dca_or_sum_max3dca(std::complex<double> *a,int a_cou, std::complex<double> *b, int b_beg,
+                                 std::complex<double> *c=0, int c_beg=-1, std::complex<double> *d=0, int d_beg=-1);
     double sum_da(double*a,int a_beg,int a_end);
     int sum_ia(int*a,int a_beg,int a_end);
     //void set_ba(bool *a,int a_beg,int a_end,bool f);
-    int maxloc_absdca_beg_to_end(double complex*a,int a_beg,int a_end);
+    int maxloc_absdca_beg_to_end(std::complex<double>*a,int a_beg,int a_end);
     //int maxloc_da_end_to_beg(double*a,int a_beg,int a_end);
     //int maxloc_abs_dca(double  complex *a,int a_beg,int a_end);
     QString extractmessage144(char *decoded,int &nhashflag,char &ident);
-    void msk144decodeframe_p(double complex *c,double *softbits,QString &msgreceived,int &nsuccess,char &ident,double phase0);
-    void msk144decodeframe(double complex *c,double *softbits,QString &msg, int &nsuccess,char &ident,bool f_phase);
+    void msk144decodeframe_p(std::complex<double> *c,double *softbits,QString &msgreceived,int &nsuccess,char &ident,double phase0);
+    void msk144decodeframe(std::complex<double> *c,double *softbits,QString &msg, int &nsuccess,char &ident,bool f_phase);
     ///rtd msk144/////
     bool s_f_rtd;
     bool s_end_rtd;
@@ -444,12 +446,12 @@ private:
     QString s_msglast;
     int s_nsnrlastswl;
     QString s_msglastswl;
-    double complex dot_product_dca_dca(double complex *a,int b_a,double complex *b,int b_b,int count);
-    double complex dot_product_dca_sum_dca_dca(double complex *a,int a_b,int b_b,double complex *c,int c_count);
-    void msk144sync(double complex *cdat,int nframes,int ntol,double delf,int *navmask,int npeaks,double fc,double &fest,int *npklocs,int &nsuccess,double complex *c);
-    void msk144spd(double complex *cdat,int np,int &nsuccess,QString &msgreceived,double fc,double &fest,double &tdec,char &ident,int &navg,double complex *ct,double *softbits);
+    std::complex<double> dot_product_dca_dca(std::complex<double> *a,int b_a,std::complex<double> *b,int b_b,int count);
+    std::complex<double> dot_product_dca_sum_dca_dca(std::complex<double> *a,int a_b,int b_b,std::complex<double> *c,int c_count);
+    void msk144sync(std::complex<double> *cdat,int nframes,int ntol,double delf,int *navmask,int npeaks,double fc,double &fest,int *npklocs,int &nsuccess,std::complex<double> *c);
+    void msk144spd(std::complex<double> *cdat,int np,int &nsuccess,QString &msgreceived,double fc,double &fest,double &tdec,char &ident,int &navg,std::complex<double> *ct,double *softbits);
     int navg_sq;
-    double complex cross_avg_sq[864];
+    std::complex<double> cross_avg_sq[864];
     double wt_avg_sq;
     double tlast_sq;
     QString trained_dxcall_sq;
@@ -457,7 +459,7 @@ private:
     bool currently_training_sq;
     bool first_sq;
     QString s_HisCall;// in SetCalsHash decodermsk40
-    void msk144signalquality(double complex *cframe,double snr,double freq,double t0,double *softbits,QString msg,
+    void msk144signalquality(std::complex<double> *cframe,double snr,double freq,double t0,double *softbits,QString msg,
                              QString dxcall,int &nbiterrors,double &eyeopening,bool &trained,double *pcoeffs,bool f_calc_pcoeffs);
     double s_pcoeffs_msk144[3];
     bool s_trained_msk144;
@@ -474,32 +476,32 @@ private:
                                double t0,int navg,int ncorrected,double eyeopening,char ident);
     QString str_round_20ms(double v);
     void msk_144_40_rtd(double *d2,int n,double s_istart,bool);
-    void msk144_freq_search(double complex *cdat,double fc,int if1,int if2,double delf,int nframes,
-                            int *navmask,double &xmax,double &bestf,double complex *cs,double *xccs);/*double complex *cdat2,*/
+    void msk144_freq_search(std::complex<double> *cdat,double fc,int if1,int if2,double delf,int nframes,
+                            int *navmask,double &xmax,double &bestf,std::complex<double> *cs,double *xccs);/*std::complex<double> *cdat2,*/
     ///rtd msk144 end/////
     double MskPingDuration(double *detmet_dur,int istp_real,int il,double level,int nstepsize,int nspm,double dt);
     void SetDecodetTextMsk2DL(QStringList);//2.46
-    void detectmsk144(double complex *cdat,int npts,double s_istart,int &nmessages);
+    void detectmsk144(std::complex<double> *cdat,int npts,double s_istart,int &nmessages);
     //double maxval_da_beg_to_end(double*a,int a_beg,int a_end);
-    void opdetmsk144(double complex *cdat,int npts,double s_istart,int &nmessages);
+    void opdetmsk144(std::complex<double> *cdat,int npts,double s_istart,int &nmessages);
     /////////////////////////////////
 
     //double h_msk144[1024*1024];
     //int nfft0_msk144;
-    //void analytic_msk144(double *d,int d_count_begin,int npts,int nfft,double complex *c);
+    //void analytic_msk144(double *d,int d_count_begin,int npts,int nfft,std::complex<double> *c);
     // new analytic /////////////////////////////
     bool s_msk144rxequal_s;
     bool s_msk144rxequal_d;
-    double complex h_msk144_2[524500];  //new analytic 1024*1024/2 HV need for auto decode 30s=524288
-    double complex s_corrs[524500];     //vazno hv 1.31 HV need for auto decode 30s=524288
-    double complex s_corrd[524500];     //vazno hv 1.31 HV need for auto decode 30s=524288
+    std::complex<double> h_msk144_2[524500];  //new analytic 1024*1024/2 HV need for auto decode 30s=524288
+    std::complex<double> s_corrs[524500];     //vazno hv 1.31 HV need for auto decode 30s=524288
+    std::complex<double> s_corrd[524500];     //vazno hv 1.31 HV need for auto decode 30s=524288
     int nfft0_msk144_2;//new analytic
     double dpclast_msk144_2[3];
     //double spclast_msk144_2[3];
     //double saclast_msk144_2[5];
     bool any_not_and_save_in_a(double *a,double *b,int c);
     void analytic_msk144_2_init_s_corrs_full();
-    void analytic_msk144_2(double *d,int d_count_begin,int npts,int nfft,double complex *c,double *dpc,bool bseq,bool bdeq);
+    void analytic_msk144_2(double *d,int d_count_begin,int npts,int nfft,std::complex<double> *c,double *dpc,bool bseq,bool bdeq);
     // end new analytic ////////////////////////////////
     void msk_144_40_decode(double *dat,int npts_in,double s_istart,bool);
     /// MSK144 end///////////////
@@ -535,7 +537,7 @@ private:
     char s_msk40_2s8r[8];
     double pp_msk40[12];
     double rcw_msk40[12];
-    double complex cbr_msk40[42];
+    std::complex<double> cbr_msk40[42];
     bool f_first_msk40;
     double dt_msk40;
     double fs_msk40;
@@ -551,29 +553,29 @@ private:
     double last_df_msk40;
     void dftool_msk40(int ntol, double nrxfreq,double df);
     //int minloc_da_beg_to_end(double*a,int a_beg,int a_end);
-    void detectmsk40(double complex *cdat,int npts,double s_istart);
+    void detectmsk40(std::complex<double> *cdat,int npts,double s_istart);
     ///rtd MSK40///////////////
-    void msk40decodeframe_p(double complex *c,double *softbits,double xsnr,QString &msgreceived,int &nsuccess,char &ident,double phase0);
-    void msk40decodeframe(double complex *ct,double *softbits,double xsnr,QString &msg, int &nsuccess,char &ident,bool f_phase); //hv
-    void msk40sync(double complex *cdat,int nframes,int ntol,double delf,int *navmask,int npeaks,double fc,double &fest,int *npklocs,int &nsuccess,double complex *c);
-    void msk40spd(double complex *cdat,int np,int &nsuccess,QString &msgreceived,double fc,double &fest,double &tdec,char &ident,int &navg,double complex *ct,double *softbits);
-    void msk40_freq_search(double complex *cdat,double fc,int if1,int if2,double delf,int nframes,
-                           int *navmask,double &xmax,double &bestf,double complex *cs,double *xccs);//double complex *cdat2,
+    void msk40decodeframe_p(std::complex<double> *c,double *softbits,double xsnr,QString &msgreceived,int &nsuccess,char &ident,double phase0);
+    void msk40decodeframe(std::complex<double> *ct,double *softbits,double xsnr,QString &msg, int &nsuccess,char &ident,bool f_phase); //hv
+    void msk40sync(std::complex<double> *cdat,int nframes,int ntol,double delf,int *navmask,int npeaks,double fc,double &fest,int *npklocs,int &nsuccess,std::complex<double> *c);
+    void msk40spd(std::complex<double> *cdat,int np,int &nsuccess,QString &msgreceived,double fc,double &fest,double &tdec,char &ident,int &navg,std::complex<double> *ct,double *softbits);
+    void msk40_freq_search(std::complex<double> *cdat,double fc,int if1,int if2,double delf,int nframes,
+                           int *navmask,double &xmax,double &bestf,std::complex<double> *cs,double *xccs);//std::complex<double> *cdat2,
     ///rtd MSK40///////////////
     /// MSK40 end///////////////
 
     /// JTMSK ///////////////
     /// JTMS ///////////////
     double jtms_dfx;
-    double complex cwb_jtms[56];
-    double complex cw_jtms_[64][56];
+    std::complex<double> cwb_jtms[56];
+    std::complex<double> cw_jtms_[64][56];
     void setupms();
     double dot_product_da_da(double *a, double *b,int size,int offset_b);
     void hipass(double*y,int y_begin,int npts,int nwidth);
-    double msdf(double complex *,int,int,int,double,int,int,int);
-    int syncms(double complex *cdat,int npts,double complex *cwb,double *r);
+    double msdf(std::complex<double> *,int,int,int,double,int,int,int);
+    int syncms(std::complex<double> *cdat,int npts,std::complex<double> *cwb,double *r);
     int lenms(double *r,int npts);
-    void decodems(double complex *cdat,int npts,double complex cww_[64][56],int i1,int nchar,double s2_[400][64],char*msg);
+    void decodems(std::complex<double> *cdat,int npts,std::complex<double> cww_[64][56],int i1,int nchar,double s2_[400][64],char*msg);
     void foldms(double s2_[400][64],int msglen,int nchar,char *msg);
     void jtms(double*,int c_begin,int,int DFTol,double,int,int,int,bool pick,bool &f_only_one_color,int &disp_lines_dec_cou);
     /// JTMS ///////////////
@@ -582,7 +584,7 @@ private:
     short itone_s_fsk[84];
     int ndits_s;
     int noffset_fsk441_dfx;
-    double complex cfrag_s[2100];
+    std::complex<double> cfrag_s[2100];
     double spec441(double*raw_in,int raw_in_c_begin,int count_in,double*ps);
     QString longx(double*raw_in,int raw_begin,int count_in,double*ps,int DFTol,int &msglen,double bauderr,int mode);
     double max_4double(double,double,double,double);
@@ -591,13 +593,13 @@ private:
     int sync(double*y1,double*y2,double*y3,double*y4,int npts,/*double baud,double &bauderr,*/int mode);
     double max_3double(double,double,double);
     int abc441(char*msg,int count_msg,short *itone);
-    void gen441(short *itone,int ndits,double complex *cfrag,int mode);
+    void gen441(short *itone,int ndits,std::complex<double> *cfrag,int mode);
     void smo(double*x,int x_begin,int npts,double*y,double nadd);
     int chk441(double *dat,int jz,double tstart,double width,int nfreeze,int mousedf,
                int dftolerance,bool pick,int mode,double &dfx_real_hv);
     /// FSK441 /////////////////
     ///// JT6M /////////////////////////////////
-    //double complex c[1024*1024];
+    //std::complex<double> c[1024*1024];
     void syncf0(double *data,int jz,int NFreeze,int NTol,int &jstart,double &f0);
     void add_da_da_to_da(double *a,double *b,double *c,int n);
     void add_da2_da_to_da2(double a_[6][128],double *b,double c_[6][128],int begin,int row,int n);
@@ -615,12 +617,12 @@ private:
     //double s0_[5601][289];
     //double s01_[289][5601];
     //double savg[289];
-    int ana932(double *dat,int jz,double complex *cdat);
-    void synciscat(double complex*cdat,int npts,double s0_[5601][289],int &jsym,int DFTolerance,
+    int ana932(double *dat,int jz,std::complex<double> *cdat);
+    void synciscat(std::complex<double>*cdat,int npts,double s0_[5601][289],int &jsym,int DFTolerance,
                    int mode4,double &xsync,double &sig,int &ndf0,int &msglen,
                    int &ipk,int &jpk,int &idf);
     /*int mousebutton,int nafc,double &df1*/
-    void iscat(double complex*cdat0,int npts0,double t2,bool pick,int MinSigdB,int DFTolerance,int mode4);
+    void iscat(std::complex<double>*cdat0,int npts0,double t2,bool pick,int MinSigdB,int DFTolerance,int mode4);
     /*int mousebutton,int nafc,int nmore*/
     void wsjt1_iscat(double *dat,int count,int mode4,bool pick);
     ///// ISCAT /////////////////////////////////
@@ -683,7 +685,7 @@ private:
     }
     candidate_jt65;
 
-    double complex cw_jt65[721000];//  60*12000+40
+    std::complex<double> cw_jt65[721000];//  60*12000+40
     bool first_subtract65;
     int correct_jt65[63];
     bool s_bVHF_jt65;
@@ -708,15 +710,15 @@ private:
                    QString mycall,QString hiscall,QString hisgrid,int nqd,int &nft,double &qual,
                    int &nhist,QString &decoded,int nQSOProgress,bool ljt65apon);
     void smo121(double *x,int beg,int nz);
-    void twkfreq65(double complex *c4aa,int n5,double *a);
+    void twkfreq65(std::complex<double> *c4aa,int n5,double *a);
     void ccf2(double *ss,int nz,int nflip,double &ccfbest,double &xlagpk);
-    double fchisq65(double complex *cx,int npts,double fsample,int nflip,double *a,double &ccfmax,double &dtmax);
-    void afc65b(double complex *cx,int npts,double fsample,int nflip,double *a,double &ccfbest,double &dtbest);
-    //void afc65b(double complex *cx,int npts,double fsample,int nflip,int mod65,double *a,double &ccfbest,double &dtbest);
-    void fil6521(double complex *c1,int n1,double complex *c2,int &n2);
+    double fchisq65(std::complex<double> *cx,int npts,double fsample,int nflip,double *a,double &ccfmax,double &dtmax);
+    void afc65b(std::complex<double> *cx,int npts,double fsample,int nflip,double *a,double &ccfbest,double &dtbest);
+    //void afc65b(std::complex<double> *cx,int npts,double fsample,int nflip,int mod65,double *a,double &ccfbest,double &dtbest);
+    void fil6521(std::complex<double> *c1,int n1,std::complex<double> *c2,int &n2);
     void sh65snr(double *x,int beg,int nz,double &snr);
-    void sh65(double complex *cx,int n5,int mode65,int ntol,double &xdf,int &nspecial,double &snrdb,double &nstest);
-    void filbig(double *dd,int npts,double f0,bool &newdat,double complex *c4a,int &n4,double &sq0);
+    void sh65(std::complex<double> *cx,int n5,int mode65,int ntol,double &xdf,int &nspecial,double &snrdb,double &nstest);
+    void filbig(double *dd,int npts,double f0,bool &newdat,std::complex<double> *c4a,int &n4,double &sq0);
     void decode65a(double *dd,int npts,bool &first_time,int nqd,double freq,int &nflip,
                    int mode65,int nvec,int naggressive,bool f_deep_search,int ntol,QString mycall,QString hiscall,
                    QString hisgrid,bool bVHF,double &sync2,double *a,double &dtx,int &nft,int &nspecial,

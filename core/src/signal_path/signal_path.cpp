@@ -6,5 +6,6 @@ namespace sigpath {
     SourceManager sourceManager;
     SinkManager sinkManager;
     Transmitter *transmitter;
+    Event<bool> txState;
 
 };

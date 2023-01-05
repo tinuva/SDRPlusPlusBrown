@@ -48,11 +48,12 @@
 //vazno->dannite sa ot hardware
 // kolko to4ki ima w edin skan s prodalzitelnost 8.7ms na 44100HZ sample rate;
 
-#include <complex.h> // gnu++11 c++11
-#define complex		_Complex
+#include "mshv_support.h"
+//#include <complex.h> // gnu++11 c++11
+//#define complex		_Complex
 
 
-#include <fftw3.h>
+//#include <fftw3.h>
 
 #include "hvrawfilter.h" //hv
 

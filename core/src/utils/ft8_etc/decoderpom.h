@@ -4,10 +4,8 @@
  */
 #ifndef DECODERPOM_H
 #define DECODERPOM_H
- 
-#include <complex.h>
-//#define complex		_Complex
-#include <fftw3.h>
+
+#include "mshv_support.h"
 #define NPMAX 100
 class HvThr
 {
@@ -57,7 +55,7 @@ public:
     void cshift1(std::complex<double> *a,int cou_a,int ish);
     std::complex<double> sum_dca_mplay_conj_dca(std::complex<double> *a,int a_beg,int a_end,std::complex<double> *b);
     void indexx_msk(double *arr,int n,int *indx);
-    bool isStandardCall(const std::string &);//2.61  same as  MultiAnswerModW
+    bool isStandardCall(const QString &);//2.61  same as  MultiAnswerModW
     //bool isStandardCall(char*,int);
 private:
     double pctile_shell_tmp[141122];//141072+50
