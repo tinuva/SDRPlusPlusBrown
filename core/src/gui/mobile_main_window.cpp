@@ -164,11 +164,13 @@ struct QSOPanel {
     std::shared_ptr<std::thread> receiveBuffers;
     dsp::arrays::FloatArray currentFFTBuffer;
     std::mutex currentFFTBufferMutex;
-    void handleTxButton(bool tx, const std::string &submode);
+    void handleTxButton(bool tx);
     float currentFreq;
     int txGain;
     bool enablePA;
     bool transmitting;
+    void setSubmode(const std::string& submode);
+    std::string submode;
 };
 
 
@@ -631,7 +633,8 @@ void MobileMainWindow::draw() {
             updateSubmodeAfterChange();
         }
     }
-    qsoPanel->handleTxButton(this->txButton.currentlyPressed, submodeToggle.upperText);
+    qsoPanel->setSubmode(submodeToggle.upperText);
+    qsoPanel->handleTxButton(this->txButton.currentlyPressed);
 
 }
 std::string MobileMainWindow::getCurrentBand() {
@@ -782,7 +785,14 @@ void QSOPanel::start() {
 }
 
 
-void QSOPanel::handleTxButton(bool tx, const std::string &submode) {
+void QSOPanel::setSubmode(const std::string &submode) {
+    if (this->submode != submode) {
+        this->submode = submode;
+    }
+}
+
+void QSOPanel::handleTxButton(bool tx) {
+    sigpath::txState.emit(tx);
     if (sigpath::transmitter) {
         if (tx) {
             if (!this->transmitting) {

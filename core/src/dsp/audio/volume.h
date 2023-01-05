@@ -13,6 +13,7 @@ namespace dsp::audio {
         void init(stream<stereo_t>* in, double volume, bool muted) {
             _volume = powf(volume, 2);
             _muted = muted;
+            _tempMuted = false;
             base_type::init(in);
         }
 
@@ -28,14 +29,20 @@ namespace dsp::audio {
             _muted = muted;
         }
 
+        void setTempMuted(bool muted) {
+            assert(base_type::_block_init);
+            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+            _tempMuted = muted;
+        }
+
         bool getMuted() {
             assert(base_type::_block_init);
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
-            return _muted;
+            return _muted || _tempMuted;
         }
 
         inline int process(int count, const stereo_t* in, stereo_t* out) {
-            volk_32f_s32f_multiply_32f((float*)out, (float*)in, _muted ? 0.0f : _volume, count * 2);
+            volk_32f_s32f_multiply_32f((float*)out, (float*)in, (_muted || _tempMuted) ? 0.0f : _volume, count * 2);
             return count;
         }
 
@@ -53,6 +60,7 @@ namespace dsp::audio {
     private:
         float _volume;
         bool _muted;
+        bool _tempMuted;
 
     };
 }

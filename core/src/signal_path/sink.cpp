@@ -5,6 +5,7 @@
 #include <gui/icons.h>
 
 #include <core.h>
+#include "signal_path.h"
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -12,6 +13,15 @@ SinkManager::SinkManager() {
     SinkManager::SinkProvider prov;
     prov.create = SinkManager::NullSink::create;
     registerSinkProvider("None", prov);
+
+    sigpath::txState.bindHandler(&this->txHandler);
+    txHandler.ctx = this;
+
+    txHandler.handler = [](bool txOn, void* ctx) {
+        SinkManager* _this = (SinkManager*)ctx;
+        _this->setAllMuted(txOn);
+    };
+
 }
 
 SinkManager::Stream::Stream(dsp::stream<dsp::stereo_t>* in, EventHandler<float>* srChangeHandler, float sampleRate) {
@@ -246,6 +256,12 @@ void SinkManager::setStreamSink(std::string name, std::string providerName) {
     stream->sink = prov.create(stream, name, prov.ctx);
     if (stream->running) {
         stream->sink->start();
+    }
+}
+
+void SinkManager::setAllMuted(bool muted) {
+    for(auto &k : streams) {
+        k.second->volumeAjust.setTempMuted(muted);
     }
 }
 

@@ -76,6 +76,7 @@ public:
         std::string providerName = "";
         bool running = false;
 
+
         float guiVolume = 1.0f;
 
     };
@@ -174,4 +175,7 @@ private:
     std::vector<std::string> providerNames;
     std::string providerNamesTxt;
     std::vector<std::string> streamNames;
+
+    EventHandler<bool> txHandler;
+    void setAllMuted(bool muted);
 };
