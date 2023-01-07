@@ -127,6 +127,21 @@ namespace dsp {
         bool allowed = false;   // initial value
         int afnrBandwidth = 10; // this is UI model value, just stored there.
         SMAStream<5> sma;
+        EventHandler<bool> txHandler;
+
+        void start() override {
+            txHandler.ctx = this;
+            txHandler.handler = [](bool txActive, void *ctx) {
+                auto _this = (IFNRLogMMSE*)ctx;
+                _this->params.hold = txActive;
+            };
+            block::start();
+        }
+
+        void stop() override {
+            block::stop();
+            sigpath::txState.unbindHandler(&txHandler);
+        }
 
         int run() override {
 

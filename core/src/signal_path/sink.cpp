@@ -16,7 +16,6 @@ SinkManager::SinkManager() {
 
     sigpath::txState.bindHandler(&this->txHandler);
     txHandler.ctx = this;
-
     txHandler.handler = [](bool txOn, void* ctx) {
         SinkManager* _this = (SinkManager*)ctx;
         _this->setAllMuted(txOn);

@@ -79,6 +79,10 @@ namespace dsp::demod {
             return count;
         }
 
+        void setAGCFrozen(bool frozen) {
+            agc.setFrozen(frozen);
+        }
+
     private:
         double _tone;
         double _samplerate;

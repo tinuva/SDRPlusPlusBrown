@@ -80,6 +80,9 @@ namespace demod {
         bool getFMIFNRAllowed() { return false; }
         bool getNBAllowed() { return true; }
         dsp::stream<dsp::stereo_t>* getOutput() { return &demod.out; }
+        void setFrozen(bool frozen) override {
+            demod.setAGCFrozen(frozen);
+        }
 
     private:
         dsp::demod::SSB<dsp::stereo_t> demod;

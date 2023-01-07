@@ -31,6 +31,7 @@ struct Transmitter {
     virtual int getTXStatus() = 0;      // tone or stream
 
     virtual float getTransmitPower() = 0;
+    virtual float getReflectedPower() = 0;
     virtual float getTransmitSWR() = 0;
     virtual float getFillLevel() = 0;
     virtual std::string &getTransmitterName() = 0;

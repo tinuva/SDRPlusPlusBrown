@@ -94,9 +94,15 @@ namespace demod {
         bool getNBAllowed() { return false; }
         dsp::stream<dsp::stereo_t>* getOutput() { return &demod.out; }
 
+        void setFrozen(bool frozen) override {
+            demod.setAGCFrozen(frozen);
+        }
+
+
     private:
         ConfigManager* _config = NULL;
         dsp::demod::CW<dsp::stereo_t> demod;
+
 
         std::string name;
 

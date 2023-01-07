@@ -143,6 +143,10 @@ namespace dsp::demod {
             return count;
         }
 
+        void setAGCFrozen(bool frozen) {
+            audioAgc.setFrozen(frozen);
+        }
+
     protected:
         AGCMode _agcMode;
 

@@ -38,6 +38,6 @@ public:
         handlers.erase(std::remove(handlers.begin(), handlers.end(), handler), handlers.end());
     }
 
-private:
+//private:
     std::vector<EventHandler<T>*> handlers;
 };

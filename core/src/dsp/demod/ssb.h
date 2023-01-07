@@ -74,6 +74,12 @@ namespace dsp::demod {
             agc.setDecay(decay);
         }
 
+        void setAGCFrozen(bool frozen) {
+            agc.setFrozen(frozen);
+        }
+
+
+
         int process(int count, const complex_t* in, T* out) {
             // Move back sideband
             xlator.process(count, in, xlator.out.writeBuf);

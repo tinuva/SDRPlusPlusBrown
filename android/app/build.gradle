@@ -26,12 +26,19 @@ android {
             keyAlias "androiddebugkey"
             keyPassword "android"
         }
+        release {
+            storeFile file('/home/san/Fun/SDRPlusPlus/my-release-key.keystore')
+            storePassword 'android'
+            keyAlias 'alias_name'
+            keyPassword 'android'
+        }
     }
 
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+            signingConfig signingConfigs.release
         }
         debug {
 //            ndk {

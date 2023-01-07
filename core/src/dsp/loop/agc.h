@@ -19,6 +19,7 @@ namespace dsp::loop {
             _maxGain = maxGain;
             _maxOutputAmp = maxOutputAmp;
             _initGain = initGain;
+            _frozen.store(false);
             amp = _setPoint / _initGain;
             base_type::init(in);
         }
@@ -67,6 +68,10 @@ namespace dsp::loop {
             amp = _setPoint / _initGain;
         }
 
+        void setFrozen(bool b) {
+            _frozen.store(b);
+        }
+
         inline int process(int count, T* in, T* out) {
             for (int i = 0; i < count; i++) {
                 // Get signal amplitude
@@ -80,8 +85,10 @@ namespace dsp::loop {
 
                 // Update average amplitude
                 if (inAmp != 0.0f) {
-                    amp = (inAmp > amp) ? ((amp * _invAttack) + (inAmp * _attack)) : ((amp * _invDecay) + (inAmp * _decay));
-                    gain = std::min<float>(_setPoint / amp, _maxGain);
+                    if (!_frozen.load()) {
+                        amp = (inAmp > amp) ? ((amp * _invAttack) + (inAmp * _attack)) : ((amp * _invDecay) + (inAmp * _decay));
+                        gain = std::min<float>(_setPoint / amp, _maxGain);
+                    }
                 }
 
                 // If clipping is detected look ahead and correct
@@ -126,6 +133,7 @@ namespace dsp::loop {
         float _maxGain;
         float _maxOutputAmp;
         float _initGain;
+        std::atomic_bool _frozen;
 
         float amp = 1.0;
 

@@ -10,6 +10,7 @@
 #include <core.h>
 #include <config.h>
 #include <iostream>
+#include <spdlog/sinks/android_sink.h>
 
 #include "hl2_device.h"
 
@@ -41,6 +42,14 @@ class HermesLite2SourceModule : public ModuleManager::Instance, public Transmitt
 public:
 
     HermesLite2SourceModule(std::string name) {
+
+#ifdef __ANDROID__
+        auto console_sink = std::make_shared<spdlog::sinks::android_sink_st>("SDR++/hl2_source");
+        auto logger = std::shared_ptr<spdlog::logger>(new spdlog::logger("", { console_sink }));
+        spdlog::set_default_logger(logger);
+#endif
+
+
         this->name = name;
         memset(sevenRelays, 0, sizeof(sevenRelays));
 
@@ -63,6 +72,8 @@ public:
 
         sigpath::sourceManager.registerSource("Hermes Lite 2", &handler);
         selectFirst();
+
+
     }
 
     ~HermesLite2SourceModule() {
@@ -316,7 +327,7 @@ private:
             }
         }
 
-        if (SmGui::Combo(CONCAT("##_hl2_sr_sel_", _this->name), &_this->srId, _this->sampleRateListTxt.c_str())) {
+        auto updateSampleRate = [&](int srid) {
             _this->sampleRate = _this->sampleRateList[_this->srId];
             core::setInputSampleRate(_this->sampleRate);
             if (_this->selectedSerStr != "") {
@@ -324,6 +335,10 @@ private:
                 config.conf["devices"][_this->selectedSerStr]["sampleRate"] = _this->sampleRate;
                 config.release(true);
             }
+
+        };
+        if (SmGui::Combo(CONCAT("##_hl2_sr_sel_", _this->name), &_this->srId, _this->sampleRateListTxt.c_str())) {
+            updateSampleRate(_this->srId);
         }
 
         SmGui::SameLine();
@@ -331,10 +346,12 @@ private:
         SmGui::ForceSync();
         if (SmGui::Button(CONCAT("Refresh##_hl2_refr_", _this->name))) {
             _this->refresh();
-            config.acquire();
-            std::string devSerial = config.conf["device"];
-            config.release();
-            core::setInputSampleRate(_this->sampleRate);
+//            config.acquire();
+//            std::string devSerial = config.conf["device"];
+//            config.release();
+            if (devices > 0) {
+                _this->selectFirst();
+            }
         }
 
         if (_this->running) { SmGui::EndDisabled(); }
@@ -468,10 +485,19 @@ private:
         return device->transmitMode;
     }
     float getTransmitPower() override {
-        return device->fwd+device->rev;
+        return device->fwd;
+//        device->getSWR();
+//        return device->fwd+device->rev;
     }
+
+public:
+    float getReflectedPower() override {
+        return device->rev;
+    }
+
+private:
     float getTransmitSWR() override {
-        return device->getSWR() ;
+        return device->swr;
     }
 
     float getFillLevel() override {

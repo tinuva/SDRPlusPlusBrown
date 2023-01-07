@@ -45,6 +45,7 @@ namespace demod {
         virtual int getDefaultDeemphasisMode() = 0;
         virtual bool getFMIFNRAllowed() = 0;
         virtual bool getNBAllowed() = 0;
+        virtual void setFrozen(bool frozen) {};
         virtual dsp::stream<dsp::stereo_t>* getOutput() = 0;
     };
 }

@@ -18,17 +18,24 @@
  * + tx button -> qso button.
  * + move the current status labels to the waterfall
  * + remove circles, use the rectangles. Band selection up/down.
+ * + toggle for android audio to use unprocessed microphone input
+ * + move tx button to the bottom
+ * + add proper submode codecs (LSB/SSB at least)
+ * + verify SWR and power readings
+ * + local android build
+ * + add audio input for android mobile
+ * - agc on input/tx
  * - fix frequency restore upon launch
- * - move tx button to the bottom
  * - save recent submode/freq only on band leave with buttons.
- * - add proper submode codecs (LSB/SSB at least)
- * - verify SWR and power readings
- * - local android build
- * - add audio input for android mobile
  * - save/restore settings
  * - long press zoom shows full band
  * - up/down band buttons - place side by side horizontally
- *
+ * - add on-screen cw key, cw mode complete, iambic onscreen key
+ * - add cw phrase generator from text
+ * - add ft8 generator
+ * - add on-screen NR button
+ * - add config screen with settings such as tx hang time, own callsign, etc.
+ * - add psk reporter / RBN reporter, query / table display
  */
 
 
@@ -74,6 +81,7 @@ public:
     MobileButton submodeToggle;
     MobileButton qsoButton;
     MobileButton txButton;
+    MobileButton softTune;
     std::shared_ptr<QSOPanel> qsoPanel;
     bool qsoMode = false;       // different ui
     bool shouldInitialize = true;

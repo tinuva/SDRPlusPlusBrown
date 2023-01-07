@@ -41,10 +41,16 @@ public:
 
         packer.init(_stream->sinkOut, 512);
 
+        config.acquire();
+        if (config.conf.find("useRawInput") != config.conf.end()) {
+            this->useRawInput = config.conf["useRawInput"];
+        }
+        config.release(true);
+
         // TODO: Add choice? I don't think anyone cares on android...
         sampleRate = 48000;
         _stream->setSampleRate(sampleRate);
-        auto console_sink = std::make_shared<spdlog::sinks::android_sink_st>("SDR++");
+        auto console_sink = std::make_shared<spdlog::sinks::android_sink_st>("SDR++/android_audio_sink");
         auto logger = std::shared_ptr<spdlog::logger>(new spdlog::logger("", { console_sink }));
         spdlog::set_default_logger(logger);
 
@@ -71,6 +77,12 @@ public:
 
     void menuHandler() {
         // Draw menu here
+        if (ImGui::Checkbox("Use Raw Input ", &this->useRawInput)) {
+            config.acquire();
+            config.conf["useRawInput"] = this->useRawInput;
+            config.release(true);
+            restart();
+        }
     }
 
 private:
@@ -89,7 +101,12 @@ private:
             aaudio_result_t result = AAudio_createStreamBuilder(&builder);
             if (result == 0) {
                 // Set stream options
-                AAudioStreamBuilder_setInputPreset(builder, AAUDIO_INPUT_PRESET_VOICE_COMMUNICATION);
+                if (this->useRawInput) {
+                    AAudioStreamBuilder_setInputPreset(builder, AAUDIO_INPUT_PRESET_VOICE_PERFORMANCE);
+                } else {
+                    AAudioStreamBuilder_setInputPreset(builder,
+                                                       AAUDIO_INPUT_PRESET_VOICE_COMMUNICATION);
+                }
                 AAudioStreamBuilder_setDirection(builder, AAUDIO_DIRECTION_INPUT);
                 AAudioStreamBuilder_setSharingMode(builder, AAUDIO_SHARING_MODE_SHARED);
                 AAudioStreamBuilder_setSampleRate(builder, sampleRate);
@@ -153,13 +170,17 @@ private:
     void doStop() {
         packer.stop();
         packer.out.stopReader();
+        bool streamWExists = streamW != nullptr;
         streamWMutex.lock();
-        AAudioStream_requestStop(streamW);
+        if (streamW) {
+            AAudioStream_requestStop(streamW);
+        }
         AAudioStream_requestStop(stream);
         streamWMutex.unlock();
         usleep(200000);
         streamWMutex.lock();
-        AAudioStream_close(streamW);
+        if (streamW)
+            AAudioStream_close(streamW);
         AAudioStream_close(stream);
         streamWMutex.unlock();
         usleep(200000);
@@ -167,7 +188,9 @@ private:
         streamW = nullptr;
         streamWMutex.unlock();
         if (workerThread.joinable()) { workerThread.join(); }
-        if (workerThreadW.joinable()) { workerThreadW.join(); }
+        if (streamWExists) {
+            if (workerThreadW.joinable()) { workerThreadW.join(); }
+        }
         packer.out.clearReadStop();
 
         sigpath::sinkManager.defaultInputAudio.stop();
@@ -283,6 +306,7 @@ private:
     int bufferSize;
 
     bool running = false;
+    bool useRawInput = false;
 };
 
 class AudioSinkModule : public ModuleManager::Instance {
@@ -326,7 +350,7 @@ private:
 
 MOD_EXPORT void _INIT_() {
     json def = json({});
-    config.setPath(core::args["root"].s() + "/audio_sink_config.json");
+    config.setPath(core::args["root"].s() + "/android_audio_sink_config.json");
     config.load(def);
     config.enableAutoSave();
 }

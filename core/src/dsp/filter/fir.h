@@ -1,6 +1,7 @@
 #pragma once
 #include "../processor.h"
 #include "../taps/tap.h"
+#include <spdlog/spdlog.h>
 
 namespace dsp::filter {
     template <class D, class T>
@@ -24,6 +25,7 @@ namespace dsp::filter {
             buffer = buffer::alloc<D>(STREAM_BUFFER_SIZE + 64000);
             bufStart = &buffer[_taps.size - 1];
             buffer::clear<D>(buffer, _taps.size - 1);
+            spdlog::info("FIR: Allocated buffer of size {0} at {1}", STREAM_BUFFER_SIZE + 64000, (void*)buffer);
 
             base_type::init(in);
         }
@@ -77,7 +79,8 @@ namespace dsp::filter {
             }
 
             // Move unused data
-            memmove(buffer, &buffer[count], (_taps.size - 1) * sizeof(D));
+            auto nmove = (_taps.size - 1) * sizeof(D);
+            memmove(buffer, &buffer[count], nmove);
 
             return count;
         }

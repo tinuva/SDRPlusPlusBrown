@@ -125,7 +125,22 @@ namespace dsp {
             return count;
         }
 
+        void start() override {
+            txHandler.ctx = this;
+            txHandler.handler = [](bool txActive, void *ctx) {
+                auto _this = (IFNRLogMMSE*)ctx;
+                _this->params.hold = txActive;
+            };
+            sigpath::txState.bindHandler(&txHandler);
+            block::start();
+        }
+        void stop() override {
+            block::stop();
+            sigpath::txState.unbindHandler(&txHandler);
+        }
+
         bool bypass = true;
+        EventHandler<bool> txHandler;
 
 
     };

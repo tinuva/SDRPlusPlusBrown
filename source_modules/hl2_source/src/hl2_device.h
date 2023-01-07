@@ -4,6 +4,7 @@
 #include "discovered.h"
 #include "plugin_main.h"
 #include <dsp/types.h>
+#include <signal_path/signal_path.h>
 
 #define DATA_PORT 1024
 
@@ -119,7 +120,7 @@ struct HL2Device {
     int alex_forward_power;
     int alex_reverse_power;
     float swr = 1;
-    float fwd, rev; // real ones, calculated in getSWR()
+    float fwd  = 0 , rev = 0; // real ones, calculated in getSWR()
     double temperature;
 
     unsigned char output_buffer[1024];
@@ -128,6 +129,7 @@ struct HL2Device {
     long send_sequence = -1;
     int metis_offset = 8;
     int current_rx = 0;
+    unsigned char desiredPower = 255;
     int command = 1;
 
 #define LT2208_GAIN_ON            0x04
@@ -147,6 +149,7 @@ struct HL2Device {
         setFrequency(7000000);
         setPttDelay(6, 0x15); // as in linhpsdr
         setDuplex(true);
+        setPower(255);
     }
 
     bool isADCOverload() {
@@ -161,10 +164,10 @@ struct HL2Device {
     }
 
     void setPttDelay(unsigned char delay, unsigned char buffersize) {
-        deviceControl[0x2E].C1 = 0;
-        deviceControl[0x2E].C2 = 0;
-        deviceControl[0x2E].C3 = delay;
-        deviceControl[0x2E].C4 = buffersize;
+        deviceControl[0x17].C1 = 0;
+        deviceControl[0x17].C2 = 0;
+        deviceControl[0x17].C3 = delay;
+        deviceControl[0x17].C4 = buffersize;
     }
 
     void setFrequency(long long frequency) {        // RX freq
@@ -181,9 +184,10 @@ struct HL2Device {
         deviceControl[0x01].C4 = txFrequency >> 0;
     }
 
-    void setPower(unsigned char power) {   // power = 0..255 bits 31..28
-        deviceControl[0x09].C1 = deviceControl[0x9].C1 & 0x0F;   // clear power bits
-        deviceControl[0x09].C1 = deviceControl[0x9].C1 | (power & 0xF0);      // 4 upper bits.
+    void setPower(unsigned char power) {   // power = 0..255 (however only 4 upper bits (31..28) are used)
+        // soft power is used. Hard is max.
+        deviceControl[0x09].C1 = 0xF0;
+        this->desiredPower = power;
     }
 
 
@@ -228,12 +232,20 @@ struct HL2Device {
         double this_swr = (1+ sqrt(rev/fwd)) / (1 - sqrt(rev/fwd));
         if (this_swr < 0.0) this_swr=1.0;
 
-        // Exponential moving average filter
-        double alpha = 0.7;
-        swr = (alpha * this_swr) + (1 - alpha) * swr;
+        if (fwd < 0.05) {
+            swr = 1;
+        } else {
+            if (isnan(swr) || isinf(swr)) {
+                swr = 1; // fix previous value
+            }
+            // Exponential moving average filter
+            double alpha = 0.7;
+            swr = (alpha * this_swr) + (1 - alpha) * swr;
+        }
         return swr;
     }
 
+    // does not work; needs investigation; doing in software for now.
     void setTune(bool tune) {
         if (tune) {
             deviceControl[0x9].C2 |= 0x10;      // bit 20
@@ -288,14 +300,24 @@ struct HL2Device {
 //            deviceControl[0x0].C4 = 0x04 /* duplex on */;
 //        }
 //    }
+
 //
+
+
+    float maxAmp = 0;
+
     void storeNextIQSamples(unsigned char *dest, const std::vector<dsp::complex_t> &samples) {
         if (samples.size() == 63) {
+            float scale = desiredPower/255.0;
             for(int i = 0; i < 63; i++) {
-                auto &comp = samples[i];
+                auto comp = samples[i];
                 // input: -1, 1, output range -32768..32767
-                auto I = ((int32_t)(comp.re * 32767)) & 0xFFFF;
-                auto Q = ((int32_t)(comp.im * 32767)) & 0xFFFF;
+                auto I = ((int32_t)((comp.re  * scale) * 32767)) & 0xFFFF;
+                auto Q = ((int32_t)((comp.im  * scale) * 32767)) & 0xFFFF;
+                float amp = comp.amplitude() * scale;
+                if (amp > maxAmp) {
+                    maxAmp = amp;
+                }
 
                 // skip first 4 bytes
 
@@ -311,8 +333,8 @@ struct HL2Device {
     }
 
     void prepareRequest(int sequence) {
-                            //        0  1  2  3    4  5  6  7  8  9  10
-        static int sendRegisters[] = {0, 1, 2, 9, 0xA, 2, 9, 1, 2, 9, 2};
+                            //        0  1  2  3    4     5  6  7  8  9  10
+        static int sendRegisters[] = {0, 1, 2, 9, 0xA, 0x17, 9, 1, 2, 9, 2};
         if (sequence > 10 || sequence < 0) {
             sequence = 1;
         }
@@ -334,6 +356,8 @@ struct HL2Device {
         output_buffer[C3] = deviceControl[0x00].C3;
         output_buffer[C4] = deviceControl[0x00].C4;
 
+        maxAmp = 0;
+
         if (samplesToSend.size() > 1) {
             this->storeNextIQSamples(output_buffer + 8, *samplesToSend[0]);
         }
@@ -354,11 +378,9 @@ struct HL2Device {
         // 512-8 = 504 bytes here, 63 elements (8 bytes per iq sample (of those 4 bytes are obsolete/unused), and 2 bytes per re, im)
 
         // total 1024 bytes
+        sigpath::averageTxSignalLevel.emit(maxAmp);
 
-        static int reportCounter = 0;
-        if (reportCounter++ % 300 == 0) {
-            spdlog::info("Have {} samples", samplesSize);
-        }
+
     }
 
     void sendToEndpoint(int endpoint, unsigned char *buffer) {
@@ -377,6 +399,34 @@ struct HL2Device {
             metis_buffer[i + 8] = buffer[i];
         }
 
+        if (false) {
+            std::stringstream ss;
+            ss << "Dump of outgoing packet:\n";
+            ss << "    192.168.44.1 > 192.168.44.100";
+            int ethernetHeader = 12 + 16;
+            // 	0x0000:  4500 005a 94c3 4000 4011 2248 c0a8 0101
+            for (int q = 0; q < ethernetHeader + std::size(metis_buffer); q++) {
+                int metisq = q - ethernetHeader;
+                char hex[10];
+                if (q % 16 == 0) {
+                    sprintf(hex, "%04x", q);
+                    ss << "\n        0x" << hex << ":  ";
+                }
+                if (q <= ethernetHeader) {
+                    sprintf(hex, "--");
+                }
+                else {
+                    sprintf(hex, "%02x", (unsigned char)metis_buffer[metisq]);
+                }
+                ss << hex;
+                if (q % 2 == 1) {
+                    ss << " ";
+                }
+            }
+            ss << "\nEnd of packet\n";
+            spdlog::info("packet follows");
+            spdlog::info("{}", ss.str());
+        }
         if (sendto(data_socket, (const char *)metis_buffer, 1024+8, 0, (struct sockaddr *) &data_addr, data_addr_length) != 1024+8) {
             perror("sendto socket failed for metis_send_data\n");
         }
@@ -447,6 +497,8 @@ struct HL2Device {
                 AIN6 = (control_in[3] << 8) + control_in[4]; // from Pennelope or Hermes
                 break;
         }
+
+        getSWR();
     }
 
 
@@ -646,6 +698,12 @@ struct HL2Device {
                 return; // too early
             }
         }
+/*
+        static int counter = 0;
+        if (counter++ % 30 == 0) {
+            spdlog::info("hl2_device: next udp packet, samplesToSend.size()={}  tx={}", samplesToSend.size(), transmitMode);
+        }
+*/
         sent++;
         prepareRequest(secondControlIndex++);
         if (secondControlIndex > 10) {

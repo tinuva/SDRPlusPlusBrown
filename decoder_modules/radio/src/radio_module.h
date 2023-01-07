@@ -26,7 +26,7 @@ extern std::map<DeemphasisMode, double> deempTaus;
 extern std::map<IFNRPreset, double> ifnrTaps;
 
 
-class RadioModule : public ModuleManager::Instance {
+class RadioModule : public ModuleManager::Instance  {
 public:
     RadioModule(std::string name) {
         this->name = name;
@@ -132,6 +132,13 @@ public:
 
         // Register the module interface
         core::modComManager.registerInterface("radio", name, moduleInterfaceHandler, this);
+
+        txHandler.ctx = this;
+        txHandler.handler = [](bool txActive, void *ctx){
+            auto _this = (RadioModule*)ctx;
+            _this->selectedDemod->setFrozen(txActive);
+        };
+        sigpath::txState.bindHandler(&txHandler);
     }
 
     std::shared_ptr<SinkManager::Stream> addSecondaryStream(std::string secondaryName = "") {
@@ -149,7 +156,10 @@ public:
     }
 
 
+
+
     ~RadioModule() {
+        sigpath::txState.unbindHandler(&txHandler);
         core::modComManager.unregisterInterface(name);
         gui::menu.removeEntry(name);
         afsplitter.stop();
@@ -817,4 +827,6 @@ private:
     const double MAX_SQUELCH = 0.0;
 
     bool enabled = true;
+
+    EventHandler<bool> txHandler;
 };

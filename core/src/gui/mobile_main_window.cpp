@@ -35,6 +35,9 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
     dsp::tap<dsp::complex_t> ftaps;
     dsp::filter::FIR<dsp::complex_t, dsp::complex_t> filter;
     dsp::loop::AGC<float> audioAgc;
+    int micGain = 0;
+    int sampleCount;
+    int tuneFrequency = 0;
 
     AudioInToTransmitter(dsp::stream<dsp::stereo_t>* in) {
         init(in);
@@ -47,9 +50,12 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
         this->submode = submode;
     }
 
-    void start() override {
-        dsp::Processor<dsp::stereo_t, dsp::complex_t>::start();
+    void setMicGain(int micGain) {
+        this->micGain = micGain;
+    }
 
+    void start() override {
+        spdlog::info("AudioInToTransmitter: Start");
         auto bandwidth = 2500.0;
         if (this->submode == "LSB") {
             xlator1.init(NULL, -bandwidth / 2, 48000);
@@ -63,6 +69,7 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
         float agcAttack = 50.0f;
         float agcDecay = 5.0f;
         audioAgc.init(NULL, 1.0, agcAttack / bandwidth, agcDecay / bandwidth, 10e6, 2.0, 1.0);
+        dsp::Processor<dsp::stereo_t, dsp::complex_t>::start();
     }
 
     void stop() override {
@@ -75,15 +82,34 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
         if (rd < 0) {
             return rd;
         }
-        s2m.process(rd, this->_in->readBuf, s2m.out.writeBuf);
-        r2c.process(rd, s2m.out.writeBuf, r2c.out.writeBuf);
-        xlator1.process(rd, r2c.out.writeBuf, xlator1.out.writeBuf);
-        filter.process(rd, xlator1.out.writeBuf, filter.out.writeBuf);
-//        filter.process(rd, filter.out.writeBuf, filter.out.writeBuf);
-        xlator2.process(rd, filter.out.writeBuf, out.writeBuf);
+        if (tuneFrequency != 0) {
+            int period = 48000 / tuneFrequency;
+            auto thisStart = sampleCount % period;
+            for(auto q=0; q<rd; q++) {
+                auto angle = (thisStart + q) / period * 2 * M_PI;
+                out.writeBuf[q].re = sin(angle);
+                out.writeBuf[q].im = cos(angle);
+            }
+        } else {
+            s2m.process(rd, this->_in->readBuf, s2m.out.writeBuf);
+            if (this->postprocess) {
+                r2c.process(rd, s2m.out.writeBuf, r2c.out.writeBuf);
+                xlator1.process(rd, r2c.out.writeBuf, xlator1.out.writeBuf);
+                filter.process(rd, xlator1.out.writeBuf, filter.out.writeBuf);
+                xlator2.process(rd, filter.out.writeBuf, out.writeBuf);
+                auto micAmp = pow(10, micGain / 10.0);
+                for (int i = 0; i < rd; i++) {
+                    out.writeBuf[i] *= micAmp;
+                }
+            }
+            else {
+                r2c.process(rd, s2m.out.writeBuf, out.writeBuf);
+            }
+        }
 //
 //        audioAgc.process(rd, s2m.out.writeBuf, audioAgc.out.writeBuf);
 
+        sampleCount+=rd;
         this->_in->flush();
         if (!out.swap(rd)) {
             spdlog::info("Does not write to output stream", totalRead);
@@ -92,6 +118,7 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
         return rd;
     };
 
+    bool postprocess = true;
 };
 
 struct AudioInToFFT : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
@@ -107,6 +134,8 @@ struct AudioInToFFT : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
     const int windowSize = FREQUENCY/FRAMERATE;
     ComplexArray inputArray;
     FloatArray hanningWin;
+    std::atomic<int> receivedSamplesCount;
+
 
     AudioInToFFT(dsp::stream<dsp::stereo_t>* in) {
         init(in);
@@ -125,6 +154,7 @@ struct AudioInToFFT : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
         if (rd < 1) {
             return rd;
         }
+        receivedSamplesCount.fetch_add(rd);
         int offset = inputData.size();
         inputData.resize(inputData.size() + rd);
         std::copy(_in->readBuf + 0, _in->readBuf + rd, inputData.begin()+offset);
@@ -132,14 +162,14 @@ struct AudioInToFFT : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
             for(int q=0; q<windowSize; q++) {
                 (*inputArray)[q] = dsp::complex_t{ inputData[q].l, 0 };
             }
-            static int counter = 0;
-            if (counter++ % 30 == 0) {
-                auto ib = (float*)(*inputArray).data();
-                char buf[1000];
-                sprintf(buf, "input: %f %f %f %f %f %f %f %f", ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
-                std::string sbuf = buf;
-                spdlog::info("in qsopanel: {}", sbuf);
-            }
+//            static int counter = 0;
+//            if (counter++ % 30 == 0) {
+//                auto ib = (float*)(*inputArray).data();
+//                char buf[1000];
+//                sprintf(buf, "input: %f %f %f %f %f %f %f %f", ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
+//                std::string sbuf = buf;
+//                spdlog::info("in qsopanel: {}", sbuf);
+//            }
             auto inputMul = muleach(hanningWin, inputArray);
             auto result = dsp::arrays::npfftfft(inputMul, plan);
             std::copy(result->begin(), result->end(), this->out.writeBuf);
@@ -164,13 +194,19 @@ struct QSOPanel {
     std::shared_ptr<std::thread> receiveBuffers;
     dsp::arrays::FloatArray currentFFTBuffer;
     std::mutex currentFFTBufferMutex;
-    void handleTxButton(bool tx);
+    void handleTxButton(bool tx, bool tune);
     float currentFreq;
     int txGain;
+    float micGain = 0;    // in db
     bool enablePA;
     bool transmitting;
     void setSubmode(const std::string& submode);
     std::string submode;
+    EventHandler<float> maxSignalHandler;
+    std::atomic<float> maxSignal;
+    bool postprocess = true;
+    int triggerTXOffEvent = 0;
+    std::vector<float> lastSWR, lastForward, lastReflected;
 };
 
 
@@ -425,10 +461,10 @@ void MobileMainWindow::draw() {
     auto cornerPos = ImGui::GetCursorPos();
 
     float encoderWidth = 150;
-    float buttonsWidth = 300;
+    float nonQsoButtonsWidth = 300;
+    float buttonsWidth = nonQsoButtonsWidth;
     float statusHeight = 100;
-
-    if (this->qsoMode) {
+    if (qsoMode) {
         buttonsWidth = 600;
     }
 
@@ -447,7 +483,7 @@ void MobileMainWindow::draw() {
     ImGui::EndChild();
 
     ImGui::SetCursorPos(cornerPos + ImVec2(gui::waterfall.fftAreaMin.x+ 5 * style::uiScale, waterfallRegion.y));
-    ImGui::PushFont(style::bigFont);
+    ImGui::PushFont(style::mediumFont);
     ImGui::Text("%s -> %s    zoom: %s",
                 this->modeToggle.upperText.c_str(),
                 this->submodeToggle.upperText.c_str(),
@@ -465,7 +501,9 @@ void MobileMainWindow::draw() {
         ImU32 bg = ImGui::ColorConvertFloat4ToU32(gui::themeManager.waterfallBg);
         auto window = ImGui::GetCurrentWindow();
         auto widgetPos = ImGui::GetWindowContentRegionMin();
-        window->DrawList->AddRectFilled(widgetPos, widgetPos + menuRegion, bg);
+        auto rectRegion = menuRegion;
+        rectRegion.y += 10000;      // menu is scrolling, rect somehow scrolls with it, so must be big enough to be always visible
+        window->DrawList->AddRectFilled(widgetPos, widgetPos + rectRegion, bg);
 
         if (gui::menu.draw(firstMenuRender)) {
             core::configManager.acquire();
@@ -513,33 +551,58 @@ void MobileMainWindow::draw() {
     this->autoDetectBand((int)currentFreq);
     ImGui::EndChild(); // encoder
 
+
     ImGui::SetCursorPos(cornerPos + ImVec2{waterfallRegion.x, 0});
     auto vertPadding = ImGui::GetStyle().WindowPadding.y;
 
 
     MobileButton *buttonsNonQso[6] = {&this->modeToggle, &this->bandUp, &this->bandDown, &this->submodeToggle, &this->zoomToggle, &this->qsoButton };
-    MobileButton *buttonsQso[2] = {&this->qsoButton, &this->txButton };
+    MobileButton *buttonsQso[3] = {&this->qsoButton, &this->txButton, &this->softTune };
     auto nButtonsQso = (int)((sizeof(buttonsQso) / sizeof(buttonsQso[0])));
+    auto nButtonsNonQso = (int)((sizeof(buttonsNonQso) / sizeof(buttonsNonQso[0])));
     auto buttonsSpaceY = ImGui::GetContentRegionAvail().y;
     if (this->qsoMode) {
-        buttonsSpaceY = ImGui::GetContentRegionAvail().y / nButtonsQso;
+        qsoButton.buttonText = "End QSO";
+//        buttonsSpaceY = ImGui::GetContentRegionAvail().y / std::size(buttonsNonQso) * nButtonsQso * 0.75; // use 75% of regular buttons
+    } else {
+        qsoButton.buttonText = "QSO";
     }
     const ImVec2 buttonsRegion = ImVec2(buttonsWidth, buttonsSpaceY);
     ImGui::BeginChildEx("Buttons", ImGui::GetID("sdrpp_mobile_buttons"), buttonsRegion, false, ImGuiWindowFlags_NoScrollbar);
+
+    if (this->qsoMode) {
+        auto beforeQSOPanel = ImGui::GetCursorPos();
+        ImGui::BeginChildEx("QSO", ImGui::GetID("sdrpp_qso"), ImVec2(buttonsWidth, ImGui::GetContentRegionAvail().y), false, 0);
+        qsoPanel->draw(currentFreq, vfo);
+        auto afterQSOPanel = ImGui::GetCursorPos();
+        ImGui::EndChild(); // buttons
+//        ImGui::SetCursorPos(ImVec2{beforeQSOPanel.x, beforeQSOPanel.y + afterQSOPanel.y});
+        ImGui::SetCursorPos(beforeQSOPanel);
+//        buttonsSpaceY -= afterQSOPanel.y;
+    }
+
+
     MobileButton **buttons;
     int NBUTTONS;
     if (this->qsoMode) {
         buttons = buttonsQso;
         NBUTTONS = nButtonsQso;
     } else {
-        NBUTTONS = 6;
+        NBUTTONS = nButtonsNonQso;
         buttons = buttonsNonQso;
     }
     MobileButton *pressedButton = nullptr;
+    auto buttonsStart = ImGui::GetCursorPos();
     for (auto b=0; b<NBUTTONS; b++) {
         char chi[100];
         sprintf(chi, "mob_button_%d", b);
-        const ImVec2 childRegion = ImVec2(buttonsWidth, buttonsSpaceY/NBUTTONS-vertPadding);
+        const ImVec2 childRegion = ImVec2(nonQsoButtonsWidth, buttonsSpaceY/nButtonsNonQso - vertPadding);
+        if (!this->qsoMode) {
+            ImGui::SetCursorPos(buttonsStart + ImVec2{ 0, buttonsSpaceY - (nButtonsNonQso - b) * (childRegion.y + vertPadding) });
+        }
+        else {
+            ImGui::SetCursorPos(buttonsStart + ImVec2{ buttonsWidth - nonQsoButtonsWidth, buttonsSpaceY - (b + 1) * (childRegion.y + vertPadding) });
+        }
         ImGui::BeginChildEx(chi, ImGui::GetID(chi), childRegion, false, 0);
         auto pressed = buttons[b]->draw();
         ImGui::EndChild();
@@ -548,14 +611,6 @@ void MobileMainWindow::draw() {
         }
     }
     ImGui::EndChild(); // buttons
-
-    if (this->qsoMode) {
-        auto cp = ImGui::GetCursorPos();
-        ImGui::SetCursorPos(cp + ImVec2{waterfallRegion.x, 0});
-        ImGui::BeginChildEx("QSO", ImGui::GetID("sdrpp_qso"), ImVec2(buttonsWidth, ImGui::GetContentRegionAvail().y), false, 0);
-        qsoPanel->draw(currentFreq, vfo);
-        ImGui::EndChild(); // buttons
-    }
 
     ImGui::End();
 
@@ -634,7 +689,26 @@ void MobileMainWindow::draw() {
         }
     }
     qsoPanel->setSubmode(submodeToggle.upperText);
-    qsoPanel->handleTxButton(this->txButton.currentlyPressed);
+    if (sigpath::transmitter && qsoPanel->triggerTXOffEvent < 0) {        // transiver exists, and TX is not in handing off state
+        if (pressedButton == &this->softTune) {
+            if (qsoPanel->audioInToTransmitter) {
+                // tuning, need to stop
+                qsoPanel->handleTxButton(false, true);
+#define SOFT_TUNE_LABEL "SoftTune"
+                pressedButton->buttonText = SOFT_TUNE_LABEL;
+            }
+            else {
+                // need to start
+                qsoPanel->handleTxButton(true, true);
+                pressedButton->buttonText = "Tuning..";
+            }
+        }
+        if (txButton.currentlyPressed && !qsoPanel->audioInToTransmitter || !txButton.currentlyPressed && qsoPanel->audioInToTransmitter && qsoPanel->audioInToTransmitter->tuneFrequency == 0) {
+            // button is pressed ok to send, or button is released and audioInToTransmitter running and it is not in tune mode
+            qsoPanel->handleTxButton(this->txButton.currentlyPressed, false);
+            //
+        }
+    }
 
 }
 std::string MobileMainWindow::getCurrentBand() {
@@ -745,7 +819,8 @@ MobileMainWindow::MobileMainWindow() : MainWindow(),
                          modeToggle("SSB", "Mode"),
                          submodeToggle("LSB", "Submode"),
                          qsoButton("", "QSO"),
-                         txButton("", "TX")
+                         txButton("", "TX"),
+                         softTune("", SOFT_TUNE_LABEL)
 {
     qsoPanel = std::make_shared<QSOPanel>();
 }
@@ -756,6 +831,12 @@ void QSOPanel::start() {
     sigpath::sinkManager.defaultInputAudio.bindStream(&audioIn);
     audioInToFFT = std::make_shared<AudioInToFFT>(&audioIn);
     audioInToFFT->start();
+    sigpath::averageTxSignalLevel.bindHandler(&maxSignalHandler);
+    maxSignalHandler.ctx = this;
+    maxSignalHandler.handler = [](float maxSignal, void *ctx) {
+        auto _this = (QSOPanel*)ctx;
+        _this->maxSignal.store(maxSignal);
+    };
     std::thread x([this]{
         while (true) {
             auto rd = audioInToFFT->out.read();
@@ -791,25 +872,34 @@ void QSOPanel::setSubmode(const std::string &submode) {
     }
 }
 
-void QSOPanel::handleTxButton(bool tx) {
-    sigpath::txState.emit(tx);
-    if (sigpath::transmitter) {
-        if (tx) {
-            if (!this->transmitting) {
-                this->transmitting = true;
+void QSOPanel::handleTxButton(bool tx, bool tune) {
+    if (tx) {
+        if (!this->transmitting) {
+            sigpath::txState.emit(tx);
+            this->transmitting = true;
+            if (sigpath::transmitter) {
                 sigpath::sinkManager.defaultInputAudio.bindStream(&audioTowardsTransmitter);
                 audioInToTransmitter = std::make_shared<AudioInToTransmitter>(&audioTowardsTransmitter);
                 audioInToTransmitter->setSubmode(submode);
+                audioInToTransmitter->setMicGain(micGain);
+                audioInToTransmitter->postprocess = postprocess;
+                audioInToTransmitter->tuneFrequency = tune ? 20 : 0; // 20hz close to carrier
                 audioInToTransmitter->start();
                 sigpath::transmitter->setTransmitStream(&audioInToTransmitter->out);
                 sigpath::transmitter->setTransmitFrequency((int)currentFreq);
                 sigpath::transmitter->setTransmitStatus(true);
             }
-        } else {
-            sigpath::transmitter->setTransmitStatus(false);
-            if (this->transmitting) {
+            lastSWR.clear();
+            lastForward.clear();
+            lastReflected.clear();
+        }
+    } else {
+        if (this->transmitting) {
+            this->transmitting = false;
+            triggerTXOffEvent = 14; // 60fps,
+            if (sigpath::transmitter) {
+                sigpath::transmitter->setTransmitStatus(false);
                 sigpath::sinkManager.defaultInputAudio.unbindStream(&audioTowardsTransmitter);
-                this->transmitting = false;
                 audioInToTransmitter->stop();
                 audioInToTransmitter->out.stopReader();
             }
@@ -827,35 +917,74 @@ void QSOPanel::stop() {
     spdlog::info("Reset complete");
 }
 
+float rtmax(std::vector<float> &v) {
+    if (v.empty()) {
+        return 0;
+    }
+    while(v.size() > 20) {
+        v.erase(v.begin());
+    }
+    auto m = v[0];
+    for(int q=1; q<v.size(); q++) {
+        if (v[q] > m) {
+            m = v[q];
+        }
+    }
+    return m;
+}
+
 void QSOPanel::draw(float currentFreq, ImGui::WaterfallVFO* pVfo) {
     this->currentFreq = currentFreq;
     currentFFTBufferMutex.lock();
     if (currentFFTBuffer) {
-        ImVec2 space = ImGui::GetContentRegionAvail();
-        if (space.y > 200) {
-            space.y = 200;
-        }
         auto mx0 = npmax(currentFFTBuffer);
         auto data = npsqrt(currentFFTBuffer);
         auto mx = npmax(data);
         // only 1/4 of spectrum
-        ImGui::PlotHistogram("##fft", data->data(), currentFFTBuffer->size()/4, 0, NULL, 0, mx, space);
-        ImGui::Text("Max: %f", mx0);
+        if (audioInToFFT->receivedSamplesCount.load() == 0) {
+            ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "No microphone! Please");
+            ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "allow mic access in");
+            ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "the app permissions!");
+        } else {
+            ImVec2 space = ImGui::GetContentRegionAvail();
+            space.y = 60;  // fft height
+            ImGui::PlotHistogram("##fft", data->data(), currentFFTBuffer->size()/4, 0, NULL, 0, mx, space);
+            if (ImGui::SliderFloat("##_radio_mic_gain_", &this->micGain, 0, +22, "%.1f dB")) {
+                //
+            }
+            ImGui::SameLine();
+            ImGui::Text("Mic:%.3f", mx0);
+        }
+        ImGui::Text("Max TX: %f", this->maxSignal.load());
         if (sigpath::transmitter) {
-            ImGui::Text("TX state: %d", sigpath::transmitter->getTXStatus());
-            ImGui::Text("Fill level: %f", sigpath::transmitter->getFillLevel());
-            ImGui::Text("SWR: %f", sigpath::transmitter->getTransmitSWR());
-            ImGui::Text("PWR: %f", sigpath::transmitter->getTransmitPower());
-            if (ImGui::Checkbox("Enable PA", &this->enablePA)) {
+            ImGui::Text("TRX Qsz: %d", (int)sigpath::transmitter->getFillLevel());
+            ImGui::SameLine();
+            if (ImGui::Checkbox("PostPro", &this->postprocess)) {
+
+            }
+            float swr = sigpath::transmitter->getTransmitSWR();
+            if (swr >= 9.9) swr = 9.9; // just not to jump much
+            lastSWR.emplace_back(swr);
+            lastForward.emplace_back(sigpath::transmitter->getTransmitPower());
+            lastReflected.emplace_back(sigpath::transmitter->getReflectedPower());
+            ImGui::Text("SWR:%.1f", rtmax(lastSWR));
+            ImGui::SameLine();
+            ImGui::Text("FWD:%.1f", rtmax(lastForward));  // below 10w will - not jump.
+            ImGui::SameLine();
+            ImGui::Text("REF:%.1f", rtmax(lastReflected));
+            if (ImGui::Checkbox("PA", &this->enablePA)) {
                 sigpath::transmitter->setPAEnabled(this->enablePA);
             }
-            ImGui::LeftLabel("TX Gain");
+            ImGui::SameLine();
+            ImGui::LeftLabel("TX:");
             ImGui::SameLine();
             if (ImGui::SliderInt("##_radio_tx_gain_", &this->txGain, 0, 255)) {
                 sigpath::transmitter->setTransmitGain(this->txGain);
             }
         } else {
-            ImGui::Text("No transmitter! NO WAI!");
+            ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "Transmitter not found");
+            ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "Select a device");
+            ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "(e.g. HL2 Source)");
         }
 //        double aPos = fftAreaMax.y - ((latestFFT[i - 1] - fftMin) * scaleFactor);
 //        double bPos = fftAreaMax.y - ((latestFFT[i] - fftMin) * scaleFactor);
@@ -867,4 +996,12 @@ void QSOPanel::draw(float currentFreq, ImGui::WaterfallVFO* pVfo) {
 //                                  ImVec2(fftAreaMin.x + i, fftAreaMax.y), shadow, 1.0);
     }
     currentFFTBufferMutex.unlock();
+
+    triggerTXOffEvent--;
+    if (!triggerTXOffEvent) { // zero cross
+        audioInToTransmitter.reset();
+        sigpath::txState.emit(false);
+    }
+
+
 }

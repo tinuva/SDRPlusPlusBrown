@@ -112,6 +112,9 @@ namespace dsp {
                 }
 
                 void add_noise_history(const FloatArray &noise) {
+                    if (hold) {
+                        return;
+                    }
                     if (noise->size() != nFFT) {
                         abort(); // because
 
@@ -149,7 +152,6 @@ namespace dsp {
 //                    auto dump = dumpEnabler == 10;
 
                     if (nframes > 100 && !hold) {
-
 //                        if (dump) {
 //                            std::cout << "Mu2 history" << std::endl;
 //                        }
