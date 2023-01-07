@@ -21,7 +21,7 @@ Please note you must be logged in to GitHub to be able to download the artifacts
 
 ## Features compared to original project:
 
-* Hermes Lite 2 (hl2) support (receive only) -- note upstream has own version (hermes) as of Nov 2022
+* Hermes Lite 2 (hl2) support -- note upstream has own version (hermes) as of Nov 2022
 * Noise reduction to benefit SSB/AM - wideband and audio frequency. Wideband is visible on the waterfall. Can turn on both. ***Logmmse*** algorithm is used.
 * Mouse wheel scrolling of sliders
 * Unicode support in fonts, filenames and installation path (UTF-8), on Windows, too.
@@ -32,10 +32,9 @@ Please note you must be logged in to GitHub to be able to download the artifacts
 * ability to output sound on left or right channel only for particular audio device.
 * Airspy HF+ Discovery - narrowing of baseband to hide attenuated parts.
 * waterfall drawing is greatly optimized for CPU and GPU bandwidth, important for 4K monitors. 
-* small screen option - for android landscape, makes screen layout more accessible. 
+* small screen option / transmitter - for android landscape, makes screen layout more accessible. Tuning knob is there. 
 
-## Version log (oldest first)
-
+## Version log (newest last)
 
 2022.02.19 initial release. 
 
@@ -58,6 +57,11 @@ Please note you must be logged in to GitHub to be able to download the artifacts
 * by this time, merge of upstream has been already completed. The log reducion has been greatly optimized compared to previous version.
 * you need to enable plugins to use most of fork functionality: noise_reduction_logmmse and hl2_source
 * improved waterfall performance
+
+2023.01.07
+
+* added transmit mode for Hermes Lite 2. Note: using my own driver (hl2_), not the one from upstream.
+* added mobile screen mode for android/landscape. With big buttons. Has big ambitions, but in early stage. 
 
 ## Feedback
 
