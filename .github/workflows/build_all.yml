@@ -103,7 +103,7 @@ jobs:
           run: git clone --recursive https://github.com/gnuradio/volk && cd volk && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j3 && sudo make install && cd ../../
 
         - name: Install SDRplay API
-          run: wget https://www.sdrplay.com/software/SDRplay_RSP_API-MacOSX-3.07.3.pkg && sudo installer -pkg SDRplay_RSP_API-MacOSX-3.07.3.pkg -target /
+          run: curl https://www.sdrplay.com/software/SDRplay_RSP_API-MacOSX-3.07.3.pkg > sdrplay.pkg && sudo installer -pkg sdrplay.pkg -target /
 
         - name: Install libiio
           run: git clone https://github.com/analogdevicesinc/libiio && cd libiio && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j3 && sudo make install && cd ../../

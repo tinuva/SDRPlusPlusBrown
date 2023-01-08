@@ -85,7 +85,7 @@ namespace demod {
         bool getPostProcEnabled() { return true; }
         int getDefaultDeemphasisMode() { return DEEMP_MODE_NONE; }
         bool getFMIFNRAllowed() { return false; }
-        virtual bool setAGCFrozen(bool frozen) { demod.setAGCFrozen(frozen); };
+        virtual void setAGCFrozen(bool frozen) { demod.setAGCFrozen(frozen); };
         bool getNBAllowed() { return false; }
         dsp::stream<dsp::stereo_t>* getOutput() { return &demod.out; }
 
