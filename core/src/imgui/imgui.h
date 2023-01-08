@@ -1972,6 +1972,8 @@ struct ImGuiIO
     IMGUI_API void  AddKeyAnalogEvent(ImGuiKey key, bool down, float v);    // Queue a new key down/up event for analog values (e.g. ImGuiKey_Gamepad_ values). Dead-zones should be handled by the backend.
     IMGUI_API void  AddMousePosEvent(float x, float y);                     // Queue a mouse position update. Use -FLT_MAX,-FLT_MAX to signify no mouse (e.g. app not focused and not hovered)
     IMGUI_API void  AddMouseButtonEvent(int button, bool down);             // Queue a mouse button change
+    IMGUI_API void  AddFingerEvent(int finger, bool down);
+    IMGUI_API void  AddFingerMotion(int finger, float x, float y);
     IMGUI_API void  AddMouseWheelEvent(float wh_x, float wh_y);             // Queue a mouse wheel update
     IMGUI_API void  AddFocusEvent(bool focused);                            // Queue a gain/loss of focus for the application (generally based on OS/platform focus of your window)
     IMGUI_API void  AddInputCharacter(unsigned int c);                      // Queue a new character input
@@ -2026,6 +2028,9 @@ struct ImGuiIO
     bool        KeyAlt;                             // Keyboard modifier down: Alt
     bool        KeySuper;                           // Keyboard modifier down: Cmd/Super/Windows
     float       NavInputs[ImGuiNavInput_COUNT];     // Gamepad inputs. Cleared back to zero by EndFrame(). Keyboard keys will be auto-mapped and be written here by NewFrame().
+
+    ImVec2      FingerPos[10];
+    bool        FingerDown[10];
 
     // Other state maintained from data above + IO function calls
     ImGuiKeyModFlags KeyMods;                       // Key mods flags (same as io.KeyCtrl/KeyShift/KeyAlt/KeySuper but merged into flags), updated by NewFrame()

@@ -1329,6 +1329,31 @@ void ImGuiIO::SetKeyEventNativeData(ImGuiKey key, int native_keycode, int native
 #endif
 }
 
+void ImGuiIO::AddFingerEvent(int finger, bool down) {
+    ImGuiContext& g = *GImGui;
+    IM_ASSERT(&g.IO == this && "Can only add events to current context.");
+
+    ImGuiInputEvent e;
+    e.Type = ImGuiInputEventType_FingerEvent;
+    e.Source = ImGuiInputSource_Mouse;
+    e.FingerEvent.Finger = finger;
+    e.FingerEvent.Down = down;
+    g.InputEventsQueue.push_back(e);
+}
+
+void ImGuiIO::AddFingerMotion(int finger, float x, float y) {
+    ImGuiContext& g = *GImGui;
+    IM_ASSERT(&g.IO == this && "Can only add events to current context.");
+
+    ImGuiInputEvent e;
+    e.Type = ImGuiInputEventType_FingerPos;
+    e.Source = ImGuiInputSource_Mouse;
+    e.FingerPos.PosX = x;
+    e.FingerPos.PosY = y;
+    e.FingerPos.Finger = finger;
+    g.InputEventsQueue.push_back(e);
+}
+
 // Queue a mouse move event
 void ImGuiIO::AddMousePosEvent(float x, float y)
 {
@@ -7791,7 +7816,17 @@ void ImGui::UpdateInputEvents(bool trickle_fast_inputs)
     for (; event_n < g.InputEventsQueue.Size; event_n++)
     {
         const ImGuiInputEvent* e = &g.InputEventsQueue[event_n];
-        if (e->Type == ImGuiInputEventType_MousePos)
+        const int maxFingers = sizeof(io.FingerPos) / sizeof(io.FingerPos[0]);
+        if (e->Type == ImGuiInputEventType_FingerPos ) {
+            if (e->FingerPos.Finger >=0 && e->FingerPos.Finger < maxFingers) {
+                ImVec2 event_pos(e->FingerPos.PosX, e->FingerPos.PosY);
+                io.FingerPos[e->FingerPos.Finger] = ImVec2(ImFloorSigned(event_pos.x), ImFloorSigned(event_pos.y));
+            }
+        } else if (e->Type == ImGuiInputEventType_FingerEvent) {
+            if (e->FingerEvent.Finger >=0 && e->FingerEvent.Finger < maxFingers) {
+                io.FingerDown[e->FingerEvent.Finger] = e->FingerEvent.Down;
+            }
+        } else if (e->Type == ImGuiInputEventType_MousePos)
         {
             ImVec2 event_pos(e->MousePos.PosX, e->MousePos.PosY);
             if (IsMousePosValid(&event_pos))

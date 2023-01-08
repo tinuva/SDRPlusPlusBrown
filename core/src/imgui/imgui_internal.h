@@ -1173,6 +1173,8 @@ enum ImGuiInputEventType
     ImGuiInputEventType_Key,
     ImGuiInputEventType_Char,
     ImGuiInputEventType_Focus,
+    ImGuiInputEventType_FingerEvent,
+    ImGuiInputEventType_FingerPos,
     ImGuiInputEventType_COUNT
 };
 
@@ -1190,6 +1192,8 @@ enum ImGuiInputSource
 // FIXME: Structures in the union below need to be declared as anonymous unions appears to be an extension?
 // Using ImVec2() would fail on Clang 'union member 'MousePos' has a non-trivial default constructor'
 struct ImGuiInputEventMousePos      { float PosX, PosY; };
+struct ImGuiInputEventFingerPos      { int Finger; float PosX, PosY; };
+struct ImGuiInputEventFingerEvent      { int Finger; bool Down; };
 struct ImGuiInputEventMouseWheel    { float WheelX, WheelY; };
 struct ImGuiInputEventMouseButton   { int Button; bool Down; };
 struct ImGuiInputEventKey           { ImGuiKey Key; bool Down; float AnalogValue; };
@@ -1202,6 +1206,8 @@ struct ImGuiInputEvent
     ImGuiInputSource                Source;
     union
     {
+        ImGuiInputEventFingerEvent  FingerEvent;    // if Type == ImGuiInputEventType_MouseButton
+        ImGuiInputEventFingerPos    FingerPos;       // if Type == ImGuiInputEventType_MousePos
         ImGuiInputEventMousePos     MousePos;       // if Type == ImGuiInputEventType_MousePos
         ImGuiInputEventMouseWheel   MouseWheel;     // if Type == ImGuiInputEventType_MouseWheel
         ImGuiInputEventMouseButton  MouseButton;    // if Type == ImGuiInputEventType_MouseButton
