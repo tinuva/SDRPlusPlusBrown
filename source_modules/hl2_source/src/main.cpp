@@ -370,9 +370,17 @@ private:
                 _this->device->setADCGain(_this->adcGain);
             }
         }
-        for(int q=0; q<7; q++) {
+        for(int q=0; q<6; q++) {
             char strr[100];
-            sprintf(strr, "%d", q);
+            switch(q) {
+            case 0: sprintf(strr, "=160"); break;
+            case 1: sprintf(strr, "=80"); break;
+            case 2: sprintf(strr, "=40"); break;
+            case 3: sprintf(strr, "=20"); break;
+            case 4: sprintf(strr, "=15"); break;
+            case 5: sprintf(strr, "=10"); break;
+            default: sprintf(strr, "???"); break;
+            }
             if (SmGui::RadioButton(strr, _this->sevenRelays[q])) {
                 if (_this->sevenRelays[q]) {
                     memset(_this->sevenRelays, 0, sizeof(_this->sevenRelays));
@@ -387,7 +395,7 @@ private:
                     }
                 }
             }
-            if (q != 6) {
+            if (q != 5 && q != 2) {
                 SmGui::SameLine();
             }
         }

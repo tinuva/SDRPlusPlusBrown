@@ -36,6 +36,10 @@
  * - add on-screen NR button
  * - add config screen with settings such as tx hang time, own callsign, etc.
  * - add psk reporter / RBN reporter, query / table display
+ * - stop scroll wheel while tx
+ * - don't tx while wheel is scrolling
+ * - add websdr websocket, and websdr waterfall display at same frequency. automatic contrast.
+ *
  */
 
 
@@ -186,7 +190,8 @@ public:
         {"Full", 0.0},
         {"100 KHz", 100000},
         {"50 KHz", 50000},
-        {"25 KHz", 30000},
+        {"25 KHz", 250000},
+        {"10 KHz", 10000},
         {"3 KHz", 3000},
     };
     MobileMainWindow();
