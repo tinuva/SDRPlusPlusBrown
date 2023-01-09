@@ -24,6 +24,15 @@
 
 using namespace ::dsp::arrays;
 
+static bool withinRect(ImVec2 size, ImVec2 point) {
+    if (isnan(point.x)) {
+        return false;
+    }
+    if (point.x < 0 || point.y < 0) return false;
+    if (point.x > size.x || point.y > size.y) return false;
+    return true;
+}
+
 
 struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
 
@@ -181,6 +190,156 @@ struct AudioInToFFT : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
     };
 };
 
+static long long currentTimeMillis() {
+    std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
+    long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
+    return msec;
+}
+
+struct CWPanel {
+
+    bool leftPressed;
+    bool rightPressed;
+
+    long long currentTime = 0;
+
+    const int DOT = 1;
+    const int DA = 2;
+    int dot = 4;
+    int state = 0; // 0 = nothing 1 = dot 2 = das
+    int stateTime = 0;
+
+    bool daWanted = false;
+    bool dotWanted = false;
+
+
+    void draw() {
+        ImVec2 p1 = ImGui::GetCursorScreenPos();
+        ImVec2 canvas_size = ImGui::GetContentRegionAvail();
+        ImGui::GetWindowDrawList()->AddRectFilled(p1, p1 + canvas_size, IM_COL32(40,40,40,255));
+        ImGui::Text("CW Panel here");
+
+        auto windowPos = ImGui::GetWindowPos();
+        auto widgetPos = windowPos + ImGui::GetCursorPos();
+        auto avail =  ImGui::GetContentRegionAvail();
+        auto window = ImGui::GetCurrentWindow();
+
+#ifndef __ANDROID__
+        auto mouseCoord = ImVec2(ImGui::GetMousePos().x - widgetPos.x, ImGui::GetMousePos().y - widgetPos.y);
+        bool inside = withinRect(avail, mouseCoord);
+        bool newLeftPressed = inside && ImGui::IsMouseDown(1);     // inverted: mouse faces the palm with eyes, two fingers (big and pointer) lay on the mouse like on paddle.
+        bool newRightPressed = inside && ImGui::IsMouseDown(0);
+#else
+        static int fingers[10];     // 0 = nothing, 1 = left, 2 = right
+        bool newLeftPressed = false;
+        bool newRightPressed = false;
+        for(int i=0; i<10; i++) {
+            if (ImGui::IsFingerDown(i) && fingers[i] == 0) {
+                auto coord = ImVec2(ImGui::GetFingerPos(i).x - widgetPos.x, ImGui::GetFingerPos(i).y - widgetPos.y);
+                bool inside = withinRect(avail, coord);
+                if (inside) {
+                    auto halfSize =  avail;
+                    halfSize.x /= 2;
+                    bool left = withinRect(halfSize, coord);
+                    if (left) {
+                        fingers[i] = 1;
+                    } else {
+                        fingers[i] = 2;
+                    }
+                }
+                // just pressed
+            }
+            if (!ImGui::IsFingerDown(i) && fingers[i] != 0) {
+                fingers[i] = 0;
+                // just released
+            }
+            if (fingers[i] == 1) newLeftPressed = true;
+            if (fingers[i] == 2) newRightPressed = true;
+        }
+#endif
+        if (newLeftPressed != leftPressed) {
+            leftPressed = newLeftPressed;
+            if (newLeftPressed) {
+                sendClickSound();
+            }
+        }
+        if (newRightPressed != rightPressed) {
+            rightPressed = newRightPressed;
+            if (rightPressed) {
+                sendClickSound();
+            }
+        }
+
+        bool sendDa = leftPressed || daWanted;
+        bool sendDot = rightPressed || dotWanted;
+
+        if (sendDa) daWanted = true;
+        if (sendDot) dotWanted = true;
+
+        stateTime++;
+        if (state == DOT && stateTime == dot * 2     // dot tone, dot silence
+            || state == DA && stateTime == dot * 4
+            || state == 0
+            ) { // da 3*tone, da silence
+            // time to make a decision
+            if (sendDot && sendDa) {
+                if (state == DA) {
+                    state = DOT;
+                } else {
+                    state = DA;
+                }
+                // nothing
+            } else if (sendDot) {
+                dotWanted = false;
+                state = DOT;
+            } else if (sendDa) {
+                daWanted = false;
+                state = DA;
+            } else {
+                state = 0;
+            }
+            stateTime = 0;
+        }
+        if (stateTime == 0 && state != 0) {
+            // start any tone
+            spdlog::info("Set Tone Enabled: true, time={}, ctm={}", currentTime, currentTimeMillis());
+            setToneEnabled(true);
+        }
+        if (state == DOT && stateTime == dot || state == DA && stateTime == 3*dot) {
+            // stop tone at specified time
+            spdlog::info("Set Tone Enabled: OFF , time={}, ctm={}", currentTime, currentTimeMillis());
+            setToneEnabled(false);
+        }
+        if (state == DA) {
+            daWanted = false;
+        }
+        if (state == DOT) {
+            dotWanted = false;
+        }
+
+        if (clickSendTime == currentTime) {
+            sigpath::sinkManager.toneGenerator.store(2);
+        } else if (toneEnabled) {
+            sigpath::sinkManager.toneGenerator.store(1);
+        } else {
+            sigpath::sinkManager.toneGenerator.store(0);
+        }
+        currentTime++;
+    }
+
+
+    bool toneEnabled = false;
+    long long clickSendTime = 0;
+    void setToneEnabled(bool enabled) {
+        toneEnabled = enabled;
+    }
+
+    void sendClickSound() {
+        clickSendTime = currentTime;
+    }
+
+};
+
 struct QSOPanel {
     void start();
     void stop();
@@ -218,15 +377,6 @@ static bool withinRadius(ImVec2 center, float radius, ImVec2 point) {
     float dx = point.x - center.x;
     float dy = point.y - center.y;
     return dx*dx+dy*dy < radius*radius;
-}
-
-static bool withinRect(ImVec2 size, ImVec2 point) {
-    if (isnan(point.x)) {
-        return false;
-    }
-    if (point.x < 0 || point.y < 0) return false;
-    if (point.x > size.x || point.y > size.y) return false;
-    return true;
 }
 
 bool MobileButton::draw() {
@@ -470,7 +620,7 @@ void MobileMainWindow::draw() {
 
     const ImVec2 waterfallRegion = ImVec2(ImGui::GetContentRegionAvail().x - encoderWidth - buttonsWidth, ImGui::GetContentRegionAvail().y - statusHeight);
 
-    lockWaterfallControls = showMenu;
+    lockWaterfallControls = showMenu || (qsoMode && modeToggle.upperText == "CW");
     ImGui::BeginChildEx("Waterfall", ImGui::GetID("sdrpp_waterfall"), waterfallRegion, false, 0);
     auto waterfallStart = ImGui::GetCursorPos();
     gui::waterfall.draw();
@@ -576,6 +726,7 @@ void MobileMainWindow::draw() {
         qsoPanel->draw(currentFreq, vfo);
         auto afterQSOPanel = ImGui::GetCursorPos();
         ImGui::EndChild(); // buttons
+
 //        ImGui::SetCursorPos(ImVec2{beforeQSOPanel.x, beforeQSOPanel.y + afterQSOPanel.y});
         ImGui::SetCursorPos(beforeQSOPanel);
 //        buttonsSpaceY -= afterQSOPanel.y;
@@ -611,6 +762,14 @@ void MobileMainWindow::draw() {
         }
     }
     ImGui::EndChild(); // buttons
+
+    if (qsoMode && modeToggle.upperText == "CW") {
+        ImGui::SetCursorPos(cornerPos + ImVec2(waterfallRegion.x / 4, waterfallRegion.y / 2));
+        ImVec2 childRegion(waterfallRegion.x/2, waterfallRegion.y / 2);
+        ImGui::BeginChildEx("cwbuttons", ImGui::GetID("cwbuttons"), childRegion, true, 0);
+        cwPanel->draw();
+        ImGui::EndChild(); // buttons
+    }
 
     ImGui::End();
 
@@ -823,6 +982,7 @@ MobileMainWindow::MobileMainWindow() : MainWindow(),
                          softTune("", SOFT_TUNE_LABEL)
 {
     qsoPanel = std::make_shared<QSOPanel>();
+    cwPanel = std::make_shared<CWPanel>();
 }
 
 

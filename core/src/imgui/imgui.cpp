@@ -1352,6 +1352,7 @@ void ImGuiIO::AddFingerMotion(int finger, float x, float y) {
     e.FingerPos.PosY = y;
     e.FingerPos.Finger = finger;
     g.InputEventsQueue.push_back(e);
+
 }
 
 // Queue a mouse move event
@@ -7642,6 +7643,16 @@ bool ImGui::IsKeyReleased(ImGuiKey key)
     return key_data->DownDurationPrev >= 0.0f && !key_data->Down;
 }
 
+bool ImGui::IsFingerDown(int finger) {
+    ImGuiContext& g = *GImGui;
+    return g.IO.FingerDown[finger];
+}
+
+ImVec2 ImGui::GetFingerPos(int finger) {
+    ImGuiContext& g = *GImGui;
+    return g.IO.FingerPos[finger];
+}
+
 bool ImGui::IsMouseDown(ImGuiMouseButton button)
 {
     ImGuiContext& g = *GImGui;
@@ -7842,6 +7853,7 @@ void ImGui::UpdateInputEvents(bool trickle_fast_inputs)
         }
         else if (e->Type == ImGuiInputEventType_MouseButton)
         {
+            printf("ImGuiInputEventType_MouseButton: %d %d\n", e->MouseButton.Button, e->MouseButton.Down);
             const ImGuiMouseButton button = e->MouseButton.Button;
             IM_ASSERT(button >= 0 && button < ImGuiMouseButton_COUNT);
             if (io.MouseDown[button] != e->MouseButton.Down)

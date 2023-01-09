@@ -160,10 +160,12 @@ public:
     Event<std::string> onAddSubstream;
     Event<std::string> onRemoveSubstream;
 
-
     dsp::routing::Splitter<dsp::stereo_t> defaultInputAudio;
 
-
+    // 0 = silence
+    // 1 = cw tone
+    // 2 = click sound
+    std::atomic<int> toneGenerator;
 
 private:
     void loadStreamConfig(std::string name);

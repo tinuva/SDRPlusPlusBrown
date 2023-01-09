@@ -328,9 +328,22 @@ private:
             //     if (_this->stereoPacker.out.readBuf[i].l == -INFINITY || _this->stereoPacker.out.readBuf[i].r == -INFINITY) { spdlog::error("-INFINITY in audio data"); }
             // }
 
+
             memcpy(outputBuffer, _this->stereoPacker.out.readBuf, nBufferFrames * sizeof(dsp::stereo_t));
-            auto channel = _this->devId % 3; // 0=stereo 1=left 2=right
+
+            static float lastPhase = 0;
             auto stereoOut = (dsp::stereo_t*)outputBuffer;
+            switch (sigpath::sinkManager.toneGenerator.load()) {
+            case 1:
+                float hz = 800;
+                int period = (int)(_this->sampleRate / hz);
+                float tick = M_PI * 2 / period;
+                for(int q=0; q<nBufferFrames; q++) {
+                    stereoOut[q].r = stereoOut[q].l = sin(lastPhase);
+                    lastPhase += tick;
+                }
+            }
+            auto channel = _this->devId % 3; // 0=stereo 1=left 2=right
             switch (channel) {
             default:
                 break;

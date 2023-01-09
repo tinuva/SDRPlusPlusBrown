@@ -58,6 +58,7 @@ struct TheEncoder {
 };
 
 struct QSOPanel;
+struct CWPanel;
 
 
 struct MobileButton {
@@ -87,6 +88,7 @@ public:
     MobileButton txButton;
     MobileButton softTune;
     std::shared_ptr<QSOPanel> qsoPanel;
+    std::shared_ptr<CWPanel> cwPanel;
     bool qsoMode = false;       // different ui
     bool shouldInitialize = true;
     std::vector<std::string> modes = { "SSB", "CW", "DIGI", "FM", "AM" };

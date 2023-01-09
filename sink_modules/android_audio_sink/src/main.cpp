@@ -199,9 +199,27 @@ private:
     }
 
     void worker() {
+        float hz = 800;
+        int period = (int)(sampleRate / hz);
+        float tick = M_PI * 2 / period;
         while (true) {
             int count = packer.out.read();
             if (count < 0) { return; }
+
+            static float lastPhase = 0;
+            auto stereoOut = (dsp::stereo_t*)packer.out.readBuf;
+            switch (sigpath::sinkManager.toneGenerator.load()) {
+                case 0:
+                    lastPhase = 0;
+                    break;
+                case 1:
+                    for(int q=0; q<count; q++) {        // normally by 800
+                        stereoOut[q].r = stereoOut[q].l = sin(lastPhase);
+                        lastPhase += tick;
+                    }
+                    break;
+            }
+
             AAudioStream_write(stream, packer.out.readBuf, count, 100000000); // 100 msec
             packer.out.flush();
         }
@@ -225,6 +243,7 @@ private:
                 }
                 nInBuffer += rd;
             }
+/*
             static int counter = 0;
             if (counter++ % 30 == 0) {
                 auto ib = (float*)samplesBuffer.data();
@@ -232,6 +251,7 @@ private:
                 sprintf(buf, "audio_main input %d: %f %f %f %f %f %f %f %f", nInBuffer, ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
                 logcat(buf);
             }
+*/
             memmove(microphone.writeBuf, samplesBuffer.data(), nInBuffer * 2 * sizeof(float));
             if (!microphone.swap(bufferSize)) {
                 break;

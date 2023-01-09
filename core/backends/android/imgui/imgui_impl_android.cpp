@@ -212,6 +212,9 @@ int32_t ImGui_ImplAndroid_HandleInputEvent(AInputEvent* input_event)
             }
             if (AMotionEvent_getToolType(input_event, event_pointer_index) == AMOTION_EVENT_TOOL_TYPE_FINGER) {
                 io.AddFingerEvent(event_pointer_index, event_action == AMOTION_EVENT_ACTION_DOWN);
+                if (event_action == AMOTION_EVENT_ACTION_DOWN) {
+                    io.AddFingerMotion(event_pointer_index, AMotionEvent_getX(input_event, event_pointer_index), AMotionEvent_getY(input_event, event_pointer_index));
+                }
             }
             break;
         case AMOTION_EVENT_ACTION_BUTTON_PRESS:
