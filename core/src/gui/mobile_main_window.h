@@ -45,19 +45,20 @@
 
 struct TheEncoder {
 
-    float somePosition = 0; // angle in radians
-    float speed = 0;
-    float currentFrequency = 0;
-    float delayFactor = 0.96;
+    double somePosition = 0; // angle in radians
+    double speed = 0;
+    double currentFrequency = 0;
+    double delayFactor = 0.96;
 
-    float lastMouseAngle = nan("");
+    double lastMouseAngle = nan("");
 
-    std::vector<float> fingerMovement;
+    std::vector<double> fingerMovement;
 
-    float draw(ImGui::WaterfallVFO* pVfo);
+    double draw(ImGui::WaterfallVFO* pVfo);
 };
 
 struct QSOPanel;
+struct ConfigPanel;
 struct CWPanel;
 
 
@@ -70,9 +71,12 @@ struct MobileButton {
         this->buttonText = buttonText;
         this->pressPoint = ImVec2(nan(""), nan(""));
     }
-    float sizeFactor = 0.8;
+    double sizeFactor = 0.8;
     bool draw();
     bool currentlyPressed;
+    long long currentlyPressedTime;
+
+    bool isLongPress();
 };
 
 
@@ -85,11 +89,17 @@ public:
     MobileButton modeToggle;
     MobileButton submodeToggle;
     MobileButton qsoButton;
+    MobileButton exitConfig;
     MobileButton txButton;
     MobileButton softTune;
+    std::shared_ptr<ConfigPanel> configPanel;
     std::shared_ptr<QSOPanel> qsoPanel;
     std::shared_ptr<CWPanel> cwPanel;
-    bool qsoMode = false;       // different ui
+    enum {
+        VIEW_DEFAULT = 1,
+        VIEW_QSO = 2,
+        VIEW_CONFIG = 3
+    } qsoMode = VIEW_DEFAULT;       // different ui
     bool shouldInitialize = true;
     std::vector<std::string> modes = { "SSB", "CW", "DIGI", "FM", "AM" };
     std::map<std::string, std::vector<std::string>> subModes = { { "SSB", { "LSB", "USB" } }, { "FM", { "WFM", "NFM" } }, { "AM", { "AM" } }, { "CW", { "CWU", "CWL" } }, { "DIGI", { "FT8", "FT4", "OLIVIA", "PSK31", "SSTV" } } };

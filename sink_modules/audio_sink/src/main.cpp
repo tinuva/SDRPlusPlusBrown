@@ -31,6 +31,9 @@ static void rtaudioCallback(RtAudioError::Type type, const std::string& errorTex
 class AudioSink : SinkManager::Sink {
 public:
     RtAudio::DeviceInfo inputDeviceInfo;
+
+    std::vector<dsp::stereo_t> playBuffer; // hardware data is stored here before stream i/o
+
     AudioSink(SinkManager::Stream* stream, std::string streamName) {
         _stream = stream;
         _streamName = streamName;
@@ -203,6 +206,8 @@ public:
         }
     }
 
+    const int microFrames = 4;
+
 private:
     void doStart() {
 
@@ -216,6 +221,7 @@ private:
             outputParameters.deviceId = deviceIds[devId];
             outputParameters.nChannels = 2;
             unsigned int bufferFrames = sampleRate / 60;
+            playBuffer.reserve(bufferFrames);
             RtAudio::StreamOptions opts;
             opts.flags = RTAUDIO_MINIMIZE_LATENCY;
             opts.streamName = _streamName;
@@ -223,7 +229,8 @@ private:
             spdlog::info("Starting RtAudio stream " + _streamName + " parameters.deviceId=" + std::to_string(outputParameters.deviceId)+" it is default input? "+std::to_string(defaultInputDeviceId == outputParameters.deviceId));
 
             try {
-                audio.openStream(&outputParameters, defaultInputDeviceId == outputParameters.deviceId ? &inputParameters : nullptr, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback, this, &opts);
+                unsigned int microBuffer = bufferFrames/microFrames;
+                audio.openStream(&outputParameters, defaultInputDeviceId == outputParameters.deviceId ? &inputParameters : nullptr, RTAUDIO_FLOAT32, sampleRate, &microBuffer, &callback, this, &opts);
                 stereoPacker.setSampleCount((int)bufferFrames);
                 audio.startStream();
                 stereoPacker.start();
@@ -241,7 +248,7 @@ private:
             opts.flags = RTAUDIO_MINIMIZE_LATENCY;
             opts.streamName = inputDeviceInfo.name;
             spdlog::info("Starting (separately) RtAudio INPUT stream " + inputDeviceInfo.name + " parameters.deviceId=" + std::to_string(defaultInputDeviceId)+" (output was: "+std::to_string(deviceIds[devId])+")");
-            unsigned int bufferFrames = sampleRate / 60;
+            unsigned int bufferFrames = sampleRate / 60 / microFrames;
 
             try {
                 audio2.openStream(nullptr, &inputParameters, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback2, this, &opts);
@@ -306,6 +313,7 @@ private:
         }
         return 0;
     }
+
     static int callback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData) {
 
         if (inputBuffer != nullptr) {
@@ -317,8 +325,17 @@ private:
         }
 
         AudioSink* _this = (AudioSink*)userData;
-        int count = _this->stereoPacker.out.read();
-        if (count >= nBufferFrames) {
+        if (_this->playBuffer.size() < nBufferFrames) {
+            int count = _this->stereoPacker.out.read(); // something has to be here
+            if (count > 0) {
+                int oldSize = _this->playBuffer.size();
+                _this->playBuffer.resize(_this->playBuffer.size() + count);
+                memmove(_this->playBuffer.data() + oldSize, _this->stereoPacker.out.readBuf, count * sizeof(dsp::stereo_t));
+            }
+            _this->stereoPacker.out.flush();
+        }
+
+        if (_this->playBuffer.size() >= nBufferFrames) {
 
             // For debug purposes only...
             // if (nBufferFrames != count) { spdlog::warn("Buffer size mismatch, wanted {0}, was asked for {1}", count, nBufferFrames); }
@@ -329,7 +346,8 @@ private:
             // }
 
 
-            memcpy(outputBuffer, _this->stereoPacker.out.readBuf, nBufferFrames * sizeof(dsp::stereo_t));
+            memcpy(outputBuffer, _this->playBuffer.data(), nBufferFrames * sizeof(dsp::stereo_t));
+            _this->playBuffer.erase(_this->playBuffer.begin(), _this->playBuffer.begin() + nBufferFrames);
 
             static float lastPhase = 0;
             auto stereoOut = (dsp::stereo_t*)outputBuffer;
@@ -358,7 +376,6 @@ private:
                 }
                 break;
             }
-            _this->stereoPacker.out.flush();
         }
         return 0;
     }

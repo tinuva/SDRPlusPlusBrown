@@ -1,5 +1,7 @@
 
+#ifdef _WIN32
 #define _WINSOCKAPI_    // stops windows.h including winsock.h
+#endif
 
 #include <imgui.h>
 #include <gui/smgui.h>
@@ -9,12 +11,13 @@
 #include <signal_path/signal_path.h>
 #include <core.h>
 #include <config.h>
-#include <iostream>
+#ifdef __ANDROID__
 #include <spdlog/sinks/android_sink.h>
+#endif
 
 #include "hl2_device.h"
 
-#define CONCAT(a, b) ((std::string(a) + b).c_str())
+#define CONCAT(a, b) ((std::string(a) + (b)).c_str())
 
 SDRPP_MOD_INFO {
     /* Name:            */ "hl2_source",
@@ -37,11 +40,11 @@ std::string discoveredToIp(DISCOVERED &d) {
 class HermesLite2SourceModule : public ModuleManager::Instance, public Transmitter {
 
     int adcGain = 0;
-    bool sevenRelays[10];
+    bool sevenRelays[10]{};
 
 public:
 
-    HermesLite2SourceModule(std::string name) {
+    explicit HermesLite2SourceModule(const std::string &name) {
 
 #ifdef __ANDROID__
         auto console_sink = std::make_shared<spdlog::sinks::android_sink_st>("SDR++/hl2_source");
@@ -81,18 +84,18 @@ public:
         sigpath::sourceManager.unregisterSource("Hermes Lite 2");
     }
 
-    void postInit() {}
+    void postInit()  override  {}
 
 
-    void enable() {
+    void enable()  override {
         enabled = true;
     }
 
-    void disable() {
+    void disable() override {
         enabled = false;
     }
 
-    bool isEnabled() {
+    bool isEnabled()  override {
         return enabled;
     }
 
@@ -122,7 +125,7 @@ public:
         }
     }
 
-    void selectByIP(std::string ipAddr) {
+    void selectByIP(const std::string &ipAddr) {
 
         selectedIP = ipAddr;
 
@@ -180,25 +183,14 @@ public:
 private:
 
     static void menuSelected(void* ctx) {
-        HermesLite2SourceModule* _this = (HermesLite2SourceModule*)ctx;
+        auto* _this = (HermesLite2SourceModule*)ctx;
         core::setInputSampleRate(_this->sampleRate);
         spdlog::info("HermerList2SourceModule '{0}': Menu Select!", _this->name);
     }
 
-    static void txmenuSelected(void* ctx) {
-        HermesLite2SourceModule* _this = (HermesLite2SourceModule*)ctx;
-//        core::setInputSampleRate(_this->sampleRate);
-        spdlog::info("HermerList2SourceModule '{0}': TX Menu Select!", _this->name);
-    }
-
     static void menuDeselected(void* ctx) {
-        HermesLite2SourceModule* _this = (HermesLite2SourceModule*)ctx;
+        auto* _this = (HermesLite2SourceModule*)ctx;
         spdlog::info("HermerList2SourceModule '{0}': Menu Deselect!", _this->name);
-    }
-
-    static void txmenuDeselected(void* ctx) {
-        HermesLite2SourceModule* _this = (HermesLite2SourceModule*)ctx;
-        spdlog::info("HermerList2SourceModule '{0}': TX Menu Deselect!", _this->name);
     }
 
     std::vector<dsp::complex_t> incomingBuffer;
@@ -207,14 +199,14 @@ private:
         incomingBuffer.emplace_back(dsp::complex_t{(float)q, (float)i});
         if (incomingBuffer.size() >= 2048) {
             memcpy(stream.writeBuf, incomingBuffer.data(), incomingBuffer.size() * sizeof(dsp::complex_t));
-            stream.swap(incomingBuffer.size());
+            stream.swap((int)incomingBuffer.size());
             incomingBuffer.clear();
         }
 
     }
 
     static void start(void* ctx) {
-        HermesLite2SourceModule* _this = (HermesLite2SourceModule*)ctx;
+        auto* _this = (HermesLite2SourceModule*)ctx;
         if (_this->running) {
             return; }
         if (_this->selectedIP.empty()) {
@@ -255,7 +247,7 @@ private:
     }
 
     static void stop(void* ctx) {
-        HermesLite2SourceModule* _this = (HermesLite2SourceModule*)ctx;
+        auto* _this = (HermesLite2SourceModule*)ctx;
         if (!_this->running) { return; }
         _this->running = false;
         _this->device->stop();
@@ -268,51 +260,15 @@ private:
     }
 
     static void tune(double freq, void* ctx) {
-        HermesLite2SourceModule* _this = (HermesLite2SourceModule*)ctx;
-        _this->freq = freq;
+        auto* _this = (HermesLite2SourceModule*)ctx;
         if (_this->device) {
             _this->device->setFrequency((int)freq);
         }
         spdlog::info("HermerList2SourceModule '{0}': Tune: {1}!", _this->name, freq);
     }
 
-    static void txtune(double freq, void* ctx) {
-        HermesLite2SourceModule* _this = (HermesLite2SourceModule*)ctx;
-        _this->txfreq = freq;
-        if (_this->device) {
-            _this->device->setTxFrequency((int)freq);
-        }
-        spdlog::info("HermerList2SourceModule '{0}': TxTune: {1}!", _this->name, freq);
-    }
-
-    bool hardTune = false;
-
-    static void txmenuHandler(void* ctx) {
-        HermesLite2SourceModule* _this = (HermesLite2SourceModule*)ctx;
-        if (!_this->running) { SmGui::BeginDisabled(); }
-
-        int drawHardTune = _this->hardTune;
-        if (drawHardTune) {
-            SmGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.0f, 0, 0, 1.0f));
-            SmGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0, 0, 1.0f));
-            SmGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0, 0, 1.0f));
-        }
-        if (SmGui::Button("Hard Tune")) {
-            _this->hardTune = !_this->hardTune;
-            _this->device->setTxFrequency((int) _this->freq);
-            _this->device->doTuneActive(_this->hardTune);
-            std::cout << "_this->hardTune=" << _this->hardTune << std::endl;
-        }
-        if (drawHardTune) {
-            SmGui::PopStyleColor(3);
-        }
-
-        if (!_this->running) { SmGui::EndDisabled(); }
-
-    }
-
     static void menuHandler(void* ctx) {
-        HermesLite2SourceModule* _this = (HermesLite2SourceModule*)ctx;
+        auto* _this = (HermesLite2SourceModule*)ctx;
 
         if (_this->running) { SmGui::BeginDisabled(); }
 
@@ -320,7 +276,7 @@ private:
         if (SmGui::Combo(CONCAT("##_hl2_dev_sel_", _this->name), &_this->devId, _this->devListTxt.c_str())) {
             _this->selectByIP(discoveredToIp(discovered[_this->devId]));
             core::setInputSampleRate(_this->sampleRate);
-            if (_this->selectedSerStr != "") {
+            if (!_this->selectedSerStr.empty()) {
                 config.acquire();
                 config.conf["device"] = _this->selectedSerStr;
                 config.release(true);
@@ -328,9 +284,9 @@ private:
         }
 
         auto updateSampleRate = [&](int srid) {
-            _this->sampleRate = _this->sampleRateList[_this->srId];
+            _this->sampleRate = (int)_this->sampleRateList[_this->srId];
             core::setInputSampleRate(_this->sampleRate);
-            if (_this->selectedSerStr != "") {
+            if (!_this->selectedSerStr.empty()) {
                 config.acquire();
                 config.conf["devices"][_this->selectedSerStr]["sampleRate"] = _this->sampleRate;
                 config.release(true);
@@ -381,17 +337,20 @@ private:
             case 5: sprintf(strr, "=10"); break;
             default: sprintf(strr, "???"); break;
             }
-            if (SmGui::RadioButton(strr, _this->sevenRelays[q])) {
-                if (_this->sevenRelays[q]) {
-                    memset(_this->sevenRelays, 0, sizeof(_this->sevenRelays));
-                    if (_this->device) {
-                        _this->device->setSevenRelays(0);
+            if (q >=0) {
+                if (SmGui::RadioButton(strr, _this->sevenRelays[q])) {
+                    if (_this->sevenRelays[q]) {
+                        memset(_this->sevenRelays, 0, sizeof(_this->sevenRelays));
+                        if (_this->device) {
+                            _this->device->setSevenRelays(0);
+                        }
                     }
-                } else {
-                    memset(_this->sevenRelays, 0, sizeof(_this->sevenRelays));
-                    _this->sevenRelays[q] = !_this->sevenRelays[q];
-                    if (_this->device) {
-                        _this->device->setSevenRelays(1 << q);
+                    else {
+                        memset(_this->sevenRelays, 0, sizeof(_this->sevenRelays));
+                        _this->sevenRelays[q] = !_this->sevenRelays[q];
+                        if (_this->device) {
+                            _this->device->setSevenRelays(1 << q);
+                        }
                     }
                 }
             }
@@ -407,15 +366,12 @@ private:
     dsp::stream<dsp::complex_t> stream;
     dsp::stream<dsp::complex_t> txstream;
     int sampleRate;
-    SourceManager::SourceHandler handler;
+    SourceManager::SourceHandler handler{};
     bool running = false;
-    double freq;
-    double txfreq;
     std::string selectedIP;
     int devId = 0;
     int srId = 0;
-    float atten = 0.0f;
-    std::string selectedSerStr = "";
+    std::string selectedSerStr;
 
     std::string devListTxt;
     std::vector<uint32_t> sampleRateList;
@@ -431,14 +387,14 @@ private:
         device->setPTT(status);
 
     }
-    void setTransmitStream(dsp::stream<dsp::complex_t>* stream) override {
-        std::thread([this, stream]() {
+    void setTransmitStream(dsp::stream<dsp::complex_t>* astream) override {
+        std::thread([this, astream]() {
             std::vector<dsp::complex_t> buffer;
             int addedBlocks = 0;
             int readSamples = 0;
             int nreads = 0;
             while (true) {
-                int rd = stream->read();
+                int rd = astream->read();
                 if (rd < 0) {
                     printf("End iq stream for tx");
                     break;
@@ -446,7 +402,7 @@ private:
                 readSamples += rd;
                 nreads++;
                 for(int q=0; q<rd; q++) {
-                    buffer.push_back(stream->readBuf[q]);
+                    buffer.push_back(astream->readBuf[q]);
                     if (buffer.size() == 63) {
                         addedBlocks++;
                         if (addedBlocks % 1000 == 0) {
@@ -458,7 +414,7 @@ private:
                         buffer.clear();
                     }
                 }
-                stream->flush();
+                astream->flush();
             }
         }).detach();
     }
@@ -477,8 +433,8 @@ private:
         device->setPTT(true);
     }
 
-    void setPAEnabled(bool enabled) {
-        device->setPAEnabled(enabled);
+    void setPAEnabled(bool paenabled) override {
+        device->setPAEnabled(paenabled);
     }
 
     void stopGenerateTone() override {
@@ -509,7 +465,7 @@ private:
     }
 
     float getFillLevel() override {
-        return device->fill_level;
+        return (float)device->fill_level;
     }
 
     std::string& getTransmitterName() override {

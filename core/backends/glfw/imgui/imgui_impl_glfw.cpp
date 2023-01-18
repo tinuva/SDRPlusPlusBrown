@@ -51,6 +51,8 @@
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
+#include <chrono>
+#include <stdio.h>
 
 // Clang warnings with -Weverything
 #if defined(__clang__)
@@ -253,6 +255,12 @@ static void ImGui_ImplGlfw_UpdateKeyModifiers(int mods)
     io.AddKeyEvent(ImGuiKey_ModSuper, (mods & GLFW_MOD_SUPER) != 0);
 }
 
+static long long currentTimeMillis() {
+    std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
+    long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
+    return msec;
+}
+
 void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -262,8 +270,10 @@ void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int acti
     ImGui_ImplGlfw_UpdateKeyModifiers(mods);
 
     ImGuiIO& io = ImGui::GetIO();
-    if (button >= 0 && button < ImGuiMouseButton_COUNT)
+    if (button >= 0 && button < ImGuiMouseButton_COUNT) {
+        printf("mouse callback: %lld\n", currentTimeMillis());
         io.AddMouseButtonEvent(button, action == GLFW_PRESS);
+    }
 }
 
 void ImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)

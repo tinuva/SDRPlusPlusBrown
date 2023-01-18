@@ -4,6 +4,7 @@
 #include <dsp/stream.h>
 #include <dsp/types.h>
 #include "../dsp/routing/splitter.h"
+#include "../dsp/routing/merger.h"
 #include "../dsp/audio/volume.h"
 #include "../dsp/sink/null_sink.h"
 #include <mutex>
