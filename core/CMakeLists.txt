@@ -101,6 +101,8 @@ if (MSVC)
     find_package(FFTW3f CONFIG REQUIRED)
     target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3f )
     set(FFTW3f_LIBRARIES ${FFTW3_LIBRARIES})
+    set(FFTW3f_LIBRARY_DIRS ${FFTW3_LIBRARY_DIRS})
+    set(FFTW3f_INCLUDE_DIRS ${FFTW3_INCLUDE_DIRS})
     find_package(FFTW3 CONFIG REQUIRED)
     target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3 )
 
@@ -132,20 +134,22 @@ else()
     find_package(OpenGL REQUIRED)
 
     pkg_check_modules(FFTW3 REQUIRED fftw3f)
-    message("FFTW3(F) libs: ${FFTW3_LIBRARIES})
+    set(FFTW3F_LIBRARIES ${FFTW3_LIBRARIES})
     pkg_check_modules(FFTW3 REQUIRED fftw3)
-    message("FFTW3(D) libs: ${FFTW3_LIBRARIES})
+    message("FFTW3_LIBRARIES: ${FFTW3_LIBRARIES}")
+    message("FFTW3F_LIBRARIES: ${FFTW3F_LIBRARIES}")
     pkg_check_modules(VOLK REQUIRED volk)
     pkg_check_modules(GLFW3 REQUIRED glfw3)
     pkg_check_modules(LIBZSTD REQUIRED libzstd)
 
 #    find_package(FFTW3f CONFIG REQUIRED)
-    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3f )
+#    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3f )
     set(FFTW3f_LIBRARIES ${FFTW3_LIBRARIES})
 
     target_include_directories(sdrpp_core PUBLIC
         ${OPENGL_INCLUDE_DIRS}
         ${FFTW3_INCLUDE_DIRS}
+        ${FFTW3F_INCLUDE_DIRS}
         ${GLFW3_INCLUDE_DIRS}
         ${VOLK_INCLUDE_DIRS}
         ${LIBZSTD_INCLUDE_DIRS}
@@ -154,6 +158,7 @@ else()
     target_link_directories(sdrpp_core PUBLIC
         ${OPENGL_LIBRARY_DIRS}
         ${FFTW3_LIBRARY_DIRS}
+        ${FFTW3F_LIBRARY_DIRS}
         ${GLFW3_LIBRARY_DIRS}
         ${VOLK_LIBRARY_DIRS}
         ${LIBZSTD_LIBRARY_DIRS}
@@ -161,15 +166,15 @@ else()
 
     target_link_libraries(sdrpp_core PUBLIC
         ${OPENGL_LIBRARIES}
-#        ${FFTW3_LIBRARIES}
-#        ${FFTW3f_LIBRARIES}
+        ${FFTW3_LIBRARIES}
+        ${FFTW3F_LIBRARIES}
         ${GLFW3_LIBRARIES}
         ${VOLK_LIBRARIES}
         ${LIBZSTD_LIBRARIES}
     )
 
-    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3f )
-    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3 )
+#    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3f )
+#    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3 )
 
 
     if (NOT USE_INTERNAL_LIBCORRECT)

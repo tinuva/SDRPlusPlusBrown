@@ -29,9 +29,9 @@ enum {
 
 ConfigManager config;
 
-class SigctlServerModule : public ModuleManager::Instance {
+class TCIServerModule : public ModuleManager::Instance {
 public:
-    SigctlServerModule(std::string name) {
+    TCIServerModule(std::string name) {
         this->name = name;
 
         config.acquire();
@@ -57,7 +57,7 @@ public:
         gui::menu.registerEntry(name, menuHandler, this, NULL);
     }
 
-    ~SigctlServerModule() {
+    ~TCIServerModule() {
         gui::menu.removeEntry(name);
         sigpath::vfoManager.onVfoCreated.unbindHandler(&vfoCreatedHandler);
         sigpath::vfoManager.onVfoDeleted.unbindHandler(&vfoDeletedHandler);
@@ -105,7 +105,7 @@ public:
 
 private:
     static void menuHandler(void* ctx) {
-        SigctlServerModule* _this = (SigctlServerModule*)ctx;
+        TCIServerModule* _this = (TCIServerModule*)ctx;
         float menuWidth = ImGui::GetContentRegionAvail().x;
 
         bool listening = (_this->listener && _this->listener->isListening());
@@ -287,25 +287,25 @@ private:
     }
 
     static void _vfoCreatedHandler(VFOManager::VFO* vfo, void* ctx) {
-        SigctlServerModule* _this = (SigctlServerModule*)ctx;
+        TCIServerModule* _this = (TCIServerModule*)ctx;
         _this->refreshModules();
         _this->selectVfoByName(_this->selectedVfo);
     }
 
     static void _vfoDeletedHandler(std::string _name, void* ctx) {
-        SigctlServerModule* _this = (SigctlServerModule*)ctx;
+        TCIServerModule* _this = (TCIServerModule*)ctx;
         _this->refreshModules();
         _this->selectVfoByName(_this->selectedVfo);
     }
 
     static void _modChangeHandler(std::string _name, void* ctx) {
-        SigctlServerModule* _this = (SigctlServerModule*)ctx;
+        TCIServerModule* _this = (TCIServerModule*)ctx;
         _this->refreshModules();
         _this->selectRecorderByName(_this->selectedRecorder);
     }
 
     static void clientHandler(net::Conn _client, void* ctx) {
-        SigctlServerModule* _this = (SigctlServerModule*)ctx;
+        TCIServerModule* _this = (TCIServerModule*)ctx;
         //spdlog::info("New client!");
 
         _this->client = std::move(_client);
@@ -319,7 +319,7 @@ private:
     }
 
     static void dataHandler(int count, uint8_t* data, void* ctx) {
-        SigctlServerModule* _this = (SigctlServerModule*)ctx;
+        TCIServerModule* _this = (TCIServerModule*)ctx;
 
         for (int i = 0; i < count; i++) {
             if (data[i] == '\n') {
@@ -739,11 +739,11 @@ MOD_EXPORT void _INIT_() {
 }
 
 MOD_EXPORT ModuleManager::Instance* _CREATE_INSTANCE_(std::string name) {
-    return new SigctlServerModule(name);
+    return new TCIServerModule(name);
 }
 
 MOD_EXPORT void _DELETE_INSTANCE_(void* instance) {
-    delete (SigctlServerModule*)instance;
+    delete (TCIServerModule*)instance;
 }
 
 MOD_EXPORT void _END_() {

@@ -15,11 +15,11 @@
 #define MAX_COMMAND_LENGTH 8192
 
 SDRPP_MOD_INFO{
-    /* Name:            */ "rigctl_server",
-    /* Description:     */ "My fancy new module",
-    /* Author:          */ "Ryzerth",
+    /* Name:            */ "tci_server",
+    /* Description:     */ "Implementing TCI",
+    /* Author:          */ "san",
     /* Version:         */ 0, 1, 0,
-    /* Max instances    */ -1
+    /* Max instances    */ 1
 };
 
 enum {
