@@ -56,13 +56,15 @@ namespace core {
     }
 };
 
+#include "utils/ft8_etc/mscore.h"
+
 // main
 int sdrpp_main(int argc, char* argv[]) {
     spdlog::info("SDR++ v" VERSION_STR);
 #ifdef _WIN32
     setlocale(LC_ALL, ".65001"); // Set locale to UTF-8
 #endif
-
+    MsCore mscore;
 #ifdef IS_MACOS_BUNDLE
     // If this is a MacOS .app, CD to the correct directory
     auto execPath = std::filesystem::absolute(argv[0]);

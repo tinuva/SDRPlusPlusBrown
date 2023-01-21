@@ -53,6 +53,7 @@ struct QStringList {
     [[nodiscard]] QString operator[](int index) const;
     [[nodiscard]] QString at(int i) const;
 
+    void replace(int i, QString qString);
 };
 
 
@@ -94,6 +95,12 @@ struct QString {
 
     QString(const char *init) {
         str = std::make_shared<std::string>(init);
+    }
+
+    QString(char init) {
+        char buf[2] = {0, 0};
+        buf[0] = init;
+        str = std::make_shared<std::string>(buf);
     }
 
     QString(const std::string &init) {
@@ -387,6 +394,7 @@ constexpr auto mk_complex(double re, double im) {
 }
 
 constexpr auto complex_zero = mk_complex(0, 0);
+constexpr auto complex_i = mk_complex(0, 1);
 
 inline double creal(std::complex<double> c) {
     return c.real();

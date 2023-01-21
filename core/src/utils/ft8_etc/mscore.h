@@ -114,10 +114,10 @@ public:
     //void SetDecBusy(bool);
 
 //signals:
-    void Sed_SMeter(int);
-    void Set_Graph(double*,int);
-    void Set_Raw(short*,int,bool); //1.27 psk rep fopen bool true false no file open
-    void Refresh_time();
+    void Sed_SMeter(int){abort();};
+    void Set_Graph(double*,int){abort();};
+    void Set_Raw(short*,int,bool){abort();}; //1.27 psk rep fopen bool true false no file open
+    void Refresh_time(){abort();};
 
 //private slots:
     void Refresh_t();

@@ -35,8 +35,12 @@ public:
     void ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqso,bool &f,int id3dec,double,double);
 
 //signals:
-    void EmitDecodetTextFt(QStringList);
-    void EmitBackColor();
+    void EmitDecodetTextFt(QStringList) {
+        abort();
+    }
+    void EmitBackColor() {
+        abort();
+    }
 
 private:
     int decid;
@@ -146,8 +150,12 @@ public:
     void ft4_decode(double *dd,double f0a,double f0b,double,double,double fqso,bool &f);
 
 //signals:
-    void EmitDecodetTextFt(QStringList);
-    void EmitBackColor();
+    void EmitDecodetTextFt(QStringList) {
+        abort();
+    }
+    void EmitBackColor() {
+        abort();
+    }
 
 private:
     int decid;
@@ -305,16 +313,24 @@ public:
     ///  END FT8  ////////////////////////
 
 //signals:
-    void EmitDecodetText(QStringList,bool,bool); //1.27 psk rep   fopen bool true    false no file open
-    void EmitDecode(bool,int dec_state);//dec_state no=0 dec=1 rtddec=2
-    void EmitBackColor(bool);
-    void EmitDecLinesPosToDisplay(int count,double pos,double pos_ping,QString p_time);//1.28 p_time for identif perood
-    void EmitDecodeInProgresPskRep(bool);
-    void EmitAvgSaves(int,int,int,int);
-    void EmitAvgSavesPi4(int,int);
-    void EmitAvgSavesQ65(int,int);
-    void EmitDecodetTextRxFreq(QStringList,bool,bool);
-    void EmitTimeElapsed(float);//2.33
+    void EmitDecodetText(QStringList,bool,bool){
+        abort();
+    } //1.27 psk rep   fopen bool true    false no file open
+    void EmitDecode(bool,int dec_state){
+        abort();
+    };//dec_state no=0 dec=1 rtddec=2
+    void EmitBackColor(bool){
+        abort();
+    };
+    void EmitDecLinesPosToDisplay(int count,double pos,double pos_ping,QString p_time) { // 1.28 p_time for identif perood
+        abort();
+    }
+    void EmitDecodeInProgresPskRep(bool) {abort();};
+    void EmitAvgSaves(int,int,int,int) {abort();};
+    void EmitAvgSavesPi4(int,int) {abort();};
+    void EmitAvgSavesQ65(int,int) {abort();};
+    void EmitDecodetTextRxFreq(QStringList,bool,bool) {abort();};
+    void EmitTimeElapsed(float) {abort();};//2.33
 
 //private slots:
     //void SetDecodetTextFt(QStringList);

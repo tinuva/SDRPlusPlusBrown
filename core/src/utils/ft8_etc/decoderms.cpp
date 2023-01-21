@@ -1985,142 +1985,146 @@ void DecoderMs::CalcZapDat()
 }
 //#include <QTime>
 static bool have_dec0_ = false;
-void DecoderMs::StrtDecode()
-{
-    if (s_f_rtd || s_mod==11 || s_mod==13 || allq65)//ft8 ft4 q65
-        usleep(20000);  //1.30 important time>10ms 20000us=20ms slab PC pri auto decode da zabavi malko pri postoqnno decodirane hv
+void DecoderMs::StrtDecode() {
+    if (s_f_rtd || s_mod == 11 || s_mod == 13 || allq65) // ft8 ft4 q65
+        usleep(20000);                                   // 1.30 important time>10ms 20000us=20ms slab PC pri auto decode da zabavi malko pri postoqnno decodirane hv
     else
-        usleep(100000); //1.30 important time>10ms 100000us=100ms slab PC pri auto decode da zabavi malko pri postoqnno decodirane hv
+        usleep(100000); // 1.30 important time>10ms 100000us=100ms slab PC pri auto decode da zabavi malko pri postoqnno decodirane hv
 
-    double sq=0.0;
-    //double degrade = 1.0;
-    int nforce = 1;//force_decode
+    double sq = 0.0;
+    // double degrade = 1.0;
+    int nforce = 1; // force_decode
     bool pick;
 
-    if ((s_mod!=0 && s_mod!=7 && s_mod!=8 && s_mod!=9 && s_mod!=10 && s_mod!=11 && s_mod!=12 &&
-            s_mod!=13 && !allq65) && s_nzap) //1.52 msk144 JT65abc ft8 pi4 ft4  no zap
-    {//if(mode.ne.2 .and. nzap.ne.0) then // nzap e check box
-        //qDebug()<<"2ZAP Start";
-        double fzap[200];//pri men ne se izpolzva jt65-jt4
-        pomAll.zero_double_beg_end(fzap,0,200);
+    if ((s_mod != 0 && s_mod != 7 && s_mod != 8 && s_mod != 9 && s_mod != 10 && s_mod != 11 && s_mod != 12 &&
+         s_mod != 13 && !allq65) &&
+        s_nzap) // 1.52 msk144 JT65abc ft8 pi4 ft4  no zap
+    {           // if(mode.ne.2 .and. nzap.ne.0) then // nzap e check box
+        // qDebug()<<"2ZAP Start";
+        double fzap[200]; // pri men ne se izpolzva jt65-jt4
+        pomAll.zero_double_beg_end(fzap, 0, 200);
 
-        bool nfrz=false;// e chesk box Freeze
+        bool nfrz = false; // e chesk box Freeze
         int MouseDF = 0;
-        //if(mode==1) nfrz=0;//neznam
-        //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+        // if(mode==1) nfrz=0;//neznam
+        // c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
 
-        if (s_mousebutton==0 && s_static_dat_count>100000)//mousebutton Left=1, Right=3 fullfile=0 rtd=2
+        if (s_mousebutton == 0 && s_static_dat_count > 100000) // mousebutton Left=1, Right=3 fullfile=0 rtd=2
         {
-            avesp2(static_dat0,s_static_dat_count,2,s_mod,nfrz,MouseDF,G_DfTolerance,fzap);
+            avesp2(static_dat0, s_static_dat_count, 2, s_mod, nfrz, MouseDF, G_DfTolerance, fzap);
         }
-        else if (s_zap_count>100000)
-        {
-            //qDebug()<<"ZAP Start";
+        else if (s_zap_count > 100000) {
+            // qDebug()<<"ZAP Start";
             CalcZapDat();
-            //qDebug()<<"ZAP Calc"<<s_zap_count;
-            avesp2(s_zap_dat,s_zap_count,2,s_mod,nfrz,MouseDF,G_DfTolerance,fzap);
-
+            // qDebug()<<"ZAP Calc"<<s_zap_count;
+            avesp2(s_zap_dat, s_zap_count, 2, s_mod, nfrz, MouseDF, G_DfTolerance, fzap);
         }
-        int nadd=1;
-        //qDebug()<<"ZAP BZAP"<<s_static_dat_count;
-        bzap(static_dat0,s_static_dat_count,nadd,s_mod,fzap);//fzap
+        int nadd = 1;
+        // qDebug()<<"ZAP BZAP"<<s_static_dat_count;
+        bzap(static_dat0, s_static_dat_count, nadd, s_mod, fzap); // fzap
     }
 
-    sq=0.0;
-    for (int j = 0; j<s_static_dat_count; j++)
-    {                //!Compute power level for whole array
-        sq=sq + static_dat0[j]*static_dat0[j];
+    sq = 0.0;
+    for (int j = 0; j < s_static_dat_count; j++) { //! Compute power level for whole array
+        sq = sq + static_dat0[j] * static_dat0[j];
     }
-    double avesq=(double)sq/s_static_dat_count;
-    s_basevb=pomAll.db(avesq) - 44.0;    //!Base power level
-    if (avesq==0.0)
+    double avesq = (double)sq / s_static_dat_count;
+    s_basevb = pomAll.db(avesq) - 44.0; //! Base power level
+    if (avesq == 0.0)
         goto c900;
 
     pick = false;
-    if (s_mousebutton != 0)//mousebutton Left=1, Right=3 fullfile=0 rtd=2
-        pick = true; //!This is a mouse-picked decoding
-    if (!pick && nforce==0 && (s_basevb<-15.0 || s_basevb>20.0))
+    if (s_mousebutton != 0) // mousebutton Left=1, Right=3 fullfile=0 rtd=2
+        pick = true;        //! This is a mouse-picked decoding
+    if (!pick && nforce == 0 && (s_basevb < -15.0 || s_basevb > 20.0))
         goto c900;
 
-    if (s_mod == 0 || s_mod == 12)//msk144 msk144ms
+    if (s_mod == 0 || s_mod == 12) // msk144 msk144ms
     {
         bool f_mskms = false;
-        if (s_mod == 12)//msk144ms
+        if (s_mod == 12) // msk144ms
             f_mskms = true;
 
         if (s_f_rtd)
-            msk_144_40_rtd(static_dat0,s_static_dat_count,s_in_istart,f_mskms);
+            msk_144_40_rtd(static_dat0, s_static_dat_count, s_in_istart, f_mskms);
         else
-            msk_144_40_decode(static_dat0,s_static_dat_count,s_in_istart,f_mskms);
+            msk_144_40_decode(static_dat0, s_static_dat_count, s_in_istart, f_mskms);
     }
-    else if (s_mod == 11)//one thread ft8
+    else if (s_mod == 11) // one thread ft8
     {
-        DecFt8_0->ft8_decode(static_dat0,s_static_dat_count,s_f00,s_f01,s_nfqso_all,have_dec0_,id3decFt,s_f00,s_f01);
+        DecFt8_0->ft8_decode(static_dat0, s_static_dat_count, s_f00, s_f01, s_nfqso_all, have_dec0_, id3decFt, s_f00, s_f01);
         ResetDupThr();
         goto c990;
     }
-    else if (s_mod == 13)//ft4
+    else if (s_mod == 13) // ft4
     {
-        DecFt4_0->ft4_decode(static_dat0,s_f00,s_f01,s_f00,s_f01,s_nfqso_all,have_dec0_);
+        DecFt4_0->ft4_decode(static_dat0, s_f00, s_f01, s_f00, s_f01, s_nfqso_all, have_dec0_);
         ResetDupThr();
         goto c990;
     }
-    else if (allq65)//q65
+    else if (allq65) // q65
     {
-        DecQ65->q65_decode(static_dat0,s_f00,s_f01,s_nfqso_all,s_mod,have_dec0_);
-        if (is_thrTime)
-        {
-            if (have_dec0_)
-            {
-//                float ftmp =(float)thrTime->elapsed()*0.001;
-//                emit EmitTimeElapsed(ftmp);
+        DecQ65->q65_decode(static_dat0, s_f00, s_f01, s_nfqso_all, s_mod, have_dec0_);
+        if (is_thrTime) {
+            if (have_dec0_) {
+                //                float ftmp =(float)thrTime->elapsed()*0.001;
+                //                emit EmitTimeElapsed(ftmp);
             }
-//            delete thrTime;
+            //            delete thrTime;
             is_thrTime = false;
         }
         id3decFt = 0;
-        //ResetDupThr();
-        //goto c990;
+        // ResetDupThr();
+        // goto c990;
     }
-    else if (s_mod == 1 || s_mod == 2 || s_mod == 3)//jtms fsk144 fsk315
+    else if (s_mod == 1 || s_mod == 2 || s_mod == 3) // jtms fsk144 fsk315
     {
-        if (s_mod == 2 || s_mod == 3)//fsk441 fsk315
+        if (s_mod == 2 || s_mod == 3) // fsk441 fsk315
         {
             double sigma = 0.0;
-            spec2d(static_dat0,s_static_dat_count,sigma);
-            //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
-            //if(sigma<0.0) basevb=-99.0;
-            //qDebug()<<"sigma1"<<sigma;
-            if (sigma<0.0)
+            spec2d(static_dat0, s_static_dat_count, sigma);
+            // c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+            // if(sigma<0.0) basevb=-99.0;
+            // qDebug()<<"sigma1"<<sigma;
+            if (sigma < 0.0)
                 goto c900;
-            //qDebug()<<"sigma2"<<sigma;
+            // qDebug()<<"sigma2"<<sigma;
         }
-        wsjt1_mtdecode(static_dat0,s_static_dat_count,pick);//30sec static dufer for decode
+        wsjt1_mtdecode(static_dat0, s_static_dat_count, pick); // 30sec static dufer for decode
     }
-    else if (s_mod == 4)//iskat-a
+    else if (s_mod == 4) // iskat-a
     {
-        int	mode4=1;
-        wsjt1_iscat(static_dat0,s_static_dat_count,mode4,pick);
+        int mode4 = 1;
+        abort();
+//        wsjt1_iscat(static_dat0, s_static_dat_count, mode4, pick);
     }
-    else if (s_mod == 5)//iskat-b
+    else if (s_mod == 5) // iskat-b
     {
-        int	mode4=2;
-        wsjt1_iscat(static_dat0,s_static_dat_count,mode4,pick);
+        int mode4 = 2;
+        abort();
+//        wsjt1_iscat(static_dat0, s_static_dat_count, mode4, pick);
     }
-    else if (s_mod == 6)//jt6m
-        wsjt1_jt6m(static_dat0,s_static_dat_count,s_basevb);
-    else if (s_mod == 7)//jt65a
+    else if (s_mod == 6) { // jt6m
+        abort();
+        //wsjt1_jt6m(static_dat0, s_static_dat_count, s_basevb);
+    }
+    else if (s_mod == 7) // jt65a
     {
-        //int n2pass = 1;
-        //int mode65 = 1;
-        jt65_decode(static_dat0,s_static_dat_count,1);
+        // int n2pass = 1;
+        // int mode65 = 1;
+        abort();
+//        jt65_decode(static_dat0, s_static_dat_count, 1);
     }
-    else if (s_mod == 8)//jt65b
-        jt65_decode(static_dat0,s_static_dat_count,2);
-    else if (s_mod == 9)//jt65c
-        jt65_decode(static_dat0,s_static_dat_count,4);
-    else if (s_mod == 10)//pi4
-        pi4_decode(static_dat0,s_static_dat_count);//for test
+    else if (s_mod == 8) // jt65b
+        abort();
+//        jt65_decode(static_dat0, s_static_dat_count, 2);
+    else if (s_mod == 9) // jt65c
+        abort();
+//        jt65_decode(static_dat0, s_static_dat_count, 4);
+    else if (s_mod == 10) {                           // pi4
+        abort();
+//        pi4_decode(static_dat0, s_static_dat_count); // for test
+    }
 
 
 c900:

@@ -17,6 +17,8 @@
 
 #include "q65_subs.h"
 #include "decoderpom.h"
+#include "gen65.h"
+#include "gen_q65.h"
 
 #define MAX_NCW 206
 
@@ -45,14 +47,20 @@ public:
     void SetMaxDrift(bool);
 
 //signals:
-    void EmitDecodetText(QStringList);//bool
-    void EmitBackColor();
-    void EmitAvgSavesQ65(int,int);
+    void EmitDecodetText(QStringList) {
+        abort();
+    }
+    void EmitBackColor() {
+        abort();
+    }
+    void EmitAvgSavesQ65(int,int) {
+        abort();
+    }
 
 private:
 	F2a f2a;
 	PomAll pomAll;
-//    GenQ65 *TGenQ65;
+    GenQ65 *TGenQ65;
     q65subs q65S;
     
     QString decoded;
