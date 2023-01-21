@@ -92,6 +92,11 @@ public:
         streams.emplace_back(std::make_shared<SinkManager::Stream>());
         streamNames.emplace_back(name);
         afsplitter.bindStream(streams.back()->getInput());
+        afsplitter.setHook([=](dsp::stereo_t *ptr, int len) {
+            auto data = std::make_shared<std::vector<dsp::stereo_t>>(ptr, ptr + len);
+            auto event = std::make_shared<SinkManager::StreamHook>(name, SinkManager::StreamHook::SOURCE_DEMOD_OUTPUT, 0, audioSampleRate, data, std::shared_ptr<std::vector<dsp::complex_t>>());
+            sigpath::sinkManager.onStream.emit(event);
+        });
         streams.back()->init(&srChangeHandler, audioSampleRate);
         sigpath::sinkManager.registerStream(name, streams.front().get());
 
