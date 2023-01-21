@@ -10,6 +10,7 @@
 #include <config.h>
 #include <cctype>
 #include <radio_interface.h>
+#include <websocket.h>
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
 #define MAX_COMMAND_LENGTH 8192
@@ -37,7 +38,7 @@ public:
         config.acquire();
         if (!config.conf.contains(name)) {
             config.conf[name]["host"] = "localhost";
-            config.conf[name]["port"] = 4532;
+            config.conf[name]["port"] = 50001;
             config.conf[name]["tuning"] = true;
             config.conf[name]["recording"] = false;
             config.conf[name]["autoStart"] = false;
@@ -111,14 +112,14 @@ private:
         bool listening = (_this->listener && _this->listener->isListening());
 
         if (listening) { style::beginDisabled(); }
-        if (ImGui::InputText(CONCAT("##_rigctl_srv_host_", _this->name), _this->hostname, 1023)) {
+        if (ImGui::InputText(CONCAT("##_tci_srv_host_", _this->name), _this->hostname, 1023)) {
             config.acquire();
             config.conf[_this->name]["host"] = std::string(_this->hostname);
             config.release(true);
         }
         ImGui::SameLine();
         ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::InputInt(CONCAT("##_rigctl_srv_port_", _this->name), &_this->port, 0, 0)) {
+        if (ImGui::InputInt(CONCAT("##_tci_srv_port_", _this->name), &_this->port, 0, 0)) {
             config.acquire();
             config.conf[_this->name]["port"] = _this->port;
             config.release(true);
@@ -129,7 +130,7 @@ private:
         ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
         {
             std::lock_guard lck(_this->vfoMtx);
-            if (ImGui::Combo(CONCAT("##_rigctl_srv_vfo_", _this->name), &_this->vfoId, _this->vfoNamesTxt.c_str())) {
+            if (ImGui::Combo(CONCAT("##_tci_srv_vfo_", _this->name), &_this->vfoId, _this->vfoNamesTxt.c_str())) {
                 _this->selectVfoByName(_this->vfoNames[_this->vfoId], false);
                 if (!_this->selectedVfo.empty()) {
                     config.acquire();
@@ -143,7 +144,7 @@ private:
         ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
         {
             std::lock_guard lck(_this->vfoMtx);
-            if (ImGui::Combo(CONCAT("##_rigctl_srv_rec_", _this->name), &_this->recorderId, _this->recorderNamesTxt.c_str())) {
+            if (ImGui::Combo(CONCAT("##_tci_srv_rec_", _this->name), &_this->recorderId, _this->recorderNamesTxt.c_str())) {
                 _this->selectRecorderByName(_this->recorderNames[_this->recorderId], false);
                 if (!_this->selectedRecorder.empty()) {
                     config.acquire();
@@ -153,32 +154,32 @@ private:
             }
         }
 
-        ImGui::BeginTable(CONCAT("Stop##_rigctl_srv_tbl_", _this->name), 2);
+        ImGui::BeginTable(CONCAT("Stop##_tci_srv_tbl_", _this->name), 2);
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
-        if (ImGui::Checkbox(CONCAT("Tuning##_rigctl_srv_tune_ena_", _this->name), &_this->tuningEnabled)) {
+        if (ImGui::Checkbox(CONCAT("Tuning##_tci_srv_tune_ena_", _this->name), &_this->tuningEnabled)) {
             config.acquire();
             config.conf[_this->name]["tuning"] = _this->tuningEnabled;
             config.release(true);
         }
         ImGui::TableSetColumnIndex(1);
-        if (ImGui::Checkbox(CONCAT("Recording##_rigctl_srv_tune_ena_", _this->name), &_this->recordingEnabled)) {
+        if (ImGui::Checkbox(CONCAT("Recording##_tci_srv_tune_ena_", _this->name), &_this->recordingEnabled)) {
             config.acquire();
             config.conf[_this->name]["recording"] = _this->recordingEnabled;
             config.release(true);
         }
         ImGui::EndTable();
 
-        if (ImGui::Checkbox(CONCAT("Listen on startup##_rigctl_srv_auto_lst_", _this->name), &_this->autoStart)) {
+        if (ImGui::Checkbox(CONCAT("Listen on startup##_tci_srv_auto_lst_", _this->name), &_this->autoStart)) {
             config.acquire();
             config.conf[_this->name]["autoStart"] = _this->autoStart;
             config.release(true);
         }
 
-        if (listening && ImGui::Button(CONCAT("Stop##_rigctl_srv_stop_", _this->name), ImVec2(menuWidth, 0))) {
+        if (listening && ImGui::Button(CONCAT("Stop##_tci_srv_stop_", _this->name), ImVec2(menuWidth, 0))) {
             _this->stopServer();
         }
-        else if (!listening && ImGui::Button(CONCAT("Start##_rigctl_srv_stop_", _this->name), ImVec2(menuWidth, 0))) {
+        else if (!listening && ImGui::Button(CONCAT("Start##_tci_srv_stop_", _this->name), ImVec2(menuWidth, 0))) {
             _this->startServer();
         }
 
@@ -201,7 +202,7 @@ private:
             listener->acceptAsync(clientHandler, this);
         }
         catch (std::exception e) {
-            spdlog::error("Could not start rigctl server: {0}", e.what());
+            spdlog::error("Could not start tci server: {0}", e.what());
         }
     }
 
@@ -371,7 +372,7 @@ private:
             return;
         }
 
-        spdlog::info("Rigctl command: '{0}'", cmd);
+        spdlog::info("tci command: '{0}'", cmd);
 
         // Otherwise, execute the command
         if (parts[0] == "F" || parts[0] == "\\set_freq") {
@@ -621,9 +622,9 @@ private:
         else if (parts[0] == "\\dump_state") {
             std::lock_guard lck(vfoMtx);
             resp =
-                /* rigctl protocol version */
+                /* tci protocol version */
                 "0\n"
-                /* rigctl model */
+                /* tci model */
                 "2\n"
                 /* ITU region */
                 "1\n"
@@ -692,7 +693,7 @@ private:
         }
         else {
             // If command is not recognized, return error
-            spdlog::error("Rigctl client sent invalid command: '{0}'", cmd);
+            spdlog::error("tci client sent invalid command: '{0}'", cmd);
             resp = "RPRT 1\n";
             client->write(resp.size(), (uint8_t*)resp.c_str());
             return;
@@ -733,7 +734,7 @@ private:
 };
 
 MOD_EXPORT void _INIT_() {
-    config.setPath(core::args["root"].s() + "/rigctl_server_config.json");
+    config.setPath(core::args["root"].s() + "/tci_server_config.json");
     config.load(json::object());
     config.enableAutoSave();
 }

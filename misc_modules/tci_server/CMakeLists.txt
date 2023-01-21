@@ -9,6 +9,7 @@ set_target_properties(tci_server PROPERTIES PREFIX "")
 
 target_include_directories(tci_server PRIVATE "src/")
 target_include_directories(tci_server PRIVATE "../recorder/src")
+target_include_directories(tci_server PRIVATE "../../decoder_modules/meteor_demodulator/src")
 target_include_directories(tci_server PRIVATE "../../decoder_modules/radio/src")
 
 if (MSVC)
