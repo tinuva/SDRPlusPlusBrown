@@ -152,8 +152,8 @@ public:
                 this->server.connectionsLock.unlock();
                 static int count;
                 audioDataStream.flush();
-                if (count++ % 100 == 0) {
-                    spdlog::info("some stream data");
+                if (count++ % 2000 == 0) {
+                    spdlog::info("....stream data exists...");
                 }
             }
         });
