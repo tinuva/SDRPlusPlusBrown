@@ -17,6 +17,10 @@
 
 inline int toInt(const std::string &s, bool &ok, int radix) {
     int rv;
+    if (s.size() == 0) {
+        ok = false;
+        return 0;
+    }
     if (radix == 16) {
         ok = 1 == sscanf(s.c_str(), "%x", &rv);
     } else if (radix == 10) {
@@ -24,7 +28,6 @@ inline int toInt(const std::string &s, bool &ok, int radix) {
     } else {
         abort();
     }
-    abort();
     return rv;
 }
 
@@ -310,6 +313,15 @@ struct QString {
 
 
     [[nodiscard]] QString mid(int i, int len) const {
+        if (i+len > str->size()) {
+            len = str->size()-i;
+        }
+        if (len < 0) {
+            len = 0;
+        }
+        if (len == 0) {
+            return QString("");
+        }
         return str->substr(i, len);
     }
 

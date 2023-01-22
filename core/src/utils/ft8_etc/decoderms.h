@@ -317,7 +317,7 @@ public:
         abort();
     } //1.27 psk rep   fopen bool true    false no file open
     void EmitDecode(bool,int dec_state){
-        abort();
+//        abort();
     };//dec_state no=0 dec=1 rtddec=2
     void EmitBackColor(bool){
         abort();
@@ -325,7 +325,7 @@ public:
     void EmitDecLinesPosToDisplay(int count,double pos,double pos_ping,QString p_time) { // 1.28 p_time for identif perood
         abort();
     }
-    void EmitDecodeInProgresPskRep(bool) {abort();};
+    void EmitDecodeInProgresPskRep(bool) {};
     void EmitAvgSaves(int,int,int,int) {abort();};
     void EmitAvgSavesPi4(int,int) {abort();};
     void EmitAvgSavesQ65(int,int) {abort();};

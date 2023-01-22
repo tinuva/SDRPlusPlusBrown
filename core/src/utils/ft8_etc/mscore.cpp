@@ -251,13 +251,15 @@ void MsCore::record_app()
     ////HV spriano ////////////////////////////////////////
 
     //fftw_sample_rate=ORG_SAMPLE_RATE_11025;
-    double scale_x_inc_pix;
+    double scale_x_inc_pix = 6e-310;
 //    if (f_disp_v_h)            /// DATA_HEIGHT*2 -25 -19 -25<freq bara (- 10 malko ot dolnia disp)
 //        scale_x_inc_pix = (double)(((double)(s_data_height*2 -25 - 10)/(double)s_vdisp_speed) /(double)STAT_FFTW_V60_TIME);
 //    else
 //        scale_x_inc_pix = (double)((double)s_data_width /(double)STAT_FFTW_H30_TIME);// prez kolko piksela za sekunta
 
     fft_size = (int)((double)fftw_sample_rate /(double)scale_x_inc_pix);  // fft_size za da upalni celia ekran
+
+    fft_size = INT32_MIN; // so it does not trigger ui update in code
 
     //qDebug()<<"fft_size="<<fft_size<<"fft_size_end="<<fft_size/4;
 
@@ -595,7 +597,7 @@ void MsCore::ResampleAndFilter(short *rawm,int crawm) //2.57
 void MsCore::ReciveData(short *dat,int count,bool ffopen)
 {
 
-    Set_Raw(dat,count,ffopen); //1.27 psk rep fopen bool true false no file open
+//    Set_Raw(dat,count,ffopen); //1.27 psk rep fopen bool true false no file open
 
     for (int i = 0; i < count; ++i)
     {
@@ -626,7 +628,7 @@ void MsCore::ReciveData(short *dat,int count,bool ffopen)
             double log0 = sqrt(sum);
             if (log0<1.0) log0=1.0; //2.58
             smiter = abs(int(log(log0)*20.0)); //qDebug()<<"count="<<sum<<log0<<log(log0);
-            Sed_SMeter(smiter);// zaradi bavnoto na jt65abc
+//            Sed_SMeter(smiter);// zaradi bavnoto na jt65abc
         }
         else
             count_rfesh_sm++;
@@ -716,7 +718,7 @@ void MsCore::decode_fft_size_samples(short *data_mono, int count)
         double log0 = sqrt(sum);
         if (log0<1.0) log0=1.0;//2.58
         smiter = abs(int(log(log0)*20.0));
-        Get_Graph(smiter);
+//        Get_Graph(smiter);
         // qDebug()<<"period_time_sec";
     }
 }
