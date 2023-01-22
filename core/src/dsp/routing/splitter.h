@@ -43,6 +43,12 @@ namespace dsp::routing {
             base_type::tempStart();
         }
 
+        std::function<void(T*, int)> hook;
+
+        void setHook(const std::function<void(T*, int)> &_hook) {
+            this->hook = _hook;
+        }
+
         int run() {
             int count = base_type::_in->read();
             if (count < 0) { return -1; }
@@ -53,6 +59,10 @@ namespace dsp::routing {
                     base_type::_in->flush();
                     return -1;
                 }
+            }
+
+            if (hook) {
+                hook(base_type::_in->readBuf, count);
             }
 
             base_type::_in->flush();

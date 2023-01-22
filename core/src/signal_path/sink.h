@@ -168,6 +168,36 @@ public:
     // 2 = click sound
     std::atomic<int> toneGenerator;
 
+    struct StreamHook {
+        enum SourceType {
+            SOURCE_DEMOD_OUTPUT,
+            SOURCE_RAW_RECEIVED_DATA,
+            SOURCE_FEEDBACK_GENERATOR,
+            SOURCE_MICROPHONE_OR_DIGI,
+        } sourceType;
+        std::string source;
+        int priority;   // for merging
+        int sampleRate;
+        std::shared_ptr<std::vector<dsp::stereo_t>> stereoData;
+        std::shared_ptr<std::vector<dsp::complex_t>> iqData;
+
+        StreamHook(const std::string &source,
+                   SourceType sourceType,
+                   int priority,
+                   int sampleRate,
+                   const std::shared_ptr<std::vector<dsp::stereo_t>> &stereoData,
+                   const std::shared_ptr<std::vector<dsp::complex_t>> &iqData) :
+                                                                                 source(source),
+                                                                                 sourceType(sourceType),
+                                                                                 priority(priority),
+                                                                                 stereoData(stereoData),
+                                                                                 sampleRate(sampleRate),
+                                                                                 iqData(iqData) {}
+
+    };
+
+    Event<std::shared_ptr<StreamHook>> onStream;
+
 private:
     void loadStreamConfig(std::string name);
     void saveStreamConfig(std::string name);

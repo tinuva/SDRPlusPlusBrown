@@ -32,6 +32,7 @@ Copyright (c) 2020 Meng Rao <raomeng1@gmail.com>
 #include <netinet/tcp.h>
 #include <string.h>
 #include <limits>
+#include <iostream>
 #include <memory>
 
 namespace websocket {
@@ -317,6 +318,7 @@ namespace websocket {
         }
 
         uint32_t handleWSMsg(EventHandler* handler, uint8_t* data, uint32_t size) {
+//            std::cout << "Received: size=" << size << std::endl;
             // we might read a little more bytes beyond size, which is okey
             const uint8_t* data_end = data + size;
             uint8_t opcode = data[0] & 15;
@@ -542,20 +544,22 @@ namespace websocket {
             return server_.init("", server_ip, server_port);
         }
 
-        void poll(EventHandler* handler) {
+        bool poll(EventHandler* handler) {
             uint64_t now = getns();
             uint64_t new_expire = newconn_timeout_ ? now + newconn_timeout_ : std::numeric_limits<uint64_t>::max();
             uint64_t open_expire = openconn_timeout_ ? now + openconn_timeout_ : std::numeric_limits<uint64_t>::max();
+            bool didWork = false;
             if (conns_cnt_ < MaxConns) {
                 Connection& new_conn = *conns_[conns_cnt_];
                 if (server_.accept2(new_conn.conn)) {
                     new_conn.init(new_expire);
                     conns_cnt_++;
+                    didWork = true;
                 }
             }
             for (int i = 0; i < conns_cnt_;) {
                 Connection& conn = *conns_[i];
-                conn.conn.read([&](const char* data, uint32_t size) {
+                didWork |= conn.conn.read([&](const char* data, uint32_t size) {
                     uint32_t remaining =
                         conn.open ? conn.handleWSMsg(handler, (uint8_t*)data, size) : handleHttpRequest(handler, conn, data, size);
                     if (remaining < size) conn.expire_time = conn.open ? open_expire : new_expire;
@@ -569,6 +573,7 @@ namespace websocket {
                     std::swap(conns_[i], conns_[--conns_cnt_]);
                 }
             }
+            return didWork;
         }
 
     private:
@@ -683,6 +688,8 @@ namespace websocket {
                             resp_len += sprintf(resp + resp_len, "Sec-WebSocket-Extensions: %s\r\n", resp_wsextensions);
                         resp_len += sprintf(resp + resp_len, "\r\n");
                         conn.conn.write((uint8_t*)resp, resp_len);
+                        handler->onWSConnected(conn, request_uri, host, origin[0] ? origin : nullptr, wsprotocol[0] ? wsprotocol : nullptr,
+                                               wsextensions[0] ? wsextensions : nullptr, resp_wsprotocol, ValueBufSize, resp_wsextensions, ValueBufSize);
                         return data_end - ln - 2;
                     }
                     const char* colon = (char*)memchr(data, ':', ln - data);

@@ -100,11 +100,11 @@ if (MSVC)
     # FFTW3
     find_package(FFTW3f CONFIG REQUIRED)
     target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3f )
-    set(FFTW3f_LIBRARIES ${FFTW3_LIBRARIES})
-    set(FFTW3f_LIBRARY_DIRS ${FFTW3_LIBRARY_DIRS})
-    set(FFTW3f_INCLUDE_DIRS ${FFTW3_INCLUDE_DIRS})
-    find_package(FFTW3 CONFIG REQUIRED)
-    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3 )
+#    set(FFTW3f_LIBRARIES ${FFTW3_LIBRARIES})
+#    set(FFTW3f_LIBRARY_DIRS ${FFTW3_LIBRARY_DIRS})
+#    set(FFTW3f_INCLUDE_DIRS ${FFTW3_INCLUDE_DIRS})
+#    find_package(FFTW3 CONFIG REQUIRED)
+#    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3 )
 
     # WinSock2
     target_link_libraries(sdrpp_core PUBLIC wsock32 ws2_32)
@@ -122,7 +122,7 @@ elseif (ANDROID)
             ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libcpu_features.a
             ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libvolk.so
             ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3f.so
-            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3.so
+#            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3.so
             ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libzstd.so
         android
         EGL
@@ -133,18 +133,19 @@ else()
     find_package(PkgConfig)
     find_package(OpenGL REQUIRED)
 
+
+
     pkg_check_modules(FFTW3 REQUIRED fftw3f)
     set(FFTW3F_LIBRARIES ${FFTW3_LIBRARIES})
+    set(FFTW3F_LIBRARY_DIRS ${FFTW3_LIBRARY_DIRS})
+    set(FFTW3F_INCLUDE_DIRS ${FFTW3_INCLUDE_DIRS})
     pkg_check_modules(FFTW3 REQUIRED fftw3)
-    message("FFTW3_LIBRARIES: ${FFTW3_LIBRARIES}")
-    message("FFTW3F_LIBRARIES: ${FFTW3F_LIBRARIES}")
+
+
     pkg_check_modules(VOLK REQUIRED volk)
     pkg_check_modules(GLFW3 REQUIRED glfw3)
     pkg_check_modules(LIBZSTD REQUIRED libzstd)
 
-#    find_package(FFTW3f CONFIG REQUIRED)
-#    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3f )
-    set(FFTW3f_LIBRARIES ${FFTW3_LIBRARIES})
 
     target_include_directories(sdrpp_core PUBLIC
         ${OPENGL_INCLUDE_DIRS}

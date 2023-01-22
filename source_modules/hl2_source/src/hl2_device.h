@@ -710,9 +710,9 @@ struct HL2Device {
             secondControlIndex = 1;
         }
         sendToEndpoint(0x2, output_buffer);
-        if (sent % 1000 == 0) {
-            spdlog::info("Sent {} packets, of total {} calls", sent, returned+sent);
-        }
+//        if (sent % 1000 == 0) {
+//            spdlog::info("Sent {} packets, of total {} calls", sent, returned+sent);
+//        }
     }
 
 
