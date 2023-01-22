@@ -752,6 +752,9 @@ bool PomAll::isStandardCall(const QString &w)//2.61 same as  MultiAnswerModW
     //      \s*$				# optional trailing spaces
     //  )", QRegularExpression::CaseInsensitiveOption | QRegularExpression::ExtendedPatternSyntaxOption};
     //return standard_call_re.match (w).hasMatch ();
+    if (w == "NOT__EXIST" || w == "NOCALL" || w == "CALL") {
+        return false;
+    }
     QRegExp rx("^\\s*([A-Z]{0,2}|[A-Z][0-9]|[0-9][A-Z])([0-9][A-Z]{0,3})(/R|/P)?\\s*$");
     rx.setCaseSensitivity(QRegExp::CaseInsensitive);
     bool res0 = rx.exactMatch(w); //qDebug()<<w<<res0;

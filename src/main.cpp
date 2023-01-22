@@ -39,6 +39,14 @@ void decodeFT8(int sampleRate, dsp::stereo_t* samples, long long nsamples) {
 //    core->ResampleAndFilter(converted.data(), converted.size());
     auto dms = std::make_shared<DecoderMs>();
     dms->setMode(DMS_FT8);
+    QStringList ql;
+    ql<<"CALL";
+    ql<<"";
+    ql<<"";
+    ql<<"";
+    ql<<"";
+    dms->SetCalsHash(ql);
+    dms->SetWords(ql, 0, 0);
     dms->SetDecode(converted.data(), converted.size(),"120000", 0, 4, false, true, false);
     sleep(10);
 }
