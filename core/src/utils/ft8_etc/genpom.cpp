@@ -34,6 +34,10 @@ void gen_pulse_gfsk_(double *pulse,double k,double bt,int nsps)
 
 #include "bpdecode_ft8_174_91.h"
 //#include <QtGui>
+
+#include "boost/crc.hpp"
+#include "boost/boost_14.hpp"
+
 void GenPomFt::initGenPomFt()
 {
     first_ft_enc_174_91 = true;
@@ -41,8 +45,8 @@ void GenPomFt::initGenPomFt()
 
 short crc14_ft(unsigned char const * data, int length)
 {
-    abort();  // fix me
-    //return boost::augmented_crc<14, TRUNCATED_POLYNOMIAL14>(data, length);
+//    abort();  // fix me
+    return boost::augmented_crc<14, TRUNCATED_POLYNOMIAL14>(data, length);
 }
 
 short GenPomFt::crc14(unsigned char const * data, int length)

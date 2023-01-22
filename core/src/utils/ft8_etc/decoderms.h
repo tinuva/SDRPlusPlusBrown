@@ -12,6 +12,8 @@
 #include "gen_ft4.h"
 #include "gen_ft8.h"
 
+#include <iostream>
+
 // #include "../HvMsPlayer/libsound/HvGenFt8/gen_ft8.h"
 //#include <QObject> //2.53
 #define ALL_MSG_SNR 120 //2.63 from 100 to 120
@@ -35,11 +37,15 @@ public:
     void ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqso,bool &f,int id3dec,double,double);
 
 //signals:
-    void EmitDecodetTextFt(QStringList) {
-        abort();
+    void EmitDecodetTextFt(QStringList lst) {
+        std::cout << "OUT: ";
+        for(int i=0; i<lst.count(); i++) {
+            std::cout << *lst[i].str << " ";
+        }
+        std::cout << std::endl;
     }
     void EmitBackColor() {
-        abort();
+//        abort();
     }
 
 private:

@@ -165,14 +165,42 @@ struct QString {
         return (*this->str) + s;
     }
 
-    [[nodiscard]] QString arg(int) const {
+    [[nodiscard]] QString arg(int v) const {
+        if (*this->str == "%1") {
+            return std::to_string(v);
+        }
         abort(); //
         return *this;
     }
 
-    [[nodiscard]] QString arg(int, int, int, QChar = ' ') const {
-        abort(); //
-        return *this;
+    [[nodiscard]] QString arg(int val, int width, int base, QChar fill= ' ') const {
+        char buf[10];
+        char buf2[100];
+        const char *pred;
+        if (fill == ' ') {
+            pred = "";
+        }
+        if (fill == '0') {
+            pred = "0";
+        }
+
+        if (base == 10) {
+            sprintf(buf, "%%%s%dd", pred, width);
+        } else if (base == 16) {
+            sprintf(buf, "%%%s%dx", pred, width);
+        } else {
+            abort();
+        }
+        sprintf(buf2, buf, val);
+        return std::string(buf2);
+    }
+
+    [[nodiscard]] QString arg(double v, int width, char fmt, int prec, QChar fill = ' ') const {
+        char buf[10];
+        char buf2[100];
+        sprintf(buf, "%%%d.%d%c", width, prec, fmt);
+        sprintf(buf2, buf, v);
+        return std::string(buf2);
     }
 
     void remove(const char *x) {
@@ -299,8 +327,12 @@ struct QString {
         replaceWith(s + *str);
     }
 
-    QChar operator[](int index) const {
-        return str->at(index);
+    QChar &operator[](int index) const {
+        if (index >= str->size()) {
+            throw std::runtime_error("string index[] error");
+        }
+        QChar *p = (QChar *)str->data()+index;
+        return *p;
     }
 
     int toInt(bool *ok = nullptr, int radix = 10) const {
