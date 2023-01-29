@@ -70,6 +70,7 @@ void IQFrontEnd::init(dsp::stream<dsp::complex_t>* in, double sampleRate, bool b
 }
 
 void IQFrontEnd::setInput(dsp::stream<dsp::complex_t>* in) {
+    this->_currentStreamTime = 0;
     inBuf.setInput(in);
 }
 
@@ -83,10 +84,13 @@ void IQFrontEnd::setSampleRate(double sampleRate) {
     // Update the samplerate
     _sampleRate = sampleRate;
     effectiveSr = _sampleRate / _decimRatio;
+    onEffectiveSampleRateChange.emit(effectiveSr);
     dcBlock.setRate(genDCBlockRate(effectiveSr));
     for (auto& [name, vfo] : vfos) {
         vfo->setInSamplerate(effectiveSr);
     }
+
+
 
     // Reconfigure the FFT
     updateFFTPath();
@@ -96,6 +100,7 @@ void IQFrontEnd::setSampleRate(double sampleRate) {
     for (auto& [name, vfo] : vfos) {
         vfo->tempStart();
     }
+
 }
 
 void IQFrontEnd::setBuffering(bool enabled) {
@@ -323,4 +328,18 @@ void IQFrontEnd::togglePreprocessor(dsp::Processor<dsp::complex_t, dsp::complex_
     } else {
         preproc.disableBlock(processor, [=](dsp::stream<dsp::complex_t>* out) { split.setInput(out); });
     }
+}
+
+long long currentTimeMillis() {
+    std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
+    long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
+    return msec;
+}
+
+long long IQFrontEnd::getCurrentStreamTime() {
+    auto ctm =  _currentStreamTime.load();
+    if (ctm == 0) {
+        ctm = currentTimeMillis();
+    }
+    return ctm;
 }

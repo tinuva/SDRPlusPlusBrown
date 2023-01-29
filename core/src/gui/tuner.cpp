@@ -115,6 +115,9 @@ namespace tuner {
     }
 
     void tune(int mode, std::string vfoName, double freq) {
+        if (vfoName == "_current") {
+            vfoName = gui::waterfall.selectedVFO;
+        }
         switch (mode) {
         case TUNER_MODE_CENTER:
             centerTuning(vfoName, freq);

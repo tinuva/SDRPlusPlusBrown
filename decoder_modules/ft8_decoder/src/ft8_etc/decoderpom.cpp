@@ -7,6 +7,7 @@
 //#include <QRegExp>
 #include <unistd.h>
 #include <regex>
+#include <iostream>
 #define MN_NM_NRW_FT_174_91
 #include "bpdecode_ft8_174_91.h"
 
@@ -115,10 +116,28 @@ void HvThr::four2a_c2c(std::complex<double> *a,std::complex<double> *a1,fftw_pla
     for (int i = 0; i < nfft; ++i)
         a[i]=a1[i];
 }
+
+// input/output: a
+// temporary? a1
+// input/output: d
+// temp: d1
+
+int four2a_d2c_cnt = 0;
+
 void HvThr::four2a_d2c(std::complex<double> *a,std::complex<double> *a1,double *d,double *d1,fftw_plan *pd,int &cpd,
                        int nfft,int isign,int iform)
 {
     std::complex<double> aa[NSMALL+10];
+    four2a_d2c_cnt++;
+
+    if (four2a_d2c_cnt == 466) {
+        std::cout << "four2a_d2c:466 ";
+        for(int z=0; z<100; z++) {
+            std::cout << a[z] << "/" <<d[z] << " ";
+        }
+        std::cout << std::endl;
+
+    }
 
     if (cpd>NPMAX || nfft>NPAMAX) return;
 
@@ -137,8 +156,13 @@ void HvThr::four2a_d2c(std::complex<double> *a,std::complex<double> *a1,double *
     if (iform==0) cfft = nfft/2;
     for (int i = 0; i < nfft; ++i)
     {
-        if (i<cfft)
-            a1[i]=a[i];
+        if (i<cfft) {
+            if (std::isnan(a[i].real()) || std::isnan(a[i].imag())) {
+                std::cout << "four2a_d2c._cnt == " << four2a_d2c_cnt << std::endl;
+                abort();
+            }
+            a1[i] = a[i];
+        }
         d1[i]=d[i];
     }
 
@@ -166,15 +190,24 @@ void HvThr::four2a_d2c(std::complex<double> *a,std::complex<double> *a1,double *
 
     if (nfft<=NSMALL)
     {
-        for (int i = 0; i<cfft; ++i)
-            a1[i]=aa[i];
+        for (int i = 0; i<cfft; ++i) {
+            a1[i] = aa[i];
+            if (std::isnan(a[i].real()) || std::isnan(a[i].imag())) {
+                abort();
+            }
+        }
     }
 
     fftw_execute(pd[z]);
     for (int i = 0; i < nfft; ++i)
     {
-        if (i<cfft)
-            a[i]=a1[i];
+        if (i<cfft) {
+            a[i] = a1[i];
+            if (std::isnan(a[i].real()) || std::isnan(a[i].imag())) {
+                std::cout << "four2a_d2c._cnt == " << four2a_d2c_cnt << std::endl;
+                abort();
+            }
+        }
         d[i]=d1[i];
     }
 }

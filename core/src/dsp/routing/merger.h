@@ -32,7 +32,7 @@ namespace dsp::routing {
             // Add to the list
             auto newStream = std::make_shared<SecondaryStream>();
             newStream->priority = priority;
-            newStream->stream = stream;
+            newStream->astream = stream;
             secondaryStreams.push_back(newStream);
             this->registerInput(stream);
 
@@ -101,7 +101,7 @@ namespace dsp::routing {
 
         struct SecondaryStream {
             int priority;
-            stream<T>* stream;
+            stream<T>* astream;
             std::vector<T> receivedData;
             std::mutex dataLock;
             std::atomic<bool> hasData;

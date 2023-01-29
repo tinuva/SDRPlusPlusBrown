@@ -255,11 +255,7 @@ static void ImGui_ImplGlfw_UpdateKeyModifiers(int mods)
     io.AddKeyEvent(ImGuiKey_ModSuper, (mods & GLFW_MOD_SUPER) != 0);
 }
 
-static long long currentTimeMillis() {
-    std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
-    long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
-    return msec;
-}
+extern long long currentTimeMillis();
 
 void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {

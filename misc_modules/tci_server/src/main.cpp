@@ -74,7 +74,7 @@ static const char* initStr = "2023/01/21 15:15:48 < protocol:esdr,1.6;\n"
 
 
 ConfigManager config;
-
+std::atomic_bool moduleRunning;
 
 typedef struct
 {
@@ -543,7 +543,7 @@ private:
         }
         running = true;
         auto ws_thr = std::thread([this]() {
-            while (running.load(std::memory_order_relaxed)) {
+            while (isRunning()) {
                 if (wsserver->poll(&server)) {
                     std::this_thread::yield();
                 }
@@ -574,11 +574,16 @@ private:
                             server.sendAudioData(conn);
                         }
                     }
-                    server.reportChanges();
+                    if (isRunning()) {
+                        server.reportChanges();
+                    }
                 }
             }
         });
         ws_thr.detach();
+    }
+    bool isRunning() const {
+        return running.load(std::memory_order_relaxed) && moduleRunning.load(std::memory_order_relaxed);
     }
 
     void stopServer() {
@@ -1107,6 +1112,7 @@ private:
 };
 
 MOD_EXPORT void _INIT_() {
+    moduleRunning = true;
     config.setPath(core::args["root"].s() + "/tci_server_config.json");
     config.load(json::object());
     config.enableAutoSave();
@@ -1121,6 +1127,7 @@ MOD_EXPORT void _DELETE_INSTANCE_(void* instance) {
 }
 
 MOD_EXPORT void _END_() {
+    moduleRunning = false;
     config.disableAutoSave();
     config.save();
 }

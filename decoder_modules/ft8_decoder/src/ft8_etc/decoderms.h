@@ -13,6 +13,15 @@
 #include "gen_ft8.h"
 
 #include <iostream>
+#include <chrono>
+#include <functional>
+
+static long long currentTimeMillis() {
+    std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
+    long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
+    return msec;
+}
+
 
 // #include "../HvMsPlayer/libsound/HvGenFt8/gen_ft8.h"
 //#include <QObject> //2.53
@@ -20,6 +29,7 @@
 #define MAXDEC 120
 class DecoderFt8
 {
+    int outCount = 0;
 public:
     explicit DecoderFt8(int id);
     ~DecoderFt8();
@@ -35,14 +45,23 @@ public:
     void SetNewP(bool);
     //void SetResetPrevT(QString ptime);
     void ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqso,bool &f,int id3dec,double,double);
+    void SetResultsCallback(std::function<void(int mode, QStringList result)> callback) {
+        this->resultsCallback = callback;
+    }
+
 
 //signals:
     void EmitDecodetTextFt(QStringList lst) {
-        std::cout << "OUT: ";
+        char no[10];
+        sprintf(no, "%2d", outCount++);
+        std::cout << currentTimeMillis() << " OUT["<<no<<"]: ";
         for(int i=0; i<lst.count(); i++) {
-            std::cout << *lst[i].str << " ";
+            std::cout << "{" << i << "}" << *lst[i].str << " ";
         }
         std::cout << std::endl;
+        if (resultsCallback) {
+            resultsCallback(11, lst);
+        }
     }
     void EmitBackColor() {
 //        abort();
@@ -50,6 +69,8 @@ public:
 
 private:
     int decid;
+    std::function<void(int mode, QStringList result)> resultsCallback;
+
     F2a f2a;
     PomAll pomAll;
     PomFt pomFt;
@@ -292,6 +313,7 @@ public:
     ///JTMSK SHORT////
     void SetShOpt(bool f);
     void SetSwlOpt(bool f);
+    void SetResultsCallback(std::function<void(int mode, QStringList result)>);
     //void SetMyGridMsk144ContM(QString,bool);//for " R " in msg 1.31
     //void SetMsk144RxEqual(int);
     ///  JT56ABC  ////////////////////////
@@ -337,6 +359,7 @@ public:
     void EmitAvgSavesQ65(int,int) {abort();};
     void EmitDecodetTextRxFreq(QStringList,bool,bool) {abort();};
     void EmitTimeElapsed(float) {abort();};//2.33
+    bool IsWorking();
 
 //private slots:
     //void SetDecodetTextFt(QStringList);

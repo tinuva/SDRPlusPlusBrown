@@ -166,8 +166,13 @@ struct QString {
     }
 
     [[nodiscard]] QString arg(int v) const {
+        if (!this->str) {
+            abort();
+        }
         if (*this->str == "%1") {
-            return std::to_string(v);
+            char buf[100];
+            sprintf(buf, "%d", v);
+            return QString(buf);
         }
         abort(); //
         return *this;

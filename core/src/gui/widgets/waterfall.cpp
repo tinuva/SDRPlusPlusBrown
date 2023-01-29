@@ -1,18 +1,20 @@
+
+#ifndef IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_MATH_OPERATORS
+#endif
 #include <gui/widgets/waterfall.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imutils.h>
 #include <algorithm>
+#include <signal_path/signal_path.h>
 #include <volk/volk.h>
 #include <spdlog/spdlog.h>
 #include <gui/gui.h>
 #include <gui/style.h>
+#include <imgui/imgui_internal.h>
 
-static long long currentTimeMillis() {
-    std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
-    long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
-    return msec;
-}
+extern long long currentTimeMillis();
 
 #define MEASURE_LOCK_GUARD(mtx) \
     auto t0 = currentTimeMillis();                      \
@@ -226,6 +228,96 @@ namespace ImGui {
                 window->DrawList->AddLine(vfo->wfLineMin, vfo->wfLineMax, (name == selectedVFO) ? IM_COL32(255, 0, 0, 255) : IM_COL32(255, 255, 0, 255), style::uiScale);
             }
         }
+
+        drawDecodedResults();
+
+
+    }
+    void WaterFall::drawDecodedResults() {
+
+        ImGui::PushFont(style::baseFont);
+
+        decodedResultsLock.lock();
+        auto wfHeight = wfMax.y - wfMin.y;
+        auto wfWidth = wfMax.x - wfMin.x;
+//        auto timeDisplayed = (wfMax.y - wfMin.y) * sigpath::iqFrontEnd.getFFTRate() / waterfallHeight;
+        double timePerLine = 1000.0 / sigpath::iqFrontEnd.getFFTRate();
+        auto currentTime = sigpath::iqFrontEnd.getCurrentStreamTime();
+
+        // delete obsolete ones
+        for(int i=0; i<decodedResults.size(); i++) {
+            auto& result = decodedResults[i];
+            if (result.layoutY != -1) {
+                auto resultTimeDelta = currentTime - result.decodeEndTimestamp;
+                auto resultBaselineY = resultTimeDelta / timePerLine;
+                if (resultBaselineY + result.layoutY > wfHeight) {
+                    decodedResults.erase(decodedResults.begin() + i);
+                    i--;
+                    continue;
+                }
+            }
+        }
+
+
+        std::vector<ImRect> rects;
+        // place new ones
+        for(int i=0; i<decodedResults.size(); i++) {
+            auto& result = decodedResults[i];
+            if (result.shortString.empty()) {
+                continue;
+            }
+
+            auto df = result.frequency - getCenterFrequency();
+            auto dx = (wfWidth / 2) +  df / (viewBandwidth / 2) *  (wfWidth / 2); // in pixels, on waterfall
+            auto resultTimeDelta = currentTime - result.decodeEndTimestamp;
+            auto resultBaselineY = resultTimeDelta / timePerLine;
+            auto textSize = ImGui::CalcTextSize(result.shortString.c_str());
+            if (result.width == -1) {
+                // not layed out. find its absolute Y on the waterfall
+                for(int step = 0; step < 50; step++) {
+                    int dy = step * textSize.y;
+                    auto testRect = ImRect(dx, resultBaselineY + dy, dx + textSize.x, resultBaselineY + dy + textSize.y);
+                    bool overlaps = false;
+                    for(const auto &r : rects) {
+                        if (r.Overlaps(testRect)) {
+                            overlaps = true;
+                            break;
+                        }
+                    }
+                    if (!overlaps) {
+                        result.layoutX = 0;
+                        result.layoutY = dy;
+                        result.width = textSize.x;
+                        result.height = textSize.y;
+                        break;
+                    }
+                }
+                if (result.width == -1) {
+                    result.shortString = ""; // no luck.
+                    continue;
+                }
+            }
+            if (result.width != -1) {
+                auto drawX = dx + result.layoutX;
+                auto drawY = resultBaselineY + result.layoutY;
+                ImU32 white = IM_COL32(255, 255, 255, 255);
+                ImU32 black = IM_COL32(0, 0, 0, 255);
+                const ImVec2 origin = ImVec2(wfMin.x + drawX, wfMin.y + drawY);
+                const char* str = result.shortString.c_str();
+
+                window->DrawList->AddText(origin + ImVec2(-1, -1), black, str);
+                window->DrawList->AddText(origin + ImVec2(-1, +1), black, str);
+                window->DrawList->AddText(origin + ImVec2(+1, -1), black, str);
+                window->DrawList->AddText(origin + ImVec2(+1, +1), black, str);
+                window->DrawList->AddText(origin, white, str);
+//                window->DrawList->AddRectFilled(origin, white, str);
+                rects.emplace_back(ImRect(drawX, drawY, drawX + textSize.x, drawY + textSize.y));
+            }
+        }
+
+        ImGui::PopFont();
+
+        decodedResultsLock.unlock();
     }
     void WaterFall::drawWaterfallImages() {
         int sectionIndex = waterfallHeadSectionIndex;
@@ -648,12 +740,13 @@ namespace ImGui {
             return;
         }
         double offsetRatio = viewOffset / (wholeBandwidth / 2.0);
-        int drawDataSize;
-        int drawDataStart;
         float* tempData = tempDataForUpdateWaterfallFb;
         float pixel;
         float dataRange = waterfallMax - waterfallMin;
         int count = std::min<float>(waterfallHeight, fftLines);
+        long ctm = currentTimeMillis();
+        int drawDataSize = (viewBandwidth / wholeBandwidth) * rawFFTSize;
+        int drawDataStart = (((double)rawFFTSize / 2.0) * (offsetRatio + 1)) - (drawDataSize / 2);
         if (rawFFTs != NULL && fftLines >= 0) {
             const int totalNumberOfPixels = dataWidth * waterfallHeight;
             int waterfallFbIndex;
@@ -663,8 +756,6 @@ namespace ImGui {
                 waterfallFbIndex = (waterfallFbHeadRowIndex * dataWidth) % totalNumberOfPixels;
             }
             for (int i = 0; i < count; i++) {
-                drawDataSize = (viewBandwidth / wholeBandwidth) * rawFFTSize;
-                drawDataStart = (((double)rawFFTSize / 2.0) * (offsetRatio + 1)) - (drawDataSize / 2);
                 doZoom(drawDataStart, drawDataSize, dataWidth, &rawFFTs[((i + currentFFTLine) % waterfallHeight) * rawFFTSize], tempData);
                 for (int j = 0; j < dataWidth; j++) {
                     pixel = (std::clamp<float>(tempData[j], waterfallMin, waterfallMax) - waterfallMin) / dataRange;
@@ -687,6 +778,7 @@ namespace ImGui {
             }
         }
 
+        spdlog::info("Full waterfall update fb: {0} msec, full width: {1}, draw width: {2}", currentTimeMillis() - ctm, dataWidth, drawDataSize);
         waterfallUpdate = true;
 
         for (int i = 0; i < WATERFALL_NUMBER_OF_SECTIONS; ++i) {
@@ -1499,5 +1591,12 @@ namespace ImGui {
     void WaterFall::releaseLatestFFT() {
         latestFFTMtx.unlock();
     }
+    bool WaterFall::containsFrequency(double d) {
+        return d >= getCenterFrequency() - getBandwidth()/2 && d <= getCenterFrequency() + getBandwidth()/2;
+    }
 
+    DecodedResult::DecodedResult(DecodedMode mode, long long int decodeEndTimestamp, long long int frequency, const std::string& shortString, const std::string& detailedString)
+        : mode(mode), decodeEndTimestamp(decodeEndTimestamp), frequency(frequency), shortString(shortString), detailedString(detailedString) {
+
+    }
 };

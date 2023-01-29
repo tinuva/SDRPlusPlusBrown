@@ -16,6 +16,7 @@
 #include "genpom.h"
 #include "gen_ft8.h"
 #include "ft_all_ap_def.h"
+#include <sstream>
 //#include <QtGui>
 
 /*
@@ -497,6 +498,8 @@ void DecoderFt8::subtractft8(double *dd,int *itone,double f0,double dt,bool lref
             sumw+=window[j+offset_w];
         }
         pomAll.zero_double_comp_beg_end(cw_subsft8,0,NMAX+25);
+//        std::cout << "read 1 cw_subsft8[0]" << std::endl;
+//        std::cout << cw_subsft8[0] << std::endl;
 
         if (sumw<=0.0) // no devide by zero
             sumw=0.01;
@@ -505,11 +508,22 @@ void DecoderFt8::subtractft8(double *dd,int *itone,double f0,double dt,bool lref
 
         pomAll.cshift1(cw_subsft8,NMAX,(NFILT/2+1));    //cw=cshift(cw,NFILT/2+1);
 
+//        std::cout << "read 1.5 cw_subsft8[0]" << std::endl;
+//        std::cout << cw_subsft8[0] << std::endl;
+//        double *chk = (double *)&cw_subsft8[0];
+//        std::cout << "chk=" << &chk[0] << std::endl;
+
         f2a.four2a_c2c(cw_subsft8,NFFT,-1,1,decid);//four2a(cw,nfft,1,-1,1)
 
+        cw_subsft8[0] = mk_complex(1, 0);   // otherwise valgrind says its uninitialized
+
+//        std::cout << "read 2 cw_subsft8[0]" << std::endl;
+//        std::cout << cw_subsft8[0] << std::endl;
         for (int i = 0; i < NMAX; ++i)
             cw_subsft8[i]*=fac;
 
+//        std::cout << "read 3 cw_subsft8[0]" << std::endl;
+//        std::cout << cw_subsft8[0] << std::endl;
         for (int j = 0; j < NFILT/2+1; ++j)
         {// do j=1,NFILT/2+1
             // endcorrection(j)=1.0/(1.0-sum(window(j-1:NFILT/2))/sumw)
@@ -558,8 +572,22 @@ void DecoderFt8::subtractft8(double *dd,int *itone,double f0,double dt,bool lref
             cfilt[i]=0.0;//cfilt(nframe+1:)=0.0
 
         f2a.four2a_c2c(cfilt,NFFT,-1,1,decid);//call four2a(cfilt,nfft,1,-1,1)
-        for (int i = 0; i < NFFT; ++i)
-            cfilt[i]*=cw_subsft8[i];//cfilt(1:nfft)=cfilt(1:nfft)*cw(1:nfft)
+        for (int i = 0; i < NFFT; ++i) {
+//            std::cout << "subtract 1 i=" << i << std::endl;
+//            std::cout << "before read cwsubs real" << std::endl;
+//            if (cw_subsft8[i].real() + 1 == 0) {
+//                std::cout << "real 0" << i << std::endl;
+//            }
+//            std::cout << "before read cwsubs imag" << std::endl;
+//            if (cw_subsft8[i].imag() +1 == 0) {
+//                std::cout << "imag0 0" << i << std::endl;
+//            }
+//            std::cout << cw_subsft8[i] << std::endl;
+//            std::cout << "before read cfilt[i]" << std::endl;
+//            std::cout << cfilt[i] << std::endl;
+//            std::cout << "end" << std::endl;
+            cfilt[i] *= cw_subsft8[i]; // cfilt(1:nfft)=cfilt(1:nfft)*cw(1:nfft)
+        }
         f2a.four2a_c2c(cfilt,NFFT,1,1,decid);//;//call four2a(cfilt,nfft,1,1,1)
 
         for (int i = 0; i < NFILT/4; ++i)//hv NFILT/2+1
@@ -669,8 +697,8 @@ bool DecoderFt8::ft8_downs_sync_bmet(double *dd,bool ap7,bool &newdat,double &f1
         sync8d(cd0,ibest+idt,ctwk,0,sync);
         ss[idt+4]=sync; 	//ss(idt+5)=sync
     }
-    smax=pomAll.maxval_da_beg_to_end(ss,0,9); //smax=maxval(ss)
-    int iloc=pomAll.maxloc_da_end_to_beg(ss,0,9); //iloc=maxloc(ss)
+    smax=pomAll.maxval_da_beg_to_end(ss,0,8); //smax=maxval(ss)
+    int iloc=pomAll.maxloc_da_end_to_beg(ss,0,8); //iloc=maxloc(ss)
     ibest=iloc-4+ibest;//ibest=iloc(1)-5+ibest
 
     if (ap7) xdt=(double)ibest*dt2 - 0.5;
@@ -1809,6 +1837,9 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
     //static double sync2d[1920+50][124+20];  //real sync2d(NH1,-JZ:JZ) -JZ=-62 JZ=+62 = 124
     //double (*sync2d)[124+20]=new double[1920+50][124+20]; // largest 2d array need create hv
     double (*sync2d)[144] = new double[1970][144];
+    for(auto q=0; q<1970; q++) {
+        memset(&sync2d[q][0], 0, 144*sizeof(double));
+    }
     int offset_sync2d = JZ+10;
     //double sync2d_[1920+50][124+20];
 
@@ -1838,6 +1869,9 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
         for (int i = 0; i < NH1; ++i)
         {//do i=1,NH1
             s_[j][i]=pomAll.ps_hv(cx[i]);    //s(i,j)=real(cx(i))**2 + aimag(cx(i))**2
+            if (isnan(s_[j][i])) {
+                abort();
+            }
             //if(j==150)
             //qDebug()<<"sync8 t="<<s_[j][i];
             //if(j==0)//1.76 here zero_double
@@ -1932,7 +1966,12 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
             if (t0==0.0) sync_bc=0.0;
             else sync_bc=t/t0;
 
-            sync2d[i][j+offset_sync2d]=fmax(sync_abc,sync_bc); //sync2d(i,j)=fmax(sync_abc,sync_bc);
+            double mx = fmax(sync_abc, sync_bc);
+            if (isnan(mx)) {
+//                std::cout << "mx: " << mx << std::endl;
+                abort();
+            }
+            sync2d[i][j+offset_sync2d]= mx; //sync2d(i,j)=fmax(sync_abc,sync_bc);
             //qDebug()<<sync_abc<<sync_bc<<fmax(sync_abc,sync_bc);
         }
     }
@@ -1942,15 +1981,26 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
     	red[z] =0.0;  
     	red2[z]=0.0; //2.69	
    	}  //qDebug()<<"symbol="<<((2.5/0.16)*4)<<((0.65/0.16)*4);
+
     for (int i = ia; i < ib; ++i)//2.69
-    {   
+    {
+//        if (i == ia) {
+//            std::cout << "sync2d: ";
+//            for(auto z=0; z<144; z++) {
+//                std::cout << sync2d[i][z] << " ";
+//            }
+//            std::cout << std::endl;
+//            std::cout << "offset_sync2d=" << offset_sync2d << " ";
+//        }
         int j0=(pomAll.maxloc_da_beg_to_end(sync2d[i],10,32+10)-offset_sync2d);//hv=Search over +/-0.6s = +-16 //260r5= +-10
         jpeak[i]=j0;
         red[i]=sync2d[i][j0+offset_sync2d];
         j0=(pomAll.maxloc_da_beg_to_end(sync2d[i],10,124+10)-offset_sync2d);//Search over +/-2.5s = +-62
         jpeak2[i]=j0;
         red2[i]=sync2d[i][j0+offset_sync2d];
+//        std::cout << j0 << "/" << i << "/" << red[i] << "/" << red2[i] << " ";
     }
+//    std::cout << std::endl;
 
     int iz=ib-ia; //iz=ib-ia+1
     if (iz>1920) iz=1920; //NH1=1920
@@ -2001,6 +2051,7 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
     //if (to_iz > max_c0) to_iz = max_c0;//max_c0;
     //qDebug()<<"FULL==="<<max_c0<<"iz="<<iz<<indx[(iz-1)];
     //for (int i = 0; i < to_iz; ++i)//2.00
+//    std::stringstream logg;
     for (int i = 0; i < iz; ++i)//2.69
     {
         int n=ia + indx[(iz-1)-i]; //indx[1920]  tested -1 ->1.69 n=ia + indx(iz+1-i) - 1
@@ -2009,23 +2060,33 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
         	candidate0[0][k]=(double)n*df;
         	candidate0[1][k]=(double)jpeak[n]*tstep;//(jpeak(n)-0.5)  2.34 tested jpeak[n]-1 to jpeak[n] ///candidate0(2,k)=(jpeak(n)-1)*tstep
         	candidate0[2][k]=red[n];  //if (n>1500) qDebug()<<"n="<<n;
-        	k++;        	
+        	k++;
+            if (k == 1) {
+                std::cout << " cand1 i " << i << " ia " << ia << " indx[(iz-1)-i] " << indx[(iz - 1) - i] << " n " << n << " red[n] " << red[n] << std::endl;
+            }
        	} 
        	if (k>=max_c0) break;       	      
-        if(abs(jpeak2[n]-jpeak[n])==0) continue;//if(abs(jpeak2(n)-jpeak(n)).eq.0) cycle   
-		//n=ia + indx2[(iz-1)-i];        	    	       	        
-        if (red2[n]>=syncmin)  //exit if(red(n).lt.syncmin.or.isnan(red(n)).or.k.eq.MAXPRECAND) exit
-        {
-        	candidate0[0][k]=(double)n*df;
-        	candidate0[1][k]=(double)jpeak2[n]*tstep;//(jpeak(n)-0.5)  2.34 tested jpeak[n]-1 to jpeak[n] ///candidate0(2,k)=(jpeak(n)-1)*tstep
-        	candidate0[2][k]=red2[n];  //if (n>1500) qDebug()<<"n="<<n;
-        	k++;        	
-       	}
-       	if (k>=max_c0) break;
+        if(abs(jpeak2[n]-jpeak[n])!=0) {
+            if (red2[n] >= syncmin) // exit if(red(n).lt.syncmin.or.isnan(red(n)).or.k.eq.MAXPRECAND) exit
+            {
+                candidate0[0][k] = (double)n * df;
+                candidate0[1][k] = (double)jpeak2[n] * tstep; //(jpeak(n)-0.5)  2.34 tested jpeak[n]-1 to jpeak[n] ///candidate0(2,k)=(jpeak(n)-1)*tstep
+                candidate0[2][k] = red2[n];                   // if (n>1500) qDebug()<<"n="<<n;
+                k++;
+                if (k == 1) {
+                    std::cout << " cand1 i " << i << " ia " << ia << " indx[(iz-1)-i] " << indx[(iz - 1) - i] << " n " << n << " red2[n] " << red2[n] << std::endl;
+                }
+            }
+            if (k >= max_c0) break;
+        }
+        if (i == 0 && k == 0) {
+            // not found the cand!
+            std::cout << " !cand1 i " << i << " ia " << ia << " indx[(iz-1)-i] " << indx[(iz - 1) - i] << " n " << n << " red[n] " << red[n] << std::endl;
+        }
     }
     ncand=k;
     //if (k>400) qDebug()<<"1FULL="<<max_c0<<">"<<k;
-
+    std::cout << "ncand: " << ncand << " iz " << iz << " ib " << ib << " syncmin " << syncmin << std::endl;
     //! Save only the best of near-dupe freqs.
     for (int i = 0; i < ncand; ++i)//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
     {//do i=1,ncand

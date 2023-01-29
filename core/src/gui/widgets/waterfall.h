@@ -11,6 +11,34 @@
 #define WATERFALL_RESOLUTION 1000000
 
 namespace ImGui {
+
+    enum DecodedMode {
+        DM_FT8 = 1
+    };
+
+    struct DecodedResult {
+        DecodedMode mode;
+        long long decodeEndTimestamp;
+        long long frequency;
+        std::string shortString;
+        // above is unique key
+
+        DecodedResult(DecodedMode mode, long long int decodeEndTimestamp, long long int frequency, const std::string& shortString, const std::string& detailedString);
+
+        bool operator == (const DecodedResult&another) const {
+            return mode == another.mode && decodeEndTimestamp == another.decodeEndTimestamp && frequency == another.frequency && shortString == another.shortString;
+        }
+
+        std::string detailedString;
+
+        // below, zero means not layed out.
+        double layoutY = 0;     // y on the waterfall relative to decodeEndTimestamp, in pixels;
+        double layoutX = 0;     // x on the waterfall relative its to frequency (after rescale, relayout needed), in pixels
+        double width = -1;
+        double height = -1;
+    };
+
+
     class WaterfallVFO {
     public:
         void setOffset(double offset);
@@ -250,6 +278,18 @@ namespace ImGui {
         ImVec2 wfMin;
         ImVec2 wfMax;
 
+        bool containsFrequency(double d);
+
+        void addDecodedResult(const DecodedResult&x) {
+            std::lock_guard g(decodedResultsLock);
+            for(int i=0; i<decodedResults.size(); i++) {
+                if(decodedResults[i] == x) {
+                    return;
+                }
+            }
+            decodedResults.push_back(x);
+        }
+
     private:
         void drawWaterfall();
         void drawFFT();
@@ -372,5 +412,11 @@ namespace ImGui {
 
         const int rawFFTIndex(double frequency) const;
         void testAlloc(const std::string& where);
+
+        std::vector<DecodedResult>  decodedResults;
+        std::mutex decodedResultsLock;
+
+
+        void drawDecodedResults();
     };
 };

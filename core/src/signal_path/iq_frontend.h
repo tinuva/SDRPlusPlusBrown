@@ -10,6 +10,7 @@
 #include "../dsp/processor.h"
 #include "../dsp/math/conjugate.h"
 #include <fftw3.h>
+#include "utils/event.h"
 
 class IQFrontEnd {
 public:
@@ -44,6 +45,9 @@ public:
 
     void setFFTSize(int size);
     void setFFTRate(double rate);
+    double getFFTRate() {
+        return _fftRate;
+    }
     void setFFTWindow(FFTWindow fftWindow);
 
     void flushInputBuffer();
@@ -53,7 +57,16 @@ public:
 
     double getEffectiveSamplerate();
 
+    long long getCurrentStreamTime();
+    void setCurrentStreamTime(long long x) {
+        _currentStreamTime = x;
+    }
+
+    Event<double> onEffectiveSampleRateChange;
+
+
 protected:
+    std::atomic<long long> _currentStreamTime = 0; // unix time millis. 0 means realtime, otherwise simulated time.
     static void handler(dsp::complex_t* data, int count, void* ctx);
     void updateFFTPath(bool updateWaterfall = false);
 

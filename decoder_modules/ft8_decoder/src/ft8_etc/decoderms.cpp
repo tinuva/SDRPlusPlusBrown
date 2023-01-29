@@ -14,6 +14,7 @@
 
 
 #include <numeric>
+#include <functional>
 using namespace std; // zaradi max(
 static const double DEC_SAMPLE_RATE_11025 = 11025.0;
 static const double DEC_SAMPLE_RATE_12000 = 12000.0;
@@ -200,6 +201,7 @@ DecoderMs::DecoderMs()//QObject *parent
     ////// NEW analytic ////////////////////////////////////////////////////////////////
     s_msk144rxequal_s = false;  //1.31 default msk144/msk40
     s_msk144rxequal_d = false;   //1.31 default msk144/msk40
+    DEC_SAMPLE_RATE = DEC_SAMPLE_RATE_11025;//HV important set to default mode fsk441 sample rate
 
     nfft0_msk144_2 = 0;//new analytic_msk144_2
     pomAll.zero_double_beg_end(dpclast_msk144_2,0,3);
@@ -225,7 +227,6 @@ DecoderMs::DecoderMs()//QObject *parent
     ////msk40///////
 
     s_mod = 2;//HV important set to default mode fsk441
-    DEC_SAMPLE_RATE = DEC_SAMPLE_RATE_11025;//HV important set to default mode fsk441 sample rate
 
     s_MyCall = "NOT__EXIST";
     s_MyBaseCall = "NOT__EXIST";
@@ -2351,6 +2352,11 @@ static bool end_dec2_ = true;
 static bool end_dec3_ = true;
 static bool end_dec4_ = true;
 static bool end_dec5_ = true;
+bool DecoderMs::IsWorking() {
+    if (!end_dec0_ || !end_dec1_ || !end_dec2_ || !end_dec3_ || !end_dec4_ || !end_dec5_ || thred_busy) return true;
+    return false;
+}
+
 void DecoderMs::TryEndThr()
 {
     if (!end_dec0_ || !end_dec1_ || !end_dec2_ || !end_dec3_ || !end_dec4_ || !end_dec5_) return;
@@ -2857,4 +2863,13 @@ void DecoderMs::SetDecode(short *raw,int count_q,QString time, int t_istart,int 
         if (nthr>4) pthread_create(&th4,NULL,DecoderMs::ThrDec4,(void*)this);
         if (nthr>5) pthread_create(&th5,NULL,DecoderMs::ThrDec5,(void*)this);
     }
+}
+
+void DecoderMs::SetResultsCallback(std::function<void(int, QStringList)> fun) {
+    DecFt8_0->SetResultsCallback(fun);
+    DecFt8_1->SetResultsCallback(fun);
+    DecFt8_2->SetResultsCallback(fun);
+    DecFt8_3->SetResultsCallback(fun);
+    DecFt8_4->SetResultsCallback(fun);
+    DecFt8_5->SetResultsCallback(fun);
 }

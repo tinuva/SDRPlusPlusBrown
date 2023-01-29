@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <regex>
 #include <gui/tuner.h>
+#include <iostream>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -67,7 +68,9 @@ private:
     static void menuSelected(void* ctx) {
         FileSourceModule* _this = (FileSourceModule*)ctx;
         core::setInputSampleRate(_this->sampleRate);
-        tuner::tune(tuner::TUNER_MODE_IQ_ONLY, "", _this->centerFreq);
+        if (_this->centerFreqSet) {
+            tuner::tune(tuner::TUNER_MODE_IQ_ONLY, "", _this->centerFreq);
+        }
         sigpath::iqFrontEnd.setBuffering(false);
         gui::waterfall.centerFrequencyLocked = true;
         //gui::freqSelect.minFreq = _this->centerFreq - (_this->sampleRate/2);
@@ -124,8 +127,17 @@ private:
                     _this->sampleRate = _this->reader->getSampleRate();
                     core::setInputSampleRate(_this->sampleRate);
                     std::string filename = std::filesystem::path(_this->fileSelect.path).filename().string();
-                    _this->centerFreq = _this->getFrequency(filename);
+                    double newFrequency = _this->getFrequency(filename);
+                    _this->streamStartTime = _this->getStartTime(filename);
+                    bool fineTune = gui::waterfall.containsFrequency(newFrequency);
+//                    auto prevFrequency = sigpath::vfoManager.getName();
+                    _this->centerFreq = newFrequency;
+                    _this->centerFreqSet = true;
                     tuner::tune(tuner::TUNER_MODE_IQ_ONLY, "", _this->centerFreq);
+                    if (fineTune) {
+                        // restore the fine tune. When working with file source and restarting the app, the fine tune is lost
+//                        tuner::tune(tuner::TUNER_MODE_NORMAL, "_current", prevFrequency);
+                    }
                     //gui::freqSelect.minFreq = _this->centerFreq - (_this->sampleRate/2);
                     //gui::freqSelect.maxFreq = _this->centerFreq + (_this->sampleRate/2);
                     //gui::freqSelect.limitFreq = true;
@@ -142,16 +154,27 @@ private:
         ImGui::Checkbox("Float32 Mode##_file_source", &_this->float32Mode);
     }
 
+    long long streamStartTime = 0;
+
     static void worker(void* ctx) {
         FileSourceModule* _this = (FileSourceModule*)ctx;
         double sampleRate = _this->reader->getSampleRate();
         int blockSize = sampleRate / 200.0f;
         int16_t* inBuf = new int16_t[blockSize * 2];
 
+        long long samplesRead = 0;
+        sigpath::iqFrontEnd.setCurrentStreamTime(_this->streamStartTime);
+
         while (true) {
             _this->reader->readSamples(inBuf, blockSize * 2 * sizeof(int16_t));
             volk_16i_s32f_convert_32f((float*)_this->stream.writeBuf, inBuf, 32768.0f, blockSize * 2);
             if (!_this->stream.swap(blockSize)) { break; };
+
+            samplesRead += blockSize;
+            if (_this->streamStartTime != 0) {
+                long long currentTime = _this->streamStartTime + samplesRead * 1000 / sampleRate;
+                sigpath::iqFrontEnd.setCurrentStreamTime(currentTime);
+            }
         }
 
         delete[] inBuf;
@@ -163,9 +186,18 @@ private:
         int blockSize = sampleRate / 200.0f;
         dsp::complex_t* inBuf = new dsp::complex_t[blockSize];
 
+        long long samplesRead = 0;
+        sigpath::iqFrontEnd.setCurrentStreamTime(_this->streamStartTime);
+
         while (true) {
             _this->reader->readSamples(_this->stream.writeBuf, blockSize * sizeof(dsp::complex_t));
             if (!_this->stream.swap(blockSize)) { break; };
+
+            samplesRead += blockSize;
+            if (_this->streamStartTime != 0) {
+                long long currentTime = _this->streamStartTime + samplesRead * 1000 / sampleRate;
+                sigpath::iqFrontEnd.setCurrentStreamTime(currentTime);
+            }
         }
 
         delete[] inBuf;
@@ -181,6 +213,25 @@ private:
         return std::atof(freqStr.substr(0, freqStr.size() - 2).c_str());
     }
 
+    long long getStartTime(std::string filename) {
+        // like baseband_14235774Hz_12-19-14_10-07-2022.wav
+
+        if (filename.substr(0, 8) != "baseband") return 0;
+        if (".wav" != filename.substr(filename.size() - 4, 4)) return 0;
+        auto pos = filename.find("Hz");
+        if (pos == std::string::npos) return 0;
+        std::string dateTimeStre = filename.substr(pos+3, 19);
+        std::istringstream ss(dateTimeStre);
+        std::tm tm;
+        ss >> std::get_time(&tm, "%H-%M-%S_%d-%m-%Y");
+        if (ss.fail()) {
+            return 0;
+        }
+        std::time_t t1 = std::mktime(&tm);
+        std::cout << std::asctime(&tm) << '\n';
+        return ((long long)t1) * 1000;
+    }
+
     FileSelect fileSelect;
     std::string name;
     dsp::stream<dsp::complex_t> stream;
@@ -192,6 +243,7 @@ private:
     std::thread workerThread;
 
     double centerFreq = 100000000;
+    bool centerFreqSet = false;
 
     bool float32Mode = false;
 };

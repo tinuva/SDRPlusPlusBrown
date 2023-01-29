@@ -192,11 +192,7 @@ struct AudioInToFFT : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
     };
 };
 
-static long long currentTimeMillis() {
-    std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
-    long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
-    return msec;
-}
+extern long long currentTimeMillis();
 
 struct CWPanel {
 

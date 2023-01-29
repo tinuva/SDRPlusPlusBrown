@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <gui/menus/theme.h>
 #include <backend.h>
+#include <iostream>
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include <stb_image_resize.h>
@@ -55,8 +56,6 @@ namespace core {
         spdlog::info("New DSP samplerate: {0} (source samplerate is {1})", effectiveSr, samplerate);
     }
 };
-
-#include "utils/ft8_etc/mscore.h"
 
 // main
 int sdrpp_main(int argc, char* argv[]) {
@@ -398,6 +397,7 @@ int sdrpp_main(int argc, char* argv[]) {
 
     sigpath::iqFrontEnd.stop();
 
+    std::cout << "Save freq: " << core::configManager.conf["frequency"] << std::endl;
     core::configManager.disableAutoSave();
     core::configManager.save();
 #endif
