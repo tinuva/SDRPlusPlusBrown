@@ -3,6 +3,7 @@
 #include <thread>
 #include <vector>
 #include <algorithm>
+#include <functional>
 #include "stream.h"
 #include "types.h"
 
