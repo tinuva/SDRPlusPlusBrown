@@ -307,6 +307,7 @@ int sdrpp_main(int argc, char* argv[]) {
     core::configManager.conf["modules"][modCount++] = "scanner.so";
     core::configManager.conf["modules"][modCount++] = "hl2_source.so";
     core::configManager.conf["modules"][modCount++] = "noise_reduction_logmmse.so";
+    core::configManager.conf["modules"][modCount++] = "ft8_decoder.so";
 #endif
 
     // Fix missing elements in config
