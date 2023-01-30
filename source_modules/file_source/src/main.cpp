@@ -221,15 +221,15 @@ private:
         auto pos = filename.find("Hz");
         if (pos == std::string::npos) return 0;
         std::string dateTimeStre = filename.substr(pos+3, 19);
-        std::istringstream ss(dateTimeStre);
         std::tm tm;
-        ss >> std::get_time(&tm, "%H-%M-%S_%d-%m-%Y");
-        if (ss.fail()) {
+        char *end = strptime(dateTimeStre.c_str(), "%H-%M-%S_%d-%m-%Y", &tm);
+        if (!end || *end == 0) {
+            std::time_t t1 = std::mktime(&tm);
+            std::cout << std::asctime(&tm) << '\n';
+            return ((long long)t1) * 1000;
+        } else {
             return 0;
         }
-        std::time_t t1 = std::mktime(&tm);
-        std::cout << std::asctime(&tm) << '\n';
-        return ((long long)t1) * 1000;
     }
 
     FileSelect fileSelect;

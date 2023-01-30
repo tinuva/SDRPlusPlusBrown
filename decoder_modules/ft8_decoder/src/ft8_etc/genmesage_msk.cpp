@@ -420,8 +420,8 @@ void GenMsk::encode_msk144(char *message, char *codeword)
         codeword[(int)colorder_msk144[i]]=itmp[i];//codeword(colorder+1)=itmp(1:128)
 }
 // for msk144 v2
-#include "../boost/crc.hpp"
-#include "../boost/config.hpp"
+#include "boost/crc.hpp"
+#include "boost/config.hpp"
 #define POLY13 0x15D7
 #ifdef BOOST_NO_CXX11_CONSTEXPR
 #define TRUNCATED_POLYNOMIAL13 POLY13
