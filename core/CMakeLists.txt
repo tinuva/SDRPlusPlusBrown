@@ -34,9 +34,9 @@ add_library(sdrpp_core SHARED ${SRC} ${BACKEND_SRC})
 if (MSVC)
     target_compile_options(sdrpp_core PRIVATE /O2 /Ob2 /std:c++17 /EHsc)
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(sdrpp_core PRIVATE -O0 -std=c++17)
+    target_compile_options(sdrpp_core PRIVATE -std=c++17)
 else ()
-    target_compile_options(sdrpp_core PRIVATE -O0 -std=c++17)
+    target_compile_options(sdrpp_core PRIVATE -std=c++17)
 endif ()
 
 # Set the install prefix
