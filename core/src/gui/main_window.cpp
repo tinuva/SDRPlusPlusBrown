@@ -622,7 +622,7 @@ void MainWindow::draw() {
     ImGui::NextColumn();
     ImGui::BeginChild("WaterfallControls");
 
-    ImVec2 wfSliderSize((displaymenu::smallScreen ? 40.0 : 20.0) * style::uiScale, (displaymenu::smallScreen ? 100.0 : 150.0) * style::uiScale);
+    ImVec2 wfSliderSize((displaymenu::smallScreen ? 40.0 : 20.0) * style::uiScale, (displaymenu::smallScreen ? 100.0 : 140.0) * style::uiScale);
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - (ImGui::CalcTextSize("Zoom").x / 2.0));
     ImGui::TextUnformatted("Zoom");
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - wfSliderSize.x/2);
