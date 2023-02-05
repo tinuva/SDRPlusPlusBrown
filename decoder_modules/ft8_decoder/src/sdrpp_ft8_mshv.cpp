@@ -24,6 +24,7 @@ namespace ft8 {
         //
         //
         //
+        mshv_init();
 
 //        four2a_d2c_cnt = 0;
 
@@ -39,7 +40,7 @@ namespace ft8 {
         }
 
 
-        // this needs 44100 sample rate
+
         std::vector<short> converted;
         converted.reserve(nsamples);
         for (int q = 0; q < nsamples; q++) {
@@ -66,6 +67,8 @@ namespace ft8 {
             dms->SetCalsHash(ql);
         }
         dms->SetResultsCallback(callback);
+        dms->SetDecoderDeep(3);
+
         dms->SetDecode(converted.data(), converted.size(), "120000", 0, 4, false, true, false);
         while (dms->IsWorking()) {
             usleep(100000);
@@ -103,14 +106,31 @@ void doDecode(const char *path) {
     printf("BytesPerSample: %d\n", hdr->bytesPerSample);
     printf("BitDepth: %d\n", hdr->bitDepth);
     printf("Codec: %d\n", hdr->codec);
-    if (hdr->codec != 3 || hdr->bitDepth != 32|| hdr->channelCount != 2) {
-        fprintf(stderr,"ERROR Want Codec=3, BitDepth=32, Channels=2 (float32 type of samples)\n");
+    bool handled = hdr->codec == 3 && hdr->bitDepth == 32 && hdr->channelCount == 2;
+    handled |= hdr->codec == 1 && hdr->bitDepth == 16 && hdr->channelCount == 2;
+    if (!handled) {
+        fprintf(stderr,"ERROR Want Codec/BitDepth/channels: 3/32/2 or 1/16/2\n");
     }
     int nSamples = ((float*)(buf + size)-data)/2;
     printf("NSamples: %d\n", nSamples);
 
+    std::vector<dsp::stereo_t> converted;
+    if (hdr->codec == 1) {  // short samples
+        auto ptr = (short *)dta;
+        converted.resize(nSamples);
+        float maxx = 0.0f;
+        for(int q=0; q<nSamples; q++) {
+            converted[q].l = ptr[2*q] / 32767.0;
+            converted[q].r = ptr[2*q+1] / 32767.0;
+            maxx = std::max<float>(maxx, converted[q].r);
+            maxx = std::max<float>(maxx, converted[q].l);
+        }
+        data = (float*)converted.data();
+        printf("d0: %f   %f   maxx: %f\n", data[100], data[101], maxx);
+    }
+
     try {
-        for(int q=0; q<2; q++) {
+        for(int q=0; q<1; q++) {
             auto ctm = currentTimeMillis();
 //            spdlog::info("=================================");
             ft8::decodeFT8(hdr->sampleRate, (dsp::stereo_t*)data, nSamples, [](int mode, QStringList result) {
@@ -125,7 +145,7 @@ void doDecode(const char *path) {
 
 int main(int argc, char* argv[]) {
     mshv_init();
-    if (argc == 3 && !strcmp(argv[1],"--decode")) {
+    if (argc >= 3 && !strcmp(argv[1],"--decode")) {
         doDecode(argv[2]);
         exit(0);
     }

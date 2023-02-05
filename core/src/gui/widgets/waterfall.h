@@ -290,6 +290,11 @@ namespace ImGui {
             decodedResults.push_back(x);
         }
 
+        void clearDecodedResults() {
+            std::lock_guard g(decodedResultsLock);
+            ImGui::WaterFall::decodedResults.clear();
+        }
+
     private:
         void drawWaterfall();
         void drawFFT();

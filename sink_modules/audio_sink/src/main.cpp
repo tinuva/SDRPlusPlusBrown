@@ -319,8 +319,8 @@ private:
         if (inputBuffer != nullptr) {
             static int counter = 0;
             if (counter++ % 30 == 0) {
-                float* ib = (float*)inputBuffer;
-                printf("ok here input buffer: %f %f %f %f %f %f %f %f\n", ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
+//                float* ib = (float*)inputBuffer;
+//                printf("ok here input buffer: %f %f %f %f %f %f %f %f\n", ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
             }
         }
 

@@ -54,9 +54,9 @@ public:
     int calculateVFOOffset(double centerFrequency, double bandwidth) {
         int rangeStart = centerFrequency - bandwidth;
         int rangeEnd = centerFrequency + bandwidth;
-        const int frequencies[] = {1840000, 3573000, 7074000, 10136000, 14074000, 18100000, 21074000, 24915000, 28074000, 50000000};
-        for(auto q = std::begin(frequencies); q != std::end(frequencies); q++) {
-            auto center = (*q + VFO_BANDWIDTH/2);  // 1500 is the offset of the center of the band
+        const int frequencies[] = { 1840000, 3573000, 7074000, 10136000, 14074000, 18100000, 21074000, 24915000, 28074000, 50000000 };
+        for (auto q = std::begin(frequencies); q != std::end(frequencies); q++) {
+            auto center = (*q + VFO_BANDWIDTH / 2); // 1500 is the offset of the center of the band
             if (rangeContainsInclusive(rangeStart, rangeEnd, (double)(center - VFO_BANDWIDTH / 2), (double(center + VFO_BANDWIDTH / 2)))) {
                 return center - centerFrequency;
             }
@@ -69,43 +69,43 @@ public:
     FT8DecoderModule(std::string name) {
         this->name = name;
 
-//        mshv_init();
+        //        mshv_init();
 
         // Load config
         config.acquire();
-//        if (!config.conf.contains(name)) {
-//            config.conf[name]["showLines"] = false;
-//        }
-//        showLines = config.conf[name]["showLines"];
-//        if (showLines) {
-//            diag.lines.push_back(-0.75f);
-//            diag.lines.push_back(-0.25f);
-//            diag.lines.push_back(0.25f);
-//            diag.lines.push_back(0.75f);
-//        }
+        //        if (!config.conf.contains(name)) {
+        //            config.conf[name]["showLines"] = false;
+        //        }
+        //        showLines = config.conf[name]["showLines"];
+        //        if (showLines) {
+        //            diag.lines.push_back(-0.75f);
+        //            diag.lines.push_back(-0.25f);
+        //            diag.lines.push_back(0.25f);
+        //            diag.lines.push_back(0.75f);
+        //        }
         config.release(true);
 
         running = true;
 
-//        // Initialize DSP here
-//        decoder.init(vfo->output, INPUT_SAMPLE_RATE, lsfHandler, this);
-//        resamp.init(decoder.out, 8000, audioSampRate);
-//        reshape.init(decoder.diagOut, 480, 0);
-//        diagHandler.init(&reshape.out, _diagHandler, this);
-//
-//        // Start DSO Here
-//        decoder.start();
-//        resamp.start();
-//        reshape.start();
-//        diagHandler.start();
-//
-//        // Setup audio stream
-//        srChangeHandler.ctx = this;
-//        srChangeHandler.handler = sampleRateChangeHandler;
-//        stream.init(&srChangeHandler, audioSampRate);
-//        sigpath::sinkManager.registerStream(name, &stream);
-//
-//        stream.start();
+        //        // Initialize DSP here
+        //        decoder.init(vfo->output, INPUT_SAMPLE_RATE, lsfHandler, this);
+        //        resamp.init(decoder.out, 8000, audioSampRate);
+        //        reshape.init(decoder.diagOut, 480, 0);
+        //        diagHandler.init(&reshape.out, _diagHandler, this);
+        //
+        //        // Start DSO Here
+        //        decoder.start();
+        //        resamp.start();
+        //        reshape.start();
+        //        diagHandler.start();
+        //
+        //        // Setup audio stream
+        //        srChangeHandler.ctx = this;
+        //        srChangeHandler.handler = sampleRateChangeHandler;
+        //        stream.init(&srChangeHandler, audioSampRate);
+        //        sigpath::sinkManager.registerStream(name, &stream);
+        //
+        //        stream.start();
 
         gui::menu.registerEntry(name, menuHandler, this, this);
 
@@ -120,19 +120,19 @@ public:
 
         usbDemod = std::make_shared<demod::USB>();
         usbDemod->init(name, &usbDemodConfig, ifChain.out, 3000, CAPTURE_SAMPLE_RATE);
-        ifChain.setInput(&vfo->out, [&](auto ifchainOut){
+        ifChain.setInput(&vfo->out, [&](auto ifchainOut) {
             usbDemod->setInput(ifchainOut);
             spdlog::info("ifchain change out");
             // next
         });
 
 
-        std::thread reader([&](){
+        std::thread reader([&]() {
             auto _this = this;
             std::vector<dsp::stereo_t> reader;
             double ADJUST_PERIOD = 0.1; // seconds before adjusting the vfo offset after user changed the center freq
             int beforeAdjust = (int)(CAPTURE_SAMPLE_RATE * ADJUST_PERIOD);
-            while(running.load()) {
+            while (running.load()) {
                 int rd = usbDemod->getOutput()->read();
                 if (rd < 0) {
                     break;
@@ -143,13 +143,15 @@ public:
                     int newOffset = calculateVFOOffset(gui::waterfall.getCenterFrequency(), gui::waterfall.getBandwidth());
                     if (newOffset == INVALID_OFFSET) {
                         onTheFrequency = false;
-                    } else {
+                    }
+                    else {
                         onTheFrequency = true;
                         if (newOffset == (int)vfoOffset) {
                             // do nothing
-                        } else {
+                        }
+                        else {
                             vfoOffset = newOffset;
-                            vfo->setOffset(vfoOffset-3000);
+                            vfo->setOffset(vfoOffset - 3000);
                         }
                     }
                 }
@@ -177,7 +179,7 @@ public:
     double vfoOffset = 0.0;
     std::atomic_int blockProcessorsRunning = 0;
 
-    void handleIFData(const std::vector<dsp::stereo_t> &data) {
+    void handleIFData(const std::vector<dsp::stereo_t>& data) {
         long long int curtime = sigpath::iqFrontEnd.getCurrentStreamTime();
         long long blockNumber = (curtime / 1000) / 15;
         long long blockTime = (curtime / 1000) % 15;
@@ -191,10 +193,13 @@ public:
             }
             if (shouldStartProcessing) {
                 // no processing is done.
-                if (processingBlock->size() / CAPTURE_SAMPLE_RATE > 16 || processingBlock->size() / CAPTURE_SAMPLE_RATE <= 14) {
-                    spdlog::info("Block size is not matching");
-                    processingBlock.reset();    // clear for new one
-                } else {
+                if (processingBlock->size() / CAPTURE_SAMPLE_RATE > 16 || processingBlock->size() / CAPTURE_SAMPLE_RATE <= 13) {
+                    spdlog::info("Block size is not matching: {}, curtime={}",
+                                 processingBlock->size() / CAPTURE_SAMPLE_RATE,
+                                 curtime);
+                    processingBlock.reset(); // clear for new one
+                }
+                else {
                     // block size is ok.
                     startBlockProcessing(processingBlock, prevBlockNumber, vfoOffset + gui::waterfall.getCenterFrequency());
                 }
@@ -203,31 +208,27 @@ public:
             fullBlock.clear();
         }
         fullBlock.insert(std::end(fullBlock), std::begin(data), std::end(data));
-//        spdlog::info("{} Got {} samples: {}", blockNumber, data.size(), data[0].amplitude());
+        //        spdlog::info("{} Got {} samples: {}", blockNumber, data.size(), data[0].amplitude());
     }
 
     std::shared_ptr<demod::USB> usbDemod;
 
-    void startBlockProcessing(const std::shared_ptr<std::vector<dsp::stereo_t>> &block, int blockNumber, int originalOffset) {
+    void startBlockProcessing(const std::shared_ptr<std::vector<dsp::stereo_t>>& block, int blockNumber, int originalOffset) {
         blockProcessorsRunning.fetch_add(1);
-        std::thread processor([=](){
+        std::thread processor([=]() {
             std::time_t bst = blockNumber * 15;
             spdlog::info("Start processing block, size={}, block time: {}", block->size(), std::asctime(std::gmtime(&bst)));
 
             dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data(), block->size(), [=](int mode, std::vector<std::string> result) {
                 int smallOffset = atoi(result[7].c_str());
-                ImGui::DecodedResult decodedResult(ImGui::DM_FT8, ((long long)blockNumber) * 15 * 1000 + 13000, originalOffset + smallOffset, result[4], result[4]);
+                ImGui::DecodedResult decodedResult(ImGui::DM_FT8, ((long long)blockNumber) * 15 * 1000 + 15000, originalOffset + smallOffset, result[4], result[4]);
                 gui::waterfall.addDecodedResult(decodedResult);
                 return;
             });
 
             blockProcessorsRunning.fetch_add(-1);
-
-
         });
         processor.detach();
-
-
     }
 
     bool onTheFrequency = false;
@@ -239,16 +240,16 @@ public:
 
         gui::menu.removeEntry(name);
         // Stop DSP Here
-//        stream.stop();
+        //        stream.stop();
         if (enabled) {
-//            decoder.stop();
-//            resamp.stop();
-//            reshape.stop();
-//            diagHandler.stop();
-//            sigpath::vfoManager.deleteVFO(vfo);
+            //            decoder.stop();
+            //            resamp.stop();
+            //            reshape.stop();
+            //            diagHandler.stop();
+            //            sigpath::vfoManager.deleteVFO(vfo);
         }
 
-//        sigpath::sinkManager.unregisterStream(name);
+        //        sigpath::sinkManager.unregisterStream(name);
     }
 
     void postInit() {}
@@ -266,12 +267,12 @@ public:
 
     void disable() {
         // Stop DSP here
-//        decoder.stop();
-//        resamp.stop();
-//        reshape.stop();
-//        diagHandler.stop();
-//
-//        sigpath::vfoManager.deleteVFO(vfo);
+        //        decoder.stop();
+        //        resamp.stop();
+        //        reshape.stop();
+        //        diagHandler.stop();
+        //
+        //        sigpath::vfoManager.deleteVFO(vfo);
 
         if (enabled) {
             usbDemod->stop();
@@ -397,10 +398,10 @@ private:
     bool enabled = false;
 
 
-//    dsp::buffer::Reshaper<float> reshape;
-//    dsp::sink::Handler<float> diagHandler;
-//    dsp::multirate::RationalResampler<dsp::stereo_t> resamp;
-//
+    //    dsp::buffer::Reshaper<float> reshape;
+    //    dsp::sink::Handler<float> diagHandler;
+    //    dsp::multirate::RationalResampler<dsp::stereo_t> resamp;
+    //
 
     std::chrono::time_point<std::chrono::high_resolution_clock> lastUpdated;
 };

@@ -3129,16 +3129,14 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
 }
 
 void DecoderFt8::EmitDecodetTextFt(QStringList lst) {
-    char no[10];
-    sprintf(no, "%2d", outCount++);
-    std::cout << currentTimeMillis() << " OUT["<<no<<"]: ";
+    char buf[1000] ="";
+    sprintf(buf+strlen(buf), "FT8_OUT\t%lld\t%02d", currentTimeMillis(), outCount++);
     for(int i=0; i<lst.count(); i++) {
-        char buf[1000];
-        sprintf(buf, "{%d}%s ", i, lst[i].str->c_str());
-        std::cout << buf;
+        sprintf(buf + strlen(buf), "\t{%d}\t%s", i, lst[i].str->c_str());
 //        std::cout << "{" << i << "}" << lst[i].str->c_str() << " ";
     }
-    std::cout << std::endl;
+    strcat(buf,"\n");
+    write(STDOUT_FILENO, buf, strlen(buf));
     if (resultsCallback) {
         resultsCallback(11, lst);
     }

@@ -43,13 +43,18 @@ QString& QString::operator=(const QString& other) {
     return *this;
 }
 void QString::verify() {
+#if defined(__has_feature)
+#  if __has_feature(memory_sanitizer)
     const char* x = "Z";
     for (int z = 0; z < str->length(); z++) {
         if (memcmp(&(*str)[z], x, 1) == 0) {
             printf("");
         }
     }
+#  endif
+#endif
 }
+
 void QString::initWithConstChar(const char* init, int len) {
     if (len == 1) {
         // So you're looking at this and wondering why?? Because -fsanitize=memory will claim that the data is uninitialized if you don't do this tweak.

@@ -695,6 +695,7 @@ void MainWindow::setPlayState(bool _playing) {
         sigpath::sourceManager.tune(gui::waterfall.getCenterFrequency());
         playing = true;
         onPlayStateChange.emit(true);
+        gui::waterfall.clearDecodedResults();
     }
     else {
         playing = false;
