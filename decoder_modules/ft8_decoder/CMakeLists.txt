@@ -27,7 +27,7 @@ list(FILTER SDRPP_FT8MSHV_SRC EXCLUDE REGEX "main.c*" )
 
 add_executable(sdrpp_ft8_mshv "src/sdrpp_ft8_mshv.cpp" ${SDRPP_FT8MSHV_SRC})
 target_include_directories(sdrpp_ft8_mshv PUBLIC "../../core/src")
-target_link_libraries(sdrpp_ft8_mshv PUBLIC fftw3 volk)
+target_link_libraries(sdrpp_ft8_mshv PUBLIC fftw3 volk pthread)
 #target_link_options(test0 PUBLIC -fsanitize=memory)
 
 install(TARGETS sdrpp_ft8_mshv DESTINATION bin)
