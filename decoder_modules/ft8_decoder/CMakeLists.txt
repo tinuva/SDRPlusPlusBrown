@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 project(ft8_decoder)
 
+
 file(GLOB_RECURSE SRC "src/*.cpp" "src/*.c" ../../misc_modules/recorder/src/wav.cpp ../../misc_modules/recorder/src/riff.cpp)
 list(FILTER SRC EXCLUDE REGEX "sdrpp_ft8_mshv.cpp*" )
 list(FILTER SRC EXCLUDE REGEX "ft8_etc/*" )
@@ -27,7 +28,30 @@ list(FILTER SDRPP_FT8MSHV_SRC EXCLUDE REGEX "main.c*" )
 
 add_executable(sdrpp_ft8_mshv "src/sdrpp_ft8_mshv.cpp" ${SDRPP_FT8MSHV_SRC})
 target_include_directories(sdrpp_ft8_mshv PUBLIC "../../core/src")
-target_link_libraries(sdrpp_ft8_mshv PUBLIC fftw3 volk pthread)
+
+if (MSVC)
+else()
+    find_package(PkgConfig)
+    pkg_check_modules(FFTW3 REQUIRED fftw3)
+    pkg_check_modules(VOLK REQUIRED volk)
+    target_link_libraries(sdrpp_ft8_mshv PUBLIC fftw3 volk pthread)
+    target_include_directories(sdrpp_ft8_mshv PUBLIC
+            ${FFTW3_INCLUDE_DIRS}
+            ${VOLK_INCLUDE_DIRS}
+            )
+
+    target_link_directories(sdrpp_ft8_mshv PUBLIC
+            ${FFTW3_LIBRARY_DIRS}
+            ${VOLK_LIBRARY_DIRS}
+            )
+
+    target_link_libraries(sdrpp_ft8_mshv PUBLIC
+            ${FFTW3_LIBRARIES}
+            ${VOLK_LIBRARIES}
+            )
+
+endif()
+
 #target_link_options(test0 PUBLIC -fsanitize=memory)
 
 install(TARGETS sdrpp_ft8_mshv DESTINATION bin)
