@@ -1,15 +1,14 @@
 #pragma once
 
-extern int four2a_d2c_cnt;
+#include <core.h>
+#include <../../misc_modules/recorder/src/wav.h>
+#include <wait.h>
 
-#include "ft8_etc/decoderms.h"
-#include "ft8_etc/mscore.h"
+// extern int four2a_d2c_cnt;
 
 namespace dsp {
 
     struct FT8Decoder {
-
-
 
     };
 
@@ -20,14 +19,28 @@ namespace dsp {
 
 
         // input stereo samples, nsamples (number of pairs of float)
-        inline void decodeFT8(int sampleRate, dsp::stereo_t* samples, long long nsamples, std::function<void(int mode, QStringList result)> callback) {
+        inline void decodeFT8(int sampleRate, dsp::stereo_t* samples, long long nsamples, std::function<void(int mode, std::vector<std::string> result)> callback) {
+
             //
             //
             //
 
-            four2a_d2c_cnt = 0;
 
             std::vector<dsp::stereo_t> resampledV;
+
+            int max = 0;
+            for(int i=0; i<nsamples; i++) {
+                max = std::max<float>(abs(samples[i].l), max);
+                max = std::max<float>(abs(samples[i].r), max);
+            }
+
+            spdlog::info("max: {}", max);
+
+            for(int i=0; i<nsamples; i++) {
+                samples[i].l /= max;
+                samples[i].r /= max;
+            }
+
 
             if (sampleRate != 12000) {
                 long long int outSize = 3 * (nsamples * 12000) / sampleRate;
@@ -39,40 +52,36 @@ namespace dsp {
             }
 
 
-            // this needs 44100 sample rate
-            std::vector<short> converted;
-            converted.reserve(nsamples);
-            for (int q = 0; q < nsamples; q++) {
-                converted.emplace_back(samples[q].l * 16383.52);
-            }
 
-            //    auto core = std::make_shared<MsCore>();
-            //    core->ResampleAndFilter(converted.data(), converted.size());
-            auto dms = std::make_shared<DecoderMs>();
-            dms->setMode(DMS_FT8);
-            {
-                QStringList ql;
-                ql << "CALL";
-                ql << "CALL";
-                dms->SetWords(ql, 0, 0);
+            wav::Writer w;
+            w.setChannels(2);
+            w.setFormat(wav::FORMAT_WAV);
+            w.setSampleType(wav::SAMP_TYPE_INT16);
+            w.setSamplerate(12000);
+            w.open("/tmp/ft8_mshv_tmp.wav");
+            w.write((float*)samples, nsamples);
+            w.close();
+
+#ifdef _WIN32
+#else
+            int f = fork();
+            if (f == 0) {
+                close(0);
+                close(1);
+                close(2);
+                open("/tmp/")
+                auto err = execl("/tmp/sdrpp/bin/sdrpp_ft8_mshv", "--decode", "/tmp/ft8_mshv_tmp.wav", NULL);
+                exit(0);
             }
-            {
-                QStringList ql;
-                ql << "CALL";
-                ql << "";
-                ql << "";
-                ql << "";
-                ql << "";
-                dms->SetCalsHash(ql);
+            else {
+                waitpid(f, NULL, 0);
             }
-            dms->SetResultsCallback(callback);
-            dms->SetDecode(converted.data(), converted.size(), "120000", 0, 4, false, true, false);
-            while (dms->IsWorking()) {
-                usleep(100000);
-            }
+#endif
+
+
             return;
         }
-
     }
 
 }
+

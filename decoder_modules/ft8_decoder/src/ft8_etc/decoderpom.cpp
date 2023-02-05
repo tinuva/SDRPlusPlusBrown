@@ -46,11 +46,11 @@ static int setup_c2c_d2c_(bool &wait,fftw_plan &p,std::complex<double> *a,int nf
     }
     _block_th_all_ = true; //if (cplu == 0) qDebug()<<"----------------------"; cplu++; qDebug()<<"PLANS="<<cplu<<nfft;
 
-    //unsigned int flag = FFTW_ESTIMATE_PATIENT;
-    unsigned int flag = FFTW_ESTIMATE;
-    if (nfft > 6000) {
-        flag = FFTW_ESTIMATE;
-    }
+    unsigned int flag = FFTW_ESTIMATE_PATIENT;
+//    unsigned int flag = FFTW_ESTIMATE;
+//    if (nfft > 6000) {
+//        flag = FFTW_ESTIMATE;
+//    }
     if 		(isign==-1 && iform==1)
         p=fftw_plan_dft_1d(nfft,(fftw_complex *)a,(fftw_complex *)a,FFTW_FORWARD, flag);
     else if (isign==1 && iform==1)
@@ -175,7 +175,7 @@ void HvThr::four2a_d2c(std::complex<double> *a,std::complex<double> *a1,double *
         nn_d2c[z]=nfft;
         ns_d2c[z]=isign;
         nf_d2c[z]=iform;
-        std::cout << "created double plan: " << cpd << " " << nfft << " " << isign << " " << iform << std::endl;
+//        std::cout << "created double plan: " << cpd << " " << nfft << " " << isign << " " << iform << std::endl;
         int slpp = 1000;
         bool wait = false; //if (nthreads==1) wait = false; ??? hv
         while (slpp!=0)
@@ -196,13 +196,14 @@ void HvThr::four2a_d2c(std::complex<double> *a,std::complex<double> *a1,double *
         }
     }
 
-    if (four2a_d2c_cnt == 466) {
-        std::cout << "four2a_d2c:466, z=" << z<< " input to fft: ";
-        for(int z=0; z<nfft; z++) {
-            std::cout << a1[z] << " ";
-        }
-        std::cout << std::endl;
-    }
+//    if (four2a_d2c_cnt == 466) {
+//        std::cout << "four2a_d2c:466, z=" << z<< " input to fft: ";
+//        for(int z=0; z<nfft; z++) {
+//            std::cout << z<<+":"<< a1[z] << " ";
+//            std::flush(std::cout);
+//        }
+//        std::cout << std::endl;
+//    }
     fftw_execute(pd[z]);
     for (int i = 0; i < nfft; ++i)
     {
@@ -1987,6 +1988,10 @@ c998:
     //qDebug()<<"OSD2 nhardmin================"<<nhardmin<<dmin;
 }
 
+void initDecoderPom() {
+    memset(&ca_d2c0, 0, sizeof(ca_d2c0));
+    memset(&da_d2c0, 0, sizeof(da_d2c0));
+}
 
 //// END POMFT ///
 

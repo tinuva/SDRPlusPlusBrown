@@ -7,6 +7,9 @@
 
 #include "mshv_support.h"
 #define NPMAX 100
+
+void initDecoderPom();
+
 class HvThr
 {
 public:

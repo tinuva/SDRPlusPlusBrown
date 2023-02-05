@@ -21,7 +21,7 @@ namespace dsp::demod {
         }
 
         virtual void init(stream<complex_t>* in, double deviation, double samplerate) {
-            init(in, math::hzToRads(deviation, samplerate));
+            init(in, ::dsp::math::hzToRads(deviation, samplerate));
         }
 
         void setDeviation(double deviation) {
@@ -33,7 +33,7 @@ namespace dsp::demod {
         void setDeviation(double deviation, double samplerate) {
             assert(base_type::_block_init);
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
-            _invDeviation = 1.0 / math::hzToRads(deviation, samplerate);
+            _invDeviation = 1.0 / ::dsp::math::hzToRads(deviation, samplerate);
         }
 
         inline int process(int count, complex_t* in, float* out) {

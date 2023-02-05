@@ -1,8 +1,8 @@
 #include <gui/gui.h>
 
 namespace gui {
-    MobileMainWindow *pmainWindow = nullptr;
-    MobileMainWindow &mainWindow = *pmainWindow;
+    MobileMainWindow pmainWindow;
+    MobileMainWindow &mainWindow = pmainWindow;
     ImGui::WaterFall waterfall;
     FrequencySelect freqSelect;
     ThemeManager themeManager;

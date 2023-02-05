@@ -161,13 +161,9 @@ struct QString {
         return rv;
     }
 
-    QString operator+(const char *s) {
-        return (*this->str) + s;
-    }
+    QString operator+(const char *s);
 
-    QString operator+(const char s) {
-        return (*this->str) + s;
-    }
+    QString operator+(const char s);
 
     [[nodiscard]] QString arg(int v) const {
         if (!this->str) {
@@ -212,36 +208,19 @@ struct QString {
         return std::string(buf2);
     }
 
-    void remove(const char *x) {
-        if (strlen(x) == 0) {
-            return;
-        }
-        this->replace(x, "");
-        verify();
-    }
+    void remove(const char *x);
 
-    bool operator ==(const char *x) const {
-        return *str == x;
-    }
+    bool operator ==(const char *x) const;
 
-    bool operator >=(const char *x) const {
-        return *str >= x;
-    }
+    bool operator >=(const char *x) const;
 
-    bool operator <=(const char *x) const {
-        return *str >= x;
-    }
+    bool operator <=(const char *x) const;
 
-    bool operator ==(const QString &x) const {
-        if (x.str->length() != str->length()) {
-            return false;
-        }
-        return *str == *x.str;
-    }
+    bool operator ==(const QString &x) const;
 
-    bool operator !=(const QString &x) const {
-        return !(*this == x);
-    }
+    bool operator !=(const QString &x) const;
+
+    bool operator !=(const char *x) const;
 
     QString operator +(const QString &other) const {
         return *str + *other.str;
@@ -360,19 +339,7 @@ struct QString {
         return this->mid(i, len);
     }
 
-    QStringList split(const char* separ) const {
-        if (strlen(separ) != 1) {
-            abort();
-        }
-        QStringList rv;
-
-        std::istringstream f(*str);
-        std::string t;
-        while (getline(f, t, separ[0])) {
-            rv.list->emplace_back(t);
-        }
-        return rv;
-    }
+    QStringList split(const char* separ) const;
 
     void replace(int start, int len, QString ns);
 

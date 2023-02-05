@@ -2062,7 +2062,7 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
         	candidate0[2][k]=red[n];  //if (n>1500) qDebug()<<"n="<<n;
         	k++;
             if (k == 1) {
-                std::cout << " cand1 i " << i << " ia " << ia << " indx[(iz-1)-i] " << indx[(iz - 1) - i] << " n " << n << " red[n] " << red[n] << std::endl;
+//                std::cout << " cand1 i " << i << " ia " << ia << " indx[(iz-1)-i] " << indx[(iz - 1) - i] << " n " << n << " red[n] " << red[n] << std::endl;
             }
        	} 
        	if (k>=max_c0) break;       	      
@@ -2086,7 +2086,7 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
     }
     ncand=k;
     //if (k>400) qDebug()<<"1FULL="<<max_c0<<">"<<k;
-    std::cout << "ncand: " << ncand << " iz " << iz << " ib " << ib << " syncmin " << syncmin << std::endl;
+//    std::cout << "ncand: " << ncand << " iz " << iz << " ib " << ib << " syncmin " << syncmin << std::endl;
     //! Save only the best of near-dupe freqs.
     for (int i = 0; i < ncand; ++i)//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
     {//do i=1,ncand
@@ -3128,3 +3128,18 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
     delete [] s_;   //qDebug()<<"ft8b Dec"<<decid<<s_ndecodes;
 }
 
+void DecoderFt8::EmitDecodetTextFt(QStringList lst) {
+    char no[10];
+    sprintf(no, "%2d", outCount++);
+    std::cout << currentTimeMillis() << " OUT["<<no<<"]: ";
+    for(int i=0; i<lst.count(); i++) {
+        char buf[1000];
+        sprintf(buf, "{%d}%s ", i, lst[i].str->c_str());
+        std::cout << buf;
+//        std::cout << "{" << i << "}" << lst[i].str->c_str() << " ";
+    }
+    std::cout << std::endl;
+    if (resultsCallback) {
+        resultsCallback(11, lst);
+    }
+}

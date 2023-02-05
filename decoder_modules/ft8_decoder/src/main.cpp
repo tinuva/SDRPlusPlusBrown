@@ -1,4 +1,5 @@
 #include <imgui.h>
+#include <imgui.h>
 #include <config.h>
 #include <core.h>
 #include <gui/style.h>
@@ -7,6 +8,7 @@
 #include <module.h>
 #include <filesystem>
 #include <dsp/stream.h>
+#include <dsp/types.h>
 #include <dsp/buffer/reshaper.h>
 #include <dsp/multirate/rational_resampler.h>
 #include <dsp/sink/handler_sink.h>
@@ -67,6 +69,8 @@ public:
     FT8DecoderModule(std::string name) {
         this->name = name;
 
+//        mshv_init();
+
         // Load config
         config.acquire();
 //        if (!config.conf.contains(name)) {
@@ -114,10 +118,10 @@ public:
             ((FT8DecoderModule*)ctx)->vfo->setInSamplerate(newSampleRate);
         };
 
-
-        usbDemod.init(name, &usbDemodConfig, ifChain.out, 3000, CAPTURE_SAMPLE_RATE);
+        usbDemod = std::make_shared<demod::USB>();
+        usbDemod->init(name, &usbDemodConfig, ifChain.out, 3000, CAPTURE_SAMPLE_RATE);
         ifChain.setInput(&vfo->out, [&](auto ifchainOut){
-            usbDemod.setInput(ifchainOut);
+            usbDemod->setInput(ifchainOut);
             spdlog::info("ifchain change out");
             // next
         });
@@ -129,7 +133,7 @@ public:
             double ADJUST_PERIOD = 0.1; // seconds before adjusting the vfo offset after user changed the center freq
             int beforeAdjust = (int)(CAPTURE_SAMPLE_RATE * ADJUST_PERIOD);
             while(running.load()) {
-                int rd = usbDemod.getOutput()->read();
+                int rd = usbDemod->getOutput()->read();
                 if (rd < 0) {
                     break;
                 }
@@ -152,10 +156,10 @@ public:
 
                 if (enabled && onTheFrequency) {
                     reader.resize(rd);
-                    std::copy(usbDemod.getOutput()->readBuf, usbDemod.getOutput()->readBuf + rd, reader.begin());
+                    std::copy(usbDemod->getOutput()->readBuf, usbDemod->getOutput()->readBuf + rd, reader.begin());
                     handleIFData(reader);
                 }
-                usbDemod.getOutput()->flush();
+                usbDemod->getOutput()->flush();
             }
         });
         reader.detach();
@@ -165,7 +169,6 @@ public:
 
     dsp::chain<dsp::complex_t> ifChain;
     dsp::channel::RxVFO* vfo;
-    demod::USB usbDemod;
     ConfigManager usbDemodConfig;
 
     long long prevBlockNumber = 0;
@@ -203,15 +206,17 @@ public:
 //        spdlog::info("{} Got {} samples: {}", blockNumber, data.size(), data[0].amplitude());
     }
 
+    std::shared_ptr<demod::USB> usbDemod;
+
     void startBlockProcessing(const std::shared_ptr<std::vector<dsp::stereo_t>> &block, int blockNumber, int originalOffset) {
         blockProcessorsRunning.fetch_add(1);
         std::thread processor([=](){
             std::time_t bst = blockNumber * 15;
             spdlog::info("Start processing block, size={}, block time: {}", block->size(), std::asctime(std::gmtime(&bst)));
 
-            dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data(), block->size(), [=](int mode, QStringList result) {
-                int smallOffset = atoi(result[7].str->c_str());
-                ImGui::DecodedResult decodedResult(ImGui::DM_FT8, ((long long)blockNumber) * 15 * 1000 + 13000, originalOffset + smallOffset, *result[4].str, *result[4].str);
+            dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data(), block->size(), [=](int mode, std::vector<std::string> result) {
+                int smallOffset = atoi(result[7].c_str());
+                ImGui::DecodedResult decodedResult(ImGui::DM_FT8, ((long long)blockNumber) * 15 * 1000 + 13000, originalOffset + smallOffset, result[4], result[4]);
                 gui::waterfall.addDecodedResult(decodedResult);
                 return;
             });
@@ -253,7 +258,7 @@ public:
             sigpath::iqFrontEnd.bindIQStream(&iqdata);
             vfo->start();
             ifChain.start();
-            usbDemod.start();
+            usbDemod->start();
             enabled = true;
             spdlog::info("FT8 Decoder enabled");
         }
@@ -269,7 +274,7 @@ public:
 //        sigpath::vfoManager.deleteVFO(vfo);
 
         if (enabled) {
-            usbDemod.stop();
+            usbDemod->stop();
             ifChain.stop();
             vfo->stop();
             sigpath::iqFrontEnd.unbindIQStream(&iqdata);
@@ -391,8 +396,6 @@ private:
     std::string name;
     bool enabled = false;
 
-
-    dsp::FT8Decoder decoder;
 
 //    dsp::buffer::Reshaper<float> reshape;
 //    dsp::sink::Handler<float> diagHandler;

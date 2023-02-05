@@ -258,24 +258,14 @@ endif (OPT_BUILD_NOISE_REDUCTION_LOGMMSE)
 add_executable(sdrpp "src/main.cpp" "win32/resources.rc")
 target_link_libraries(sdrpp PRIVATE sdrpp_core)
 
-
-file(GLOB_RECURSE TEST0_SRC decoder_modules/ft8_decoder/src/*.cpp decoder_modules/ft8_decoder/src/*.c EXCLUDE main.c)
-list(FILTER TEST0_SRC EXCLUDE REGEX "main.c*" )
-
-
-add_executable(test0 "src/test0.cpp" ${TEST0_SRC})
-target_include_directories(test0 PUBLIC "core/src")
-target_link_libraries(test0 PUBLIC fftw3 volk)
-
-set(TARGETS sdrpp test0)
+set(TARGETS sdrpp )
 foreach(TGT IN LISTS TARGETS)
     if (MSVC)
         target_compile_options(${TGT} PRIVATE /O2 /Ob2 /std:c++17 /EHsc)
     elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        target_compile_options(${TGT} PRIVATE -O0 -std=c++17 -Wno-unused-command-line-argument -undefined dynamic_lookup)
-        target_link_options(${TGT} PRIVATE -fsanitize=memory)
+        target_compile_options(${TGT} PRIVATE -std=c++17 -Wno-unused-command-line-argument -undefined dynamic_lookup)
     else ()
-        target_compile_options(${TGT} PRIVATE -O0 -std=c++17)
+        target_compile_options(${TGT} PRIVATE -std=c++17)
     endif ()
 endforeach()
 

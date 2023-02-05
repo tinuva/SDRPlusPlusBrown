@@ -69,7 +69,7 @@ void init_pfx_sfx() {
             return;
         }
         if (q < NZ) {
-            printf("q=%d cha=%s\n", q, x[q]);
+//            printf("q=%d cha=%s\n", q, x[q]);
             pfx[q] = QString(x[q]);
         }
     }

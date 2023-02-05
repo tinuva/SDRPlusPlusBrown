@@ -51,18 +51,7 @@ public:
 
 
 //signals:
-    void EmitDecodetTextFt(QStringList lst) {
-        char no[10];
-        sprintf(no, "%2d", outCount++);
-        std::cout << currentTimeMillis() << " OUT["<<no<<"]: ";
-        for(int i=0; i<lst.count(); i++) {
-            std::cout << "{" << i << "}" << *lst[i].str << " ";
-        }
-        std::cout << std::endl;
-        if (resultsCallback) {
-            resultsCallback(11, lst);
-        }
-    }
+    void EmitDecodetTextFt(QStringList lst);
     void EmitBackColor() {
 //        abort();
     }

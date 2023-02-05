@@ -10,10 +10,10 @@ namespace dsp::taps {
     template<class T>
     inline tap<T> bandPass(double bandStart, double bandStop, double transWidth, double sampleRate, bool oddTapCount = false) {
         assert(bandStop > bandStart);
-        float offsetOmega = math::hzToRads((bandStart + bandStop) / 2.0, sampleRate);
-        int count = estimateTapCount(transWidth, sampleRate);
+        float offsetOmega = ::dsp::math::hzToRads((bandStart + bandStop) / 2.0, sampleRate);
+        int count = ::dsp::taps::estimateTapCount(transWidth, sampleRate);
         if (oddTapCount && !(count % 2)) { count++; }
-        return windowedSinc<T>(count, (bandStop - bandStart) / 2.0, sampleRate, [=](double n, double N) {
+        return ::dsp::taps::windowedSinc<T>(count, (bandStop - bandStart) / 2.0, sampleRate, [=](double n, double N) {
             if constexpr (std::is_same_v<T, float>) {
                 return cosf(offsetOmega * (float)n) * window::nuttall(n, N);
             }
