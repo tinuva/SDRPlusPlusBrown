@@ -25,7 +25,7 @@ namespace dsp::filter {
             buffer = buffer::alloc<D>(STREAM_BUFFER_SIZE + 64000);
             bufStart = &buffer[_taps.size - 1];
             buffer::clear<D>(buffer, _taps.size - 1);
-            spdlog::info("FIR: Allocated buffer of size {0} at {1}", STREAM_BUFFER_SIZE + 64000, (void*)buffer);
+//            spdlog::info("FIR: Allocated buffer of size {0} at {1}", STREAM_BUFFER_SIZE + 64000, (void*)buffer);
 
             base_type::init(in);
         }

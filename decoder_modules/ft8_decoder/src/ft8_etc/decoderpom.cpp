@@ -46,14 +46,19 @@ static int setup_c2c_d2c_(bool &wait,fftw_plan &p,std::complex<double> *a,int nf
     }
     _block_th_all_ = true; //if (cplu == 0) qDebug()<<"----------------------"; cplu++; qDebug()<<"PLANS="<<cplu<<nfft;
 
+    //unsigned int flag = FFTW_ESTIMATE_PATIENT;
+    unsigned int flag = FFTW_ESTIMATE;
+    if (nfft > 6000) {
+        flag = FFTW_ESTIMATE;
+    }
     if 		(isign==-1 && iform==1)
-        p=fftw_plan_dft_1d(nfft,(fftw_complex *)a,(fftw_complex *)a,FFTW_FORWARD,FFTW_ESTIMATE_PATIENT);
+        p=fftw_plan_dft_1d(nfft,(fftw_complex *)a,(fftw_complex *)a,FFTW_FORWARD, flag);
     else if (isign==1 && iform==1)
-        p=fftw_plan_dft_1d(nfft,(fftw_complex *)a,(fftw_complex *)a,FFTW_BACKWARD,FFTW_ESTIMATE_PATIENT);
+        p=fftw_plan_dft_1d(nfft,(fftw_complex *)a,(fftw_complex *)a,FFTW_BACKWARD, flag);
     else if (isign==-1 && iform==0)
-        p=fftw_plan_dft_r2c_1d(nfft, d,(fftw_complex *)a,FFTW_ESTIMATE_PATIENT);
+        p=fftw_plan_dft_r2c_1d(nfft, d,(fftw_complex *)a, flag);
     else if (isign==1 && iform==-1)
-        p=fftw_plan_dft_c2r_1d(nfft,(fftw_complex *)a,d,FFTW_ESTIMATE_PATIENT);
+        p=fftw_plan_dft_c2r_1d(nfft,(fftw_complex *)a,d, flag);
 
     _block_th_all_ = false;
     return 0;
@@ -130,14 +135,6 @@ void HvThr::four2a_d2c(std::complex<double> *a,std::complex<double> *a1,double *
     std::complex<double> aa[NSMALL+10];
     four2a_d2c_cnt++;
 
-    if (four2a_d2c_cnt == 466) {
-        std::cout << "four2a_d2c:466 ";
-        for(int z=0; z<100; z++) {
-            std::cout << a[z] << "/" <<d[z] << " ";
-        }
-        std::cout << std::endl;
-
-    }
 
     if (cpd>NPMAX || nfft>NPAMAX) return;
 
@@ -158,7 +155,7 @@ void HvThr::four2a_d2c(std::complex<double> *a,std::complex<double> *a1,double *
     {
         if (i<cfft) {
             if (std::isnan(a[i].real()) || std::isnan(a[i].imag())) {
-                std::cout << "four2a_d2c._cnt == " << four2a_d2c_cnt << std::endl;
+                std::cout << "four2a_d2c._cnt == " << four2a_d2c_cnt << " i = " << i << std::endl;
                 abort();
             }
             a1[i] = a[i];
@@ -178,6 +175,7 @@ void HvThr::four2a_d2c(std::complex<double> *a,std::complex<double> *a1,double *
         nn_d2c[z]=nfft;
         ns_d2c[z]=isign;
         nf_d2c[z]=iform;
+        std::cout << "created double plan: " << cpd << " " << nfft << " " << isign << " " << iform << std::endl;
         int slpp = 1000;
         bool wait = false; //if (nthreads==1) wait = false; ??? hv
         while (slpp!=0)
@@ -198,13 +196,20 @@ void HvThr::four2a_d2c(std::complex<double> *a,std::complex<double> *a1,double *
         }
     }
 
+    if (four2a_d2c_cnt == 466) {
+        std::cout << "four2a_d2c:466, z=" << z<< " input to fft: ";
+        for(int z=0; z<nfft; z++) {
+            std::cout << a1[z] << " ";
+        }
+        std::cout << std::endl;
+    }
     fftw_execute(pd[z]);
     for (int i = 0; i < nfft; ++i)
     {
         if (i<cfft) {
             a[i] = a1[i];
             if (std::isnan(a[i].real()) || std::isnan(a[i].imag())) {
-                std::cout << "four2a_d2c._cnt == " << four2a_d2c_cnt << std::endl;
+                std::cout << "after exec, four2a_d2c._cnt == " << four2a_d2c_cnt << " i = " << i << " nfft = " << nfft << std::endl;
                 abort();
             }
         }

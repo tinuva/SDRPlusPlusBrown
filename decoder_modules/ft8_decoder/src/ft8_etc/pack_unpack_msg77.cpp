@@ -946,7 +946,7 @@ void PackUnpackMsg77::chkcall(QString w,QString &bc,bool &cok)
     //! One of first two characters (c1 or c2) must be a letter
     //if((.not.isletter(bc(1:1))) .and. (.not.isletter(bc(2:2)))) go to 100
     if ((!bc.at(0).isLetter()) && (!bc.at(1).isLetter())) goto c100;
-    if (bc.mid(0,1)=="Q") goto c100;             //!Calls don't start with Q
+    if (bc.at(0)=='Q') goto c100;             //!Calls don't start with Q
 
     //! Must have a digit in 2nd or 3rd position
     i1=0;
@@ -1569,15 +1569,15 @@ void PackUnpackMsg77::pack77_1(int nwords,QString *w,int &i3,int &n3,bool *c77)
     chkcall(w[0],bcall_1,ok1);
     chkcall(w[1],bcall_2,ok2);
     if (w[0].mid(0,3)=="DE " || w[0].mid(0,3)=="CQ_" || w[0].mid(0,3)=="CQ " || w[0].mid(0,3)=="QRZ ") ok1=true;
-    if (w[0].mid(0,1)=="<" && w[0].indexOf(">")>=5) ok1=true; //<KH1/KH7Z> <zz2zz>
-    if (w[1].mid(0,1)=="<" && w[1].indexOf(">")>=5) ok2=true;
+    if (w[0][0]=='<' && w[0].indexOf(">")>=5) ok1=true; //<KH1/KH7Z> <zz2zz>
+    if (w[1][0]=='<' && w[1].indexOf(">")>=5) ok2=true;
     if (!ok1 || !ok2) return;
-    if (w[0].mid(0,1)=="<" && w[1].indexOf("/")>-1) return;//if(w(1)(1:1).eq.'<' .and. index(w(2),'/').gt.0) return
-    if (w[1].mid(0,1)=="<" && w[0].indexOf("/")>-1) return;//if(w(2)(1:1).eq.'<' .and. index(w(1),'/').gt.0) return;
+    if (w[0][0]=='<' && w[1].indexOf("/")>-1) return;//if(w(1)(1:1).eq.'<' .and. index(w(2),'/').gt.0) return
+    if (w[1][0]=='<' && w[0].indexOf("/")>-1) return;//if(w(2)(1:1).eq.'<' .and. index(w(1),'/').gt.0) return;
     if (nwords==2 && (!ok2 || w[1].indexOf("/")>=1)) return;//if(nwords.eq.2 .and. (.not.ok2 .or. index(w(2),'/').ge.2)) return
     if (nwords==2) goto c10;
 
-    c1=w[nwords-1].mid(0,1);
+    c1=QString(w[nwords-1][0]);
     c2=w[nwords-1].mid(0,2);
     c3_c=w[nwords-1].indexOf(" ");
     c3=w[nwords-1].mid(0,c3_c);
@@ -2205,7 +2205,7 @@ void PackUnpackMsg77::pack77(QString msg,int &i3,int n3,bool *c77)
     //msg = "TU; G3AAA K1ABC +09 FN   ";
     //msg = "TU; G3AAA K1ABC +09 FN   ";
 
-    msg.append(" ");//for any case for label->c5
+    msg.append(' ');//for any case for label->c5
     for (int i = 0; i<19; ++i)
         w[i]="             ";//13 blinks char
 

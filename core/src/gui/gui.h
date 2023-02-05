@@ -12,7 +12,8 @@ namespace gui {
     SDRPP_EXPORT FrequencySelect freqSelect;
     SDRPP_EXPORT Menu menu;
     SDRPP_EXPORT ThemeManager themeManager;
-    SDRPP_EXPORT MobileMainWindow mainWindow;
+    SDRPP_EXPORT MobileMainWindow& mainWindow;
+
 
     void selectSource(std::string name);
 };

@@ -486,7 +486,7 @@ void DecoderMs::jtms(double *dat,int dat_c_begin,int npts,int DFTol,double t2,in
     int max_count_msg = 46;//v1.30 46 for 800pix
     //int part = max_count_msg;
 
-    QString mssg = "";
+    QString mssg;
     //std::complex<double> *idft = new std::complex<double>[N + 1];
     int NZ = 512*1024;
     double *s = new double[NZ+10];

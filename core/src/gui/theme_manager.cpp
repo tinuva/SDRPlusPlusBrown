@@ -39,6 +39,8 @@ bool ThemeManager::loadThemesFromDir(std::string path) {
 }
 
 bool ThemeManager::loadTheme(std::string path) {
+    maybeInitThemeManager();
+
     if (!std::filesystem::is_regular_file(path)) {
         spdlog::error("Theme file doesn't exist: {0}", path);
         return false;
@@ -117,6 +119,9 @@ bool ThemeManager::loadTheme(std::string path) {
 }
 
 bool ThemeManager::applyTheme(std::string name) {
+
+    maybeInitThemeManager();
+
     if (themes.find(name) == themes.end()) {
         spdlog::error("Unknown theme: {0}", name);
         return false;
@@ -187,58 +192,63 @@ std::vector<std::string> ThemeManager::getThemeNames() {
     return names;
 }
 
-std::map<std::string, int> ThemeManager::IMGUI_COL_IDS = {
-    { "Text", ImGuiCol_Text },
-    { "TextDisabled", ImGuiCol_TextDisabled },
-    { "WindowBg", ImGuiCol_WindowBg },
-    { "ChildBg", ImGuiCol_ChildBg },
-    { "PopupBg", ImGuiCol_PopupBg },
-    { "Border", ImGuiCol_Border },
-    { "BorderShadow", ImGuiCol_BorderShadow },
-    { "FrameBg", ImGuiCol_FrameBg },
-    { "FrameBgHovered", ImGuiCol_FrameBgHovered },
-    { "FrameBgActive", ImGuiCol_FrameBgActive },
-    { "TitleBg", ImGuiCol_TitleBg },
-    { "TitleBgActive", ImGuiCol_TitleBgActive },
-    { "TitleBgCollapsed", ImGuiCol_TitleBgCollapsed },
-    { "MenuBarBg", ImGuiCol_MenuBarBg },
-    { "ScrollbarBg", ImGuiCol_ScrollbarBg },
-    { "ScrollbarGrab", ImGuiCol_ScrollbarGrab },
-    { "ScrollbarGrabHovered", ImGuiCol_ScrollbarGrabHovered },
-    { "ScrollbarGrabActive", ImGuiCol_ScrollbarGrabActive },
-    { "CheckMark", ImGuiCol_CheckMark },
-    { "SliderGrab", ImGuiCol_SliderGrab },
-    { "SliderGrabActive", ImGuiCol_SliderGrabActive },
-    { "Button", ImGuiCol_Button },
-    { "ButtonHovered", ImGuiCol_ButtonHovered },
-    { "ButtonActive", ImGuiCol_ButtonActive },
-    { "Header", ImGuiCol_Header },
-    { "HeaderHovered", ImGuiCol_HeaderHovered },
-    { "HeaderActive", ImGuiCol_HeaderActive },
-    { "Separator", ImGuiCol_Separator },
-    { "SeparatorHovered", ImGuiCol_SeparatorHovered },
-    { "SeparatorActive", ImGuiCol_SeparatorActive },
-    { "ResizeGrip", ImGuiCol_ResizeGrip },
-    { "ResizeGripHovered", ImGuiCol_ResizeGripHovered },
-    { "ResizeGripActive", ImGuiCol_ResizeGripActive },
-    { "Tab", ImGuiCol_Tab },
-    { "TabHovered", ImGuiCol_TabHovered },
-    { "TabActive", ImGuiCol_TabActive },
-    { "TabUnfocused", ImGuiCol_TabUnfocused },
-    { "TabUnfocusedActive", ImGuiCol_TabUnfocusedActive },
-    { "PlotLines", ImGuiCol_PlotLines },
-    { "PlotLinesHovered", ImGuiCol_PlotLinesHovered },
-    { "PlotHistogram", ImGuiCol_PlotHistogram },
-    { "PlotHistogramHovered", ImGuiCol_PlotHistogramHovered },
-    { "TableHeaderBg", ImGuiCol_TableHeaderBg },
-    { "TableBorderStrong", ImGuiCol_TableBorderStrong },
-    { "TableBorderLight", ImGuiCol_TableBorderLight },
-    { "TableRowBg", ImGuiCol_TableRowBg },
-    { "TableRowBgAlt", ImGuiCol_TableRowBgAlt },
-    { "TextSelectedBg", ImGuiCol_TextSelectedBg },
-    { "DragDropTarget", ImGuiCol_DragDropTarget },
-    { "NavHighlight", ImGuiCol_NavHighlight },
-    { "NavWindowingHighlight", ImGuiCol_NavWindowingHighlight },
-    { "NavWindowingDimBg", ImGuiCol_NavWindowingDimBg },
-    { "ModalWindowDimBg", ImGuiCol_ModalWindowDimBg }
-};
+std::map<std::string, int> ThemeManager::IMGUI_COL_IDS;
+
+void ThemeManager::maybeInitThemeManager() {
+    if (IMGUI_COL_IDS.size() > 0) { return; }
+    IMGUI_COL_IDS = {
+        { "Text", ImGuiCol_Text },
+        { "TextDisabled", ImGuiCol_TextDisabled },
+        { "WindowBg", ImGuiCol_WindowBg },
+        { "ChildBg", ImGuiCol_ChildBg },
+        { "PopupBg", ImGuiCol_PopupBg },
+        { "Border", ImGuiCol_Border },
+        { "BorderShadow", ImGuiCol_BorderShadow },
+        { "FrameBg", ImGuiCol_FrameBg },
+        { "FrameBgHovered", ImGuiCol_FrameBgHovered },
+        { "FrameBgActive", ImGuiCol_FrameBgActive },
+        { "TitleBg", ImGuiCol_TitleBg },
+        { "TitleBgActive", ImGuiCol_TitleBgActive },
+        { "TitleBgCollapsed", ImGuiCol_TitleBgCollapsed },
+        { "MenuBarBg", ImGuiCol_MenuBarBg },
+        { "ScrollbarBg", ImGuiCol_ScrollbarBg },
+        { "ScrollbarGrab", ImGuiCol_ScrollbarGrab },
+        { "ScrollbarGrabHovered", ImGuiCol_ScrollbarGrabHovered },
+        { "ScrollbarGrabActive", ImGuiCol_ScrollbarGrabActive },
+        { "CheckMark", ImGuiCol_CheckMark },
+        { "SliderGrab", ImGuiCol_SliderGrab },
+        { "SliderGrabActive", ImGuiCol_SliderGrabActive },
+        { "Button", ImGuiCol_Button },
+        { "ButtonHovered", ImGuiCol_ButtonHovered },
+        { "ButtonActive", ImGuiCol_ButtonActive },
+        { "Header", ImGuiCol_Header },
+        { "HeaderHovered", ImGuiCol_HeaderHovered },
+        { "HeaderActive", ImGuiCol_HeaderActive },
+        { "Separator", ImGuiCol_Separator },
+        { "SeparatorHovered", ImGuiCol_SeparatorHovered },
+        { "SeparatorActive", ImGuiCol_SeparatorActive },
+        { "ResizeGrip", ImGuiCol_ResizeGrip },
+        { "ResizeGripHovered", ImGuiCol_ResizeGripHovered },
+        { "ResizeGripActive", ImGuiCol_ResizeGripActive },
+        { "Tab", ImGuiCol_Tab },
+        { "TabHovered", ImGuiCol_TabHovered },
+        { "TabActive", ImGuiCol_TabActive },
+        { "TabUnfocused", ImGuiCol_TabUnfocused },
+        { "TabUnfocusedActive", ImGuiCol_TabUnfocusedActive },
+        { "PlotLines", ImGuiCol_PlotLines },
+        { "PlotLinesHovered", ImGuiCol_PlotLinesHovered },
+        { "PlotHistogram", ImGuiCol_PlotHistogram },
+        { "PlotHistogramHovered", ImGuiCol_PlotHistogramHovered },
+        { "TableHeaderBg", ImGuiCol_TableHeaderBg },
+        { "TableBorderStrong", ImGuiCol_TableBorderStrong },
+        { "TableBorderLight", ImGuiCol_TableBorderLight },
+        { "TableRowBg", ImGuiCol_TableRowBg },
+        { "TableRowBgAlt", ImGuiCol_TableRowBgAlt },
+        { "TextSelectedBg", ImGuiCol_TextSelectedBg },
+        { "DragDropTarget", ImGuiCol_DragDropTarget },
+        { "NavHighlight", ImGuiCol_NavHighlight },
+        { "NavWindowingHighlight", ImGuiCol_NavWindowingHighlight },
+        { "NavWindowingDimBg", ImGuiCol_NavWindowingDimBg },
+        { "ModalWindowDimBg", ImGuiCol_ModalWindowDimBg }
+    };
+}

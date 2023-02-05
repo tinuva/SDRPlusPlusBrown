@@ -42,7 +42,7 @@ void doDecode(const char *path) {
 
     try {
         for(int q=0; q<2; q++) {
-            std::cout << "================================" << std::endl;
+//            spdlog::info("=================================");
             dsp::ft8::decodeFT8(hdr->sampleRate, (dsp::stereo_t*)data, nSamples, [](int mode, QStringList result) {
             });
         }
@@ -53,6 +53,7 @@ void doDecode(const char *path) {
 }
 
 int main(int argc, char* argv[]) {
+    mshv_init();
     if (argc == 3 && !strcmp(argv[1],"--decode")) {
         doDecode(argv[2]);
         exit(0);

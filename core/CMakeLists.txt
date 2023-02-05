@@ -34,7 +34,8 @@ add_library(sdrpp_core SHARED ${SRC} ${BACKEND_SRC})
 if (MSVC)
     target_compile_options(sdrpp_core PRIVATE /O2 /Ob2 /std:c++17 /EHsc)
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(sdrpp_core PRIVATE -std=c++17)
+    target_compile_options(sdrpp_core PRIVATE -std=c++17 -fsanitize=memory)
+    target_link_options(sdrpp_core PRIVATE -fsanitize=memory)
 else ()
     target_compile_options(sdrpp_core PRIVATE -std=c++17)
 endif ()
@@ -98,8 +99,8 @@ if (MSVC)
     target_link_libraries(sdrpp_core PUBLIC glfw)
 
     # FFTW3
-    find_package(FFTW3f CONFIG REQUIRED)
-    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3f )
+#    find_package(FFTW3f CONFIG REQUIRED)
+#    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3f )
 #    set(FFTW3f_LIBRARIES ${FFTW3_LIBRARIES})
 #    set(FFTW3f_LIBRARY_DIRS ${FFTW3_LIBRARY_DIRS})
 #    set(FFTW3f_INCLUDE_DIRS ${FFTW3_INCLUDE_DIRS})
@@ -135,12 +136,21 @@ else()
 
 
 
-    pkg_check_modules(FFTW3 REQUIRED fftw3f)
-    set(FFTW3F_LIBRARIES ${FFTW3_LIBRARIES})
-    set(FFTW3F_LIBRARY_DIRS ${FFTW3_LIBRARY_DIRS})
-    set(FFTW3F_INCLUDE_DIRS ${FFTW3_INCLUDE_DIRS})
-    pkg_check_modules(FFTW3 REQUIRED fftw3)
+#    pkg_check_modules(FFTW3 REQUIRED fftw3f)
+#    set(FFTW3F_LIBRARIES ${FFTW3_LIBRARIES})
+#    set(FFTW3F_LIBRARY_DIRS ${FFTW3_LIBRARY_DIRS})
+#    set(FFTW3F_INCLUDE_DIRS ${FFTW3_INCLUDE_DIRS})
+#    pkg_check_modules(FFTW3 REQUIRED fftw3)
 
+
+    # temp
+
+    set(FFTW3F_LIBRARY_DIRS /home/san/Fun/fftw-3.3.10/inst/lib)
+    set(FFTW3_LIBRARY_DIRS /home/san/Fun/fftw-3.3.10/inst/lib)
+    set(FFTW3F_INCLUDE_DIRS /home/san/Fun/fftw-3.3.10/inst/include)
+    set(FFTW3_INCLUDE_DIRS /home/san/Fun/fftw-3.3.10/inst/include)
+    set(FFTW3F_LIBRARIES /home/san/Fun/fftw-3.3.10/inst/lib/libfftw3f.a)
+    set(FFTW3_LIBRARIES /home/san/Fun/fftw-3.3.10/inst/lib/libfftw3.a)
 
     pkg_check_modules(VOLK REQUIRED volk)
     pkg_check_modules(GLFW3 REQUIRED glfw3)
@@ -173,6 +183,7 @@ else()
         ${VOLK_LIBRARIES}
         ${LIBZSTD_LIBRARIES}
     )
+
 
 #    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3f )
 #    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3 )

@@ -109,17 +109,19 @@ namespace displaymenu {
         gui::waterfall.setFFTHold(fftHold);
         updateFFTHoldSpeed();
 
+
         // Define and load UI scales
         uiScales.define(1.0f, "100%", 1.0f);
-        uiScales.define(1.0f, "125%", 1.25f);
-        uiScales.define(1.0f, "150%", 1.0f);
-        uiScales.define(1.0f, "175%", 1.75f);
+        uiScales.define(1.25f, "125%", 1.25f);
+        uiScales.define(1.50f, "150%", 1.50f);
+        uiScales.define(1.75f, "175%", 1.75f);
         uiScales.define(2.0f, "200%", 2.0f);
-        uiScales.define(2.0f, "250%", 2.50f);
+        uiScales.define(2.50f, "250%", 2.50f);
         uiScales.define(3.0f, "300%", 3.0f);
         uiScales.define(4.0f, "400%", 4.0f);
         uiScaleId = uiScales.valueId(style::uiScale);
     }
+
 
     void draw(void* ctx) {
         float menuWidth = ImGui::GetContentRegionAvail().x;
@@ -152,7 +154,6 @@ namespace displaymenu {
                 core::configManager.release(true);
             }
         }
-
 
         if (ImGui::Checkbox("FFT Hold##_sdrpp", &fftHold)) {
             gui::waterfall.setFFTHold(fftHold);

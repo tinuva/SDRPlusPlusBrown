@@ -96,25 +96,29 @@ struct QString {
         str = std::make_shared<std::string>();
     }
 
-    QString(const char *init) {
-        str = std::make_shared<std::string>(init);
-    }
+    QString(const QString &other);
 
-    QString(char init) {
-        char buf[2] = {0, 0};
-        buf[0] = init;
-        str = std::make_shared<std::string>(buf);
-    }
+    QString(QString &&other) noexcept ;
 
-    QString(const std::string &init) {
-        str = std::make_shared<std::string>(init);
-    }
+    QString & operator= (const QString &other);
+
+    QString & operator= (const char *ptr);
+
+    void verify();
+
+    void initWithConstChar(const char *init, int len);
+
+    QString(const char *init);
+
+    explicit QString(char init);
+
+    QString(const std::string &init);
 
     int count() const {
         return str->length();
     }
 
-    int length() {
+    int length() const {
         return str->length();
     }
 
@@ -212,7 +216,8 @@ struct QString {
         if (strlen(x) == 0) {
             return;
         }
-        return this->replace(x, "");
+        this->replace(x, "");
+        verify();
     }
 
     bool operator ==(const char *x) const {
@@ -228,6 +233,9 @@ struct QString {
     }
 
     bool operator ==(const QString &x) const {
+        if (x.str->length() != str->length()) {
+            return false;
+        }
         return *str == *x.str;
     }
 
@@ -284,21 +292,17 @@ struct QString {
         return nv;
     }
 
-    void append(const char *s) {
-        str = std::make_shared<std::string>(*str + s);
-    }
+    void mutated();
 
-    void append(const QString &s) {
-        str = std::make_shared<std::string>(*str + *s.str);
-    }
+    void append(const char *s);
+
+    void append(const QString &s);
 
     int lastIndexOf(const QString &s, int trimFirst) const {
         return this->mid(0, trimFirst).lastIndexOf(s);
     }
 
-    void insert(int pos, const QString &s) {
-        replaceWith(str->substr(0, pos) + *s.str + str->substr(pos));
-    }
+    void insert(int pos, const QString &s);
 
     bool isEmpty() const {
         return str->empty();
@@ -312,28 +316,18 @@ struct QString {
         return rv;
     }
 
-    void replaceWith(const std::string &s) {
-        str = std::make_shared<std::string>(s);
-    }
+    void replaceWith(const std::string &s);
 
-    void prepend(const QString &s) {
-        replaceWith(*s.str + *str);
-    }
+    void prepend(const QString &s);
 
-    void prepend(const char *s) {
-        replaceWith(s + *str);
-    }
+    void prepend(const char *s);
 
-    void append(char s) {
-        replaceWith(*str + s);
-    }
+    void append(char s);
 
-    void prepend(char s) {
-        replaceWith(s + *str);
-    }
+    void prepend(char s);
 
     QChar &operator[](int index) const {
-        if (index >= str->size()) {
+        if (index >= str->length()) {
             throw std::runtime_error("string index[] error");
         }
         QChar *p = (QChar *)str->data()+index;
@@ -350,8 +344,8 @@ struct QString {
 
 
     [[nodiscard]] QString mid(int i, int len) const {
-        if (i+len > str->size()) {
-            len = str->size()-i;
+        if (i+len > str->length()) {
+            len = str->length()-i;
         }
         if (len < 0) {
             len = 0;
@@ -380,18 +374,10 @@ struct QString {
         return rv;
     }
 
-    void replace(int start, int len, QString ns) {
-        str->replace(start, start + len, ns.str->c_str());
-    }
+    void replace(int start, int len, QString ns);
 
-    void replace(const char* string, const char* string1) {
-        auto pos = str->find(string);
-        if (pos == std::string::npos) {
-            return;
-        }
-        str->replace(pos, strlen(string), string1);
-        return replace(string, string1);
-    }
+    void replace(const char* string, const char* string1);
+
     bool startsWith(const char* string) {
         return str->find(string) == 0;
     }
@@ -457,3 +443,4 @@ inline double cabs(std::complex<double> c) {
     return abs(c);
 }
 
+void mshv_init();

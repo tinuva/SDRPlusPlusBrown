@@ -46,6 +46,7 @@ SPDLOG_INLINE void ansicolor_sink<ConsoleMutex>::log(const details::log_msg &msg
     msg.color_range_start = 0;
     msg.color_range_end = 0;
     memory_buf_t formatted;
+    memset(formatted.data(), 0, formatted.size());
     formatter_->format(msg, formatted);
     if (should_do_colors_ && msg.color_range_end > msg.color_range_start)
     {

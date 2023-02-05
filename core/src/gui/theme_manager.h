@@ -26,6 +26,7 @@ public:
 
 private:
     static bool decodeRGBA(std::string str, uint8_t out[4]);
+    static void maybeInitThemeManager();
 
     static std::map<std::string, int> IMGUI_COL_IDS;
 
