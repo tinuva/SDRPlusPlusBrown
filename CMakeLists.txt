@@ -240,7 +240,10 @@ add_subdirectory("misc_modules/rigctl_server")
 endif (OPT_BUILD_RIGCTL_SERVER)
 
 if (OPT_BUILD_TCI_SERVER)
-add_subdirectory("misc_modules/tci_server")
+    if (MSVC)
+    else()
+        add_subdirectory("misc_modules/tci_server")
+    endif()
 endif (OPT_BUILD_TCI_SERVER)
 
 if (OPT_BUILD_SCANNER)
