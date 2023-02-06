@@ -222,7 +222,19 @@ private:
         if (pos == std::string::npos) return 0;
         std::string dateTimeStre = filename.substr(pos+3, 19);
         std::tm tm;
-        char *end = strptime(dateTimeStre.c_str(), "%H-%M-%S_%d-%m-%Y", &tm);
+        char* end;
+#ifdef _WIN32
+        int n = sscanf(dateTimeStre.c_str(), "%d-%d-%d_%d-%d-%d", &tm.tm_hour, &tm.tm_min, &tm.tm_sec, &tm.tm_mday, &tm.tm_mon, &tm.tm_year);
+        tm.tm_mon--;
+        if (n == 6) {
+            end = nullptr;
+        }
+        else {
+            end = "X";
+        }
+#else
+        end = strptime(dateTimeStre.c_str(), "%H-%M-%S_%d-%m-%Y", &tm);
+#endif
         if (!end || *end == 0) {
             std::time_t t1 = std::mktime(&tm);
             std::cout << std::asctime(&tm) << '\n';

@@ -1,3 +1,5 @@
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <imgui.h>
 #include <module.h>
 #include <gui/gui.h>
@@ -6,6 +8,7 @@
 #include <dsp/buffer/packer.h>
 #include <dsp/convert/stereo_to_mono.h>
 #include <spdlog/spdlog.h>
+
 #include <RtAudio.h>
 #include <config.h>
 #include <core.h>

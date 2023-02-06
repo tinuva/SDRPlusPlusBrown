@@ -3,8 +3,8 @@
  * May be used under the terms of the GNU General Public License (GPL)
  */
 
-#include "mscore.h"
 #include "mshv_support.h"
+#include "mscore.h"
 #include <algorithm> // zaradi max(
 //#include <unistd.h>
 

@@ -26,14 +26,40 @@ Copyright (c) 2020 Meng Rao <raomeng1@gmail.com>
 
 
 #pragma once
-#include <unistd.h>
 #include <fcntl.h>
+#ifdef _WIN32
+#include <WinSock2.h>
+#else
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#endif
 #include <string.h>
 #include <limits>
 #include <iostream>
 #include <memory>
+#include <chrono>
+
+#ifdef _WIN32
+inline uint16_t htobe16(uint16_t host_16bits) {
+    char* a = (char*)&host_16bits;
+    std::swap(a[0], a[1]);
+    return host_16bits;
+}
+#endif
+
+#ifdef _WIN32
+inline uint64_t htobe64(uint64_t host_64bits) {
+    uint64_t z; 
+    char* a = (char*)&host_64bits;
+    char* b = (char*)&z;
+    for (int i = 0; i < 8; i++) {
+        b[i] = a[7 - i];
+    }
+    return z;
+}
+#endif
+
 
 namespace websocket {
 
@@ -79,10 +105,27 @@ namespace websocket {
         }
 
         bool write(const uint8_t* data, uint32_t size, bool more = false) {
-            int flags = MSG_NOSIGNAL;
+            int flags = 0;
+            #ifdef _WIN32
+            //
+            #else
+            flags = MSG_NOSIGNAL;
             if (more) flags |= MSG_MORE;
+            #endif
             do {
+                #ifdef WIN32
+                DWORD sent;
+                int rv = WSASend(fd_, (LPWSABUF)data, size, &sent, flags, NULL, NULL);
+                if (rv != 0) {
+                    sent = -1;
+                    errno = WSAGetLastError();
+                    if (errno = WSAEWOULDBLOCK) {
+                        errno = EAGAIN;
+                    }
+                }
+                #else
                 int sent = ::send(fd_, data, size, flags);
+                #endif
                 if (sent < 0) {
                     if (errno != EAGAIN) {
                         close("send error", true);
@@ -168,7 +211,7 @@ namespace websocket {
     public:
         using TcpConnection = SocketTcpConnection<RecvBufSize>;
 
-        bool init(const char* interface, const char* server_ip, uint16_t server_port) {
+        bool init(const char* , const char* server_ip, uint16_t server_port) {
             listenfd_ = socket(AF_INET, SOCK_STREAM, 0);
             if (listenfd_ < 0) {
                 saveError("socket error");
@@ -237,9 +280,15 @@ namespace websocket {
     };
 
     inline uint64_t getns() {
+        #ifdef _WIN32
+        std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
+        long long msec = std::chrono::time_point_cast<std::chrono::nanoseconds>(t1).time_since_epoch().count();
+        return msec;
+        #else
         timespec ts;
         ::clock_gettime(CLOCK_REALTIME, &ts);
         return ts.tv_sec * 1000000000 + ts.tv_nsec;
+        #endif
     }
 
     static const uint8_t OPCODE_CONT = 0;
@@ -291,6 +340,7 @@ namespace websocket {
             conn.write(h, h_len, true);
             conn.write(payload, pl_len, false);
         }
+
 
         // clean close the connection with optional status_code and reason
         void close(uint16_t status_code = 1005, const char* reason = "") {
@@ -407,7 +457,7 @@ namespace websocket {
         uint8_t recv_opcode;
         uint32_t frame_size;
         uint64_t expire_time;
-        uint8_t frame[RecvSegment ? 0 : RecvBufSize];
+        uint8_t frame[RecvSegment ? 1 : RecvBufSize];
         typename SocketTcpServer<RecvBufSize>::TcpConnection conn;
         uint8_t close_reason[128]; // first 2 bytes are status_code(big endian)
     };
@@ -546,8 +596,8 @@ namespace websocket {
 
         bool poll(EventHandler* handler) {
             uint64_t now = getns();
-            uint64_t new_expire = newconn_timeout_ ? now + newconn_timeout_ : std::numeric_limits<uint64_t>::max();
-            uint64_t open_expire = openconn_timeout_ ? now + openconn_timeout_ : std::numeric_limits<uint64_t>::max();
+            uint64_t new_expire = newconn_timeout_ ? now + newconn_timeout_ : 0x7FFFFFFFFFFFFFFFLL;
+            uint64_t open_expire = openconn_timeout_ ? now + openconn_timeout_ : 0x7FFFFFFFFFFFFFFFLL;
             bool didWork = false;
             if (conns_cnt_ < MaxConns) {
                 Connection& new_conn = *conns_[conns_cnt_];

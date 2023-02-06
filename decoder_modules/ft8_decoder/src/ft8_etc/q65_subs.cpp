@@ -29,6 +29,7 @@
  * May be used under the terms of the GNU General Public License (GPL)
  */
 //#include <QtGui>
+#include "mshv_support.h"
 #include "q65_subs.h"
 #include <stdio.h>
 #include <math.h>

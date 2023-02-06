@@ -245,7 +245,7 @@ private:
 //#include <QStringList>
 //#include <QElapsedTimer>
 #include <math.h>	//los
-#include <unistd.h> //usleep x86_64 pthread.h
+// #include <unistd.h> //usleep x86_64 pthread.h
 /*
 #include "../config.h"
 #if defined _WIN32_

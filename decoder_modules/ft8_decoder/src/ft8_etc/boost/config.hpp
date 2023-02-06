@@ -36,7 +36,7 @@
 #endif
 // if we have a compiler config, include it now:
 #ifdef BOOST_COMPILER_CONFIG
-#  include BOOST_COMPILER_CONFIG
+// #  include BOOST_COMPILER_CONFIG
 #endif
 
 // if we don't have a std library config set, try and find one:

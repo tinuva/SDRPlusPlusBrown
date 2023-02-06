@@ -2,7 +2,10 @@
 
 #include <core.h>
 #include <../../misc_modules/recorder/src/wav.h>
+
+#ifndef _WIN32
 #include <wait.h>
+#endif
 
 // extern int four2a_d2c_cnt;
 

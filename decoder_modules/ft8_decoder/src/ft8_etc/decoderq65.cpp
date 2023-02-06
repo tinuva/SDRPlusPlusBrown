@@ -1854,7 +1854,7 @@ void DecoderQ65::q65_dec0(int iavg,double *iwave,double nfqso,
                 if (mm>=0 && mm<iz) s1w_[w3t][w3f] = s1_[w3t][mm]; //s1w(w3f,w3t)=s1(mm,w3t)
             }
         }
-        if (ncw>0 and iavg<=1) //! Try list decoding via "Deep Likelihood".
+        if (ncw>0 && iavg<=1) //! Try list decoding via "Deep Likelihood".
         {
             double better = 0.0; //! Try to synchronize using all 85 symbols
             q65_ccf_85(s1w_,iz,jz,nfqso,ia,ia2,ipk,jpk,f0,xdt/*,imsg_best*/,better/*,ccf1*/);

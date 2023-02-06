@@ -1,6 +1,8 @@
 
 #pragma once
 
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <vector>
 #include <string>
 
@@ -9,9 +11,30 @@
 #include <fftw3.h>
 #include <memory>
 #include <cstring>
+#include <thread>
 
 #ifdef I
 #undef I
+#endif
+
+#ifdef _WIN32
+#include <stdlib.h>
+#include <malloc.h>
+#include <windows.h>
+
+//extern "C" {
+//void Sleep(unsigned long dwMilliseconds);
+//}
+
+inline void usleep(int i) {
+
+    ::Sleep(i / 1000);
+}
+
+typedef std::thread pthread_t;
+#define pthread_create(pThrVar, NU, fun, arg) std::swap(*pThrVar, std::thread([=] { fun(arg); }))
+#define pthread_detach(thr)                   thr.detach();
+#define pthread_exit(thr)                     TerminateThread(GetCurrentThread(), 0)
 #endif
 
 

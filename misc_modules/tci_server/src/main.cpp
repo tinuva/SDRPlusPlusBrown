@@ -567,7 +567,11 @@ private:
                         server.stopAudioData(conn);
                     }
                     if (selected.empty()) {
+                        #ifdef _WIN32
+                        Sleep(10);
+                        #else
                         usleep(10000);
+                        #endif
                     }
                     else {
                         for (auto& conn : selected) {

@@ -5,7 +5,7 @@
 //#include "decoderms.h"
 #include "decoderpom.h"
 //#include <QRegExp>
-#include <unistd.h>
+//#include <unistd.h>
 #include <regex>
 #include <iostream>
 #define MN_NM_NRW_FT_174_91

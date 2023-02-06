@@ -677,7 +677,11 @@ void DecoderFt4::subtractft4(double *dd,int *itone,double f0,double dt)
     if (first_subsft4)
     {
         //! Create and normalize the filter
-        double window[NFILT+100] __attribute__((aligned(16)));
+        double window[NFILT+100] 
+#ifndef _WIN32
+            __attribute__((aligned(16)))
+#endif
+            ;
         double fac=1.0/double(NFFT);
         double sum=0.0;
         for (int j = -NFILT/2; j < NFILT/2; ++j)

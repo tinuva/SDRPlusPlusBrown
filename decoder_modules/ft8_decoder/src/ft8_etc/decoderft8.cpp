@@ -489,7 +489,11 @@ void DecoderFt8::subtractft8(double *dd,int *itone,double f0,double dt,bool lref
     if (first_subsft8) //then //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
     {
         //! Create and normalize the filter
-        double window[NFILT+200] __attribute__((aligned(16)));
+        double window[NFILT+200] 
+#ifndef _WIN32
+            __attribute__((aligned(16)))
+#endif
+            ;
         double fac=1.0/double(NFFT);
         double sumw=0.0;
         for (int j = -NFILT/2; j < NFILT/2; ++j)
@@ -3136,7 +3140,8 @@ void DecoderFt8::EmitDecodetTextFt(QStringList lst) {
 //        std::cout << "{" << i << "}" << lst[i].str->c_str() << " ";
     }
     strcat(buf,"\n");
-    write(STDOUT_FILENO, buf, strlen(buf));
+    fwrite(buf, 1, strlen(buf), stdout);
+    fflush(stdout);
     if (resultsCallback) {
         resultsCallback(11, lst);
     }
