@@ -38,7 +38,8 @@ class FT8DecoderModule : public ModuleManager::Instance {
     dsp::stream<dsp::complex_t> iqdata;
     std::atomic_bool running;
 
-    const int CAPTURE_SAMPLE_RATE = 12000;
+    const int VFO_SAMPLE_RATE = 24000;
+//    const int CAPTURE_SAMPLE_RATE = 12000;
 
 public:
     int rangeContainsInclusive(double largeRangeStart, double largeRangeEnd, double smallRangeStart, double smallRangeEnd) {
@@ -49,15 +50,15 @@ public:
     }
 
     const int INVALID_OFFSET = 0x7FFFFFFF;
-    const int VFO_BANDWIDTH = 6000;
+    const int USB_BANDWIDTH = 3000;
 
-    int calculateVFOOffset(double centerFrequency, double bandwidth) {
-        int rangeStart = centerFrequency - bandwidth;
-        int rangeEnd = centerFrequency + bandwidth;
+    int calculateVFOCenterOffset(double centerFrequency, double ifBandwidth) {
+        int rangeStart = centerFrequency - ifBandwidth;
+        int rangeEnd = centerFrequency + ifBandwidth;
         const int frequencies[] = { 1840000, 3573000, 7074000, 10136000, 14074000, 18100000, 21074000, 24915000, 28074000, 50000000 };
         for (auto q = std::begin(frequencies); q != std::end(frequencies); q++) {
-            auto center = (*q + VFO_BANDWIDTH / 2); // 1500 is the offset of the center of the band
-            if (rangeContainsInclusive(rangeStart, rangeEnd, (double)(center - VFO_BANDWIDTH / 2), (double(center + VFO_BANDWIDTH / 2)))) {
+            auto center = (*q + USB_BANDWIDTH);
+            if (rangeContainsInclusive(rangeStart, rangeEnd, (double)(center - USB_BANDWIDTH), (double(center + USB_BANDWIDTH)))) {
                 return center - centerFrequency;
             }
         }
@@ -109,7 +110,7 @@ public:
 
         gui::menu.registerEntry(name, menuHandler, this, this);
 
-        vfo = new dsp::channel::RxVFO(&iqdata, sigpath::iqFrontEnd.getEffectiveSamplerate(), CAPTURE_SAMPLE_RATE, CAPTURE_SAMPLE_RATE, vfoOffset);
+        vfo = new dsp::channel::RxVFO(&iqdata, sigpath::iqFrontEnd.getEffectiveSamplerate(), VFO_SAMPLE_RATE, USB_BANDWIDTH, vfoOffset);
 
         sigpath::iqFrontEnd.onEffectiveSampleRateChange.bindHandler(&iqSampleRateListener);
         iqSampleRateListener.ctx = this;
@@ -124,7 +125,8 @@ public:
         usbDemodConfig.conf[name]["USB"]["agcAttack"] = 0.0;
         usbDemodConfig.conf[name]["USB"]["agcDecay"] = 0.0;
         usbDemodConfig.release(true);
-        usbDemod->init(name, &usbDemodConfig, ifChain.out, 3000, CAPTURE_SAMPLE_RATE);
+        usbDemod->init(name, &usbDemodConfig, ifChain.out, USB_BANDWIDTH, VFO_SAMPLE_RATE);
+//        usbDemod->setFrozen(true);
         ifChain.setInput(&vfo->out, [&](auto ifchainOut) {
             usbDemod->setInput(ifchainOut);
             spdlog::info("ifchain change out");
@@ -136,7 +138,7 @@ public:
             auto _this = this;
             std::vector<dsp::stereo_t> reader;
             double ADJUST_PERIOD = 0.1; // seconds before adjusting the vfo offset after user changed the center freq
-            int beforeAdjust = (int)(CAPTURE_SAMPLE_RATE * ADJUST_PERIOD);
+            int beforeAdjust = (int)(VFO_SAMPLE_RATE * ADJUST_PERIOD);
             while (running.load()) {
                 int rd = usbDemod->getOutput()->read();
                 if (rd < 0) {
@@ -144,8 +146,8 @@ public:
                 }
                 beforeAdjust -= rd;
                 if (beforeAdjust <= 0) {
-                    beforeAdjust = (int)(CAPTURE_SAMPLE_RATE * ADJUST_PERIOD);
-                    int newOffset = calculateVFOOffset(gui::waterfall.getCenterFrequency(), gui::waterfall.getBandwidth());
+                    beforeAdjust = (int)(VFO_SAMPLE_RATE * ADJUST_PERIOD);
+                    int newOffset = calculateVFOCenterOffset(gui::waterfall.getCenterFrequency(), gui::waterfall.getBandwidth());
                     if (newOffset == INVALID_OFFSET) {
                         onTheFrequency = false;
                     }
@@ -156,7 +158,8 @@ public:
                         }
                         else {
                             vfoOffset = newOffset;
-                            vfo->setOffset(vfoOffset - (3000 - 763));
+                            spdlog::info("FT8 vfo: center offset {}, bandwidth: {}", vfoOffset, USB_BANDWIDTH);
+                            vfo->setOffset(vfoOffset - USB_BANDWIDTH/2);
                         }
                     }
                 }
@@ -198,9 +201,9 @@ public:
             }
             if (shouldStartProcessing) {
                 // no processing is done.
-                if (processingBlock->size() / CAPTURE_SAMPLE_RATE > 16 || processingBlock->size() / CAPTURE_SAMPLE_RATE <= 13) {
+                if (processingBlock->size() / VFO_SAMPLE_RATE > 16 || processingBlock->size() / VFO_SAMPLE_RATE <= 13) {
                     spdlog::info("Block size is not matching: {}, curtime={}",
-                                 processingBlock->size() / CAPTURE_SAMPLE_RATE,
+                                 processingBlock->size() / VFO_SAMPLE_RATE,
                                  curtime);
                     processingBlock.reset(); // clear for new one
                 }
@@ -213,7 +216,7 @@ public:
             fullBlock.clear();
         }
         fullBlock.insert(std::end(fullBlock), std::begin(data), std::end(data));
-        //        spdlog::info("{} Got {} samples: {}", blockNumber, data.size(), data[0].amplitude());
+//        spdlog::info("{} Got {} samples: {}", blockNumber, data.size(), data[0].l);
     }
 
     std::shared_ptr<demod::USB> usbDemod;
@@ -243,20 +246,20 @@ public:
                 return;
             };
             std::thread t0([=]() {
-                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data(), block->size(), handler);
+                dsp::ft8::decodeFT8(VFO_SAMPLE_RATE, block->data(), block->size(), handler);
             });
-            std::thread t1([=]() {
-                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + CAPTURE_SAMPLE_RATE, block->size() - CAPTURE_SAMPLE_RATE, handler);
-            });
-            std::thread t2([=]() {
-                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + 2 * CAPTURE_SAMPLE_RATE, block->size() - 2 * CAPTURE_SAMPLE_RATE, handler);
-            });
-            std::thread t3([=]() {
-                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + 3 * CAPTURE_SAMPLE_RATE, block->size() - 3 * CAPTURE_SAMPLE_RATE, handler);
-            });
-            t3.join();
-            t2.join();
-            t1.join();
+//            std::thread t1([=]() {
+//                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + CAPTURE_SAMPLE_RATE, block->size() - CAPTURE_SAMPLE_RATE, handler);
+//            });
+//            std::thread t2([=]() {
+//                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + 2 * CAPTURE_SAMPLE_RATE, block->size() - 2 * CAPTURE_SAMPLE_RATE, handler);
+//            });
+//            std::thread t3([=]() {
+//                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + 3 * CAPTURE_SAMPLE_RATE, block->size() - 3 * CAPTURE_SAMPLE_RATE, handler);
+//            });
+//            t3.join();
+//            t2.join();
+//            t1.join();
             t0.join();
 
             blockProcessorsRunning.fetch_add(-1);
@@ -325,106 +328,6 @@ private:
     static void menuHandler(void* ctx) {
         FT8DecoderModule* _this = (FT8DecoderModule*)ctx;
 
-        /*
-        float menuWidth = ImGui::GetContentRegionAvail().x;
-
-        if (!_this->enabled) { style::beginDisabled(); }
-
-        ImGui::SetNextItemWidth(menuWidth);
-        _this->diag.draw();
-
-        {
-            std::lock_guard lck(_this->lsfMtx);
-
-            auto now = std::chrono::high_resolution_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - _this->lastUpdated).count() > 1000) {
-                _this->lsf.valid = false;
-            }
-
-            ImGui::BeginTable(CONCAT("##ft8_info_tbl_", _this->name), 2, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders);
-            if (!_this->lsf.valid) {
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("Source");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::TextUnformatted("--");
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("Destination");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::TextUnformatted("--");
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("Data Type");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::TextUnformatted("--");
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("Encryption");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::TextUnformatted("-- (Subtype --)");
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("CAN");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::TextUnformatted("--");
-            }
-            else {
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("Source");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::TextUnformatted(_this->lsf.src.c_str());
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("Destination");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::TextUnformatted(_this->lsf.dst.c_str());
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("Data Type");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::TextUnformatted(FT8DataTypesTxt[_this->lsf.dataType]);
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("Encryption");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%s (Subtype %d)", FT8EncryptionTypesTxt[_this->lsf.encryptionType], _this->lsf.encryptionSubType);
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted("CAN");
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%d", _this->lsf.channelAccessNum);
-            }
-            ImGui::EndTable();
-        }
-
-        if (ImGui::Checkbox(CONCAT("Show Reference Lines##ft8_showlines_", _this->name), &_this->showLines)) {
-            if (_this->showLines) {
-                _this->diag.lines.push_back(-0.75f);
-                _this->diag.lines.push_back(-0.25f);
-                _this->diag.lines.push_back(0.25f);
-                _this->diag.lines.push_back(0.75f);
-            }
-            else {
-                _this->diag.lines.clear();
-            }
-            config.acquire();
-            config.conf[_this->name]["showLines"] = _this->showLines;
-            config.release(true);
-        }
-
-        if (!_this->enabled) { style::endDisabled(); }
-
-         */
     }
 
     std::string name;

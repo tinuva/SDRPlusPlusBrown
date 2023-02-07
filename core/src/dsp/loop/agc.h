@@ -75,7 +75,7 @@ namespace dsp::loop {
         inline int process(int count, T* in, T* out) {
             for (int i = 0; i < count; i++) {
                 // Get signal amplitude
-                float inAmp, gain;
+                float inAmp, gain = 1.0;
                 if constexpr (std::is_same_v<T, complex_t>) {
                     inAmp = in[i].amplitude();
                 }

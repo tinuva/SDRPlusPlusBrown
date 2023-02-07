@@ -36,6 +36,8 @@ namespace dsp {
             //
 
 
+            std::vector<dsp::stereo_t> samplez;
+            samplez.resize(nsamples);
             std::vector<dsp::stereo_t> resampledV;
 
             int max = 0;
@@ -45,14 +47,14 @@ namespace dsp {
             }
 
             spdlog::info("max: {}", max);
-            if (max > 1) {
-                for(int i=0; i<nsamples; i++) {
-                    samples[i].l /= max;
-                    samples[i].r /= max;
-                }
+            if (max == 0) {
+                max = 1;        // leave zeros. whatever.
             }
-
-
+            for(int i=0; i<nsamples; i++) {
+                samplez[i].l = samples[i].l / max;
+                samplez[i].r = samples[i].r / max;
+            }
+            samples = samplez.data();
 
             if (sampleRate != 12000) {
                 long long int outSize = 3 * (nsamples * 12000) / sampleRate;
@@ -62,8 +64,6 @@ namespace dsp {
                 nsamples = res.process(nsamples, samples, resampledV.data());
                 samples = resampledV.data();
             }
-
-
 
             wav::Writer w;
             w.setChannels(2);
