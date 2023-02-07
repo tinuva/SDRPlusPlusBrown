@@ -119,6 +119,11 @@ public:
         };
 
         usbDemod = std::make_shared<demod::USB>();
+        usbDemodConfig.acquire();
+        usbDemodConfig.disableAutoSave();
+        usbDemodConfig.conf[name]["USB"]["agcAttack"] = 0.0;
+        usbDemodConfig.conf[name]["USB"]["agcDecay"] = 0.0;
+        usbDemodConfig.release(true);
         usbDemod->init(name, &usbDemodConfig, ifChain.out, 3000, CAPTURE_SAMPLE_RATE);
         ifChain.setInput(&vfo->out, [&](auto ifchainOut) {
             usbDemod->setInput(ifchainOut);
@@ -151,7 +156,7 @@ public:
                         }
                         else {
                             vfoOffset = newOffset;
-                            vfo->setOffset(vfoOffset - 3000);
+                            vfo->setOffset(vfoOffset - (3000 - 763));
                         }
                     }
                 }
@@ -219,12 +224,40 @@ public:
             std::time_t bst = blockNumber * 15;
             spdlog::info("Start processing block, size={}, block time: {}", block->size(), std::asctime(std::gmtime(&bst)));
 
-            dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data(), block->size(), [=](int mode, std::vector<std::string> result) {
+            std::mutex mtx;
+
+            auto handler = [=](int mode, std::vector<std::string> result) {
                 int smallOffset = atoi(result[7].c_str());
-                ImGui::DecodedResult decodedResult(ImGui::DM_FT8, ((long long)blockNumber) * 15 * 1000 + 15000, originalOffset + smallOffset, result[4], result[4]);
+                auto callsign = extractCallsignFromFT8(result[4]);
+                if (callsign.empty()) {
+                    callsign = "?? " + result[4];
+                }
+                ImGui::DecodedResult decodedResult(ImGui::DM_FT8, ((long long)blockNumber) * 15 * 1000 + 15000, originalOffset, callsign, result[4]);
+                auto strength = atof(result[1].c_str());
+                strength = (strength + 24) / (24 + 24);
+                if (strength < 0.0) strength = 0.0;
+                if (strength > 1.0) strength = 1.0;
+                decodedResult.strength = strength;
+                decodedResult.intensity = (random() % 100) / 100.0;
                 gui::waterfall.addDecodedResult(decodedResult);
                 return;
+            };
+            std::thread t0([=]() {
+                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data(), block->size(), handler);
             });
+            std::thread t1([=]() {
+                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + CAPTURE_SAMPLE_RATE, block->size() - CAPTURE_SAMPLE_RATE, handler);
+            });
+            std::thread t2([=]() {
+                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + 2 * CAPTURE_SAMPLE_RATE, block->size() - 2 * CAPTURE_SAMPLE_RATE, handler);
+            });
+            std::thread t3([=]() {
+                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + 3 * CAPTURE_SAMPLE_RATE, block->size() - 3 * CAPTURE_SAMPLE_RATE, handler);
+            });
+            t3.join();
+            t2.join();
+            t1.join();
+            t0.join();
 
             blockProcessorsRunning.fetch_add(-1);
         });

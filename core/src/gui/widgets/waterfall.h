@@ -16,6 +16,7 @@ namespace ImGui {
         DM_FT8 = 1
     };
 
+
     struct DecodedResult {
         DecodedMode mode;
         long long decodeEndTimestamp;
@@ -30,12 +31,15 @@ namespace ImGui {
         }
 
         std::string detailedString;
+        double strength; // normalized 0..1.0
 
         // below, zero means not layed out.
         double layoutY = 0;     // y on the waterfall relative to decodeEndTimestamp, in pixels;
         double layoutX = 0;     // x on the waterfall relative its to frequency (after rescale, relayout needed), in pixels
         double width = -1;
         double height = -1;
+        double clusterId = 0;
+        double intensity = 0;
     };
 
 

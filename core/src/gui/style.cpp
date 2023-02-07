@@ -7,6 +7,7 @@
 #include "utils/wstr.h"
 
 namespace style {
+    ImFont* tinyFont;
     ImFont* baseFont;
     ImFont* bigFont;
     ImFont* mediumFont;
@@ -48,6 +49,7 @@ namespace style {
         hugeBuilder.BuildRanges(&hugeRanges);
         
         // Add bigger fonts for frequency select and title
+        tinyFont = fonts->AddFontFromFileTTF(((std::string)(resDir + "/fonts/Roboto-Medium.ttf")).c_str(), 12.0f * uiScale, NULL, baseRanges.Data);
         baseFont = fonts->AddFontFromFileTTF(((std::string)(resDir + "/fonts/Roboto-Medium.ttf")).c_str(), 16.0f * uiScale, NULL, baseRanges.Data);
         mediumFont = fonts->AddFontFromFileTTF(((std::string)(resDir + "/fonts/Roboto-Medium.ttf")).c_str(), 25.0f * uiScale, NULL, baseRanges.Data);
         bigFont = fonts->AddFontFromFileTTF(((std::string)(resDir + "/fonts/Roboto-Medium.ttf")).c_str(), 45.0f * uiScale, NULL, bigRanges.Data);

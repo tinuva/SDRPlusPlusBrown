@@ -260,6 +260,7 @@ namespace ImGui {
 
 
         std::vector<ImRect> rects;
+        auto baseTextSize = ImGui::CalcTextSize("WW6WWW");
         // place new ones
         for(int i=0; i<decodedResults.size(); i++) {
             auto& result = decodedResults[i];
@@ -272,6 +273,10 @@ namespace ImGui {
             auto resultTimeDelta = currentTime - result.decodeEndTimestamp;
             auto resultBaselineY = resultTimeDelta / timePerLine;
             auto textSize = ImGui::CalcTextSize(result.shortString.c_str());
+            if (textSize.x < baseTextSize.x) {
+                textSize.x = baseTextSize.x;
+            }
+            textSize.y += 2;
             if (result.width == -1) {
                 // not layed out. find its absolute Y on the waterfall
                 for(int step = 0; step < 50; step++) {
@@ -305,13 +310,40 @@ namespace ImGui {
                 const ImVec2 origin = ImVec2(wfMin.x + drawX, wfMin.y + drawY);
                 const char* str = result.shortString.c_str();
 
+                auto toColor = [](double coss) {
+                        if (coss < 0) {
+                            return 0;
+                        }
+                        return (int)(coss * 255);
+                    };
+                // p = 0..1
+                auto phase = result.intensity * 2 * M_PI;
+                auto RR= toColor(cos((phase - M_PI / 4 - M_PI - M_PI / 4) / 2));
+                auto GG= toColor(cos((phase - M_PI / 4 - M_PI / 2) / 2));
+                auto BB = toColor(cos(phase - M_PI / 4));
+
+
+
+                const ImRect& drect = ImRect(drawX, drawY, drawX + textSize.x, drawY + textSize.y);
+                window->DrawList->AddRectFilled(origin, origin + textSize - ImVec2(0, 2), IM_COL32(RR, GG, BB, 160));
                 window->DrawList->AddText(origin + ImVec2(-1, -1), black, str);
                 window->DrawList->AddText(origin + ImVec2(-1, +1), black, str);
                 window->DrawList->AddText(origin + ImVec2(+1, -1), black, str);
                 window->DrawList->AddText(origin + ImVec2(+1, +1), black, str);
                 window->DrawList->AddText(origin, white, str);
+                float nsteps = 12.0;
+                float h = 4.0;
+                float yy = textSize.y - h;
+                for(float x=0; x<baseTextSize.x; x+=baseTextSize.x/nsteps) {
+                    auto x0 = x;
+                    auto x1 = x + baseTextSize.x/nsteps;
+                    auto x0m = x0 + (0.8)*(x1-x0);
+                    bool green = (x / baseTextSize.x) < result.strength;
+                    window->DrawList->AddRectFilled(ImVec2(x0, yy) + origin, ImVec2(x0m, yy+h) + origin, green ? IM_COL32(64, 255, 0, 255) : IM_COL32(180, 180, 180, 255));
+                    window->DrawList->AddRectFilled(ImVec2(x0m, yy) + origin, ImVec2(x1, yy+h) + origin, IM_COL32(180, 180, 180, 255));
+                }
 //                window->DrawList->AddRectFilled(origin, white, str);
-                rects.emplace_back(ImRect(drawX, drawY, drawX + textSize.x, drawY + textSize.y));
+                rects.emplace_back(drect);
             }
         }
 

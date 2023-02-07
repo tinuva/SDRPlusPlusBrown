@@ -2,6 +2,7 @@
 
 #include <core.h>
 #include <../../misc_modules/recorder/src/wav.h>
+#include "symbolic.h"
 
 #ifndef _WIN32
 #include <wait.h>
@@ -17,28 +18,6 @@ namespace dsp {
 
     namespace ft8 {
 
-        inline void splitString(const std::string & str, char sep, const std::function<void(const std::string&)> &callback) {
-            const char *c = str.data();
-            size_t limit = str.length();
-            if (limit == 0) {
-                return;
-            }
-            long long start = 0;
-            for (long long i = 0; i < limit; i++) {
-                if (i == limit - 1) {
-                    if (c[i] == sep) {
-                        callback(std::string(c + start, i - start));
-                    } else {
-                        callback(std::string(c + start, i - start + 1));
-                    }
-                    break;
-                }
-                if (c[i] == sep) {
-                    callback(std::string(c + start, i - start));
-                    start = i + 1;
-                }
-            }
-        }
 
 
         enum {
@@ -49,7 +28,7 @@ namespace dsp {
         // input stereo samples, nsamples (number of pairs of float)
         inline void decodeFT8(int sampleRate, dsp::stereo_t* samples, long long nsamples, std::function<void(int mode, std::vector<std::string> result)> callback) {
 
-            std::atomic_int _seq = 100;
+            static std::atomic_int _seq = 100;
             int seq = ++_seq;
             std::string seqS = std::to_string(seq);
             //
@@ -66,11 +45,13 @@ namespace dsp {
             }
 
             spdlog::info("max: {}", max);
-
-            for(int i=0; i<nsamples; i++) {
-                samples[i].l /= max;
-                samples[i].r /= max;
+            if (max > 1) {
+                for(int i=0; i<nsamples; i++) {
+                    samples[i].l /= max;
+                    samples[i].r /= max;
+                }
             }
+
 
 
             if (sampleRate != 12000) {
@@ -89,7 +70,7 @@ namespace dsp {
             w.setFormat(wav::FORMAT_WAV);
             w.setSampleType(wav::SAMP_TYPE_FLOAT32);
             w.setSamplerate(12000);
-            auto wavPath = "/tmp/ft8_mshv_tmp.wav." + seqS;
+            auto wavPath = "/tmp/sdrpp_ft8_mshv.wav." + seqS;
             w.open(wavPath);
             w.write((float*)samples, nsamples);
             w.close();
@@ -166,7 +147,7 @@ namespace dsp {
                     }
 
                 }
-                unlink(wavPath.c_str());
+//                unlink(wavPath.c_str());
                 spdlog::info("FT8 Decoder: process ended.");
             }
 #endif

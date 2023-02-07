@@ -35,6 +35,8 @@ typedef std::thread pthread_t;
 #define pthread_create(pThrVar, NU, fun, arg) std::swap(*pThrVar, std::thread([=] { fun(arg); }))
 #define pthread_detach(thr)                   thr.detach();
 #define pthread_exit(thr)                     TerminateThread(GetCurrentThread(), 0)
+#else
+#include <unistd.h>
 #endif
 
 

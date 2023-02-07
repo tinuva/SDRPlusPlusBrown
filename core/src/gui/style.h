@@ -4,6 +4,7 @@
 #include <module.h>
 
 namespace style {
+    SDRPP_EXPORT ImFont* tinyFont;
     SDRPP_EXPORT ImFont* baseFont;
     SDRPP_EXPORT ImFont* bigFont;
     SDRPP_EXPORT ImFont* mediumFont;

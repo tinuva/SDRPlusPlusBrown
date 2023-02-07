@@ -10,6 +10,8 @@
  * Rewritten into C++ and modified by Hrisimir Hristov, LZ2HV 2015-2017
  * May be used under the terms of the GNU General Public License (GPL)
  */
+
+#include "mshv_support.h"
 #include "decoderms.h"
 
 
