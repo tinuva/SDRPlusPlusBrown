@@ -317,6 +317,9 @@ namespace ImGui {
                         return (int)(coss * 255);
                     };
                 // p = 0..1
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
                 auto phase = result.intensity * 2 * M_PI;
                 auto RR= toColor(cos((phase - M_PI / 4 - M_PI - M_PI / 4) / 2));
                 auto GG= toColor(cos((phase - M_PI / 4 - M_PI / 2) / 2));
