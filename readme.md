@@ -50,7 +50,7 @@ Please note you must be logged in to GitHub to be able to download the artifacts
 
 2022.06.05
 
-* merging from upstream. Project is still on hold because war in my village (grid locator KO80ce).
+* merging from upstream. Project is still on hold because war in my village (grid myGrid KO80ce).
 
 2022.09.06
 

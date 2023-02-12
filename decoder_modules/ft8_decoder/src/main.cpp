@@ -30,6 +30,7 @@ SDRPP_MOD_INFO{
 };
 
 ConfigManager config;
+CTY cty;
 
 #define INPUT_SAMPLE_RATE 14400
 
@@ -39,7 +40,7 @@ class FT8DecoderModule : public ModuleManager::Instance {
     std::atomic_bool running;
 
     const int VFO_SAMPLE_RATE = 24000;
-//    const int CAPTURE_SAMPLE_RATE = 12000;
+    //    const int CAPTURE_SAMPLE_RATE = 12000;
 
 public:
     int rangeContainsInclusive(double largeRangeStart, double largeRangeEnd, double smallRangeStart, double smallRangeEnd) {
@@ -74,6 +75,29 @@ public:
 
         // Load config
         config.acquire();
+        if (config.conf[name].find("myGrid") != config.conf[name].end()) {
+            auto qq = config.conf[name]["myGrid"].get<std::string>();
+            strcpy(myGrid, qq.data());
+            calculateMyLoc();
+        } else {
+            myGrid[0] = 0;
+        }
+        if (config.conf[name].find("myCallsign") != config.conf[name].end()) {
+            auto qq = config.conf[name]["myCallsign"].get<std::string>();
+            strcpy(myCallsign, qq.data());
+        } else {
+            myCallsign[0] = 0;
+        }
+        if (config.conf[name].find("processingEnabledFT8") != config.conf[name].end()) {
+            processingEnabledFT8 = config.conf[name]["processingEnabledFT8"].get<bool>();
+        }
+        if (config.conf[name].find("processingEnabledFT4") != config.conf[name].end()) {
+            processingEnabledFT4 = config.conf[name]["processingEnabledFT4"].get<bool>();
+        }
+        if (config.conf[name].find("enablePSKReporter") != config.conf[name].end()) {
+            enablePSKReporter = config.conf[name]["enablePSKReporter"].get<bool>();
+        }
+        config.release(true);
         //        if (!config.conf.contains(name)) {
         //            config.conf[name]["showLines"] = false;
         //        }
@@ -126,7 +150,7 @@ public:
         usbDemodConfig.conf[name]["USB"]["agcDecay"] = 0.0;
         usbDemodConfig.release(true);
         usbDemod->init(name, &usbDemodConfig, ifChain.out, USB_BANDWIDTH, VFO_SAMPLE_RATE);
-//        usbDemod->setFrozen(true);
+        //        usbDemod->setFrozen(true);
         ifChain.setInput(&vfo->out, [&](auto ifchainOut) {
             usbDemod->setInput(ifchainOut);
             spdlog::info("ifchain change out");
@@ -159,7 +183,7 @@ public:
                         else {
                             vfoOffset = newOffset;
                             spdlog::info("FT8 vfo: center offset {}, bandwidth: {}", vfoOffset, USB_BANDWIDTH);
-                            vfo->setOffset(vfoOffset - USB_BANDWIDTH/2);
+                            vfo->setOffset(vfoOffset - USB_BANDWIDTH / 2);
                         }
                     }
                 }
@@ -182,7 +206,7 @@ public:
     ConfigManager usbDemodConfig;
 
     long long prevBlockNumber = 0;
-    std::vector<dsp::stereo_t> fullBlock;
+    std::shared_ptr<std::vector<dsp::stereo_t>> fullBlock;
     std::mutex processingBlockMutex;
     double vfoOffset = 0.0;
     std::atomic_int blockProcessorsRunning = 0;
@@ -192,31 +216,37 @@ public:
         long long blockNumber = (curtime / 1000) / 15;
         long long blockTime = (curtime / 1000) % 15;
         if (blockNumber != prevBlockNumber) {
-            bool shouldStartProcessing = false;
-            std::shared_ptr<std::vector<dsp::stereo_t>> processingBlock;
-            processingBlock = std::make_shared<std::vector<dsp::stereo_t>>(fullBlock);
-            shouldStartProcessing = true;
-            if (blockProcessorsRunning > 0) {
-                shouldStartProcessing = false;
-            }
-            if (shouldStartProcessing) {
-                // no processing is done.
-                if (processingBlock->size() / VFO_SAMPLE_RATE > 16 || processingBlock->size() / VFO_SAMPLE_RATE <= 13) {
-                    spdlog::info("Block size is not matching: {}, curtime={}",
-                                 processingBlock->size() / VFO_SAMPLE_RATE,
-                                 curtime);
-                    processingBlock.reset(); // clear for new one
+            if (fullBlock) {
+                bool shouldStartProcessing = false;
+                std::shared_ptr<std::vector<dsp::stereo_t>> processingBlock;
+                processingBlock = fullBlock;
+                shouldStartProcessing = true;
+                if (blockProcessorsRunning > 0) {
+                    shouldStartProcessing = false;
                 }
-                else {
-                    // block size is ok.
-                    startBlockProcessing(processingBlock, prevBlockNumber, vfoOffset + gui::waterfall.getCenterFrequency());
+                if (shouldStartProcessing) {
+                    // no processing is done.
+                    if (processingBlock->size() / VFO_SAMPLE_RATE > 16 || processingBlock->size() / VFO_SAMPLE_RATE <= 13) {
+                        spdlog::info("Block size is not matching: {}, curtime={}",
+                                     processingBlock->size() / VFO_SAMPLE_RATE,
+                                     curtime);
+                        processingBlock.reset(); // clear for new one
+                    }
+                    else {
+                        // block size is ok.
+                        startBlockProcessing(processingBlock, prevBlockNumber, vfoOffset + gui::waterfall.getCenterFrequency());
+                    }
                 }
+                fullBlock.reset();
             }
             prevBlockNumber = blockNumber;
-            fullBlock.clear();
         }
-        fullBlock.insert(std::end(fullBlock), std::begin(data), std::end(data));
-//        spdlog::info("{} Got {} samples: {}", blockNumber, data.size(), data[0].l);
+        if (!fullBlock) {
+            fullBlock = std::make_shared<std::vector<dsp::stereo_t>>();
+            fullBlock->reserve(16 * VFO_SAMPLE_RATE);
+        }
+        fullBlock->insert(std::end(*fullBlock), std::begin(data), std::end(data));
+        //        spdlog::info("{} Got {} samples: {}", blockNumber, data.size(), data[0].l);
     }
 
     std::shared_ptr<demod::USB> usbDemod;
@@ -234,6 +264,15 @@ public:
                 auto callsign = extractCallsignFromFT8(result[4]);
                 if (callsign.empty()) {
                     callsign = "?? " + result[4];
+                } else {
+                    auto cs = cty.findCallsign(callsign);
+                    if (!cs.value.empty()) {
+                        callsign += " " + cs.dxccname;
+                    }
+                    if (myPos.isValid()) {
+                        auto bd = bearingDistance(myPos, cs.ll);
+                        callsign += " " + std::to_string((int)bd.distance)+"km";
+                    }
                 }
                 ImGui::DecodedResult decodedResult(ImGui::DM_FT8, ((long long)blockNumber) * 15 * 1000 + 15000, originalOffset, callsign, result[4]);
                 auto strength = atof(result[1].c_str());
@@ -248,18 +287,18 @@ public:
             std::thread t0([=]() {
                 dsp::ft8::decodeFT8(VFO_SAMPLE_RATE, block->data(), block->size(), handler);
             });
-//            std::thread t1([=]() {
-//                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + CAPTURE_SAMPLE_RATE, block->size() - CAPTURE_SAMPLE_RATE, handler);
-//            });
-//            std::thread t2([=]() {
-//                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + 2 * CAPTURE_SAMPLE_RATE, block->size() - 2 * CAPTURE_SAMPLE_RATE, handler);
-//            });
-//            std::thread t3([=]() {
-//                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + 3 * CAPTURE_SAMPLE_RATE, block->size() - 3 * CAPTURE_SAMPLE_RATE, handler);
-//            });
-//            t3.join();
-//            t2.join();
-//            t1.join();
+            //            std::thread t1([=]() {
+            //                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + CAPTURE_SAMPLE_RATE, block->size() - CAPTURE_SAMPLE_RATE, handler);
+            //            });
+            //            std::thread t2([=]() {
+            //                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + 2 * CAPTURE_SAMPLE_RATE, block->size() - 2 * CAPTURE_SAMPLE_RATE, handler);
+            //            });
+            //            std::thread t3([=]() {
+            //                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + 3 * CAPTURE_SAMPLE_RATE, block->size() - 3 * CAPTURE_SAMPLE_RATE, handler);
+            //            });
+            //            t3.join();
+            //            t2.join();
+            //            t1.join();
             t0.join();
 
             blockProcessorsRunning.fetch_add(-1);
@@ -327,11 +366,67 @@ public:
 private:
     static void menuHandler(void* ctx) {
         FT8DecoderModule* _this = (FT8DecoderModule*)ctx;
+        ImGui::LeftLabel("My Grid");
+        ImGui::FillWidth();
+        if (ImGui::InputText(CONCAT("##_my_grid_", _this->name), _this->myGrid, 8)) {
+            config.acquire();
+            config.conf[_this->name]["myGrid"] = _this->myGrid;
+            config.release(true);
+            _this->calculateMyLoc();
+        }
+        ImGui::LeftLabel("My Loc: ");
+        ImGui::FillWidth();
+        if (_this->myPos.isValid()) {
+            ImGui::Text("%+02.5f %+02.5f", _this->myPos.lat, _this->myPos.lon);
+        } else {
+            ImGui::Text("Invalid");
+        }
+        ImGui::LeftLabel("My Callsign");
+        ImGui::FillWidth();
+        if (ImGui::InputText(CONCAT("##_my_callsign_", _this->name), _this->myCallsign, 12)) {
+            config.acquire();
+            config.conf[_this->name]["myCallsign"] = _this->myCallsign;
+            config.release(true);
+        }
 
+        ImGui::LeftLabel("Decode FT8");
+        ImGui::FillWidth();
+        if (ImGui::Checkbox(CONCAT("##_processing_enabled_ft8_", _this->name), &_this->processingEnabledFT8)) {
+            config.acquire();
+            config.conf[_this->name]["processingEnabledFT8"] = _this->processingEnabledFT8;
+            config.release(true);
+        }
+        ImGui::LeftLabel("Decode FT4");
+        ImGui::FillWidth();
+        if (ImGui::Checkbox(CONCAT("##_processing_enabled_ft4_", _this->name), &_this->processingEnabledFT4)) {
+            config.acquire();
+            config.conf[_this->name]["processingEnabledFT4"] = _this->processingEnabledFT4;
+            config.release(true);
+        }
+        ImGui::LeftLabel("PskReporter");
+        ImGui::FillWidth();
+        if (ImGui::Checkbox(CONCAT("##_enable_psk_reporter_", _this->name), &_this->enablePSKReporter)) {
+            config.acquire();
+            config.conf[_this->name]["enablePSKReporter"] = _this->enablePSKReporter;
+            config.release(true);
+        }
+    }
+
+    void calculateMyLoc() {
+        auto ll = gridToLatLng(myGrid);
+        if (ll.isValid()) {
+            myPos = ll;
+        }
     }
 
     std::string name;
     bool enabled = false;
+    char myGrid[10];
+    char myCallsign[13];
+    LatLng myPos = LatLng::invalid();
+    bool processingEnabledFT8 = true;
+    bool processingEnabledFT4 = true;
+    bool enablePSKReporter = true;
 
 
     //    dsp::buffer::Reshaper<float> reshape;
@@ -348,6 +443,9 @@ MOD_EXPORT void _INIT_() {
     config.setPath(core::args["root"].s() + "/ft8_decoder_config.json");
     config.load(def);
     config.enableAutoSave();
+    std::string resDir = core::configManager.conf["resourcesDirectory"];
+    auto path = resDir + "/cty.dat";
+    loadCTY(path, cty);
 }
 
 MOD_EXPORT ModuleManager::Instance* _CREATE_INSTANCE_(std::string name) {

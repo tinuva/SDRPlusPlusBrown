@@ -103,6 +103,7 @@ namespace dsp {
             }
             else {
                 int nsent = 0;
+                int count = 0;
                 while(true) {
                     auto finished = waitpid(f, NULL, WNOHANG);
                     usleep(100000);
@@ -114,16 +115,14 @@ namespace dsp {
                             rdbuf[10000 - 1] = 0;
                             rdbuf[nrd] = 0;
                             std::vector<std::string> thisResult;
-                            splitString(rdbuf, '\n', [&](const std::string &p){
+                            splitString(rdbuf, "\n", [&](const std::string &p){
                                 if (p.find("FT8_OUT") == 0) {
                                     thisResult.emplace_back(p);
                                 }
                             });
                             for(int q=nsent; q<thisResult.size(); q++) {
                                 std::vector<std::string> singleBroken;
-                                splitString(thisResult[q], '\t', [&](const std::string &p){
-                                    singleBroken.emplace_back(p);
-                                });
+                                splitStringV(thisResult[q], "\t", singleBroken);
                                 std::vector<std::string> selected;
                                 //FT8_OUT	1675635874870	30	{0}	120000	{1}	-19	{2}	0.2	{3}	775	{4}	SQ9KWU DL1PP -14	{5}	? 0	{6}	0.1	{7}	1975
                                 if (singleBroken.size() > 18) {
@@ -137,6 +136,7 @@ namespace dsp {
                                     selected.emplace_back(singleBroken[18]);
                                 }
                                 callback(DMS_FT8, selected);
+                                count++;
                             }
                             nsent = thisResult.size();
                         }
@@ -148,7 +148,7 @@ namespace dsp {
 
                 }
 //                unlink(wavPath.c_str());
-                spdlog::info("FT8 Decoder: process ended.");
+                spdlog::info("FT8 Decoder: process ended. Count messages: {}", count);
             }
 #endif
 

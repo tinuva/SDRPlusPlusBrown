@@ -173,7 +173,7 @@ void QString::replace(const char* string, const char* string1) {
     return replace(string, string1);
 }
 
-void splitString(const std::string & str, char sep, const std::function<void(const std::string&)> &callback) {
+static void splitString(const std::string & str, char sep, const std::function<void(const std::string&)> &callback) {
     const char *c = str.data();
     size_t limit = str.length();
     if (limit == 0) {
