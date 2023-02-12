@@ -1,7 +1,8 @@
 #include <core.h>
 #include <iostream>
 #include <stdio.h>
-#include "../../misc_modules/recorder/src/wav.h"
+#include <utils/wav.h>
+#include <utils/riff.h>
 #include "dsp/types.h"
 #include "dsp/multirate/polyphase_resampler.h"
 #include "dsp/multirate/rational_resampler.h"

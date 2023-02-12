@@ -1,7 +1,8 @@
 #pragma once
 
 #include <core.h>
-#include <../../misc_modules/recorder/src/wav.h>
+#include <utils/wav.h>
+#include <utils/riff.h>
 #include "symbolic.h"
 
 #ifndef _WIN32
