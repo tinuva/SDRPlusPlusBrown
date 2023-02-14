@@ -45,17 +45,17 @@ if (MSVC)
     set(FFTW3f_LIBRARIES ${FFTW3_LIBRARIES})
     set(FFTW3f_LIBRARY_DIRS ${FFTW3_LIBRARY_DIRS})
     set(FFTW3f_INCLUDE_DIRS ${FFTW3_INCLUDE_DIRS})
-    find_package(FFTW3 CONFIG REQUIRED)
-    target_link_libraries(sdrpp_ft8_mshv PUBLIC FFTW3::fftw3 )
+#    find_package(FFTW3 CONFIG REQUIRED)
+    target_link_libraries(sdrpp_ft8_mshv PUBLIC FFTW3::fftw3f )
 
     # WinSock2
     target_link_libraries(sdrpp_ft8_mshv PUBLIC wsock32 ws2_32 iphlpapi)
 
 else()
     find_package(PkgConfig)
-    pkg_check_modules(FFTW3 REQUIRED fftw3)
+    pkg_check_modules(FFTW3 REQUIRED fftw3f)
     pkg_check_modules(VOLK REQUIRED volk)
-    target_link_libraries(sdrpp_ft8_mshv PUBLIC fftw3 volk pthread)
+    target_link_libraries(sdrpp_ft8_mshv PUBLIC fftw3f volk pthread)
     target_include_directories(sdrpp_ft8_mshv PUBLIC
             ${FFTW3_INCLUDE_DIRS}
             ${VOLK_INCLUDE_DIRS}

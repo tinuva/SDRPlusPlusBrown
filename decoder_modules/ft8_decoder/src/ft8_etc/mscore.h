@@ -175,8 +175,8 @@ public:
     ;				// ready to perform fft
     typedef struct
     {
-        fftw_complex * samples;		// complex data for fft
-        fftw_plan plan_dsp;			// fft plan for fftW
+        std::complex<double> * samples;		// complex data for fft
+//        fftwf_plan plan_dsp;			// fft plan for fftW
         int index;			// position of next fft sample
         enum fft_status status;		// whether the fft is busy
     }
