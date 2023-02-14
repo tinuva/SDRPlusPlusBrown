@@ -230,137 +230,137 @@ void MsCore::SetMode(int mod_iden)
 //}
 void MsCore::record_app()
 {
-    //qDebug()<<"Start record_app";
-    int i, j;
-    fftw_complex * pt;
-    fft_data * pt1, * pt2;
-    double graph_refresh;
-
-    //if (f_disp_v_h)
-    //graph_refresh = 100.0;
-    //else
-    graph_refresh = 100.0; //7 refresha na fft hv zavisi ot samplerate
-
-    /*(about 800 to 1200 pixels) times the fft_size_multiplier.  You can make fft_size_multiplier
-    about 2 to 4, to make the FFT bins smaller if you have the processor power.*/
-    ////HV spriano //////////////////////////////////////
-    //int fft_size_multiplier = 2;
-    //fft_size = GRAPHIC_HEIGHT * fft_size_multiplier;
-    //while (fft_size < (rad_sound_state.sample_rate * rad_sound_state.data_poll_usec / 1000000))
-    //fft_size += GRAPHIC_HEIGHT;
-    ////HV spriano ////////////////////////////////////////
-
-    //fftw_sample_rate=ORG_SAMPLE_RATE_11025;
-    double scale_x_inc_pix = 6e-310;
-//    if (f_disp_v_h)            /// DATA_HEIGHT*2 -25 -19 -25<freq bara (- 10 malko ot dolnia disp)
-//        scale_x_inc_pix = (double)(((double)(s_data_height*2 -25 - 10)/(double)s_vdisp_speed) /(double)STAT_FFTW_V60_TIME);
+//    //qDebug()<<"Start record_app";
+//    int i, j;
+//    fftw_complex * pt;
+//    fft_data * pt1, * pt2;
+//    double graph_refresh;
+//
+//    //if (f_disp_v_h)
+//    //graph_refresh = 100.0;
+//    //else
+//    graph_refresh = 100.0; //7 refresha na fft hv zavisi ot samplerate
+//
+//    /*(about 800 to 1200 pixels) times the fft_size_multiplier.  You can make fft_size_multiplier
+//    about 2 to 4, to make the FFT bins smaller if you have the processor power.*/
+//    ////HV spriano //////////////////////////////////////
+//    //int fft_size_multiplier = 2;
+//    //fft_size = GRAPHIC_HEIGHT * fft_size_multiplier;
+//    //while (fft_size < (rad_sound_state.sample_rate * rad_sound_state.data_poll_usec / 1000000))
+//    //fft_size += GRAPHIC_HEIGHT;
+//    ////HV spriano ////////////////////////////////////////
+//
+//    //fftw_sample_rate=ORG_SAMPLE_RATE_11025;
+//    double scale_x_inc_pix = 6e-310;
+////    if (f_disp_v_h)            /// DATA_HEIGHT*2 -25 -19 -25<freq bara (- 10 malko ot dolnia disp)
+////        scale_x_inc_pix = (double)(((double)(s_data_height*2 -25 - 10)/(double)s_vdisp_speed) /(double)STAT_FFTW_V60_TIME);
+////    else
+////        scale_x_inc_pix = (double)((double)s_data_width /(double)STAT_FFTW_H30_TIME);// prez kolko piksela za sekunta
+//
+//    fft_size = (int)((double)fftw_sample_rate /(double)scale_x_inc_pix);  // fft_size za da upalni celia ekran
+//
+//    fft_size = INT32_MIN; // so it does not trigger ui update in code
+//
+//    //qDebug()<<"fft_size="<<fft_size<<"fft_size_end="<<fft_size/4;
+//
+//    average_count = max(1, int((double)fftw_sample_rate / (double)fft_size / graph_refresh));
+//
+//    /*s_scale = 2.0 / (double)average_count / (double)fft_size;	//add 1.37 Divide by sample count
+//    s_scale /= pow(2.0, 31);//2.0, 31			//add 1.37 Normalize to max == 1*/
+//
+//    s_scale = 2.0 / (double)average_count / (double)fft_size;	//add 1.37 Divide by sample count
+//    if (f_disp_v_h)//v1.51 corr for 9-v speeds
+//    {
+//        /*double k_correct = 0.25*(double)(s_vdisp_speed*s_vdisp_speed);
+//        s_scale = s_scale*((double)s_vdisp_speed*k_correct+(1.0-k_correct));
+//        s_scale /= pow(2.0, 14)*1.2;//2.46   5)*1.6=half*/
+//
+//        double k_correct = 0.25; //old
+//        s_scale = s_scale*((double)s_vdisp_speed*k_correct+(1.0-k_correct));
+//        s_scale /= pow(2.0, 23); //*1.0
+//    }
 //    else
-//        scale_x_inc_pix = (double)((double)s_data_width /(double)STAT_FFTW_H30_TIME);// prez kolko piksela za sekunta
-
-    fft_size = (int)((double)fftw_sample_rate /(double)scale_x_inc_pix);  // fft_size za da upalni celia ekran
-
-    fft_size = INT32_MIN; // so it does not trigger ui update in code
-
-    //qDebug()<<"fft_size="<<fft_size<<"fft_size_end="<<fft_size/4;
-
-    average_count = max(1, int((double)fftw_sample_rate / (double)fft_size / graph_refresh));
-
-    /*s_scale = 2.0 / (double)average_count / (double)fft_size;	//add 1.37 Divide by sample count
-    s_scale /= pow(2.0, 31);//2.0, 31			//add 1.37 Normalize to max == 1*/
-
-    s_scale = 2.0 / (double)average_count / (double)fft_size;	//add 1.37 Divide by sample count
-    if (f_disp_v_h)//v1.51 corr for 9-v speeds
-    {
-        /*double k_correct = 0.25*(double)(s_vdisp_speed*s_vdisp_speed);
-        s_scale = s_scale*((double)s_vdisp_speed*k_correct+(1.0-k_correct));
-        s_scale /= pow(2.0, 14)*1.2;//2.46   5)*1.6=half*/
-
-        double k_correct = 0.25; //old
-        s_scale = s_scale*((double)s_vdisp_speed*k_correct+(1.0-k_correct));
-        s_scale /= pow(2.0, 23); //*1.0
-    }
-    else
-        s_scale /= pow(2.0, 24)*1.2;//2.46 old pow(2.0, 31);			//add 1.37 Normalize to max == 1
-    //qDebug()<<"fft_size="<<fft_size;//<<average_count<<s_scale;//<<average_countd;
-
-    strncpy (rad_sound_state.err_msg, CLOSED_TEXT, SC_SIZE_L);
-    count_fft = 0;
-    pt1 = FFT1;
-    pt2 = FFT2;
-    FFT1 = FFT2 = ptWriteFft = NULL;	// The callback may be active!
-    // Create space for the fft
-    if (pt1)
-    {
-        fftw_destroy_plan(pt1->plan_dsp);
-        fftw_free(pt1->samples);
-        free(pt1);
-    }
-    pt1 = (fft_data *)malloc(sizeof(fft_data)); //qDebug()<<"sizeof(fft_data)"<<sizeof(fft_data);
-    pt1->status = EMPTY;
-    pt1->index = 0;
-    pt = pt1->samples = (fftw_complex *) fftw_malloc(sizeof(fftw_complex) * (fft_size+52));//2.45 +50
-    //qDebug()<<"pt1 1= creaate";
-    //FFTW_ESTIMATE           ni barzo
-    //FFTW_ESTIMATE_PATIENT   sredno
-    //FFTW_MEASURE            bavi no result
-    //FFTW_PATIENT            bavi mnogo
-    //FFTW_EXHAUSTIVE         bavi mnogo
-    //org samo bavi
-    //pt1->plan_dsp = fftw_plan_dft_1d(fft_size, pt, pt, FFTW_FORWARD, FFTW_MEASURE);
-    pt1->plan_dsp = fftw_plan_dft_1d(fft_size, pt, pt, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT);//1.35
-    //qDebug()<<"pt1 1=end";
-    // Create space to write samples while the first fft is in use
-    if (pt2)
-    {
-        fftw_destroy_plan(pt2->plan_dsp);
-        fftw_free(pt2->samples);
-        free(pt2);
-    }
-    pt2 = (fft_data *)malloc(sizeof(fft_data));
-    pt2->status = EMPTY;
-    pt2->index = 0;
-    pt = pt2->samples = (fftw_complex *) fftw_malloc(sizeof(fftw_complex) * (fft_size+52));//2.45 +50
-    //qDebug()<<"pt2 2= create";
-    //FFTW_ESTIMATE           ni barzo
-    //FFTW_ESTIMATE_PATIENT   sredno
-    //FFTW_MEASURE            bavi no result
-    //FFTW_PATIENT            bavi mnogo
-    //FFTW_EXHAUSTIVE         bavi mnogo
-    //org samo bavi
-    //pt2->plan_dsp = fftw_plan_dft_1d(fft_size, pt, pt, FFTW_FORWARD, FFTW_MEASURE);
-    pt2->plan_dsp = fftw_plan_dft_1d(fft_size, pt, pt, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT);//1.35
-    //qDebug()<<"pt2 2="<<s_vdisp_speed;
-    FFT1 = pt1;
-    FFT2 = pt2;
-    // Create space for the fft average and window
-    if (fft_avg)
-        free(fft_avg);
-    if (fft_window)
-        free(fft_window);
-
-    if (f_disp_v_h)
-    {
-        fft_avg = (double *) malloc(sizeof(double) * ((s_data_width)+50));////1.39 rem s_data_width/2    1.36 +20
-        for (i = 0; i < s_data_width; i++)//1.39 rem s_data_width/2
-            fft_avg[i] = 0;
-        //qDebug()<<"fft_avg-------------------"<<((s_data_width/2)+20);
-    }
-    else
-    {
-        fft_avg = (double *) malloc(sizeof(double) * (s_data_height+20));//1.36 +20
-        for (i = 0; i < s_data_height; i++)
-            fft_avg[i] = 0;
-        //qDebug()<<"fft_avg-------------------"<<s_data_height+20;
-    }
-    // same as nuttal_window but better
-    fft_window = (double *) malloc(sizeof(double) * (fft_size+50));//1.36 +50
-    for (i = 0, j = -fft_size / 2; i < fft_size; i++, j++)
-    {
-        if (0)	// Hamming
-            fft_window[i] = 0.54 + 0.46 * cos(2.0 * M_PI * j / fft_size);
-        else	// Hanning
-            fft_window[i] = 0.5 + 0.5 * cos(2.0 * M_PI * j / fft_size);
-    }
+//        s_scale /= pow(2.0, 24)*1.2;//2.46 old pow(2.0, 31);			//add 1.37 Normalize to max == 1
+//    //qDebug()<<"fft_size="<<fft_size;//<<average_count<<s_scale;//<<average_countd;
+//
+//    strncpy (rad_sound_state.err_msg, CLOSED_TEXT, SC_SIZE_L);
+//    count_fft = 0;
+//    pt1 = FFT1;
+//    pt2 = FFT2;
+//    FFT1 = FFT2 = ptWriteFft = NULL;	// The callback may be active!
+//    // Create space for the fft
+//    if (pt1)
+//    {
+//        fftwf_destroy_plan(pt1->plan_dsp);
+//        fftwf_free(pt1->samples);
+//        free(pt1);
+//    }
+//    pt1 = (fft_data *)malloc(sizeof(fft_data)); //qDebug()<<"sizeof(fft_data)"<<sizeof(fft_data);
+//    pt1->status = EMPTY;
+//    pt1->index = 0;
+//    pt = pt1->samples = (fftw_complex *) fftw_malloc(sizeof(fftw_complex) * (fft_size+52));//2.45 +50
+//    //qDebug()<<"pt1 1= creaate";
+//    //FFTW_ESTIMATE           ni barzo
+//    //FFTW_ESTIMATE_PATIENT   sredno
+//    //FFTW_MEASURE            bavi no result
+//    //FFTW_PATIENT            bavi mnogo
+//    //FFTW_EXHAUSTIVE         bavi mnogo
+//    //org samo bavi
+//    //pt1->plan_dsp = fftw_plan_dft_1d(fft_size, pt, pt, FFTW_FORWARD, FFTW_MEASURE);
+//    pt1->plan_dsp = fftw_plan_dft_1d(fft_size, pt, pt, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT);//1.35
+//    //qDebug()<<"pt1 1=end";
+//    // Create space to write samples while the first fft is in use
+//    if (pt2)
+//    {
+//        fftw_destroy_plan(pt2->plan_dsp);
+//        fftw_free(pt2->samples);
+//        free(pt2);
+//    }
+//    pt2 = (fft_data *)malloc(sizeof(fft_data));
+//    pt2->status = EMPTY;
+//    pt2->index = 0;
+//    pt = pt2->samples = (fftw_complex *) fftw_malloc(sizeof(fftw_complex) * (fft_size+52));//2.45 +50
+//    //qDebug()<<"pt2 2= create";
+//    //FFTW_ESTIMATE           ni barzo
+//    //FFTW_ESTIMATE_PATIENT   sredno
+//    //FFTW_MEASURE            bavi no result
+//    //FFTW_PATIENT            bavi mnogo
+//    //FFTW_EXHAUSTIVE         bavi mnogo
+//    //org samo bavi
+//    //pt2->plan_dsp = fftw_plan_dft_1d(fft_size, pt, pt, FFTW_FORWARD, FFTW_MEASURE);
+//    pt2->plan_dsp = fftw_plan_dft_1d(fft_size, pt, pt, FFTW_FORWARD, FFTW_ESTIMATE_PATIENT);//1.35
+//    //qDebug()<<"pt2 2="<<s_vdisp_speed;
+//    FFT1 = pt1;
+//    FFT2 = pt2;
+//    // Create space for the fft average and window
+//    if (fft_avg)
+//        free(fft_avg);
+//    if (fft_window)
+//        free(fft_window);
+//
+//    if (f_disp_v_h)
+//    {
+//        fft_avg = (double *) malloc(sizeof(double) * ((s_data_width)+50));////1.39 rem s_data_width/2    1.36 +20
+//        for (i = 0; i < s_data_width; i++)//1.39 rem s_data_width/2
+//            fft_avg[i] = 0;
+//        //qDebug()<<"fft_avg-------------------"<<((s_data_width/2)+20);
+//    }
+//    else
+//    {
+//        fft_avg = (double *) malloc(sizeof(double) * (s_data_height+20));//1.36 +20
+//        for (i = 0; i < s_data_height; i++)
+//            fft_avg[i] = 0;
+//        //qDebug()<<"fft_avg-------------------"<<s_data_height+20;
+//    }
+//    // same as nuttal_window but better
+//    fft_window = (double *) malloc(sizeof(double) * (fft_size+50));//1.36 +50
+//    for (i = 0, j = -fft_size / 2; i < fft_size; i++, j++)
+//    {
+//        if (0)	// Hamming
+//            fft_window[i] = 0.54 + 0.46 * cos(2.0 * M_PI * j / fft_size);
+//        else	// Hanning
+//            fft_window[i] = 0.5 + 0.5 * cos(2.0 * M_PI * j / fft_size);
+//    }
     //qDebug()<<"Stop record_app";
 }
 void MsCore::SetDecBusy(bool f)
@@ -682,8 +682,8 @@ void MsCore::decode_fft_size_samples(short *data_mono, int count)
             }
 
 
-            ptWriteFft->samples[ptWriteFft->index][0] = (double)data_mono[i]*0.01;//2.46
-            ptWriteFft->samples[ptWriteFft->index][1] = 0;//2.46
+            ptWriteFft->samples[ptWriteFft->index].real(data_mono[i]*0.01);//2.46
+            ptWriteFft->samples[ptWriteFft->index].imag(0);//2.46
             //if (ptWriteFft->index >= fft_size-1)
             //qDebug()<<"ptWriteFft->index"<<ptWriteFft->index;
             if (++(ptWriteFft->index) >= fft_size)
