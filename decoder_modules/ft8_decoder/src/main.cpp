@@ -44,6 +44,112 @@ enum DecodedMode {
 static ImVec2 baseTextSize;
 
 
+struct CallHashCache {
+
+    struct CallWithTS {
+        std::string call;
+        int hash10;
+        int hash12;
+        int hash22;
+        long long lastseen;
+    };
+
+    std::vector<CallWithTS> calls;
+
+    long long lastctm = 0;
+
+    void addCall(std::string call, long long ctm) {     // call without < .. >
+        if (call.length() < 3) {        // CQ, DE etc
+            return;
+        }
+        call = trim(call);
+        if (call.find(' ') != std::string::npos) {  // CQ DX etc
+            return;
+        }
+        if (call.find('<') != std::string::npos) {  // <1:2983> or <...>
+            return;
+        }
+        call = normcall(call);
+        for (auto &c : calls) {
+            if (c.call == call) {
+                c.lastseen = ctm;
+                return;
+            }
+        }
+        calls.emplace_back(CallWithTS{call, ihashcall(call, 10), ihashcall(call, 12), ihashcall(call, 22), ctm});
+        if (lastctm != ctm) {
+            calls.erase(std::remove_if(calls.begin(), calls.end(), [ctm](const CallWithTS &c) { return ctm - c.lastseen > 180000; }), calls.end());
+            lastctm = ctm;
+        }
+    }
+
+    std::string findCall(const std::string &hashed, long long ctm) { // hashed: <1:2983> or <2:2983> or <0:3498>
+        if (hashed.size() == 0) {
+            return "";
+        }
+        if (hashed.front() == '<' && hashed.back() == '>') {
+            int hash = std::stoi(hashed.substr(3, hashed.size()-4));
+            int mode = hashed[1] - '0';
+            for (auto &c : calls) {
+                if (mode == 0 && c.hash10 == hash) {
+                    c.lastseen = ctm;
+                    return trim(c.call);
+                }
+                if (mode == 1 && c.hash12 == hash) {
+                    c.lastseen = ctm;
+                    return trim(c.call);
+                }
+                if (mode == 2 && c.hash22 == hash) {
+                    c.lastseen = ctm;
+                    return trim(c.call);
+                }
+            }
+        }
+        return ""; // not found
+    }
+
+    std::string trim(std::string in) {
+        while (in.size() > 0 && in[0] == ' ') {
+            in.erase(0, 1);
+        }
+        while (in.size() > 0 && in[in.size()-1] == ' ') {
+            in.erase(in.end() - 1);
+        }
+        return in;
+    }
+
+    std::string normcall(std::string call) {
+        while(call.size() > 0 && call[0] == ' ')
+            call.erase(0, 1);
+        while(call.size() > 0 && call[call.size()-1] == ' ')
+            call.erase(call.end() - 1);
+        while(call.size() < 11)
+            call += " ";
+        return call;
+    }
+
+
+    // via https://github.com/rtmrtmrtmrtm/ft8mon/blob/master/unpack.cc
+    int ihashcall(const std::string &call, int m)
+    {
+        const char *chars = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ/";
+
+        unsigned long long x = 0;
+        for(int i = 0; i < 11; i++){
+            int c = call[i];
+            const char *p = strchr(chars, c);
+            assert(p);
+            int j = p - chars;
+            x = 38*x + j;
+        }
+        x = x * 47055833459LL;
+        x = x >> (64 - m);
+
+        return x;
+    }
+};
+
+
 struct DecodedResult {
     DecodedMode mode;
     long long decodeEndTimestamp;
@@ -232,7 +338,7 @@ public:
                     fgroups++;
                 }
             }
-            spdlog::info("Found {} groups among {} results", fgroups, decodedResults.size());
+//            spdlog::info("Found {} groups among {} results", fgroups, decodedResults.size());
 
             // sorting groups by distance
             for(int i=0; i<ngroups; i++) {
@@ -286,7 +392,7 @@ public:
                     auto fdr2 = std::make_shared<FT8DrawableDecodedDistRange>("<= " + std::to_string((int)maxDistance) + " KM", freqq);
                     fdr2->layoutX = scanX;
                     fdr2->layoutY = scanY;
-                    spdlog::info("closing: {} {} {}", i, fdr2->layoutX, fdr2->layoutY);
+//                    spdlog::info("closing: {} {} {}", i, fdr2->layoutX, fdr2->layoutY);
                     decodedResultsDrawables.emplace_back(fdr2);
                     scanX = 0;
                     scanY += baseTextSize.y * 2;
@@ -622,24 +728,50 @@ public:
 
     std::shared_ptr<demod::USB> usbDemod;
 
+    CallHashCache callHashCache;
+    std::mutex callHashCacheMutex;
+
     void startBlockProcessing(const std::shared_ptr<std::vector<dsp::stereo_t>>& block, int blockNumber, int originalOffset) {
         blockProcessorsRunning.fetch_add(1);
         std::thread processor([=]() {
             std::time_t bst = blockNumber * 15;
             spdlog::info("Start processing block, size={}, block time: {}", block->size(), std::asctime(std::gmtime(&bst)));
 
-            std::mutex mtx;
-
             auto handler = [=](int mode, std::vector<std::string> result) {
-                int smallOffset = atoi(result[7].c_str());
-                auto callsign = extractCallsignFromFT8(result[4]);
-                if (callsign.find("..") != std::string::npos) {  // ignore <..> callsigns
+                auto message = result[4];
+                auto pipe = message.find('|');
+                std::string callsigns;
+                std::string callsign;
+                if (pipe != std::string::npos) {
+                    callsigns = message.substr(pipe + 1);
+                    message = message.substr(0, pipe);
+                    std::vector<std::string> callsignsV;
+                    splitStringV(callsigns, ";", callsignsV);
+                    if (callsignsV.size() > 1) {
+                        callsign = callsignsV[1];
+                        callHashCacheMutex.lock();
+                        callHashCache.addCall(callsignsV[0], bst * 1000);
+                        callHashCache.addCall(callsignsV[1], bst * 1000);
+                        callHashCacheMutex.unlock();
+
+                    }
+                    if (!callsign.empty() && callsign[0] == '<') {
+                        callHashCacheMutex.lock();
+                        auto ncallsign = callHashCache.findCall(callsign, bst * 1000);
+                        spdlog::info("Found call: {} -> {}", callsign, ncallsign);
+                        callsign = ncallsign;
+                        callHashCacheMutex.unlock();
+                    }
+                } else {
+                    callsign = extractCallsignFromFT8(message);
+                }
+                if (callsign.empty() || callsign.find("<") != std::string::npos) {  // ignore <..> callsigns
                     return;
                 }
                 double distance = 0;
                 CTY::Callsign cs;
                 if (callsign.empty()) {
-                    callsign = "?? " + result[4];
+                    callsign = "?? " + message;
                 } else {
                     cs = cty.findCallsign(callsign);
                     if (myPos.isValid()) {
@@ -647,7 +779,7 @@ public:
                         distance = bd.distance;
                     }
                 }
-                DecodedResult decodedResult(DM_FT8, ((long long)blockNumber) * 15 * 1000 + 15000, originalOffset, callsign, result[4]);
+                DecodedResult decodedResult(DM_FT8, ((long long)blockNumber) * 15 * 1000 + 15000, originalOffset, callsign, message);
                 decodedResult.distance = (int)distance;
                 auto strength = atof(result[1].c_str());
                 strength = (strength + 24) / (24 + 24);

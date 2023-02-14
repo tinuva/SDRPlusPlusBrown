@@ -70,7 +70,7 @@ void PackUnpackMsg77::initPackUnpack77(bool f_dec_gen)//f_dec_gen -> dec=true ge
 /////// Unpack //////////////////////////////////////////////////////////
 void PackUnpackMsg77::hash10(int n10,QString &c13)
 {
-    c13="<...>";
+    c13="<0:"+std::to_string(n10)+">";
     if(n10<0 || n10>1023) return;//2.47 not from here
     if (sf_dec_gen)
     {
@@ -107,7 +107,8 @@ void PackUnpackMsg77::hash10(int n10,QString &c13)
 }
 void PackUnpackMsg77::hash12(int n12,QString &c13)
 {
-    c13="<...>";//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+//    c13="<...>";//c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
+    c13="<1:"+std::to_string(n12)+">";
     if(n12<0 || n12>4095) return;//2.47 not from here
     if (sf_dec_gen)
     {
@@ -144,7 +145,7 @@ void PackUnpackMsg77::hash12(int n12,QString &c13)
 }
 void PackUnpackMsg77::hash22(int n22,QString &c13)
 {
-    c13="<...>";
+    c13="<2:"+std::to_string(n22)+">";
     if (sf_dec_gen)
     {
         for (int i = 0; i < MAXHASHD; ++i)
@@ -885,7 +886,7 @@ QString PackUnpackMsg77::unpack77(bool *c77,bool &unpk77_success)
 
     msg=msg.trimmed();  //qDebug()<<"unpk77 ="<<msg<<i3<<n3;
 
-    return msg;
+    return msg + "|"+call_1+";"+call_2+";"+call_3;
 }
 ////////////// END Unpack //////////////////////////////////////////////////////////////
 
