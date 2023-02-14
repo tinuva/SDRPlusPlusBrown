@@ -16,13 +16,6 @@
 #include <chrono>
 #include <functional>
 
-static long long currentTimeMillis() {
-    std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
-    long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
-    return msec;
-}
-
-
 // #include "../HvMsPlayer/libsound/HvGenFt8/gen_ft8.h"
 //#include <QObject> //2.53
 #define ALL_MSG_SNR 120 //2.63 from 100 to 120

@@ -17,7 +17,10 @@
 #include "gen_ft8.h"
 #include "ft_all_ap_def.h"
 #include <sstream>
+#include <ctm.h>
 //#include <QtGui>
+
+#include <module.h>
 
 /*
 static const int KK=87;              //!Information bits (75 + CRC12)

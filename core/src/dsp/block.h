@@ -76,7 +76,9 @@ namespace dsp {
 
         virtual void doStop() {
             for (auto& in : inputs) {
-                in->stopReader();
+                if (in) {
+                    in->stopReader();
+                }
             }
             for (auto& out : outputs) {
                 out->stopWriter();
@@ -88,7 +90,9 @@ namespace dsp {
             }
 
             for (auto& in : inputs) {
-                in->clearReadStop();
+                if (in) {
+                    in->clearReadStop();
+                }
             }
             for (auto& out : outputs) {
                 out->clearWriteStop();

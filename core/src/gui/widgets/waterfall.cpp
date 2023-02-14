@@ -13,8 +13,7 @@
 #include <gui/gui.h>
 #include <gui/style.h>
 #include <imgui/imgui_internal.h>
-
-extern long long currentTimeMillis();
+#include <ctm.h>
 
 #define MEASURE_LOCK_GUARD(mtx) \
     auto t0 = currentTimeMillis();                      \
@@ -89,6 +88,7 @@ inline void printAndScale(double freq, char* buf) {
 }
 
 namespace ImGui {
+
     WaterFall::WaterFall() {
         fftMin = -70.0;
         fftMax = 0.0;
@@ -229,131 +229,12 @@ namespace ImGui {
             }
         }
 
-        drawDecodedResults();
+        afterWaterfallDraw.emit(WaterfallDrawArgs{ window, wfMin, wfMax });
 
 
     }
-    void WaterFall::drawDecodedResults() {
-
-        ImGui::PushFont(style::baseFont);
-
-        decodedResultsLock.lock();
-        auto wfHeight = wfMax.y - wfMin.y;
-        auto wfWidth = wfMax.x - wfMin.x;
-//        auto timeDisplayed = (wfMax.y - wfMin.y) * sigpath::iqFrontEnd.getFFTRate() / waterfallHeight;
-        double timePerLine = 1000.0 / sigpath::iqFrontEnd.getFFTRate();
-        auto currentTime = sigpath::iqFrontEnd.getCurrentStreamTime();
-
-        // delete obsolete ones
-        for(int i=0; i<decodedResults.size(); i++) {
-            auto& result = decodedResults[i];
-            if (result.layoutY != -1) {
-                auto resultTimeDelta = currentTime - result.decodeEndTimestamp;
-                auto resultBaselineY = resultTimeDelta / timePerLine;
-                if (resultBaselineY + result.layoutY > wfHeight) {
-                    decodedResults.erase(decodedResults.begin() + i);
-                    i--;
-                    continue;
-                }
-            }
-        }
 
 
-        std::vector<ImRect> rects;
-        auto baseTextSize = ImGui::CalcTextSize("WW6WWW");
-        // place new ones
-        for(int i=0; i<decodedResults.size(); i++) {
-            auto& result = decodedResults[i];
-            if (result.shortString.empty()) {
-                continue;
-            }
-
-            auto df = result.frequency - getCenterFrequency();
-            auto dx = (wfWidth / 2) +  df / (viewBandwidth / 2) *  (wfWidth / 2); // in pixels, on waterfall
-            auto resultTimeDelta = currentTime - result.decodeEndTimestamp;
-            auto resultBaselineY = resultTimeDelta / timePerLine;
-            auto textSize = ImGui::CalcTextSize(result.shortString.c_str());
-            if (textSize.x < baseTextSize.x) {
-                textSize.x = baseTextSize.x;
-            }
-            textSize.y += 2;
-            if (result.width == -1) {
-                // not layed out. find its absolute Y on the waterfall
-                for(int step = 0; step < 50; step++) {
-                    int dy = step * textSize.y;
-                    auto testRect = ImRect(dx, resultBaselineY + dy, dx + textSize.x, resultBaselineY + dy + textSize.y);
-                    bool overlaps = false;
-                    for(const auto &r : rects) {
-                        if (r.Overlaps(testRect)) {
-                            overlaps = true;
-                            break;
-                        }
-                    }
-                    if (!overlaps) {
-                        result.layoutX = 0;
-                        result.layoutY = dy;
-                        result.width = textSize.x;
-                        result.height = textSize.y;
-                        break;
-                    }
-                }
-                if (result.width == -1) {
-                    result.shortString = ""; // no luck.
-                    continue;
-                }
-            }
-            if (result.width != -1) {
-                auto drawX = dx + result.layoutX;
-                auto drawY = resultBaselineY + result.layoutY;
-                ImU32 white = IM_COL32(255, 255, 255, 255);
-                ImU32 black = IM_COL32(0, 0, 0, 255);
-                const ImVec2 origin = ImVec2(wfMin.x + drawX, wfMin.y + drawY);
-                const char* str = result.shortString.c_str();
-
-                auto toColor = [](double coss) {
-                        if (coss < 0) {
-                            return 0;
-                        }
-                        return (int)(coss * 255);
-                    };
-                // p = 0..1
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-                auto phase = result.intensity * 2 * M_PI;
-                auto RR= toColor(cos((phase - M_PI / 4 - M_PI - M_PI / 4) / 2));
-                auto GG= toColor(cos((phase - M_PI / 4 - M_PI / 2) / 2));
-                auto BB = toColor(cos(phase - M_PI / 4));
-
-
-
-                const ImRect& drect = ImRect(drawX, drawY, drawX + textSize.x, drawY + textSize.y);
-                window->DrawList->AddRectFilled(origin, origin + textSize - ImVec2(0, 2), IM_COL32(RR, GG, BB, 160));
-                window->DrawList->AddText(origin + ImVec2(-1, -1), black, str);
-                window->DrawList->AddText(origin + ImVec2(-1, +1), black, str);
-                window->DrawList->AddText(origin + ImVec2(+1, -1), black, str);
-                window->DrawList->AddText(origin + ImVec2(+1, +1), black, str);
-                window->DrawList->AddText(origin, white, str);
-                float nsteps = 12.0;
-                float h = 4.0;
-                float yy = textSize.y - h;
-                for(float x=0; x<baseTextSize.x; x+=baseTextSize.x/nsteps) {
-                    auto x0 = x;
-                    auto x1 = x + baseTextSize.x/nsteps;
-                    auto x0m = x0 + (0.8)*(x1-x0);
-                    bool green = (x / baseTextSize.x) < result.strength;
-                    window->DrawList->AddRectFilled(ImVec2(x0, yy) + origin, ImVec2(x0m, yy+h) + origin, green ? IM_COL32(64, 255, 0, 255) : IM_COL32(180, 180, 180, 255));
-                    window->DrawList->AddRectFilled(ImVec2(x0m, yy) + origin, ImVec2(x1, yy+h) + origin, IM_COL32(180, 180, 180, 255));
-                }
-//                window->DrawList->AddRectFilled(origin, white, str);
-                rects.emplace_back(drect);
-            }
-        }
-
-        ImGui::PopFont();
-
-        decodedResultsLock.unlock();
-    }
     void WaterFall::drawWaterfallImages() {
         int sectionIndex = waterfallHeadSectionIndex;
         int imageHeight = waterfallHeadSectionHeight;
@@ -1630,8 +1511,5 @@ namespace ImGui {
         return d >= getCenterFrequency() - getBandwidth()/2 && d <= getCenterFrequency() + getBandwidth()/2;
     }
 
-    DecodedResult::DecodedResult(DecodedMode mode, long long int decodeEndTimestamp, long long int frequency, const std::string& shortString, const std::string& detailedString)
-        : mode(mode), decodeEndTimestamp(decodeEndTimestamp), frequency(frequency), shortString(shortString), detailedString(detailedString) {
 
-    }
 };

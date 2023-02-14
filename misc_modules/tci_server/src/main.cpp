@@ -13,6 +13,7 @@
 #include <radio_interface.h>
 #include <websocket.h>
 #include <iostream>
+#include <ctm.h>
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
 #define MAX_COMMAND_LENGTH 8192
@@ -24,12 +25,6 @@ SDRPP_MOD_INFO{
     /* Version:         */ 0, 1, 0,
     /* Max instances    */ 1
 };
-
-static long long currentTimeMillis() {
-    std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
-    long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
-    return msec;
-}
 
 enum {
     RECORDER_TYPE_RECORDER,

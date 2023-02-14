@@ -225,14 +225,26 @@ static void parseCallsign(const std::string &txt, CTY::Callsign* pCallsign) {
     }
 }
 
+static bool isSomeWeirdName(const std::string &basicString) {
+    int countDashes = 0;
+    for(auto c: basicString) {
+        if (c == '-') {
+            countDashes++;
+        }
+    }
+    return countDashes > 1;
+}
 
-void loadCTY(const std::string& filename, CTY& cty) {
+
+void loadCTY(const std::string& filename, const std::string &region, CTY& cty) {
+    bool excludeWeirdThings = !region.empty();
     std::ifstream file(filename);
     if (!file.is_open()) {
         throw std::runtime_error("Unable to open CTY file: "+filename);
     }
     std::string line;
     std::vector<std::string> lineSplit;
+    bool isWeirdSection = false;
     while (std::getline(file, line)) {
         if (line.empty()) continue;
         if (line[0] != ' ') {
@@ -241,20 +253,26 @@ void loadCTY(const std::string& filename, CTY& cty) {
                 trimString(s);
             }
             if (lineSplit.size() >= 8) {
-                cty.dxcc.emplace_back(CTY::DXCC{std::stod(lineSplit[4]), -std::stod(lineSplit[5]), lineSplit[0], lineSplit[3]});
+                auto& locName = lineSplit[0];
+                isWeirdSection = isSomeWeirdName(locName);
+                if (!excludeWeirdThings || !isWeirdSection) {
+                    cty.dxcc.emplace_back(CTY::DXCC{ std::stod(lineSplit[4]), -std::stod(lineSplit[5]), locName + region, lineSplit[3] });
+                }
             }
             continue;
         }
-        splitStringV(line, " ,;\r\n", lineSplit);
-        for(auto s: lineSplit) {
-            trimString(s);
-            if (!cty.dxcc.empty()) {
-                CTY::Callsign cs;
-                parseCallsign(s, &cs);
-                if (cs.value.empty()) {
-                    continue ;
+        if (!excludeWeirdThings || !isWeirdSection) {
+            splitStringV(line, " ,;\r\n", lineSplit);
+            for (auto s : lineSplit) {
+                trimString(s);
+                if (!cty.dxcc.empty()) {
+                    CTY::Callsign cs;
+                    parseCallsign(s, &cs);
+                    if (cs.value.empty()) {
+                        continue;
+                    }
+                    cty.dxcc.back().prefixes.emplace_back(cs);
                 }
-                cty.dxcc.back().prefixes.emplace_back(cs);
             }
         }
     }
@@ -263,31 +281,39 @@ void loadCTY(const std::string& filename, CTY& cty) {
 
 
 CTY::Callsign CTY::findCallsign(const std::string& callsign) const {
+    bool found = false;
+    CTY::Callsign rv;
     for(auto & dxcc1 : dxcc) {
         for(auto &prefix: dxcc1.prefixes) {
             if (prefix.exact) {
                 if (callsign == prefix.value) {
-                    auto rv = prefix;
+                    rv = prefix;
                     rv.ll = dxcc1.ll;
                     rv.continent = dxcc1.continent;
                     rv.dxccname = dxcc1.name;
-                    return rv;
+                    found = true;
                 }
             }
         }
+    }
+    if (found) { // exact
+        return rv;
     }
     for(auto & dxcc1 : dxcc) {
         for(auto &prefix: dxcc1.prefixes) {
             if (!prefix.exact) {
-                if (callsign.find(prefix.value) == 0) {
-                    auto rv = prefix;
-                    rv.ll = dxcc1.ll;
-                    rv.continent = dxcc1.continent;
-                    rv.dxccname = dxcc1.name;
-                    return rv;
+                if (callsign.find(prefix.value) == 0)  {    // last one is more important
+                    if (prefix.value.length() >= rv.value.length()) {
+                        rv = prefix;
+                        rv.ll = dxcc1.ll;
+                        rv.continent = dxcc1.continent;
+                    }
+                    if (rv.dxccname.empty() || !isSomeWeirdName(dxcc1.name)) {
+                        rv.dxccname = dxcc1.name;
+                    }
                 }
             }
         }
     }
-    return CTY::Callsign();
+    return rv;
 }

@@ -4,6 +4,7 @@
 #include <spdlog/spdlog.h>
 #include <gui/gui.h>
 #include <core.h>
+#include <ctm.h>
 
 IQFrontEnd::~IQFrontEnd() {
     if (!_init) { return; }
@@ -328,12 +329,6 @@ void IQFrontEnd::togglePreprocessor(dsp::Processor<dsp::complex_t, dsp::complex_
     } else {
         preproc.disableBlock(processor, [=](dsp::stream<dsp::complex_t>* out) { split.setInput(out); });
     }
-}
-
-long long currentTimeMillis() {
-    std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
-    long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
-    return msec;
 }
 
 long long IQFrontEnd::getCurrentStreamTime() {

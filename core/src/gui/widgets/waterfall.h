@@ -5,6 +5,7 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 #include <utils/event.h>
+#include <ctm.h>
 
 #include <utils/opengl_include_code.h>
 
@@ -12,35 +13,6 @@
 
 namespace ImGui {
 
-    enum DecodedMode {
-        DM_FT8 = 1
-    };
-
-
-    struct DecodedResult {
-        DecodedMode mode;
-        long long decodeEndTimestamp;
-        long long frequency;
-        std::string shortString;
-        // above is unique key
-
-        DecodedResult(DecodedMode mode, long long int decodeEndTimestamp, long long int frequency, const std::string& shortString, const std::string& detailedString);
-
-        bool operator == (const DecodedResult&another) const {
-            return mode == another.mode && decodeEndTimestamp == another.decodeEndTimestamp && frequency == another.frequency && shortString == another.shortString;
-        }
-
-        std::string detailedString;
-        double strength; // normalized 0..1.0
-
-        // below, zero means not layed out.
-        double layoutY = 0;     // y on the waterfall relative to decodeEndTimestamp, in pixels;
-        double layoutX = 0;     // x on the waterfall relative its to frequency (after rescale, relayout needed), in pixels
-        double width = -1;
-        double height = -1;
-        double clusterId = 0;
-        double intensity = 0;
-    };
 
 
     class WaterfallVFO {
@@ -244,6 +216,15 @@ namespace ImGui {
 
         Event<FFTRedrawArgs> onFFTRedraw;
 
+        struct WaterfallDrawArgs {
+            ImGuiWindow* window;
+            ImVec2 wfMin;
+            ImVec2 wfMax;
+
+        };
+
+        Event<WaterfallDrawArgs> afterWaterfallDraw;
+
         struct InputHandlerArgs {
             ImVec2 fftRectMin;
             ImVec2 fftRectMax;
@@ -283,21 +264,6 @@ namespace ImGui {
         ImVec2 wfMax;
 
         bool containsFrequency(double d);
-
-        void addDecodedResult(const DecodedResult&x) {
-            std::lock_guard g(decodedResultsLock);
-            for(int i=0; i<decodedResults.size(); i++) {
-                if(decodedResults[i] == x) {
-                    return;
-                }
-            }
-            decodedResults.push_back(x);
-        }
-
-        void clearDecodedResults() {
-            std::lock_guard g(decodedResultsLock);
-            ImGui::WaterFall::decodedResults.clear();
-        }
 
     private:
         void drawWaterfall();
@@ -422,10 +388,5 @@ namespace ImGui {
         const int rawFFTIndex(double frequency) const;
         void testAlloc(const std::string& where);
 
-        std::vector<DecodedResult>  decodedResults;
-        std::mutex decodedResultsLock;
-
-
-        void drawDecodedResults();
     };
 };

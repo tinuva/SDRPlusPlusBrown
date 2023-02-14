@@ -51,6 +51,6 @@ struct CTY {
 
 };
 
-[[maybe_unused]] void loadCTY(const std::string &filename, CTY &cty);
+[[maybe_unused]] void loadCTY(const std::string &filename, const std::string &region, CTY &cty);
 LatLng gridToLatLng(std::string locatorString);
 BearingDistance bearingDistance(LatLng fromCoords, LatLng toCoords);

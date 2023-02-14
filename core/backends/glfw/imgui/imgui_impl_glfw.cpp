@@ -53,6 +53,7 @@
 #include "imgui_impl_glfw.h"
 #include <chrono>
 #include <stdio.h>
+#include <ctm.h>
 
 // Clang warnings with -Weverything
 #if defined(__clang__)
@@ -254,8 +255,6 @@ static void ImGui_ImplGlfw_UpdateKeyModifiers(int mods)
     io.AddKeyEvent(ImGuiKey_ModAlt, (mods & GLFW_MOD_ALT) != 0);
     io.AddKeyEvent(ImGuiKey_ModSuper, (mods & GLFW_MOD_SUPER) != 0);
 }
-
-extern long long currentTimeMillis();
 
 void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {

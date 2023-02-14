@@ -1,6 +1,8 @@
 #include <core.h>
 #include <iostream>
 #include <stdio.h>
+#include <module.h>
+#include <ctm.h>
 #include <utils/wav.h>
 #include <utils/riff.h>
 #include "dsp/types.h"
@@ -10,9 +12,6 @@
 #include "ft8_etc/mshv_support.h"
 #include "ft8_etc/mscore.h"
 #include "ft8_etc/decoderms.h"
-
-extern long long currentTimeMillis();
-
 
 namespace ft8 {
     enum {

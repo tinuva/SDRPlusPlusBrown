@@ -101,3 +101,4 @@ public:
 };
 
 #define SDRPP_MOD_INFO MOD_EXPORT const ModuleManager::ModuleInfo_t _INFO_
+

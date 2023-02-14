@@ -1,10 +1,10 @@
 #pragma once
-
 #include "protocol1_discovery.h"
 #include "discovered.h"
 #include "plugin_main.h"
 #include <dsp/types.h>
 #include <signal_path/signal_path.h>
+#include <ctm.h>
 
 #define DATA_PORT 1024
 
@@ -31,12 +31,6 @@ static std::string GetThreadName( ) {
     return std::string(thread_name_buffer);
 #endif
     return "??";
-}
-
-inline long long currentTimeMillis() {
-    std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
-    long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
-    return msec;
 }
 
 

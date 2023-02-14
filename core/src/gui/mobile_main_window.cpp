@@ -20,6 +20,7 @@
 #include "../../misc_modules/noise_reduction_logmmse/src/arrays.h"
 #include "dsp/convert/stereo_to_mono.h"
 #include "dsp/channel/frequency_xlator.h"
+#include "ctm.h"
 #include <math.h>
 
 using namespace ::dsp::arrays;
@@ -191,8 +192,6 @@ struct AudioInToFFT : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
         return rd;
     };
 };
-
-extern long long currentTimeMillis();
 
 struct CWPanel {
 
