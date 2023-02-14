@@ -687,6 +687,10 @@ public:
     std::mutex processingBlockMutex;
     double vfoOffset = 0.0;
     std::atomic_int blockProcessorsRunning = 0;
+    std::atomic_int lastFT8DecodeTime0 = 0;
+    std::atomic_int lastFT8DecodeTime = 0;
+    std::atomic_int  lastFT8DecodeCount = 0;
+    std::atomic_int  totalFT8Displayed = 0;
 
     void handleIFData(const std::vector<dsp::stereo_t>& data) {
         long long int curtime = sigpath::iqFrontEnd.getCurrentStreamTime();
@@ -737,7 +741,12 @@ public:
             std::time_t bst = blockNumber * 15;
             spdlog::info("Start processing block, size={}, block time: {}", block->size(), std::asctime(std::gmtime(&bst)));
 
-            auto handler = [=](int mode, std::vector<std::string> result) {
+            int count = 0;
+            long long time0 = 0;
+            auto handler = [&](int mode, std::vector<std::string> result) {
+                if (time0 == 0) {
+                    time0 = currentTimeMillis();
+                }
                 auto message = result[4];
                 auto pipe = message.find('|');
                 std::string callsigns;
@@ -765,6 +774,7 @@ public:
                 } else {
                     callsign = extractCallsignFromFT8(message);
                 }
+                count++;
                 if (callsign.empty() || callsign.find("<") != std::string::npos) {  // ignore <..> callsigns
                     return;
                 }
@@ -794,8 +804,15 @@ public:
                 addDecodedResult(decodedResult);
                 return;
             };
-            std::thread t0([=]() {
+            std::thread t0([&]() {
+                auto start = currentTimeMillis();
                 dsp::ft8::decodeFT8(VFO_SAMPLE_RATE, block->data(), block->size(), handler);
+                auto end = currentTimeMillis();
+                spdlog::info("FT8 decoding took {} ms", end - start);
+                lastFT8DecodeCount = (int)count;
+                lastFT8DecodeTime = (int)(end - start);
+                lastFT8DecodeTime0 = (int)(time0 - start);
+                totalFT8Displayed = decodedResults.size();
             });
             //            std::thread t1([=]() {
             //                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + CAPTURE_SAMPLE_RATE, block->size() - CAPTURE_SAMPLE_RATE, handler);
@@ -902,12 +919,13 @@ private:
         }
 
         ImGui::LeftLabel("Decode FT8");
-        ImGui::FillWidth();
         if (ImGui::Checkbox(CONCAT("##_processing_enabled_ft8_", _this->name), &_this->processingEnabledFT8)) {
             config.acquire();
             config.conf[_this->name]["processingEnabledFT8"] = _this->processingEnabledFT8;
             config.release(true);
         }
+        ImGui::SameLine();
+        ImGui::Text("Count: %d(%d) in %d..%d msec", _this->lastFT8DecodeCount.load(), _this->totalFT8Displayed.load(), _this->lastFT8DecodeTime0.load(), _this->lastFT8DecodeTime.load());
         ImGui::LeftLabel("Decode FT4");
         ImGui::FillWidth();
         if (ImGui::Checkbox(CONCAT("##_processing_enabled_ft4_", _this->name), &_this->processingEnabledFT4)) {
