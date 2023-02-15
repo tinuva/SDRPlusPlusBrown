@@ -350,6 +350,7 @@ public:
             double scanY = 0;
             double scanX = 0;
             double maxColumnWidth = baseTextSize.x * 3;
+            int nresults = 0;
 
             for(int i=0;i<ngroups; i++) {
                 std::vector<DecodedResult*>insideGroup;
@@ -382,6 +383,7 @@ public:
                         fdr->layoutY = scanY;
                         fdr->result->intensity = (1.0 / (MAXGROUPS - 1)) * i;
                         decodedResultsDrawables.emplace_back(fdr);
+                        nresults++;
 
                         scanX += tisTextSize.x;
                     }
@@ -399,6 +401,8 @@ public:
                 }
 
             }
+            totalFT8Displayed = nresults;
+
         }
 
 
@@ -812,7 +816,6 @@ public:
                 lastFT8DecodeCount = (int)count;
                 lastFT8DecodeTime = (int)(end - start);
                 lastFT8DecodeTime0 = (int)(time0 - start);
-                totalFT8Displayed = decodedResults.size();
             });
             //            std::thread t1([=]() {
             //                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + CAPTURE_SAMPLE_RATE, block->size() - CAPTURE_SAMPLE_RATE, handler);

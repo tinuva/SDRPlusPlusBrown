@@ -39,6 +39,7 @@ Copyright (c) 2020 Meng Rao <raomeng1@gmail.com>
 #include <iostream>
 #include <memory>
 #include <chrono>
+#include <algorithm>
 
 #ifdef _WIN32
 inline uint16_t htobe16(uint16_t host_16bits) {

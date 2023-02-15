@@ -51,6 +51,23 @@ if (MSVC)
     # WinSock2
     target_link_libraries(sdrpp_ft8_mshv PUBLIC wsock32 ws2_32 iphlpapi)
 
+elseif (ANDROID)
+
+    target_include_directories(sdrpp_ft8_mshv PUBLIC
+            ${SDR_KIT_ROOT}/${ANDROID_ABI}/include
+            )
+    target_link_libraries(sdrpp_ft8_mshv PUBLIC
+            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libcpu_features.a
+            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libvolk.so
+            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3f.so
+            #            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3.so
+#            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libzstd.so
+            android
+#            EGL
+#            GLESv3
+#            log
+            )
+
 else()
     find_package(PkgConfig)
     pkg_check_modules(FFTW3 REQUIRED fftw3f)
