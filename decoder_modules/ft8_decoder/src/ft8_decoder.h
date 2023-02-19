@@ -100,7 +100,7 @@ namespace dsp {
                             rdbuf[nrd] = 0;
                             std::vector<std::string> thisResult;
                             splitString(rdbuf, "\n", [&](const std::string &p) {
-                                if (p.find("FT8_OUT") == 0) {
+                                if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT")) {
                                     thisResult.emplace_back(p);
                                 }
                             });
