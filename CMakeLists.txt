@@ -204,7 +204,11 @@ add_subdirectory("decoder_modules/m17_decoder")
 endif (OPT_BUILD_M17_DECODER)
 
 if (OPT_BUILD_FT8_DECODER)
-add_subdirectory("decoder_modules/ft8_decoder")
+    if (MSVC)
+        message(WARNING "FT8 Decoder is not yet supported on Windows, skipping")
+    else()
+        add_subdirectory("decoder_modules/ft8_decoder")
+    endif()
 endif (OPT_BUILD_FT8_DECODER)
 
 if (OPT_BUILD_METEOR_DEMODULATOR)
