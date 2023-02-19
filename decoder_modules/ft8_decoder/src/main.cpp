@@ -392,7 +392,11 @@ public:
                 }
                 if (!insideGroup.empty()) {
                     auto freqq = (double)(*insideGroup.begin())->frequency;
-                    auto fdr2 = std::make_shared<FT8DrawableDecodedDistRange>("<= " + std::to_string((int)maxDistance) + " KM", freqq);
+                    auto label = "<= " + std::to_string((int)maxDistance) + " KM";
+                    if (!myPos.isValid()) {
+                        label = "=> setup your GRID SQUARE";
+                    }
+                    auto fdr2 = std::make_shared<FT8DrawableDecodedDistRange>(label, freqq);
                     fdr2->layoutX = scanX;
                     fdr2->layoutY = scanY;
 //                    spdlog::info("closing: {} {} {}", i, fdr2->layoutX, fdr2->layoutY);
@@ -921,6 +925,9 @@ private:
             config.conf[_this->name]["myCallsign"] = _this->myCallsign;
             config.release(true);
         }
+        if (ImGui::SliderInt("Layout width", &_this->layoutWidth, 3, 10, (FormatString)elements[i+4].i, elements[i+5].i)) {
+            SET_DIFF_INT(elements[i].str, elements[i+1].i);
+        }
 
         ImGui::LeftLabel("Decode FT8");
         if (ImGui::Checkbox(CONCAT("##_processing_enabled_ft8_", _this->name), &_this->processingEnabledFT8)) {
@@ -961,6 +968,7 @@ private:
     bool processingEnabledFT8 = true;
     bool processingEnabledFT4 = true;
     bool enablePSKReporter = true;
+    int layoutWidth = 3;
 
 
     //    dsp::buffer::Reshaper<float> reshape;

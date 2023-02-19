@@ -12,10 +12,12 @@ void CommandArgsParser::defineAll() {
 #else
         std::string root = (std::string)getenv("HOME") + "/.config/sdrpp";
 #endif
+
+    std::string tempPath = "/tmp";
     std::error_code ec;
-    auto tempPath = std::filesystem::temp_directory_path(ec);
+    auto tempPath0 = std::filesystem::temp_directory_path(ec);
     if (!ec.value()) {
-        tempPath = std::string(tempPath.c_str());
+        tempPath = tempPath0.string();
     }
 
 
