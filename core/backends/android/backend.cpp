@@ -362,7 +362,7 @@ namespace backend {
         return 0;
     }
 
-    std::string getAppFilesDir() {
+    std::string callStringGetter(const std::string &methodName) {
         JavaVM* java_vm = app->activity->vm;
         JNIEnv* java_env = NULL;
 
@@ -378,7 +378,7 @@ namespace backend {
         if (native_activity_clazz == NULL)
             throw std::runtime_error("Could not get MainActivity class");
 
-        jmethodID method_id = java_env->GetMethodID(native_activity_clazz, "getAppDir", "()Ljava/lang/String;");
+        jmethodID method_id = java_env->GetMethodID(native_activity_clazz, methodName.c_str(), "()Ljava/lang/String;");
         if (method_id == NULL)
             throw std::runtime_error("Could not get method ID");
 
@@ -392,9 +392,19 @@ namespace backend {
         if (jni_return != JNI_OK)
             throw std::runtime_error("Could not detach from thread");
 
-        
+
         return str;
     }
+
+    std::string getAppFilesDir() {
+        return callStringGetter("getAppDir");
+    }
+
+    std::string getCacheDir() {
+        return callStringGetter("getThisCacheDir");
+    }
+
+
 
     const std::vector<DevVIDPID> AIRSPY_VIDPIDS = {
         { 0x1d50, 0x60a1 }
@@ -456,12 +466,18 @@ namespace backend {
     };
 }
 
+//extern void doDecode(const char *path, std::function<void(int mode, std::vector<std::string> result)> callback);
+
 extern "C" {
     void android_main(struct android_app* app) {
         // Save app instance
         app->onAppCmd = backend::handleAppCmd;
         app->onInputEvent = backend::handleInputEvent;
         backend::app = app;
+
+
+//        doDecode("/data/data/org.sdrpp.sdrpp/cache/sdrpp_ft8_mshv.wav.101");
+
 
         // Check if this is the first time we run or not
         if (backend::initialized) {
@@ -484,8 +500,13 @@ extern "C" {
         // Call main
         char* rootpath = new char[appdir.size() + 1];
         strcpy(rootpath, appdir.c_str());
-        char* dummy[] = { "", "-r", rootpath };
-        sdrpp_main(3, dummy);
+
+        auto cacheDir = backend::getCacheDir();
+        char* cacheDirPath = new char[cacheDir.size() + 1];
+        strcpy(cacheDirPath, cacheDir.c_str());
+
+        char* dummy[] = { "", "-r", rootpath, "-x", cacheDirPath };
+        sdrpp_main(5, dummy);
     }
 }
 extern "C"

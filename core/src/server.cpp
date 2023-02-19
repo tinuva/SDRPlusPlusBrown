@@ -12,6 +12,11 @@
 #include "dsp/sink/handler_sink.h"
 #include <zstd.h>
 
+#ifdef __linux__
+#include <signal.h>
+#include <csignal>
+#endif
+
 namespace server {
     dsp::stream<dsp::complex_t> dummyInput;
     dsp::compression::SampleStreamCompressor comp;
@@ -46,8 +51,12 @@ namespace server {
     bool compression = false;
     double sampleRate = 1000000.0;
 
+
     int main() {
         spdlog::info("=====| SERVER MODE |=====");
+#ifdef __linux__
+        signal(SIGPIPE, SIG_IGN);
+#endif
 
         // Init DSP
         comp.init(&dummyInput, dsp::compression::PCM_TYPE_I8);

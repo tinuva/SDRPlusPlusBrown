@@ -3,8 +3,8 @@ project(ft8_decoder)
 
 
 file(GLOB_RECURSE SRC "src/*.cpp" "src/*.c" ../../misc_modules/recorder/src/wav.cpp ../../misc_modules/recorder/src/riff.cpp)
-list(FILTER SRC EXCLUDE REGEX "sdrpp_ft8_mshv.cpp*" )
-list(FILTER SRC EXCLUDE REGEX "ft8_etc/*" )
+list(FILTER SRC EXCLUDE REGEX "sdrpp_ft8_mshv_main.cpp" )
+#list(FILTER SRC EXCLUDE REGEX "ft8_etc/*" )
 
 add_library(ft8_decoder SHARED ${SRC})
 target_link_libraries(ft8_decoder PRIVATE sdrpp_core)
@@ -26,7 +26,7 @@ install(TARGETS ft8_decoder DESTINATION lib/sdrpp/plugins)
 file(GLOB_RECURSE SDRPP_FT8MSHV_SRC src/*.cpp src/*.c EXCLUDE main.c)
 list(FILTER SDRPP_FT8MSHV_SRC EXCLUDE REGEX "main.c*" )
 
-add_executable(sdrpp_ft8_mshv "src/sdrpp_ft8_mshv.cpp" ${SDRPP_FT8MSHV_SRC})
+add_executable(sdrpp_ft8_mshv "src/sdrpp_ft8_mshv_main.cpp" "src/sdrpp_ft8_mshv.cpp" ${SDRPP_FT8MSHV_SRC})
 target_include_directories(sdrpp_ft8_mshv PUBLIC "../../core/src")
 
 if (MSVC)
@@ -58,8 +58,8 @@ elseif (ANDROID)
             )
     target_link_libraries(sdrpp_ft8_mshv PUBLIC
             ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libcpu_features.a
-            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libvolk.so
-            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3f.so
+            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libvolk.a
+            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3f.a
             #            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3.so
 #            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libzstd.so
             android
@@ -92,7 +92,14 @@ endif()
 
 #target_link_options(test0 PUBLIC -fsanitize=memory)
 
-install(TARGETS sdrpp_ft8_mshv DESTINATION bin)
+install(TARGETS sdrpp_ft8_mshv DESTINATION lib)
+
+if (ANDROID)
+    # this script will copy the binary to the android project. and gradle will pack it with other libs.
+    add_custom_command(TARGET sdrpp_ft8_mshv POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E time ${CMAKE_CURRENT_LIST_DIR}/android_pack.sh $<TARGET_FILE:sdrpp_ft8_mshv> ${CMAKE_CURRENT_LIST_DIR}
+            )
+endif()
 
 set(TARGETS sdrpp_ft8_mshv )
 foreach(TGT IN LISTS TARGETS)

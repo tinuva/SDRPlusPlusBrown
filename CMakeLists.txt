@@ -19,6 +19,8 @@ if (ANDROID)
     set(CMAKE_C_STANDARD 11)
     set(CMAKE_CXX_STANDARD 14)
     set(CMAKE_CXX14_EXTENSION_COMPILE_OPTION "-std=c++17")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -s")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -s")
 endif (ANDROID)
 
 # Backends
@@ -310,6 +312,7 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/root/res/fonts DESTINATION share/sdrpp)
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/root/res/icons DESTINATION share/sdrpp)
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/root/res/themes DESTINATION share/sdrpp)
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/root/res/cty DESTINATION share/sdrpp)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/root/res/bin DESTINATION share/sdrpp)
 configure_file(${CMAKE_SOURCE_DIR}/sdrpp.desktop ${CMAKE_CURRENT_BINARY_DIR}/sdrpp.desktop @ONLY)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")

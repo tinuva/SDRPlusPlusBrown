@@ -11,7 +11,12 @@ add_definitions(-DIS_MACOS_BUNDLE)
 endif (USE_BUNDLE_DEFAULTS)
 
 # Main code
-file(GLOB_RECURSE SRC "src/*.cpp" "src/*.c")
+file(GLOB_RECURSE SRC "src/*.cpp" "src/*.c"
+#        "../decoder_modules/ft8_decoder/src/*.cpp"
+#        "../decoder_modules/ft8_decoder/src/ft8_etc/*.cpp"
+        )
+list(FILTER SRC EXCLUDE REGEX "sdrpp_ft8_mshv_main.cpp" )
+
 
 add_definitions(-DSDRPP_IS_CORE)
 if (MSVC)
@@ -120,8 +125,8 @@ elseif (ANDROID)
 
     target_link_libraries(sdrpp_core PUBLIC
             ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libcpu_features.a
-            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libvolk.so
-            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3f.so
+            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libvolk.a
+            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3f.a
 #            ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3.so
             ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libzstd.so
         android
@@ -143,13 +148,6 @@ else()
 
 
     # temp
-
-#    set(FFTW3F_LIBRARY_DIRS /home/san/Fun/fftw-3.3.10/inst/lib)
-#    set(FFTW3_LIBRARY_DIRS /home/san/Fun/fftw-3.3.10/inst/lib)
-#    set(FFTW3F_INCLUDE_DIRS /home/san/Fun/fftw-3.3.10/inst/include)
-#    set(FFTW3_INCLUDE_DIRS /home/san/Fun/fftw-3.3.10/inst/include)
-#    set(FFTW3F_LIBRARIES /home/san/Fun/fftw-3.3.10/inst/lib/libfftw3f.a)
-#    set(FFTW3_LIBRARIES /home/san/Fun/fftw-3.3.10/inst/lib/libfftw3.a)
 
     pkg_check_modules(VOLK REQUIRED volk)
     pkg_check_modules(GLFW3 REQUIRED glfw3)
@@ -184,9 +182,6 @@ else()
     )
 
 
-#    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3f )
-#    target_link_libraries(sdrpp_core PUBLIC FFTW3::fftw3 )
-
 
     if (NOT USE_INTERNAL_LIBCORRECT)
         pkg_check_modules(CORRECT REQUIRED libcorrect)
@@ -202,6 +197,7 @@ else()
 endif ()
 
 set(CORE_FILES ${RUNTIME_OUTPUT_DIRECTORY} PARENT_SCOPE)
+
 
 # cmake .. "-DCMAKE_TOOLCHAIN_FILE=C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
 

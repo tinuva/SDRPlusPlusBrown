@@ -83,8 +83,9 @@ namespace ft8 {
 }
 
 
-
-void doDecode(const char *path) {
+void doDecode(const char *path, std::function<void(int mode, std::vector<std::string> result)> callback) {
+    mshv_init();
+    write(1, "sample output here\n", strlen("sample output here\n"));
     FILE *f = fopen(path,"rb");
     if (!f) {
         fprintf(stderr,"ERROR Cannot open file %s\n", path);
@@ -110,6 +111,8 @@ void doDecode(const char *path) {
     printf("BytesPerSample: %d\n", hdr->bytesPerSample);
     printf("BitDepth: %d\n", hdr->bitDepth);
     printf("Codec: %d\n", hdr->codec);
+    fflush(stdout);
+    write(1, "sample output here 2\n", strlen("sample output here 2\n"));
     bool handled = hdr->codec == 3 && hdr->bitDepth == 32 && hdr->channelCount == 2;
     handled |= hdr->codec == 1 && hdr->bitDepth == 16 && hdr->channelCount == 2;
     if (!handled) {
@@ -133,25 +136,22 @@ void doDecode(const char *path) {
         printf("d0: %f   %f   maxx: %f\n", data[100], data[101], maxx);
     }
 
+    fflush(stdout);
+    fflush(stderr);
     try {
         for(int q=0; q<1; q++) {
             auto ctm = currentTimeMillis();
 //            spdlog::info("=================================");
             ft8::decodeFT8(hdr->sampleRate, (dsp::stereo_t*)data, nSamples, [](int mode, QStringList result) {
+
             });
             std::cout << "Time taken: " << currentTimeMillis() - ctm << " ms" << std::endl;
+            fflush(stdout);
         }
+        write(1, "sample output here 3\n", strlen("sample output here 3\n"));
     } catch (std::runtime_error &e) {
         fprintf(stderr,"ERROR %s \n", e.what());
     }
 
 }
 
-int main(int argc, char* argv[]) {
-    mshv_init();
-    if (argc >= 3 && !strcmp(argv[1],"--decode")) {
-        doDecode(argv[2]);
-        exit(0);
-    }
-    exit(1);
-}

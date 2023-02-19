@@ -12,11 +12,18 @@ void CommandArgsParser::defineAll() {
 #else
         std::string root = (std::string)getenv("HOME") + "/.config/sdrpp";
 #endif
+    std::error_code ec;
+    auto tempPath = std::filesystem::temp_directory_path(ec);
+    if (!ec.value()) {
+        tempPath = std::string(tempPath.c_str());
+    }
 
-        define('a', "addr", "Server mode address", "0.0.0.0");
+
+    define('a', "addr", "Server mode address", "0.0.0.0");
         define('h', "help", "Show help");
         define('p', "port", "Server mode port", 5259);
         define('r', "root", "Root directory, where all config files are stored", std::filesystem::absolute(root).string());
+        define('x', "temp", "Temp directory, where all temporary files are stored", tempPath);
         define('s', "server", "Run in server mode");
         define('\0', "autostart", "Automatically start the SDR after loading");
 }

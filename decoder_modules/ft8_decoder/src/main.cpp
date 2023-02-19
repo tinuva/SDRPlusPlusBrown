@@ -22,6 +22,8 @@
 #include "../../radio/src/demodulators/usb.h"
 #include <utils/kmeans.h>
 
+#include <spdlog/sinks/android_sink.h>
+
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
 SDRPP_MOD_INFO{
@@ -364,8 +366,7 @@ public:
                 });
                 std::string lastAdded;
                 double maxDistance = 0;
-                for(int q=0; q<insideGroup.size(); q++) {
-                    auto & decodedResult = insideGroup[q];
+                for(auto & decodedResult : insideGroup) {
                     if (decodedResult->shortString != lastAdded) {
                         maxDistance = std::max<double>(maxDistance, decodedResult->distance);
                         lastAdded = decodedResult->shortString;
@@ -389,8 +390,8 @@ public:
                     }
 
                 }
-                if (insideGroup.size() > 0) {
-                    double freqq = (*insideGroup.begin())->frequency;
+                if (!insideGroup.empty()) {
+                    auto freqq = (double)(*insideGroup.begin())->frequency;
                     auto fdr2 = std::make_shared<FT8DrawableDecodedDistRange>("<= " + std::to_string((int)maxDistance) + " KM", freqq);
                     fdr2->layoutX = scanX;
                     fdr2->layoutY = scanY;
@@ -1096,6 +1097,13 @@ MOD_EXPORT void _INIT_() {
     loadCTY(resDir + "/cty/SA_cty.dat", ", SA", cty);
     loadCTY(resDir + "/cty/VK_cty.dat", ", VK", cty);
     loadCTY(resDir + "/cty/cty_rus.dat", ", RUS", cty);
+
+#ifdef __ANDROID__
+    auto console_sink = std::make_shared<spdlog::sinks::android_sink_st>("SDR++");
+    auto logger = std::shared_ptr<spdlog::logger>(new spdlog::logger("", { console_sink }));
+    spdlog::set_default_logger(logger);
+#endif
+
 }
 
 MOD_EXPORT ModuleManager::Instance* _CREATE_INSTANCE_(std::string name) {

@@ -241,7 +241,7 @@ void DecoderFt8::ft8_downsample(double *dd,bool &newdat,double f0,std::complex<d
     }
     if (newdat)
     {
-        double x[NFFT1+100];
+        std::vector<double> x(NFFT1+100);
         //! Data in dd have changed, recompute the long FFT
         /*for (int i = 0; i < NMAX; ++i)
             x[i]=dd[i]*0.01; //hv correction x(1:NMAX)=dd  hv correction
@@ -252,7 +252,7 @@ void DecoderFt8::ft8_downsample(double *dd,bool &newdat,double f0,std::complex<d
             if (i < NMAX) x[i]=dd[i]*0.01;
             else x[i]=0.0;
         }
-        f2a.four2a_d2c(cx_ft8,x,NFFT1,-1,0,decid);//call four2a(cx,NFFT1,1,-1,0)             //!r2c FFT to freq domain
+        f2a.four2a_d2c(cx_ft8,x.data(),NFFT1,-1,0,decid);//call four2a(cx,NFFT1,1,-1,0)             //!r2c FFT to freq domain
         newdat=false;
     }
 
