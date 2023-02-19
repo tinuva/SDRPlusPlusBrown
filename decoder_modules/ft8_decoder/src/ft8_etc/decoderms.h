@@ -11,6 +11,7 @@
 #include "decoderpom.h"
 #include "gen_ft4.h"
 #include "gen_ft8.h"
+#include "ctm.h"
 
 #include <iostream>
 #include <chrono>
@@ -142,6 +143,7 @@ private:
 class DecoderFt4
 {
 
+    int outCount = 0;
 public:
     explicit DecoderFt4(int id);
     ~DecoderFt4();
@@ -159,11 +161,22 @@ public:
     void ft4_decode(double *dd,double f0a,double f0b,double,double,double fqso,bool &f);
 
 //signals:
-    void EmitDecodetTextFt(QStringList) {
-        abort();
+    void EmitDecodetTextFt(QStringList lst) {
+        char buf[1000] ="";
+        sprintf(buf+strlen(buf), "FT4_OUT\t%lld\t%02d", currentTimeMillis(), outCount++);
+        for(int i=0; i<lst.count(); i++) {
+            sprintf(buf + strlen(buf), "\t{%d}\t%s", i, lst[i].str->c_str());
+            //        std::cout << "{" << i << "}" << lst[i].str->c_str() << " ";
+        }
+        strcat(buf,"\n");
+        fwrite(buf, 1, strlen(buf), stdout);
+        fflush(stdout);
+//        if (resultsCallback) {
+//            resultsCallback(11, lst);
+//        }
     }
     void EmitBackColor() {
-        abort();
+        //
     }
 
 private:
@@ -180,7 +193,7 @@ private:
     void dshift1(double *a,int cou_a,int ish);//???
 
     bool first_ft4_ds;
-    std::complex<double> cx_ft4_ds[40000];     //(0:NMAX/2)=36288   31104                 [NMAX] (NMAX=21*3456)=72576
+    std::complex<double> cx_ft4_ds[80000];     //(0:NMAX/2)=36288   31104                 [NMAX] (NMAX=21*3456)=72576
     double window_ft4_ds[4096]; //(0:NFFT2-1) (NFFT2=NMAX/18)=4032     (0:NFFT2-1) (NFFT2=NMAX/16)=3888
     void ft4_downsample(double *dd,bool newdata,double f0,std::complex<double> *c);
 

@@ -1838,7 +1838,7 @@ void PackUnpackMsg77::pack77_4(int nwords,QString *w,int &i3,int &n3,bool *c77)
         long long int n58=0;//unsigned
         for (int i = 0; i<11; ++i)
         {//do i=1,11
-            int nn = c_77_04.indexOf(c11[i]);//index(c,c11(i:i)) - 1
+            int nn = i < c11.length() ? c_77_04.indexOf(c11[i]) : -1;//index(c,c11(i:i)) - 1
             if (nn<0) nn = 0;  //HV Clean up any illegal chars
             n58=n58*38 + nn;
         }

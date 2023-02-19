@@ -5,10 +5,14 @@
 #include <utils/riff.h>
 #include "symbolic.h"
 
-#ifndef _WIN32
+#ifdef __linux__
 
 #include <wait.h>
 
+#endif
+
+#ifdef __APPLE__
+#include <sys/wait.h>
 #endif
 
 // extern int four2a_d2c_cnt;
@@ -28,7 +32,7 @@ namespace dsp {
             DMS_FT8 = 11
         } DecoderMSMode;
 
-        void invokeDecoder(const std::string &wavPath, const std::string &outPath,
+        void invokeDecoder(const std::string &mode, const std::string &wavPath, const std::string &outPath,
                            const std::string &errPath, std::function<void(int mode,
                                                                           std::vector<std::string> result)> callback) {
 
@@ -63,11 +67,11 @@ namespace dsp {
                 fflush(stdout);
 #if 1
 
-                spdlog::info("FT8 Decoder: executing: {}", decoderPath);
+                spdlog::info("FT8 Decoder({}): executing: {}", mode, decoderPath);
                 auto err = execl(decoderPath.c_str(), decoderPath.c_str(), "--decode",
-                                 wavPath.c_str(), NULL);
+                                 wavPath.c_str(), "--mode", mode.c_str(), NULL);
                 static auto q = errno;
-                spdlog::info("FT8 Decoder: executing: {}: error={}", decoderPath, q);
+                spdlog::info("FT8 Decoder({}): executing: {}: error={}", mode, decoderPath, q);
                 if (err < 0) {
                     perror("exec: ");
                 }
@@ -134,7 +138,7 @@ namespace dsp {
 
         }
 
-        inline void decodeFT8(int sampleRate, dsp::stereo_t *samples, long long nsamples,
+        inline void decodeFT8(const std::string &mode, int sampleRate, dsp::stereo_t *samples, long long nsamples,
                               std::function<void(int mode,
                                                  std::vector<std::string> result)> callback) {
 
@@ -213,7 +217,7 @@ namespace dsp {
             auto outPath = tempPath + "/sdrpp_ft8_mshv.out." + seqS;
             auto errPath = tempPath + "/sdrpp_ft8_mshv.err." + seqS;
 
-            invokeDecoder(wavPath, outPath, errPath, callback);
+            invokeDecoder(mode, wavPath, outPath, errPath, callback);
 
 #endif
 

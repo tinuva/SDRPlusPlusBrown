@@ -19,12 +19,13 @@ namespace ft8 {
 
 
     enum {
-        DMS_FT8 = 11
+        DMS_FT8 = 11,
+        DMS_FT4 = 13
     } DecoderMSMode;
 
 
     // input stereo samples, nsamples (number of pairs of float)
-    inline void decodeFT8(int sampleRate, dsp::stereo_t* samples, long long nsamples, std::function<void(int mode, QStringList result)> callback) {
+    inline void decodeFT8(const char *mode, int sampleRate, dsp::stereo_t* samples, long long nsamples, std::function<void(int mode, QStringList result)> callback) {
         //
         //
         //
@@ -41,6 +42,7 @@ namespace ft8 {
             res.init(nullptr, sampleRate, 12000);
             nsamples = res.process(nsamples, samples, resampledV.data());
             samples = resampledV.data();
+            printf("Resampled, samples size=2 * %zu\n", resampledV.size()/2);
         }
 
 
@@ -54,7 +56,14 @@ namespace ft8 {
         //    auto core = std::make_shared<MsCore>();
         //    core->ResampleAndFilter(converted.data(), converted.size());
         auto dms = std::make_shared<DecoderMs>();
-        dms->setMode(DMS_FT8);
+        if (std::string("ft8") == mode) {
+            dms->setMode(DMS_FT8);
+        } else if (std::string("ft4") == mode) {
+            dms->setMode(DMS_FT4);
+        } else {
+            fprintf(stderr, "ERROR: invalid mode is specified. Valid modes: ft8, ft4\n");
+            exit(1);
+        }
         {
             QStringList ql;
             ql << "CALL";
@@ -83,7 +92,7 @@ namespace ft8 {
 }
 
 
-void doDecode(const char *path, std::function<void(int mode, std::vector<std::string> result)> callback) {
+void doDecode(const char *mode, const char *path, std::function<void(int mode, std::vector<std::string> result)> callback) {
     mshv_init();
     write(1, "sample output here\n", strlen("sample output here\n"));
     FILE *f = fopen(path,"rb");
@@ -118,7 +127,7 @@ void doDecode(const char *path, std::function<void(int mode, std::vector<std::st
     if (!handled) {
         fprintf(stderr,"ERROR Want Codec/BitDepth/channels: 3/32/2 or 1/16/2\n");
     }
-    int nSamples = ((float*)(buf + size)-data)/2;
+    int nSamples = ((char*)(buf + size)-(char *)data)/2/(hdr->bitDepth/8);
     printf("NSamples: %d\n", nSamples);
 
     std::vector<dsp::stereo_t> converted;
@@ -142,7 +151,7 @@ void doDecode(const char *path, std::function<void(int mode, std::vector<std::st
         for(int q=0; q<1; q++) {
             auto ctm = currentTimeMillis();
 //            spdlog::info("=================================");
-            ft8::decodeFT8(hdr->sampleRate, (dsp::stereo_t*)data, nSamples, [](int mode, QStringList result) {
+            ft8::decodeFT8(mode, hdr->sampleRate, (dsp::stereo_t*)data, nSamples, [](int mode, QStringList result) {
 
             });
             std::cout << "Time taken: " << currentTimeMillis() - ctm << " ms" << std::endl;

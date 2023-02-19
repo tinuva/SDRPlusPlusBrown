@@ -2644,7 +2644,8 @@ void DecoderMs::SetDecode(short *raw,int count_q,QString time, int t_istart,int 
     }
     else if (s_mod == 13) //ft4 2.35=8s
     {
-        if (count_q<4*DEC_SAMPLE_RATE) return;
+        if (count_q<4*DEC_SAMPLE_RATE)
+            return;
         static_dat_max = 8*DEC_SAMPLE_RATE;
         s_static_dat_count = fmin(static_dat_max,count_q);
     }
