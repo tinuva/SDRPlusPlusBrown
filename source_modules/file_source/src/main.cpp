@@ -10,6 +10,7 @@
 #include <regex>
 #include <gui/tuner.h>
 #include <iostream>
+#include <time.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -151,6 +152,12 @@ private:
             }
         }
 
+        long long int cst = sigpath::iqFrontEnd.getCurrentStreamTime();
+        std::time_t t = cst /1000;
+        auto tmm = std::localtime(&t);
+        char streamTime[64];
+        strftime(streamTime, sizeof(streamTime), "%Y-%m-%d %H:%M:%S", tmm);
+        ImGui::Text("Stream pos: %s", streamTime);
         ImGui::Checkbox("Float32 Mode##_file_source", &_this->float32Mode);
     }
 
