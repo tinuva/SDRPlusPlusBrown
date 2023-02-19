@@ -292,7 +292,7 @@ public:
         for(int i=0; i<decodedResults.size(); i++) {
             auto& result = decodedResults[i];
             auto resultTimeDelta = currentTime - result.decodeEndTimestamp;
-            if (resultTimeDelta > 2 * 60 * 1000 + 5000) {
+            if (resultTimeDelta > secondsToKeepResults + 5000) {
                 decodedResults.erase(decodedResults.begin() + i);
                 decodedResultsDrawables.clear();
                 i--;
@@ -351,7 +351,7 @@ public:
             });
             double scanY = 0;
             double scanX = 0;
-            double maxColumnWidth = baseTextSize.x * 3;
+            double maxColumnWidth = baseTextSize.x * layoutWidth;
             int nresults = 0;
 
             for(int i=0;i<ngroups; i++) {
@@ -376,7 +376,7 @@ public:
                         tisTextSize.x += modeSize.x;
                         if (scanX + tisTextSize.x > maxColumnWidth) {
                             scanX = 0;
-                            scanY += baseTextSize.y;
+                            scanY += baseTextSize.y/2.5;
                         }
 
                         auto fdr = std::make_shared<FT8DrawableDecodedResult>(decodedResult);
@@ -568,6 +568,12 @@ public:
             strcpy(myCallsign, qq.data());
         } else {
             myCallsign[0] = 0;
+        }
+        if (config.conf[name].find("layoutWidth") != config.conf[name].end()) {
+            layoutWidth = config.conf[name]["layoutWidth"];
+        }
+        if (config.conf[name].find("secondsToKeepResults") != config.conf[name].end()) {
+            secondsToKeepResults = config.conf[name]["secondsToKeepResults"];
         }
         if (config.conf[name].find("processingEnabledFT8") != config.conf[name].end()) {
             processingEnabledFT8 = config.conf[name]["processingEnabledFT8"].get<bool>();
@@ -925,10 +931,20 @@ private:
             config.conf[_this->name]["myCallsign"] = _this->myCallsign;
             config.release(true);
         }
-        if (ImGui::SliderInt("Layout width", &_this->layoutWidth, 3, 10, (FormatString)elements[i+4].i, elements[i+5].i)) {
-            SET_DIFF_INT(elements[i].str, elements[i+1].i);
+        ImGui::LeftLabel("Layout width");
+        ImGui::FillWidth();
+        if (ImGui::SliderInt("##ft8_layout_width", &_this->layoutWidth, 3, 10, "%d", 0)) {
+            config.acquire();
+            config.conf[_this->name]["layoutWidth"] = _this->layoutWidth;
+            config.release(true);
         }
-
+        ImGui::LeftLabel("Keep results (sec)");
+        ImGui::FillWidth();
+        if (ImGui::SliderInt("##ft8_keep_results_sec", &_this->secondsToKeepResults, 15, 300, "%d", 0)) {
+            config.acquire();
+            config.conf[_this->name]["secondsToKeepResults"] = _this->secondsToKeepResults;
+            config.release(true);
+        }
         ImGui::LeftLabel("Decode FT8");
         if (ImGui::Checkbox(CONCAT("##_processing_enabled_ft8_", _this->name), &_this->processingEnabledFT8)) {
             config.acquire();
@@ -969,6 +985,7 @@ private:
     bool processingEnabledFT4 = true;
     bool enablePSKReporter = true;
     int layoutWidth = 3;
+    int secondsToKeepResults = 120;
 
 
     //    dsp::buffer::Reshaper<float> reshape;
