@@ -435,9 +435,9 @@ public:
         decodedResultsDrawables.clear();
     }
 
-    void clearDecodedResults(int mode) {
+    void clearDecodedResults(DecodedMode mode) {
         std::lock_guard g(decodedResultsLock);
-        std::remove_if(decodedResults.begin(), decodedResults.end(), [mode](const DecodedResult&x) { return x.mode == mode; });
+        decodedResults.erase(std::remove_if(decodedResults.begin(), decodedResults.end(), [mode](const DecodedResult& x) { return x.mode == mode; }), decodedResults.end());
         decodedResultsDrawables.clear();
     }
 

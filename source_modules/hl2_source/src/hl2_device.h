@@ -775,7 +775,9 @@ struct HL2Device {
                     if (timeout) {
                         //                                printf("protocol1: receiver_thread: recvfrom socket failed: %s\n", "Radio not sending data\n");
                     } else {
-                        spdlog::info("protocol1: receiver_thread: recvfrom socket failed: {0}\n", getLastSocketError());
+                        if (errno != EINTR) {
+                            spdlog::info("protocol1: receiver_thread: recvfrom socket failed: {0}\n", getLastSocketError());
+                        }
                     }
                     //running=FALSE;
                     continue;

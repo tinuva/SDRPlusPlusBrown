@@ -89,9 +89,14 @@ namespace dsp {
             } else {
                 int nsent = 0;
                 int count = 0;
+                int nwaiting = 0;
+                int STEP_USEC = 100000;
+                int MAXWAITING_STEPS = 20000000 / STEP_USEC;  // 20 second max decode
+
                 while (true) {
                     auto finished = waitpid(f, NULL, WNOHANG);
                     usleep(100000);
+                    nwaiting++;
                     auto hdl = open(outPath.c_str(), O_RDONLY);
                     char rdbuf[10000];
                     if (hdl > 0) {
@@ -127,8 +132,19 @@ namespace dsp {
                         }
                         close(hdl);
                     }
-                    if (finished != 0) {
+                    if (finished == f) {
                         break;
+                    } else if (finished == 0){
+                        // ok, keep waiting
+                        if (nwaiting == MAXWAITING_STEPS || nwaiting == 2 * MAXWAITING_STEPS) {
+                            kill(f, 9);
+                            spdlog::warn("WARNING: ({}) waitpid {} stuck for more than expected, sent kill signal", mode, f);
+                        }
+                    } else {
+                        spdlog::warn("WARNING: ({}) waitpid {} returned {}", mode, f, finished);
+                        if (finished < 0) {
+                            break;
+                        }
                     }
 
                 }
@@ -181,7 +197,7 @@ namespace dsp {
                 max = std::max<float>(abs(samples[i].r), max);
             }
 
-            spdlog::info("max: {}", max);
+//            spdlog::info("max: {}", max);
             if (max == 0) {
                 max = 1;        // leave zeros. whatever.
             }
