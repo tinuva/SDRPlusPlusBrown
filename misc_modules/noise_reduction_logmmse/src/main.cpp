@@ -195,7 +195,7 @@ private:
 
     void menuHandler() {
         float menuWidth = ImGui::GetContentRegionAvail().x;
-        if (ImGui::Checkbox("IF NR##_sdrpp_if_nr", &ifnr)) {
+        if (ImGui::Checkbox("Band NR##_sdrpp_if_nr", &ifnr)) {
             //            sigpath::signalPath.setWidebandNR(_this->widebandNR);
             config.acquire();
             config.conf["IFNR"] = ifnr;
@@ -204,7 +204,7 @@ private:
             actuateIFNR();
         }
         if (mustShowTooltip("IFNR"))
-            ImGui::SetTooltip("Algorithm running on full bandwidth. Can be slow.");
+            ImGui::SetTooltip("Algorithm running on full bandwidth. High CPU usage! Good for SSB/AM/CW only.");
 
         for(auto [k, v] : afnrProcessors) {
             if (ImGui::Checkbox(("AF NR "+k+"##_radio_logmmse_nr_" + k).c_str(), &v->allowed)) {

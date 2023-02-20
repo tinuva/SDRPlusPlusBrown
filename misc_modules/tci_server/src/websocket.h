@@ -111,7 +111,9 @@ namespace websocket {
             //
             #else
             flags = MSG_NOSIGNAL;
+            #ifndef __APPLE__
             if (more) flags |= MSG_MORE;
+            #endif
             #endif
             do {
                 #ifdef WIN32
