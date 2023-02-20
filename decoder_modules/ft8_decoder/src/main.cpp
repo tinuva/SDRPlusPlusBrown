@@ -187,6 +187,7 @@ struct DrawableDecodedResult {
     virtual long long getFrequency() = 0;
     double layoutY = 0;     // y on the waterfall relative to decodeEndTimestamp, in pixels;
     double layoutX = 0;     // x on the waterfall relative its to frequency (after rescale, relayout needed), in pixels
+    const char *info;
     virtual void draw(const ImVec2& origin, ImGuiWindow* pWindow) = 0;
 };
 
@@ -269,6 +270,7 @@ struct SingleDecoder {
     dsp::stream<dsp::complex_t> iqdata;
     std::atomic_bool running;
     bool processingEnabled = true;
+    FT8DecoderModule *mod2;
 
     void handleData(int rd, dsp::stereo_t* inputData);
 
@@ -286,6 +288,8 @@ struct SingleDecoder {
         usbDemod->start();
 
     }
+
+    virtual DecodedMode getModeDM() = 0;
 
     virtual std::string getModeString() = 0;
 
@@ -364,6 +368,11 @@ struct SingleFT8Decoder : SingleDecoder {
     std::string getModeString() override {
         return "ft8";
     }
+    
+    DecodedMode getModeDM() override {
+        return DM_FT8;
+    }
+    
 
     std::pair<int,int> calculateVFOCenterOffsetForMode(double centerFrequency, double ifBandwidth) override {
         static std::vector<int> frequencies = { 1840000, 3573000, 7074000, 10136000, 14074000, 18100000, 21074000, 24915000, 28074000, 50000000 };
@@ -379,6 +388,10 @@ struct SingleFT4Decoder : SingleDecoder {
 
     double getBlockDuration() override {
         return 15/2.0;
+    }
+
+    DecodedMode getModeDM() override {
+        return DM_FT4;
     }
 
 
@@ -446,7 +459,7 @@ public:
         for(int i=0; i<decodedResults.size(); i++) {
             auto& result = decodedResults[i];
             auto resultTimeDelta = currentTime - result.decodeEndTimestamp;
-            if (resultTimeDelta > secondsToKeepResults + 5000) {
+            if (resultTimeDelta > secondsToKeepResults*1000 + 5000) {
                 decodedResults.erase(decodedResults.begin() + i);
                 decodedResultsDrawables.clear();
                 i--;
@@ -518,7 +531,11 @@ public:
                     }
                 }
                 std::sort(insideGroup.begin(), insideGroup.end(), [](DecodedResult *a, DecodedResult *b) {
-                    return strcmp(a->shortString.c_str(), b->shortString.c_str()) < 0;
+                    if (a->mode == b->mode) {
+                        return strcmp(a->shortString.c_str(), b->shortString.c_str()) < 0;
+                    } else {
+                        return (int)b->mode < (int)a->mode;
+                    }
                 });
                 std::string lastAdded;
                 double maxDistance = 0;
@@ -532,7 +549,7 @@ public:
                         tisTextSize.x += modeSize.x;
                         if (scanX + tisTextSize.x > maxColumnWidth) {
                             scanX = 0;
-                            scanY += baseTextSize.y/2.5;
+                            scanY += baseTextSize.y;
                         }
 
                         auto fdr = std::make_shared<FT8DrawableDecodedResult>(decodedResult);
@@ -564,7 +581,7 @@ public:
 //                    spdlog::info("closing: {} {} {}", i, fdr2->layoutX, fdr2->layoutY);
                     decodedResultsDrawables.emplace_back(fdr2);
                     scanX = 0;
-                    scanY += baseTextSize.y * 2;
+                    scanY += baseTextSize.y + baseTextSize.y /2.5;
                 }
 
             }
@@ -574,22 +591,26 @@ public:
 
 
         std::vector<ImRect> rects;
+
         // place new ones
-        for(int i=0; i<decodedResultsDrawables.size(); i++) {
-            auto& result = decodedResultsDrawables[i];
 
-            auto df = result->getFrequency() - gui::waterfall.getCenterFrequency();
-            auto dx = (wfWidth / 2) +  df / (gui::waterfall.getViewBandwidth() / 2) *  (wfWidth / 2); // in pixels, on waterfall
+        if (!decodedResultsDrawables.empty()) {
+            auto mdf = decodedResultsDrawables[0]->getFrequency();
+            for (auto& result : decodedResultsDrawables) {
+                mdf = std::min<long long>(result->getFrequency(), mdf);
+            }
+            for (int i = 0; i < decodedResultsDrawables.size(); i++) {
+                auto& result = decodedResultsDrawables[i];
 
-            auto drawX = dx;
-            auto drawY = 20;
-            const ImVec2 origin = ImVec2(args.wfMin.x + drawX, args.wfMin.y + drawY);
+                auto df = mdf - gui::waterfall.getCenterFrequency();
+                auto dx = (wfWidth / 2) + df / (gui::waterfall.getViewBandwidth() / 2) * (wfWidth / 2); // in pixels, on waterfall
 
-            result->draw(origin, args.window);
+                auto drawX = dx;
+                auto drawY = 20;
+                const ImVec2 origin = ImVec2(args.wfMin.x + drawX, args.wfMin.y + drawY);
 
-
-
-
+                result->draw(origin, args.window);
+            }
         }
 
         decodedResultsLock.unlock();
@@ -600,8 +621,8 @@ public:
 
     FT8DecoderModule(std::string name) {
         this->name = name;
-        ft8decoder.mod = this;
-        ft4decoder.mod = this;
+        ft8decoder.mod = ft8decoder.mod2 = this;
+        ft4decoder.mod = ft4decoder.mod2 = this;
         gui::waterfall.afterWaterfallDraw.bindHandler(&afterWaterfallDrawListener);
         afterWaterfallDrawListener.ctx = this;
         afterWaterfallDrawListener.handler = [](ImGui::WaterFall::WaterfallDrawArgs args, void* ctx) {
@@ -856,9 +877,17 @@ void FT8DrawableDecodedResult::draw(const ImVec2& _origin, ImGuiWindow* window) 
     ImU32 black = IM_COL32(0, 0, 0, 255);
 
     //        const ImRect& drect = ImRect(layoutX, layoutY, layoutX + textSize.x, layoutY + textSize.y);
-    window->DrawList->AddRectFilled(origin, origin + ImVec2(modeSize.x, modeSize.y), IM_COL32(255, 0, 0, 160));
     ImGui::PushFont(style::tinyFont);
-    window->DrawList->AddText(origin, white, "ft8");
+    switch(this->result->mode) {
+    case DM_FT4:
+        window->DrawList->AddRectFilled(origin, origin + ImVec2(modeSize.x, modeSize.y), IM_COL32(255, 0, 200, 255));
+        window->DrawList->AddText(origin, white, "ft4");
+        break;
+    case DM_FT8:
+        window->DrawList->AddRectFilled(origin, origin + ImVec2(modeSize.x, modeSize.y), IM_COL32(255, 0, 0, 255));
+        window->DrawList->AddText(origin, white, "ft8");
+        break;
+    }
     ImGui::PopFont();
 
     origin.x += modeSize.x;
@@ -902,9 +931,12 @@ void FT8DrawableDecodedResult::draw(const ImVec2& _origin, ImGuiWindow* window) 
     }
 
 }
-FT8DrawableDecodedResult::FT8DrawableDecodedResult(DecodedResult* result) : result(result) {}
+FT8DrawableDecodedResult::FT8DrawableDecodedResult(DecodedResult* result) : result(result) {
+    info = result->shortString.c_str();
+}
 
 FT8DrawableDecodedDistRange::FT8DrawableDecodedDistRange(const std::string& extraText, long long freq) : extraText(extraText), freq(freq) {
+    info = "range";
 
 }
 long long int FT8DrawableDecodedDistRange::getDecodeEndTimestamp() {
@@ -931,7 +963,7 @@ void SingleDecoder::handleData(int rd, dsp::stereo_t* inputData) {
         beforeAdjust = (int)(VFO_SAMPLE_RATE * ADJUST_PERIOD);
         auto [newOffset, centerOffset] = calculateVFOCenterOffsetForMode(gui::waterfall.getCenterFrequency(), gui::waterfall.getBandwidth());
         if (centerOffset != previousCenterOffset) {
-            mod->clearDecodedResults(DM_FT8);
+            mod->clearDecodedResults(getModeDM());
             previousCenterOffset = centerOffset;
         }
         if (newOffset == INVALID_OFFSET) {
@@ -960,7 +992,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
     blockProcessorsRunning.fetch_add(1);
     std::thread processor([=]() {
         std::time_t bst = (std::time_t)(blockNumber * getBlockDuration());
-        spdlog::info("Start processing block, size={}, block time: {}", block->size(), std::asctime(std::gmtime(&bst)));
+        spdlog::info("Start processing block ({}), size={}, block time: {}", this->getModeString(), block->size(), std::asctime(std::gmtime(&bst)));
 
         int count = 0;
         long long time0 = 0;
@@ -1010,7 +1042,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
                     distance = bd.distance;
                 }
             }
-            DecodedResult decodedResult(DM_FT8, (long long)(blockNumber * getBlockDuration() * 1000 + getBlockDuration()), originalOffset, callsign, message);
+            DecodedResult decodedResult(getModeDM(), (long long)(blockNumber * getBlockDuration() * 1000 + getBlockDuration()), originalOffset, callsign, message);
             decodedResult.distance = (int)distance;
             auto strength = atof(result[1].c_str());
             strength = (strength + 24) / (24 + 24);
@@ -1029,7 +1061,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
             auto start = currentTimeMillis();
             dsp::ft8::decodeFT8(getModeString(), VFO_SAMPLE_RATE, block->data(), block->size(), handler);
             auto end = currentTimeMillis();
-            spdlog::info("FT8 decoding took {} ms", end - start);
+            spdlog::info("FT8 decoding ({}) took {} ms", this->getModeString(), end - start);
             lastDecodeCount = (int)count;
             lastDecodeTime = (int)(end - start);
             lastDecodeTime0 = (int)(time0 - start);
@@ -1079,23 +1111,27 @@ void SingleDecoder::init(const std::string &name) {
     gui::mainWindow.onPlayStateChange.bindHandler(&onPlayStateChange);
     onPlayStateChange.ctx = this;
     onPlayStateChange.handler = [](bool playing, void* ctx) {
-        ((SingleDecoder*)ctx)->mod->clearDecodedResults(DM_FT8);
+        SingleDecoder* thiz = (SingleDecoder*)ctx;
+        thiz->mod->clearDecodedResults(thiz->getModeDM());
     };
     running = true;
 
 
 
-    std::thread reader([&]() {
-        auto _this = this;
-        while (running.load()) {
-            int rd = usbDemod->getOutput()->read();
+    std::thread reader([thiz=this]() {
+//        auto _this = this;
+        while (thiz->running.load()) {
+            int rd = thiz->usbDemod->getOutput()->read();
             if (rd < 0) {
                 break;
             }
-            if (this->processingEnabled) {
-                handleData(rd, usbDemod->getOutput()->readBuf);
+            if (thiz->mod != thiz->mod2) {
+                abort();
             }
-            usbDemod->getOutput()->flush();
+            if (thiz->processingEnabled) {
+                thiz->handleData(rd, thiz->usbDemod->getOutput()->readBuf);
+            }
+            thiz->usbDemod->getOutput()->flush();
         }
     });
     reader.detach();

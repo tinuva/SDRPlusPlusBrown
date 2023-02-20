@@ -90,6 +90,7 @@ namespace dsp {
                 int nsent = 0;
                 int count = 0;
                 while (true) {
+                    auto finished = waitpid(f, NULL, WNOHANG);
                     usleep(100000);
                     auto hdl = open(outPath.c_str(), O_RDONLY);
                     char rdbuf[10000];
@@ -100,7 +101,7 @@ namespace dsp {
                             rdbuf[nrd] = 0;
                             std::vector<std::string> thisResult;
                             splitString(rdbuf, "\n", [&](const std::string &p) {
-                                if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT")) {
+                                if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT") == 0) {
                                     thisResult.emplace_back(p);
                                 }
                             });
@@ -118,22 +119,21 @@ namespace dsp {
                                     selected.emplace_back(singleBroken[14]);
                                     selected.emplace_back(singleBroken[16]);
                                     selected.emplace_back(singleBroken[18]);
+                                    callback(DMS_FT8, selected);
                                 }
-                                callback(DMS_FT8, selected);
                                 count++;
                             }
                             nsent = thisResult.size();
                         }
                         close(hdl);
                     }
-                    auto finished = waitpid(f, NULL, WNOHANG);
                     if (finished != 0) {
                         break;
                     }
 
                 }
                 //                unlink(wavPath.c_str());
-                spdlog::info("FT8 Decoder: process ended. Count messages: {}", count);
+                spdlog::info("FT8 Decoder ({}): process ended. Count messages: {}", mode, count);
             }
 
         }
