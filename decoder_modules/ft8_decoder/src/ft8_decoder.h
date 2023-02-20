@@ -13,6 +13,7 @@
 
 #ifdef __APPLE__
 #include <sys/wait.h>
+#include <signal.h>
 #endif
 
 // extern int four2a_d2c_cnt;
