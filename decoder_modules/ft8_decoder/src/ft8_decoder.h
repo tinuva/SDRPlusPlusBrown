@@ -50,42 +50,22 @@ namespace dsp {
             auto decoderPath = modules+"/../../sdrpp_ft8_mshv";
 #endif
 
-            int f = fork();
-            bool forceDebugEnter = false;
-            if (forceDebugEnter || !f) {
+            core::SpawnCommand mydta;
+            strcpy(mydta.executable, decoderPath.c_str());
+            strcpy(mydta.args[0], decoderPath.c_str());
+            strcpy(mydta.args[1], outPath.c_str());
+            strcpy(mydta.args[2], "--decode");
+            strcpy(mydta.args[3], wavPath.c_str());
+            strcpy(mydta.args[4], "--mode");
+            strcpy(mydta.args[5], mode.c_str());
+            mydta.nargs = 6;
 
-                if (!forceDebugEnter) {
-                    close(0);
-                    close(1);
-                    close(2);
-                    open("/dev/null", O_RDONLY, 0600); // input
-                    open(outPath.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0600); // out
-                    open(errPath.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0600); // err
-                }
-                write(1, "sample output here 0\n", strlen("sample output here 0\n"));
-                fprintf(stdout, "decoderPath=%s\n", decoderPath.c_str());
-                fprintf(stdout, "ctm=%lld\n", currentTimeMillis());
-                fflush(stdout);
-#if 1
+            strcpy(mydta.errPath, errPath.c_str());
+            strcpy(mydta.outPath, outPath.c_str());
 
-                spdlog::info("FT8 Decoder({}): executing: {}", mode, decoderPath);
-                auto err = execl(decoderPath.c_str(), decoderPath.c_str(), "--decode",
-                                 wavPath.c_str(), "--mode", mode.c_str(), NULL);
-                static auto q = errno;
-                spdlog::info("FT8 Decoder({}): executing: {}: error={}", mode, decoderPath, q);
-                if (err < 0) {
-                    perror("exec: ");
-                }
-#else
-                doDecode(wavPath.c_str(), [&](int mode, std::vector<std::string> result) {
-//                    callback(mode, result);
-                });
-#endif
-                write(1, "\nBefore process exit\n", strlen("\nBefore process exit\n"));
-                close(0);
-                close(1);
-                close(2);
-                abort();     // exit does not terminate well.
+            core::forkIt(mydta);
+            if (false) {
+
                 //                exit(0);
             } else {
                 int nsent = 0;
@@ -95,7 +75,7 @@ namespace dsp {
                 int MAXWAITING_STEPS = 20000000 / STEP_USEC;  // 20 second max decode
 
                 while (true) {
-                    auto finished = waitpid(f, NULL, WNOHANG);
+                    auto finished = mydta.completed.load();
                     usleep(100000);
                     nwaiting++;
                     auto hdl = open(outPath.c_str(), O_RDONLY);
@@ -133,21 +113,9 @@ namespace dsp {
                         }
                         close(hdl);
                     }
-                    if (finished == f) {
+                    if (finished) {
                         break;
-                    } else if (finished == 0){
-                        // ok, keep waiting
-                        if (nwaiting == MAXWAITING_STEPS || nwaiting == 2 * MAXWAITING_STEPS) {
-                            kill(f, 9);
-                            spdlog::warn("WARNING: ({}) waitpid {} stuck for more than expected, sent kill signal", mode, f);
-                        }
-                    } else {
-                        spdlog::warn("WARNING: ({}) waitpid {} returned {}", mode, f, finished);
-                        if (finished < 0) {
-                            break;
-                        }
                     }
-
                 }
                 //                unlink(wavPath.c_str());
                 spdlog::info("FT8 Decoder ({}): process ended. Count messages: {}", mode, count);

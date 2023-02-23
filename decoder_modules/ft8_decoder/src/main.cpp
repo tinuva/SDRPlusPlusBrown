@@ -90,7 +90,10 @@ struct CallHashCache {
         if (hashed.size() == 0) {
             return "";
         }
-        if (hashed.front() == '<' && hashed.back() == '>') {
+        if (hashed.size() < 3) {
+            return hashed;
+        }
+        if (hashed.front() == '<' && hashed.back() == '>' && hashed[2] == ':' && hashed[1] >= '1' && hashed[1] <= '3') {
             int hash = std::stoi(hashed.substr(3, hashed.size()-4));
             int mode = hashed[1] - '0';
             for (auto &c : calls) {
@@ -108,7 +111,7 @@ struct CallHashCache {
                 }
             }
         }
-        return ""; // not found
+        return hashed; // not found
     }
 
     std::string trim(std::string in) {
@@ -399,7 +402,7 @@ struct SingleFT4Decoder : SingleDecoder {
         return "ft4";
     }
     std::pair<int,int> calculateVFOCenterOffsetForMode(double centerFrequency, double ifBandwidth) override {
-        static std::vector<int> frequencies = { 7080000, 10140000, 14080000 };
+        static std::vector<int> frequencies = { 7080000, 10140000, 14080000, 21140000, 28180000 };
         return calculateVFOCenterOffset(frequencies, centerFrequency, ifBandwidth);
     }
 
@@ -967,16 +970,21 @@ void SingleDecoder::handleData(int rd, dsp::stereo_t* inputData) {
             previousCenterOffset = centerOffset;
         }
         if (newOffset == INVALID_OFFSET) {
-            onTheFrequency = false;
-        }
-        else {
-            onTheFrequency = true;
+            if (onTheFrequency) {
+                spdlog::info("ON FREQUENCY: FALSE ({}) {} {} -> {}", getModeString(), gui::waterfall.getCenterFrequency(), gui::waterfall.getBandwidth(), newOffset);
+                onTheFrequency = false;
+            }
+        } else { // not invalid
+            if (!onTheFrequency) {
+                spdlog::info("ON FREQUENCY: TRUE ({}) {} {} -> {}", getModeString(), gui::waterfall.getCenterFrequency(), gui::waterfall.getBandwidth(), newOffset);
+                onTheFrequency = true;
+            }
             if (newOffset == (int)vfoOffset) {
                 // do nothing
             }
             else {
                 vfoOffset = newOffset;
-                spdlog::info("FT8 vfo: center offset {}, bandwidth: {}", vfoOffset, USB_BANDWIDTH);
+                spdlog::info("FT8 vfo ({}): center offset {}, bandwidth: {}", getModeString(), vfoOffset, USB_BANDWIDTH);
                 vfo->setOffset(vfoOffset - USB_BANDWIDTH / 2);
             }
         }

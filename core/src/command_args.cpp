@@ -31,6 +31,7 @@ void CommandArgsParser::defineAll() {
 }
 
 int CommandArgsParser::parse(int argc, char* argv[]) {
+    this->systemArgv = argv;
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
         

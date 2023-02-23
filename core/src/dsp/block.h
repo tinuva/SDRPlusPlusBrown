@@ -108,7 +108,11 @@ namespace dsp {
         }
 
         void registerInput(untyped_stream* inStream) {
-            inputs.push_back(inStream);
+            if (inputs.size() == 1) {
+                abort();
+            } else {
+                inputs.push_back(inStream);
+            }
         }
 
         void unregisterInput(untyped_stream* inStream) {

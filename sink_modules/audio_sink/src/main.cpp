@@ -263,8 +263,8 @@ private:
             }
 
         }
-
-        sigpath::sinkManager.defaultInputAudio.init(&microphone);
+        spdlog::info("sigpath::sinkManager.defaultInputAudio.init(microphone)");
+        sigpath::sinkManager.defaultInputAudio.setInput(&microphone);
         sigpath::sinkManager.defaultInputAudio.start();
         microphone.setBufferSize(sampleRate / 60);
     }
@@ -276,6 +276,7 @@ private:
         spdlog::info("Stopping RtAudio stream:  "+_streamName);
 
         sigpath::sinkManager.defaultInputAudio.stop();
+        spdlog::info("sigpath::sinkManager.defaultInputAudio.setInput(nullptr)");
         sigpath::sinkManager.defaultInputAudio.setInput(nullptr);
 
         s2m.stop();

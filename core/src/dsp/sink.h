@@ -12,6 +12,9 @@ namespace dsp {
         virtual ~Sink() {}
 
         virtual void init(stream<T>* in) {
+            if (_block_init) {
+                abort();
+            }
             _in = in;
             registerInput(_in);
             _block_init = true;
@@ -21,9 +24,7 @@ namespace dsp {
             assert(_block_init);
             std::lock_guard<std::recursive_mutex> lck(ctrlMtx);
             tempStop();
-            if (_in) {
-                unregisterInput(_in);
-            }
+            unregisterInput(_in);
             _in = in;
             if (_in) {
                 registerInput(_in);

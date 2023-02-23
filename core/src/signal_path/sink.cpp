@@ -9,7 +9,7 @@
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
-SinkManager::SinkManager() {
+SinkManager::SinkManager() : defaultInputAudio(nullptr) {
     SinkManager::SinkProvider prov;
     prov.create = SinkManager::NullSink::create;
     registerSinkProvider("None", prov);

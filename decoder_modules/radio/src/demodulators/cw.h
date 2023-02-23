@@ -15,7 +15,7 @@ namespace demod {
             stop();
         }
 
-        void init(std::string name, ConfigManager* config, dsp::stream<dsp::complex_t>* input, double bandwidth, double audioSR) {
+        void init(std::string name, ConfigManager* config, dsp::stream<dsp::complex_t>* input, double bandwidth, double audioSR) override {
             this->name = name;
             this->_config = config;
 //            this->afbwChangeHandler = afbwChangeHandler;
@@ -37,11 +37,11 @@ namespace demod {
             demod.init(input, tone, agcAttack / getIFSampleRate(), agcDecay / getIFSampleRate(), getIFSampleRate());
         }
 
-        void start() { demod.start(); }
+        void start() override { demod.start(); }
 
-        void stop() { demod.stop(); }
+        void stop() override { demod.stop(); }
 
-        void showMenu() {
+        void showMenu() override {
             float menuWidth = ImGui::GetContentRegionAvail().x;
             ImGui::LeftLabel("AGC Attack");
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
@@ -70,29 +70,29 @@ namespace demod {
             }
         }
 
-        void setBandwidth(double bandwidth) {}
+        void setBandwidth(double bandwidth) override  {}
 
-        void setInput(dsp::stream<dsp::complex_t>* input) { demod.setInput(input); }
+        void setInput(dsp::stream<dsp::complex_t>* input) override { demod.setInput(input); }
 
-        void AFSampRateChanged(double newSR) {}
+        void AFSampRateChanged(double newSR) override {}
 
         // ============= INFO =============
 
-        const char* getName() { return "CW"; }
-        double getIFSampleRate() { return 3000.0; }
-        double getAFSampleRate() { return getIFSampleRate(); }
-        double getDefaultBandwidth() { return 200.0; }
-        double getMinBandwidth() { return 50.0; }
-        double getMaxBandwidth() { return 500.0; }
-        bool getBandwidthLocked() { return false; }
-        double getDefaultSnapInterval() { return 10.0; }
-        int getVFOReference() { return ImGui::WaterfallVFO::REF_CENTER; }
-        bool getDeempAllowed() { return false; }
-        bool getPostProcEnabled() { return true; }
-        int getDefaultDeemphasisMode() { return DEEMP_MODE_NONE; }
-        bool getFMIFNRAllowed() { return false; }
-        bool getNBAllowed() { return false; }
-        dsp::stream<dsp::stereo_t>* getOutput() { return &demod.out; }
+        const char* getName() override { return "CW"; }
+        double getIFSampleRate() override { return 3000.0; }
+        double getAFSampleRate() override { return getIFSampleRate(); }
+        double getDefaultBandwidth() override { return 200.0; }
+        double getMinBandwidth() override { return 50.0; }
+        double getMaxBandwidth() override { return 500.0; }
+        bool getBandwidthLocked() override { return false; }
+        double getDefaultSnapInterval() override { return 10.0; }
+        int getVFOReference() override { return ImGui::WaterfallVFO::REF_CENTER; }
+        bool getDeempAllowed() override { return false; }
+        bool getPostProcEnabled() override { return true; }
+        int getDefaultDeemphasisMode() override { return DEEMP_MODE_NONE; }
+        bool getFMIFNRAllowed() override { return false; }
+        bool getNBAllowed() override { return false; }
+        dsp::stream<dsp::stereo_t>* getOutput() override { return &demod.out; }
 
         void setFrozen(bool frozen) override {
             demod.setAGCFrozen(frozen);

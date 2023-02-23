@@ -734,6 +734,8 @@ struct HL2Device {
         setsockopt(data_socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&msec,sizeof(msec));
 #endif
 
+        auto ua = (unsigned char *)&discovered->info.network.interface_address.sin_addr;
+        spdlog::info("HL2: Binding socket to interface {}: {}.{}.{}.{}", discovered->info.network.interface_name, ua[0], ua[1], ua[2], ua[3]);
         // bind to the interface
         if (bind(data_socket, (struct sockaddr *) &discovered->info.network.interface_address, discovered->info.network.interface_length) < 0) {
             auto what = std::string("protocol1: bind socket failed for data_socket: errno=") + std::to_string(errno);
@@ -745,6 +747,8 @@ struct HL2Device {
         data_addr_length = discovered->info.network.address_length;
         data_addr.sin_port = htons(DATA_PORT);
         sendStartTime = 0;
+        ua = (unsigned char *)&data_addr.sin_addr;
+        spdlog::info("HL2: Target address: {}.{}.{}.{}", ua[0], ua[1], ua[2], ua[3]);
 
         receiveThread = std::make_shared<std::thread>([&] {
             struct sockaddr_in addr;

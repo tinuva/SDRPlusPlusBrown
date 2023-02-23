@@ -16,6 +16,30 @@
 #include <backend.h>
 #include <iostream>
 
+#ifdef __linux__
+#include <sys/prctl.h>
+
+void setproctitle(const char* fmt, ...)
+{
+    static char title[1024];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(title, sizeof(title), fmt, args);
+    va_end(args);
+//    prctl(PR_SET_NAME, title, 0, 0, 0);
+    static char dash[100];
+    strcpy(dash, "--");
+    char* new_argv[] = {core::args.systemArgv[0], dash, title,  NULL};
+    memcpy(core::args.systemArgv, new_argv, sizeof(new_argv));
+
+}
+#else
+void setproctitle(const char* fmt, ...) {
+
+}
+#endif
+
+
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include <stb_image_resize.h>
 #include <gui/gui.h>
@@ -23,6 +47,12 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#else
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <linux/prctl.h>
+
+
 #endif
 
 #ifndef INSTALL_PREFIX
@@ -55,6 +85,170 @@ namespace core {
         // Debug logs
         spdlog::info("New DSP samplerate: {0} (source samplerate is {1})", effectiveSr, samplerate);
     }
+
+
+
+    /// FORK SERVER
+
+    int forkPipe[2];
+    int forkResult[2];
+
+    struct ForkServerResults {
+        int seq = 0;
+        int pid = 0;
+        bool terminated = false;
+    };
+
+    std::unordered_map<int, SpawnCommand*> forkInProgress;
+    std::mutex forkInProgressLock;
+
+    bool forkIt(SpawnCommand& cmd) {
+        static std::atomic_int _seq;
+        forkInProgressLock.lock();
+        cmd.seq = _seq++;
+        cmd.completed = false;
+        forkInProgress[cmd.seq] = &cmd;
+        forkInProgressLock.unlock();
+        if (sizeof(cmd) != write(forkPipe[1], &cmd, sizeof(cmd))) {
+            return false;
+        }
+        return true;
+    }
+
+    void cldHandler(int i) {
+        write(1, "cldHandler\n", strlen("cldHandler\n"));
+        spdlog::info("SIGCLD, waiting i={}", i);
+        int wstatus;
+        auto q = wait(&wstatus);
+        spdlog::info("SIGCLD, waited = {}, status={}", q, wstatus);
+        ForkServerResults res;
+        res.seq = -1;
+        res.pid = q;
+        res.terminated = true;
+        spdlog::info("FORKSERVER, sending pid death: {}", q);
+        write(forkResult[1], &res, sizeof(res));
+    }
+
+    void startForkServer() {
+#ifndef _WIN32
+        if (pipe(forkPipe)) {
+            spdlog::error("Cannot create pipe.");
+            exit(1);
+        }
+        if (pipe(forkResult)) {
+            spdlog::error("Cannot create pipe.");
+            exit(1);
+        }
+        if (fork() == 0) {
+
+            setproctitle("sdrpp (sdr++) fork server (spawning decoders)");
+            spdlog::info("FORKSERVER: fork server runs");
+            int myPid = getpid();
+            std::thread checkParentAlive([=](){
+                while(true) {
+                    sleep(1);
+                    if (getppid() == 1) {
+                        kill(myPid, SIGHUP);
+                        break ;
+                    }
+                }
+            });
+            checkParentAlive.detach();
+
+            signal(SIGCLD, cldHandler);
+            bool running = true;
+            while(running) {
+                SpawnCommand cmd;
+                if (sizeof(cmd) != read(forkPipe[0], &cmd, sizeof(cmd))) {
+                    spdlog::warn("FORKSERVER, misread command");
+                    continue;
+                }
+
+                auto newPid = fork();
+                if (0 == newPid) {
+                    spdlog::info("FORKSERVER, forked ok");
+                    atexit([](){
+                        spdlog::info("FORKSERVER, atexit called");
+                    });
+
+
+                    if (true) {
+                        close(0);
+                        close(1);
+                        close(2);
+                        open("/dev/null", O_RDONLY, 0600);                       // input
+                        open(cmd.outPath, O_CREAT | O_TRUNC | O_WRONLY, 0600); // out
+                        open(cmd.errPath, O_CREAT | O_TRUNC | O_WRONLY, 0600); // err
+                    }
+                    auto &args = cmd;
+                    write(1, "sample output here 0\n", strlen("sample output here 0\n"));
+                    fprintf(stdout, "decoderPath=%s\n", args.executable);
+                    fprintf(stdout, "ctm=%lld\n", currentTimeMillis());
+                    fflush(stdout);
+                    spdlog::info("FT8 Decoder(): executing: {}", args.executable);
+                    std::vector<char *> argsv;
+                    for(int i=0; i<args.nargs; i++) {
+                        argsv.emplace_back(&args.args[i][0]);
+                    }
+                    argsv.emplace_back(nullptr);
+                    auto err = execv((const char *)(&args.executable[0]), argsv.data());
+                    static auto q = errno;
+                    if (err < 0) {
+                        perror("exec");
+                    }
+                    write(1, "\nBefore process exit\n", strlen("\nBefore process exit\n"));
+                    close(0);
+                    close(1);
+                    close(2);
+                    abort();     // exit does not terminate well.
+
+
+                    spdlog::warn("FORKSERVER, back from forked ok");
+                } else {
+                    ForkServerResults res;
+                    res.seq = cmd.seq;
+                    res.pid = newPid;
+                    spdlog::info("FORKSERVER, sending pid: {}", newPid);
+                    write(forkResult[1], &res, sizeof(res));
+                }
+            }
+        } else {
+            std::thread resultReader([]() {
+                spdlog::info("FORKSERVER: resultreader started");
+                while(true) {
+                    ForkServerResults res;
+                    if (0 != read(forkResult[0], &res, sizeof(res))) {
+                        forkInProgressLock.lock();
+                        auto found = forkInProgress.find(res.seq);
+                        if (res.seq < 0) {
+                            for(auto it : forkInProgress) {
+                                if (it.second->pid == res.pid) {
+                                    found = forkInProgress.find(it.first);
+                                    break;
+                                }
+                            }
+                        }
+                        if (found != forkInProgress.end()) {
+                            if (res.pid != 0) {
+                                found->second->pid = res.pid;
+                            }
+                            if (res.terminated != 0) {
+                                spdlog::info("FORKSERVER: marking terminated: pid={}", res.pid);
+                                found->second->completed = true;
+                            }
+                        } else {
+                            spdlog::info("FORKSERVER: not found mark status: pid={} seq={}", res.pid, res.seq);
+                        }
+                        forkInProgressLock.unlock();
+                    }
+                }
+            });
+            resultReader.detach();
+            
+        }
+#endif
+    }
+
 };
 
 // main
@@ -81,6 +275,10 @@ int sdrpp_main(int argc, char* argv[]) {
     }
 
     bool serverMode = (bool)core::args["server"];
+
+    if (!serverMode) {
+        core::startForkServer();
+    }
 
 #ifdef _WIN32
     // Free console if the user hasn't asked for a console and not in server mode

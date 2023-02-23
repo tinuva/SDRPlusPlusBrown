@@ -392,6 +392,8 @@ struct SimpleRecorder {
             audioIn.stopReader();
             mode = RECORDING_IDLE;
             break;
+        default:
+            break;
         }
     }
 };
@@ -705,6 +707,8 @@ void MobileMainWindow::draw() {
         case VIEW_CONFIG:
             buttonsWidth = 1200;
             break;
+        default:
+            break;
     }
 
     const ImVec2 waterfallRegion = ImVec2(ImGui::GetContentRegionAvail().x - encoderWidth - buttonsWidth, ImGui::GetContentRegionAvail().y - statusHeight);
@@ -817,6 +821,8 @@ void MobileMainWindow::draw() {
             qsoButton.buttonText = "End QSO";
         case VIEW_DEFAULT:
             qsoButton.buttonText = "QSO";
+        default:
+            break;
     }
     const ImVec2 buttonsRegion = ImVec2(buttonsWidth, buttonsSpaceY);
     ImGui::BeginChildEx("Buttons", ImGui::GetID("sdrpp_mobile_buttons"), buttonsRegion, false, ImGuiWindowFlags_NoScrollbar);

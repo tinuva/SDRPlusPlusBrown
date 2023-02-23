@@ -146,6 +146,7 @@ public:
     CLIArg operator[](std::string name) {
         return args[name];
     }
+    char** systemArgv;
 
 private:
     std::map<std::string, CLIArg> args;
