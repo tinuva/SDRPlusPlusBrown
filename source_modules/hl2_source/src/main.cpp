@@ -150,6 +150,7 @@ public:
             config.conf["devices"][selectedSerStr]["sampleRate"] = sampleRateList[0];
         }
 
+
         // Load sample rate
         srId = 0;
 //        sampleRate = sampleRateList[3];
@@ -162,6 +163,18 @@ public:
                     break;
                 }
             }
+        }
+
+        memset(sevenRelays, 0, sizeof(sevenRelays));
+        if (config.conf["devices"][selectedSerStr].contains("sevenRelays")) {
+            int q = config.conf["devices"][selectedSerStr]["sevenRelays"];
+            if (q >=0) {
+                sevenRelays[q] = true;
+            }
+        }
+
+        if (config.conf["devices"][selectedSerStr].contains("adcGain")) {
+            adcGain = config.conf["devices"][selectedSerStr]["adcGain"];
         }
 
         // Load Gains
@@ -239,6 +252,11 @@ private:
         if (_this->device) {
             _this->device->setRxSampleRate(_this->sampleRate);
             _this->device->setADCGain(_this->adcGain);
+            for(int q=0; q<6; q++) {
+                if (_this->sevenRelays[q]) {
+                    _this->device->setSevenRelays(1 << q);
+                }
+            }
             _this->device->start();
         }
         _this->running = true;
@@ -324,6 +342,9 @@ private:
         if (SmGui::SliderInt(("##_radio_agc_gain_" + _this->name).c_str(), &_this->adcGain, -12, +48, SmGui::FMT_STR_INT_DB)) {
             if (_this->device) {
                 _this->device->setADCGain(_this->adcGain);
+                config.acquire();
+                config.conf["devices"][_this->selectedSerStr]["adcGain"] = _this->adcGain;
+                config.release(true);
             }
         }
         for(int q=0; q<6; q++) {
@@ -343,6 +364,9 @@ private:
                         memset(_this->sevenRelays, 0, sizeof(_this->sevenRelays));
                         if (_this->device) {
                             _this->device->setSevenRelays(0);
+                            config.acquire();
+                            config.conf["devices"][_this->selectedSerStr]["sevenRelays"] = -1;
+                            config.release(true);
                         }
                     }
                     else {
@@ -350,6 +374,9 @@ private:
                         _this->sevenRelays[q] = !_this->sevenRelays[q];
                         if (_this->device) {
                             _this->device->setSevenRelays(1 << q);
+                            config.acquire();
+                            config.conf["devices"][_this->selectedSerStr]["sevenRelays"] = q;
+                            config.release(true);
                         }
                     }
                 }

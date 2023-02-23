@@ -50,7 +50,6 @@ void setproctitle(const char* fmt, ...) {
 #else
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <linux/prctl.h>
 
 
 #endif
@@ -116,6 +115,7 @@ namespace core {
     }
 
     void cldHandler(int i) {
+#ifndef _WIN32
         write(1, "cldHandler\n", strlen("cldHandler\n"));
         spdlog::info("SIGCLD, waiting i={}", i);
         int wstatus;
@@ -127,6 +127,7 @@ namespace core {
         res.terminated = true;
         spdlog::info("FORKSERVER, sending pid death: {}", q);
         write(forkResult[1], &res, sizeof(res));
+#endif
     }
 
     void startForkServer() {
@@ -154,7 +155,9 @@ namespace core {
                 }
             });
             checkParentAlive.detach();
-
+#ifndef SIGCLD
+#define SIGCLD 17
+#endif
             signal(SIGCLD, cldHandler);
             bool running = true;
             while(running) {
