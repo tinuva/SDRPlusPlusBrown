@@ -55,6 +55,7 @@ namespace dsp {
             std::replace(cmd.begin(), cmd.end(), '/', '\\');
             spdlog::info("FT8decoder: spawn: {}", cmd);
             FILE* data = _popen(cmd.c_str(), "r");
+            int count = 0;
             if (data) {
                 char line[4096];
                 while (fgets(line, sizeof(line), data)) {
@@ -72,12 +73,17 @@ namespace dsp {
                             selected.emplace_back(singleBroken[14]);
                             selected.emplace_back(singleBroken[16]);
                             selected.emplace_back(singleBroken[18]);
+                            count++;
                             callback(DMS_FT8, selected);
                         }
                     }
                 }
                 int status = _pclose(data);
-                printf("Command exited with status %d\n", status);
+                if (status == 0) {
+                    spdlog::info("FT8 Decoder ({}): process ended. Count messages: {}", mode, count);
+                } else {
+                    printf("Command exited with status %d\n", status);
+                }
             } else {
                 printf("Failed to popen %s\n", cmd.c_str());
             }

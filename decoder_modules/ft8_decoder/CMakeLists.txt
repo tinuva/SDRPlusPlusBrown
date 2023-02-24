@@ -26,7 +26,12 @@ install(TARGETS ft8_decoder DESTINATION lib/sdrpp/plugins)
 file(GLOB_RECURSE SDRPP_FT8MSHV_SRC src/*.cpp src/*.c EXCLUDE main.c)
 list(FILTER SDRPP_FT8MSHV_SRC EXCLUDE REGEX "main.c*" )
 
+if (ZZMSVC)
+add_executable(sdrpp_ft8_mshv WIN32 "src/sdrpp_ft8_mshv_main.cpp" "src/sdrpp_ft8_mshv.cpp" ${SDRPP_FT8MSHV_SRC})
+else()
 add_executable(sdrpp_ft8_mshv "src/sdrpp_ft8_mshv_main.cpp" "src/sdrpp_ft8_mshv.cpp" ${SDRPP_FT8MSHV_SRC})
+endif()
+
 target_include_directories(sdrpp_ft8_mshv PUBLIC "../../core/src")
 
 if (MSVC)
@@ -41,11 +46,6 @@ if (MSVC)
 
     # FFTW3
     find_package(FFTW3f CONFIG REQUIRED)
-    target_link_libraries(sdrpp_ft8_mshv PUBLIC FFTW3::fftw3f )
-    set(FFTW3f_LIBRARIES ${FFTW3_LIBRARIES})
-    set(FFTW3f_LIBRARY_DIRS ${FFTW3_LIBRARY_DIRS})
-    set(FFTW3f_INCLUDE_DIRS ${FFTW3_INCLUDE_DIRS})
-#    find_package(FFTW3 CONFIG REQUIRED)
     target_link_libraries(sdrpp_ft8_mshv PUBLIC FFTW3::fftw3f )
 
     # WinSock2

@@ -95,7 +95,7 @@ bool writeStringToFile(const std::string& text, const std::string& filename) {
 #define NSMALL 16384
 void HvThr::four2a_c2c(std::complex<float> *a,std::complex<float> *a1,fftwf_plan *pc,int &cpc,int nfft,int isign,int iform)
 {
-    std::complex<double> aa[NSMALL+10];
+    static std::complex<double> aa[NSMALL+10];
 
     if (cpc>NPMAX || nfft>NPAMAX) return;
 
@@ -170,7 +170,7 @@ int four2a_d2c_cnt = 0;
 void HvThr::four2a_d2c(std::complex<float> *a,std::complex<float> *a1,float *d,float *d1,fftwf_plan *pd,int &cpd,
                        int nfft,int isign,int iform)
 {
-    std::complex<double> aa[NSMALL+10];
+    static std::complex<double> aa[NSMALL+10];
     four2a_d2c_cnt++;
 
 

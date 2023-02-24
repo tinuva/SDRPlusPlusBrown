@@ -54,8 +54,10 @@ int main(int argc, char* argv[]) {
             }
         }
     }
-    mode = "ft8";
-    decodeFile = "C:\\Users\\User\\Documents\\sdrpp_ft8_mshv.wav.1359";
+    if (false) {
+        mode = "ft4";
+        decodeFile = "C:\\Temp\\sdrpp_ft8_mshv.wav.236";
+    }
 
     if (decodeFile == "") {
         fprintf(stderr, "ERROR: wav file for decode is not specified\n");
