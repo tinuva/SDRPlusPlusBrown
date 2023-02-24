@@ -78,6 +78,10 @@ namespace dsp {
                     auto finished = mydta.completed.load();
                     usleep(100000);
                     nwaiting++;
+                    if (nwaiting > MAXWAITING_STEPS) {
+                        spdlog::warn("MAXWAITING_STEPS elapsed for "+mode+" -> will abort");
+                        break;
+                    }
                     auto hdl = open(outPath.c_str(), O_RDONLY);
                     char rdbuf[10000];
                     if (hdl > 0) {

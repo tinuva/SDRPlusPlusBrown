@@ -28,4 +28,23 @@ namespace core {
 
 };
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
+inline void SetThreadName(const std::string &threadName)
+{
+#ifdef __linux__
+    prctl(PR_SET_NAME,threadName.c_str(),0,0,0);
+#endif
+}
+inline std::string GetThreadName( ) {
+#ifdef __linux__
+    char thread_name_buffer[100] = { 0 };
+    prctl(PR_GET_NAME,thread_name_buffer,0,0,0);
+    return std::string(thread_name_buffer);
+#endif
+    return "??";
+}
+
+
 int sdrpp_main(int argc, char* argv[]);

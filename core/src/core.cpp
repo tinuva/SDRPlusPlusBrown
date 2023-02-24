@@ -217,6 +217,7 @@ namespace core {
             }
         } else {
             std::thread resultReader([]() {
+                SetThreadName("forkserver_resultread");
                 spdlog::info("FORKSERVER: resultreader started");
                 while(true) {
                     ForkServerResults res;

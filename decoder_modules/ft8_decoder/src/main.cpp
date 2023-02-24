@@ -20,6 +20,7 @@
 #include <chrono>
 #include "ft8_decoder.h"
 #include "../../radio/src/demodulators/usb.h"
+#include "../../../source_modules/hl2_source/src/hl2_device.h"
 #include <utils/kmeans.h>
 
 #include <spdlog/sinks/android_sink.h>
@@ -793,6 +794,9 @@ public:
             config.acquire();
             config.conf[_this->name]["processingEnabledFT8"] = _this->ft8decoder.processingEnabled;
             config.release(true);
+            if (!_this->ft8decoder.processingEnabled) {
+                _this->clearDecodedResults(_this->ft8decoder.getModeDM());
+            }
         }
         ImGui::SameLine();
         ImGui::Text("Count: %d(%d) in %d..%d msec", _this->ft8decoder.lastDecodeCount.load(), _this->ft8decoder.totalCallsignsDisplayed.load(), _this->ft8decoder.lastDecodeTime0.load(), _this->ft8decoder.lastDecodeTime.load());
@@ -802,6 +806,9 @@ public:
             config.acquire();
             config.conf[_this->name]["processingEnabledFT4"] = _this->ft4decoder.processingEnabled;
             config.release(true);
+            if (!_this->ft4decoder.processingEnabled) {
+                _this->clearDecodedResults(_this->ft4decoder.getModeDM());
+            }
         }
         ImGui::SameLine();
         ImGui::Text("Count: %d(%d) in %d..%d msec", _this->ft4decoder.lastDecodeCount.load(), _this->ft4decoder.totalCallsignsDisplayed.load(), _this->ft4decoder.lastDecodeTime0.load(), _this->ft4decoder.lastDecodeTime.load());
@@ -999,6 +1006,7 @@ void SingleDecoder::handleData(int rd, dsp::stereo_t* inputData) {
 void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::stereo_t>>& block, int blockNumber, int originalOffset) {
     blockProcessorsRunning.fetch_add(1);
     std::thread processor([=]() {
+        SetThreadName(getModeString()+"_startBlockProcessing");
         std::time_t bst = (std::time_t)(blockNumber * getBlockDuration());
         spdlog::info("Start processing block ({}), size={}, block time: {}", this->getModeString(), block->size(), std::asctime(std::gmtime(&bst)));
 
@@ -1066,6 +1074,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
             return;
         };
         std::thread t0([&]() {
+            SetThreadName(getModeString()+"_callDecode");
             auto start = currentTimeMillis();
             dsp::ft8::decodeFT8(getModeString(), VFO_SAMPLE_RATE, block->data(), block->size(), handler);
             auto end = currentTimeMillis();
@@ -1074,18 +1083,6 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
             lastDecodeTime = (int)(end - start);
             lastDecodeTime0 = (int)(time0 - start);
         });
-        //            std::thread t1([=]() {
-        //                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + CAPTURE_SAMPLE_RATE, block->size() - CAPTURE_SAMPLE_RATE, handler);
-        //            });
-        //            std::thread t2([=]() {
-        //                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + 2 * CAPTURE_SAMPLE_RATE, block->size() - 2 * CAPTURE_SAMPLE_RATE, handler);
-        //            });
-        //            std::thread t3([=]() {
-        //                dsp::ft8::decodeFT8(CAPTURE_SAMPLE_RATE, block->data() + 3 * CAPTURE_SAMPLE_RATE, block->size() - 3 * CAPTURE_SAMPLE_RATE, handler);
-        //            });
-        //            t3.join();
-        //            t2.join();
-        //            t1.join();
         t0.join();
 
         blockProcessorsRunning.fetch_add(-1);
@@ -1127,6 +1124,8 @@ void SingleDecoder::init(const std::string &name) {
 
 
     std::thread reader([thiz=this]() {
+        SetThreadName(thiz->getModeString()+"_ssb_reader");
+
 //        auto _this = this;
         while (thiz->running.load()) {
             int rd = thiz->usbDemod->getOutput()->read();

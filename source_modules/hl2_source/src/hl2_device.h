@@ -5,6 +5,7 @@
 #include <dsp/types.h>
 #include <signal_path/signal_path.h>
 #include <ctm.h>
+#include <core.h>
 
 #define DATA_PORT 1024
 
@@ -14,25 +15,6 @@ struct ControlData {
     unsigned char C3;       // lower middle bits [8..15]
     unsigned char C4;       // lower bits [0..7]
 };
-
-#ifdef __linux__
-#include <sys/prctl.h>
-#endif
-static void SetThreadName( const char* threadName)
-{
-#ifdef __linux__
-    prctl(PR_SET_NAME,threadName,0,0,0);
-#endif
-}
-static std::string GetThreadName( ) {
-#ifdef __linux__
-    char thread_name_buffer[100] = { 0 };
-    prctl(PR_GET_NAME,thread_name_buffer,0,0,0);
-    return std::string(thread_name_buffer);
-#endif
-    return "??";
-}
-
 
 struct HL2Device {
 
