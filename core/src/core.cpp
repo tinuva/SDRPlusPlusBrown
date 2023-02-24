@@ -259,7 +259,7 @@ namespace core {
 int sdrpp_main(int argc, char* argv[]) {
     spdlog::info("SDR++ v" VERSION_STR);
 #ifdef _WIN32
-    setlocale(LC_ALL, ".65001"); // Set locale to UTF-8
+    // setlocale(LC_ALL, ".65001"); // Set locale to UTF-8
 #endif
 
 #ifdef IS_MACOS_BUNDLE
@@ -286,7 +286,9 @@ int sdrpp_main(int argc, char* argv[]) {
 
 #ifdef _WIN32
     // Free console if the user hasn't asked for a console and not in server mode
+#ifdef NDEBUG
     if (!core::args["con"].b() && !serverMode) { FreeConsole(); }
+#endif
 
     // Set error mode to avoid abnoxious popups
     SetErrorMode(SEM_NOOPENFILEERRORBOX | SEM_NOGPFAULTERRORBOX | SEM_FAILCRITICALERRORS);

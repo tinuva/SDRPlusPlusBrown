@@ -23,10 +23,18 @@ ModuleManager::Module_t ModuleManager::loadModule(std::string path) {
     auto wide = wstr::str2wstr(path);
     wchar_t wideBuf[1024];
     GetShortPathNameW(wide.c_str(), wideBuf, sizeof(wideBuf)/sizeof(TCHAR));
-    mod.handle = LoadLibraryW(wideBuf);
+    mod.handle = LoadLibraryExW(wideBuf, NULL, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS | LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR);
+
 
     if (mod.handle == NULL) {
-        spdlog::error("Couldn't load {0}. Error code: {1}", path, GetLastError());
+        auto err = GetLastError();
+        LPWSTR errorMessageBuffer = NULL;
+        size_t size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                     NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&errorMessageBuffer, 0, NULL);
+        auto narrow = wstr::wstr2str(errorMessageBuffer);
+
+        spdlog::error("Couldn't load {0}. Error: {1} - {2}", path, err, narrow);
+        LocalFree(errorMessageBuffer);
         mod.handle = NULL;
         return mod;
     }

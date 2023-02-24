@@ -284,14 +284,14 @@ void DecoderFt4::getcandidates4(double *dd,double fa,double fb,double fa1,double
     const int NMAX=21*3456;//=72576 !Samples in iwave
     const int NHSYM=((NMAX-NFFT1)/NSTEP); //=122 153hv !Number of symbol spectra (1/4-sym steps)
     const int NH1=NFFT1/2;
-    double x[NFFT1+10];
-    std::complex<double> cx[NH1+50];
-    double s_[NHSYM+10][NH1+10];//(NH1,NHSYM)
-    double savsm[NH1+50];
+    static double x[NFFT1+10];
+    std::complex<double> cx[NFFT1+50];
+    static double s_[NHSYM + 10][NH1 + 10]; //(NH1,NHSYM)
+    static double savsm[NH1 + 50];
     //int indx[NH1+50];
-    double sbase[NH1+50];
-    double savg[NH1+50];
-    double candidatet[2][115];
+    static double sbase[NH1 + 50];
+    static double savg[NH1 + 50];
+    static double candidatet[2][115];
     //qDebug()<<NHSYM;
 
     if (first_ft4detcad)

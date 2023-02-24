@@ -1,4 +1,5 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
+#define _USE_MATH_DEFINES
 #include <imgui.h>
 #include <imgui.h>
 #include <config.h>
@@ -667,38 +668,6 @@ public:
             enablePSKReporter = config.conf[name]["enablePSKReporter"].get<bool>();
         }
         config.release(true);
-        //        if (!config.conf.contains(name)) {
-        //            config.conf[name]["showLines"] = false;
-        //        }
-        //        showLines = config.conf[name]["showLines"];
-        //        if (showLines) {
-        //            diag.lines.push_back(-0.75f);
-        //            diag.lines.push_back(-0.25f);
-        //            diag.lines.push_back(0.25f);
-        //            diag.lines.push_back(0.75f);
-        //        }
-        config.release(true);
-
-
-        //        // Initialize DSP here
-        //        decoder.init(vfo->output, INPUT_SAMPLE_RATE, lsfHandler, this);
-        //        resamp.init(decoder.out, 8000, audioSampRate);
-        //        reshape.init(decoder.diagOut, 480, 0);
-        //        diagHandler.init(&reshape.out, _diagHandler, this);
-        //
-        //        // Start DSO Here
-        //        decoder.start();
-        //        resamp.start();
-        //        reshape.start();
-        //        diagHandler.start();
-        //
-        //        // Setup audio stream
-        //        srChangeHandler.ctx = this;
-        //        srChangeHandler.handler = sampleRateChangeHandler;
-        //        stream.init(&srChangeHandler, audioSampRate);
-        //        sigpath::sinkManager.registerStream(name, &stream);
-        //
-        //        stream.start();
 
         gui::menu.registerEntry(name, menuHandler, this, this);
 
@@ -1066,7 +1035,8 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
             if (strength > 1.0) strength = 1.0;
             decodedResult.strength = strength;
             decodedResult.strengthRaw = atof(result[1].c_str());
-            decodedResult.intensity = (random() % 100) / 100.0;
+            decodedResult.intensity = 0;
+             // (random() % 100) / 100.0;
             if (!cs.dxccname.empty()) {
                 decodedResult.qth = cs.dxccname;
             }

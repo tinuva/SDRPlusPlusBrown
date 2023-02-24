@@ -510,8 +510,9 @@ void DecoderFt8::subtractft8(double *dd,int *itone,double f0,double dt,bool lref
 
         if (sumw<=0.0) // no devide by zero
             sumw=0.01;
-        for (int i = 0; i < NFILT+1; ++i)
-            cw_subsft8[i]=window[i+offset_w-NFILT/2]/sumw;//cw(1:NFILT+1)=window/sum
+        for (int i = 0; i < NFILT; ++i) {
+            cw_subsft8[i] = window[i + offset_w - NFILT / 2] / sumw; // cw(1:NFILT+1)=window/sum
+        }
 
         pomAll.cshift1(cw_subsft8,NMAX,(NFILT/2+1));    //cw=cshift(cw,NFILT/2+1);
 
@@ -519,6 +520,14 @@ void DecoderFt8::subtractft8(double *dd,int *itone,double f0,double dt,bool lref
 //        std::cout << cw_subsft8[0] << std::endl;
 //        double *chk = (double *)&cw_subsft8[0];
 //        std::cout << "chk=" << &chk[0] << std::endl;
+        for (int q = 0; q < NFFT; q++) {
+            if (isnan(cw_subsft8[q].real())) {
+                abort();
+            }
+            if (isinf(cw_subsft8[q].real())) {
+                abort();
+            }
+        }
 
         f2a.four2a_c2c(cw_subsft8,NFFT,-1,1,decid);//four2a(cw,nfft,1,-1,1)
 
@@ -1471,7 +1480,7 @@ void DecoderFt8::get_spectrum_baseline(double *dd,int nfa,int nfb,double *sbase)
     const int NMAX=180000;//NMAX=15*12000
     double savg[NH1+50];
     double x[NFFT1+50];
-    std::complex<double> cx[NH1+100];
+    std::complex<double> cx[2*NH1+100];
     //double ss_[NF+10][NH1+50];//hv no needed  (NH1,NF)
 
     if (first_ft8sbl)
@@ -1867,8 +1876,12 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
     {//do j=1,NHSYM
         ia=(j)*NSTEP;    //ia=(j-1)*NSTEP + 1
         //ib=ia+NSPS;      //ib=ia+NSPS-1
-        for (int z = 0; z < NSPS; ++z)
-            x[z]=fac*dd[ia+z]*0.01;//hv double coeficient        //x(1:NSPS)=fac*dd(ia:ib)
+        for (int z = 0; z < NSPS; ++z) {
+            if (isnan(dd[ia + z])) {
+                abort();
+            }
+            x[z] = fac * dd[ia + z] * 0.01; // hv double coeficient        //x(1:NSPS)=fac*dd(ia:ib)
+        }
         //if (((NHSYM-1)*NSTEP+NSPS-1)>180000) qDebug()<<(NHSYM-1)*NSTEP+NSPS-1;
         for (int z = NSPS; z < NFFT1+1; ++z)
             x[z]=0.0;            //x(NSPS+1:)=0.
