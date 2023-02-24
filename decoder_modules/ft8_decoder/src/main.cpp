@@ -404,7 +404,7 @@ struct SingleFT4Decoder : SingleDecoder {
         return "ft4";
     }
     std::pair<int,int> calculateVFOCenterOffsetForMode(double centerFrequency, double ifBandwidth) override {
-        static std::vector<int> frequencies = { 7080000, 10140000, 14080000, 21140000, 28180000 };
+        static std::vector<int> frequencies = { 7047500, 10140000, 14080000, 21140000, 28180000 };
         return calculateVFOCenterOffset(frequencies, centerFrequency, ifBandwidth);
     }
 

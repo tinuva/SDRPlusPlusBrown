@@ -147,7 +147,7 @@ void HvThr::four2a_c2c(std::complex<float> *a,std::complex<float> *a1,fftwf_plan
 
     fftwf_execute(pc[z]);
     for (int i = 0; i < nfft; ++i) {
-        if (isnan(a1[i].real())) {
+        if (std::isnan(a1[i].real())) {
             std::string s;
             for (int z = 0; z < nfft; z++) {
                 s += complexToString(a[z]) + ", # " + std::to_string(z) + "\n";
