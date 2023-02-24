@@ -83,7 +83,7 @@ BearingDistance bearingDistance(LatLng fromCoords, LatLng toCoords) {
         az += 2 * M_PI;
     }
 
-    return (BearingDistance){ az, b * 6371 };
+    return BearingDistance( az, b * 6371);
 }
 
 

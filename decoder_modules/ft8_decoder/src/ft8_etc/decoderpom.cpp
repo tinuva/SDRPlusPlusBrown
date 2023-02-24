@@ -4,6 +4,7 @@
  */
 //#include "decoderms.h"
 #include "decoderpom.h"
+#include <fstream>
 //#include <QRegExp>
 //#include <unistd.h>
 #include <regex>
@@ -63,6 +64,33 @@ static int setup_c2c_d2c_(bool &wait,fftwf_plan &p,std::complex<float> *a,int nf
     _block_th_all_ = false;
     return 0;
 }
+
+
+std::string complexToString(const std::complex<float>& c) {
+    std::string s = std::to_string(c.real());
+    float imag = c.imag();
+    if (imag < 0.0f) {
+        s += " - " + std::to_string(-imag) + "i";
+    }
+    else {
+        s += " + " + std::to_string(imag) + "i";
+    }
+    return s;
+}
+
+// write string s to file fn
+bool writeStringToFile(const std::string& text, const std::string& filename) {
+    std::ofstream outfile(filename);
+    if (outfile.is_open()) {
+        outfile << text;
+        outfile.close();
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
 #define NPAMAX 1441000  //q65 max=1440000 PI4 max 768000
 #define NSMALL 16384
 void HvThr::four2a_c2c(std::complex<float> *a,std::complex<float> *a1,fftwf_plan *pc,int &cpc,int nfft,int isign,int iform)
@@ -118,8 +146,18 @@ void HvThr::four2a_c2c(std::complex<float> *a,std::complex<float> *a1,fftwf_plan
     }
 
     fftwf_execute(pc[z]);
-    for (int i = 0; i < nfft; ++i)
-        a[i]=a1[i];
+    for (int i = 0; i < nfft; ++i) {
+        if (isnan(a1[i].real())) {
+            std::string s;
+            for (int z = 0; z < nfft; z++) {
+                s += complexToString(a[z]) + ", # " + std::to_string(z) + "\n";
+            }
+            writeStringToFile(s, "c:\\temp\\1.txt");
+
+            abort();
+        }
+        a[i] = a1[i];
+    }
 }
 
 // input/output: a
@@ -140,10 +178,8 @@ void HvThr::four2a_d2c(std::complex<float> *a,std::complex<float> *a1,float *d,f
 
     bool found_plan = false;
     int z = 0;
-    for (z = 0; z < cpd; ++z)
-    {
-        if (nfft==nn_d2c[z] && isign==ns_d2c[z] && iform==nf_d2c[z])
-        {
+    for (z = 0; z < cpd; ++z) {
+        if (nfft == nn_d2c[z] && isign == ns_d2c[z] && iform == nf_d2c[z]) {
             found_plan = true;
             break;
         }
@@ -154,7 +190,7 @@ void HvThr::four2a_d2c(std::complex<float> *a,std::complex<float> *a1,float *d,f
     for (int i = 0; i < nfft; ++i)
     {
         if (i<cfft) {
-            if (std::isnan(a[i].real()) || std::isnan(a[i].imag())) {
+            if (std::isnan(d[i])) {
                 std::cout << "four2a_d2c._cnt == " << four2a_d2c_cnt << " i = " << i << std::endl;
                 abort();
             }
@@ -204,7 +240,7 @@ void HvThr::four2a_d2c(std::complex<float> *a,std::complex<float> *a1,float *d,f
 //        }
 //        std::cout << std::endl;
 //    }
-    fftwf_execute(pd[z]);
+    fftwf_execute_dft_r2c(pd[z], d1, (fftwf_complex*)a1);
     for (int i = 0; i < nfft; ++i)
     {
         if (i<cfft) {

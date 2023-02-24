@@ -31,8 +31,9 @@ ModuleManager::Module_t ModuleManager::loadModule(std::string path) {
         LPWSTR errorMessageBuffer = NULL;
         size_t size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                                      NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&errorMessageBuffer, 0, NULL);
+        auto narrow = wstr::wstr2str(errorMessageBuffer);
 
-        spdlog::error("Couldn't load {0}. Error: {1}", path, err);
+        spdlog::error("Couldn't load {0}. Error: {1} - {2}", path, err, narrow);
         LocalFree(errorMessageBuffer);
         mod.handle = NULL;
         return mod;

@@ -12,15 +12,32 @@
 #include "ft8_etc/mshv_support.h"
 #include "ft8_etc/mscore.h"
 #include "ft8_etc/decoderms.h"
+#include "symbolic.h"
+#include <utils/wstr.h>
 
 extern void doDecode(const char *mode, const char *path, std::function<void(int mode, std::vector<std::string> result)> callback);
+
 
 static void help(const char *cmd) {
     fprintf(stderr,"usage: %s --decode <path> [--mode <mode>]\n", cmd);
     exit(1);
 }
 
+#ifdef _ZWIN32
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
+    auto args = wstr::wstr2str(std::wstring(pCmdLine));
+    args = "--decode C:\\Temp\\sdrpp_ft8_mshv.wav.132 --mode ft8";
+    std::vector<std::string> argsV;
+    splitStringV(args, " ", argsV);
+    std::vector<const char*> argv;
+    argv.emplace_back("");
+    for (auto& q : argsV) {
+        argv.emplace_back(q.c_str());
+    }
+    auto argc = argv.size();
+#else
 int main(int argc, char* argv[]) {
+#endif
     std::string decodeFile;
     std::string mode = "ft8";
     for(int i=1; i<argc; i++) {
@@ -37,6 +54,9 @@ int main(int argc, char* argv[]) {
             }
         }
     }
+    mode = "ft8";
+    decodeFile = "C:\\Users\\User\\Documents\\sdrpp_ft8_mshv.wav.1359";
+
     if (decodeFile == "") {
         fprintf(stderr, "ERROR: wav file for decode is not specified\n");
         help(argv[0]);

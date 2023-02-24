@@ -23,6 +23,8 @@ struct LatLng {
 struct BearingDistance {
     double bearing;
     double distance;
+    BearingDistance() : bearing(0), distance(0) {}
+    BearingDistance(double bearing, double distance) : bearing(bearing), distance(distance) {}
 };
 
 struct CTY {

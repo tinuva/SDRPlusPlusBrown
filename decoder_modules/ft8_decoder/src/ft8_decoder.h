@@ -4,6 +4,7 @@
 #include <utils/wav.h>
 #include <utils/riff.h>
 #include "symbolic.h"
+#include <utils/wstr.h>
 
 #ifdef __linux__
 
@@ -48,7 +49,45 @@ namespace dsp {
             std::string modules = core::configManager.conf["modulesDirectory"];
             core::configManager.release(false);
             auto decoderPath = modules+"/../../sdrpp_ft8_mshv";
+#ifdef _WIN32
+            decoderPath += ".exe";
+            auto cmd = decoderPath + " --decode " + wavPath + " --mode " + mode;
+            std::replace(cmd.begin(), cmd.end(), '/', '\\');
+            spdlog::info("FT8decoder: spawn: {}", cmd);
+            FILE* data = _popen(cmd.c_str(), "r");
+            if (data) {
+                char line[4096];
+                while (fgets(line, sizeof(line), data)) {
+                    if (strncmp(line, "FT8_OUT", 7) != 0 || strncmp(line, "FT5_OUT", 7) != 0) {
+                        std::vector<std::string> singleBroken;
+                        splitStringV(std::string(line), "\t", singleBroken);
+                        std::vector<std::string> selected;
+                        // FT8_OUT	1675635874870	30	{0}	120000	{1}	-19	{2}	0.2	{3}	775	{4}	SQ9KWU DL1PP -14	{5}	? 0	{6}	0.1	{7}	1975
+                        if (singleBroken.size() > 18) {
+                            selected.emplace_back(singleBroken[4]);
+                            selected.emplace_back(singleBroken[6]);
+                            selected.emplace_back(singleBroken[8]);
+                            selected.emplace_back(singleBroken[10]);
+                            selected.emplace_back(singleBroken[12]);
+                            selected.emplace_back(singleBroken[14]);
+                            selected.emplace_back(singleBroken[16]);
+                            selected.emplace_back(singleBroken[18]);
+                            callback(DMS_FT8, selected);
+                        }
+                    }
+                }
+                int status = _pclose(data);
+                printf("Command exited with status %d\n", status);
+            } else {
+                printf("Failed to popen %s\n", cmd.c_str());
+            }
+            return;
 #endif
+
+#endif
+
+            // non-windows code
+#ifndef _WIN32
 
             core::SpawnCommand mydta;
             strcpy(mydta.executable, decoderPath.c_str());
@@ -59,68 +98,61 @@ namespace dsp {
             strcpy(mydta.args[4], "--mode");
             strcpy(mydta.args[5], mode.c_str());
             mydta.nargs = 6;
-
             strcpy(mydta.errPath, errPath.c_str());
             strcpy(mydta.outPath, outPath.c_str());
 
             core::forkIt(mydta);
-            if (false) {
+            int nsent = 0;
+            int count = 0;
+            int nwaiting = 0;
+            int STEP_USEC = 100000;
+            int MAXWAITING_STEPS = 20000000 / STEP_USEC;  // 20 second max decode
 
-                //                exit(0);
-            } else {
-                int nsent = 0;
-                int count = 0;
-                int nwaiting = 0;
-                int STEP_USEC = 100000;
-                int MAXWAITING_STEPS = 20000000 / STEP_USEC;  // 20 second max decode
-
-                while (true) {
-                    auto finished = mydta.completed.load();
-                    usleep(100000);
-                    nwaiting++;
-                    auto hdl = open(outPath.c_str(), O_RDONLY);
-                    char rdbuf[10000];
-                    if (hdl > 0) {
-                        int nrd = read(hdl, rdbuf, sizeof(rdbuf) - 1);
-                        if (nrd > 0) {
-                            rdbuf[10000 - 1] = 0;
-                            rdbuf[nrd] = 0;
-                            std::vector<std::string> thisResult;
-                            splitString(rdbuf, "\n", [&](const std::string &p) {
-                                if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT") == 0) {
-                                    thisResult.emplace_back(p);
-                                }
-                            });
-                            for (int q = nsent; q < thisResult.size(); q++) {
-                                std::vector<std::string> singleBroken;
-                                splitStringV(thisResult[q], "\t", singleBroken);
-                                std::vector<std::string> selected;
-                                //FT8_OUT	1675635874870	30	{0}	120000	{1}	-19	{2}	0.2	{3}	775	{4}	SQ9KWU DL1PP -14	{5}	? 0	{6}	0.1	{7}	1975
-                                if (singleBroken.size() > 18) {
-                                    selected.emplace_back(singleBroken[4]);
-                                    selected.emplace_back(singleBroken[6]);
-                                    selected.emplace_back(singleBroken[8]);
-                                    selected.emplace_back(singleBroken[10]);
-                                    selected.emplace_back(singleBroken[12]);
-                                    selected.emplace_back(singleBroken[14]);
-                                    selected.emplace_back(singleBroken[16]);
-                                    selected.emplace_back(singleBroken[18]);
-                                    callback(DMS_FT8, selected);
-                                }
-                                count++;
+            while (true) {
+                auto finished = mydta.completed.load();
+                usleep(100000);
+                nwaiting++;
+                auto hdl = open(outPath.c_str(), O_RDONLY);
+                char rdbuf[10000];
+                if (hdl > 0) {
+                    int nrd = read(hdl, rdbuf, sizeof(rdbuf) - 1);
+                    if (nrd > 0) {
+                        rdbuf[10000 - 1] = 0;
+                        rdbuf[nrd] = 0;
+                        std::vector<std::string> thisResult;
+                        splitString(rdbuf, "\n", [&](const std::string& p) {
+                            if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT") == 0) {
+                                thisResult.emplace_back(p);
                             }
-                            nsent = thisResult.size();
+                        });
+                        for (int q = nsent; q < thisResult.size(); q++) {
+                            std::vector<std::string> singleBroken;
+                            splitStringV(thisResult[q], "\t", singleBroken);
+                            std::vector<std::string> selected;
+                            // FT8_OUT	1675635874870	30	{0}	120000	{1}	-19	{2}	0.2	{3}	775	{4}	SQ9KWU DL1PP -14	{5}	? 0	{6}	0.1	{7}	1975
+                            if (singleBroken.size() > 18) {
+                                selected.emplace_back(singleBroken[4]);
+                                selected.emplace_back(singleBroken[6]);
+                                selected.emplace_back(singleBroken[8]);
+                                selected.emplace_back(singleBroken[10]);
+                                selected.emplace_back(singleBroken[12]);
+                                selected.emplace_back(singleBroken[14]);
+                                selected.emplace_back(singleBroken[16]);
+                                selected.emplace_back(singleBroken[18]);
+                                callback(DMS_FT8, selected);
+                            }
+                            count++;
                         }
-                        close(hdl);
+                        nsent = thisResult.size();
                     }
-                    if (finished) {
-                        break;
-                    }
+                    close(hdl);
                 }
-                //                unlink(wavPath.c_str());
-                spdlog::info("FT8 Decoder ({}): process ended. Count messages: {}", mode, count);
+                if (finished) {
+                    break;
+                }
             }
-
+            spdlog::info("FT8 Decoder ({}): process ended. Count messages: {}", mode, count);
+#endif
         }
 
         inline void decodeFT8(const std::string &mode, int sampleRate, dsp::stereo_t *samples, long long nsamples,
@@ -149,7 +181,7 @@ namespace dsp {
                 std::error_code ec;
                 auto p = std::filesystem::temp_directory_path(ec);
                 if (!ec.value()) {
-                    tempPath = std::string(p.c_str());
+                    tempPath = std::string(wstr::wstr2str(p.c_str()));
                 } else {
                     tempPath = "/tmp";
                 }
@@ -196,16 +228,10 @@ namespace dsp {
             w.close();
 
 
-#ifdef _WIN32
-#else
-
             auto outPath = tempPath + "/sdrpp_ft8_mshv.out." + seqS;
             auto errPath = tempPath + "/sdrpp_ft8_mshv.err." + seqS;
 
             invokeDecoder(mode, wavPath, outPath, errPath, callback);
-
-#endif
-
 
             return;
         }
