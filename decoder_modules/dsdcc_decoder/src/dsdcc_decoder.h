@@ -6,6 +6,9 @@ namespace dsp {
 
     struct DSDCCDecoder {
         DSDcc::DSDDecoder decoder;
+
+        void x() {
+        }
     };
 
 }

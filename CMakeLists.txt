@@ -55,7 +55,7 @@ option(OPT_BUILD_USRP_SOURCE "Build USRP Source Module (libuhd)" OFF)
 option(OPT_BUILD_ANDROID_AUDIO_SINK "Build Android Audio Sink Module (Dependencies: AAudio, only for android)" OFF)
 option(OPT_BUILD_AUDIO_SINK "Build Audio Sink Module (Dependencies: rtaudio)" ON)
 option(OPT_BUILD_PORTAUDIO_SINK "Build PortAudio Sink Module (Dependencies: portaudio)" OFF)
-option(OPT_BUILD_NETWORK_SINK "Build Audio Sink Module (no dependencies required)" OFF)
+option(OPT_BUILD_NETWORK_SINK "Build Audio Sink Module (no dependencies required)" ON)
 option(OPT_BUILD_NEW_PORTAUDIO_SINK "Build the new PortAudio Sink Module (Dependencies: portaudio)" OFF)
 
 # Decoders
