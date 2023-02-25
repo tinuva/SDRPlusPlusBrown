@@ -64,7 +64,7 @@ option(OPT_BUILD_FALCON9_DECODER "Build the falcon9 live decoder (Dependencies: 
 option(OPT_BUILD_KG_SSTV_DECODER "Build the M17 decoder module (no dependencies required)" OFF)
 option(OPT_BUILD_M17_DECODER "Build the M17 decoder module (Dependencies: codec2)" ON)
 option(OPT_BUILD_FT8_DECODER "Build the FT8 decoder module" ON)
-option(OPT_BUILD_DSDCC_DECODER "Build the DSDCC decoder module" ON)
+option(OPT_BUILD_DSDCC_DECODER "Build the DSDCC decoder module" OFF)
 option(OPT_BUILD_METEOR_DEMODULATOR "Build the meteor demodulator module (no dependencies required)" ON)
 option(OPT_BUILD_RADIO "Main audio modulation decoder (AM, FM, SSB, etc...)" ON)
 option(OPT_BUILD_WEATHER_SAT_DECODER "Build the HRPT decoder module (no dependencies required)" OFF)
