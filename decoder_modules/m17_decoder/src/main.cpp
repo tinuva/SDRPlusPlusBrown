@@ -61,6 +61,7 @@ public:
         reshape.init(decoder.diagOut, 480, 0);
         diagHandler.init(&reshape.out, _diagHandler, this);
 
+
         // Start DSO Here
         decoder.start();
         resamp.start();

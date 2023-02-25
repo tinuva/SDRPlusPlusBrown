@@ -12,16 +12,11 @@
 #include <filesystem>
 #include <dsp/stream.h>
 #include <dsp/types.h>
-#include <dsp/buffer/reshaper.h>
-#include <dsp/multirate/rational_resampler.h>
-#include <dsp/sink/handler_sink.h>
 #include <gui/widgets/folder_select.h>
-#include <gui/widgets/symbol_diagram.h>
 #include <fstream>
 #include <chrono>
 #include "ft8_decoder.h"
 #include "../../radio/src/demodulators/usb.h"
-#include "../../../source_modules/hl2_source/src/hl2_device.h"
 #include <utils/kmeans.h>
 
 #include <spdlog/sinks/android_sink.h>

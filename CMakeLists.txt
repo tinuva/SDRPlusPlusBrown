@@ -33,7 +33,7 @@ option(OPT_OVERRIDE_STD_FILESYSTEM "Use a local version of std::filesystem on sy
 # Sources
 option(OPT_BUILD_AIRSPY_SOURCE "Build Airspy Source Module (Dependencies: libairspy)" ON)
 option(OPT_BUILD_AIRSPYHF_SOURCE "Build Airspy HF+ Source Module (Dependencies: libairspyhf)" ON)
-option(OPT_BUILD_BLADERF_SOURCE "Build BladeRF Source Module (Dependencies: libbladeRF)" ON)
+option(OPT_BUILD_BLADERF_SOURCE "Build BladeRF Source Module (Dependencies: libbladeRF)" OFF)
 option(OPT_BUILD_FILE_SOURCE "Wav file source" ON)
 option(OPT_BUILD_HACKRF_SOURCE "Build HackRF Source Module (Dependencies: libhackrf)" ON)
 option(OPT_BUILD_HERMES_SOURCE "Build Hermes Source Module (no dependencies required)" ON)
@@ -64,6 +64,7 @@ option(OPT_BUILD_FALCON9_DECODER "Build the falcon9 live decoder (Dependencies: 
 option(OPT_BUILD_KG_SSTV_DECODER "Build the M17 decoder module (no dependencies required)" OFF)
 option(OPT_BUILD_M17_DECODER "Build the M17 decoder module (Dependencies: codec2)" ON)
 option(OPT_BUILD_FT8_DECODER "Build the FT8 decoder module" ON)
+option(OPT_BUILD_DSDCC_DECODER "Build the DSDCC decoder module" ON)
 option(OPT_BUILD_METEOR_DEMODULATOR "Build the meteor demodulator module (no dependencies required)" ON)
 option(OPT_BUILD_RADIO "Main audio modulation decoder (AM, FM, SSB, etc...)" ON)
 option(OPT_BUILD_WEATHER_SAT_DECODER "Build the HRPT decoder module (no dependencies required)" OFF)
@@ -206,6 +207,10 @@ endif (OPT_BUILD_M17_DECODER)
 if (OPT_BUILD_FT8_DECODER)
     add_subdirectory("decoder_modules/ft8_decoder")
 endif (OPT_BUILD_FT8_DECODER)
+
+if (OPT_BUILD_DSDCC_DECODER)
+    add_subdirectory("decoder_modules/dsdcc_decoder")
+endif (OPT_BUILD_DSDCC_DECODER)
 
 if (OPT_BUILD_METEOR_DEMODULATOR)
 add_subdirectory("decoder_modules/meteor_demodulator")
