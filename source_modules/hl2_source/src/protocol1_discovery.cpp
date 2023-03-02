@@ -69,13 +69,11 @@ struct ifaddrs {
 
 #include "discovered.h"
 #include "protocol1_discovery.h"
-#include "../../../core/src/spdlog/spdlog.h"
-#include "../../../core/src/spdlog/common.h"
 
 #include <thread>
 #include <vector>
 #include <mutex>
-#include <spdlog/spdlog.h>
+#include <utils/flog.h>
 
 static std::mutex discoveredLock;
 
@@ -110,12 +108,12 @@ static void discover(struct ifaddrs* iface) {
     int discovery_socket;
 
     strcpy(interface_name,iface->ifa_name);
-    spdlog::info("discover: looking for HPSDR devices on {0}\n", interface_name);
+    flog::info("discover: looking for HPSDR devices on {0}\n", interface_name);
 
     // send a broadcast to locate hpsdr boards on the network
     discovery_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
     if(discovery_socket<0) {
-        spdlog::error("discover: create socket failed for discovery_socket: for {0}", interface_name);
+        flog::error("discover: create socket failed for discovery_socket: for {0}", interface_name);
         return;
     }
 
@@ -133,17 +131,17 @@ static void discover(struct ifaddrs* iface) {
     //interface_addr.sin_port = htons(DISCOVERY_PORT*2);
     interface_addr.sin_port = htons(0); // system assigned port
     if(bind(discovery_socket,(struct sockaddr*)&interface_addr,sizeof(interface_addr))<0) {
-        spdlog::error("discover: bind socket failed for discovery_socket, for {0}", interface_name);
+        flog::error("discover: bind socket failed for discovery_socket, for {0}", interface_name);
         return;
     }
 
-    spdlog::info("discover: bound to {0}",interface_name);
+    flog::info("discover: bound to {0}",interface_name);
 
     // allow broadcast on the socket
     int on=1;
     rc=setsockopt(discovery_socket, SOL_SOCKET, SO_BROADCAST, (const char*)&on, sizeof(on));
     if(rc != 0) {
-        spdlog::error("discover: cannot set SO_BROADCAST: rc={0}, for {1}", rc, interface_name);
+        flog::error("discover: cannot set SO_BROADCAST: rc={0}, for {1}", rc, interface_name);
         return;
     }
 
@@ -181,10 +179,10 @@ static void discover(struct ifaddrs* iface) {
             bytes_read=recvfrom(discovery_socket,(char *)buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&len);
             if(bytes_read<0) {
                 std::string errtxt = getLastSocketError();
-                spdlog::error("discovery: recvfrom socket failed for discover_receive_thread on {0}: {1}", interface_name, errtxt);
+                flog::error("discovery: recvfrom socket failed for discover_receive_thread on {0}: {1}", interface_name, errtxt);
                 break;
             }
-            spdlog::info("discovered: received {0} bytes",bytes_read);
+            flog::info("discovered: received {0} bytes",bytes_read);
             if ((buffer[0] & 0xFF) == 0xEF && (buffer[1] & 0xFF) == 0xFE) {
                 int status = buffer[2] & 0xFF;
                 if (status == 2 || status == 3) {
@@ -289,7 +287,7 @@ static void discover(struct ifaddrs* iface) {
                                 discovered[devices].info.network.mac_address[4],
                                 discovered[devices].info.network.mac_address[5],
                                 discovered[devices].info.network.interface_name);
-                        spdlog::info("{0}",buf);
+                        flog::info("{0}",buf);
                         devices++;
                         localDevicesFound++;
                     }
@@ -298,7 +296,7 @@ static void discover(struct ifaddrs* iface) {
             }
 
         }
-        spdlog::info("discovery: exiting discover_receive_thread, found {0} devices on {1}",localDevicesFound,interface_name);
+        flog::info("discovery: exiting discover_receive_thread, found {0} devices on {1}",localDevicesFound,interface_name);
 
     });
 
@@ -317,7 +315,7 @@ static void discover(struct ifaddrs* iface) {
     usleep(300000);
 
     if(sendto(discovery_socket,(char*)buffer,63,0,(struct sockaddr*)&to_addr,sizeof(to_addr))<0) {
-        spdlog::error("discover: sendto socket failed for discovery_socket\n");
+        flog::error("discover: sendto socket failed for discovery_socket\n");
 //        if(errno!=EHOSTUNREACH && errno!=EADDRNOTAVAIL) {
 //            exit(-1);
 //        }
@@ -333,7 +331,7 @@ closeReceiver:
     ::close(discovery_socket);
 #endif
 
-    spdlog::info("discover: exiting discover for {0}",iface->ifa_name);
+    flog::info("discover: exiting discover for {0}",iface->ifa_name);
 
 }
 
@@ -418,7 +416,7 @@ void protocol1_discovery() {
 
     freeifaddrs(addrs);
 
-    spdlog::info( "HPSDR discovery found {0} devices\n",devices);
+    flog::info( "HPSDR discovery found {0} devices\n",devices);
 
     auto q = discovered;
 

@@ -9,6 +9,9 @@
 #ifdef __linux__
 
 #include <wait.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #endif
 
@@ -53,7 +56,7 @@ namespace dsp {
             decoderPath += ".exe";
             auto cmd = decoderPath + " --decode " + wavPath + " --mode " + mode;
             std::replace(cmd.begin(), cmd.end(), '/', '\\');
-            spdlog::info("FT8decoder: spawn: {}", cmd);
+            flog::info("FT8decoder: spawn: {}", cmd);
             FILE* data = _popen(cmd.c_str(), "r");
             int count = 0;
             if (data) {
@@ -80,7 +83,7 @@ namespace dsp {
                 }
                 int status = _pclose(data);
                 if (status == 0) {
-                    spdlog::info("FT8 Decoder ({}): process ended. Count messages: {}", mode, count);
+                    flog::info("FT8 Decoder ({}): process ended. Count messages: {}", mode, count);
                 } else {
                     printf("Command exited with status %d\n", status);
                 }
@@ -114,16 +117,16 @@ namespace dsp {
             int nwaiting = 0;
             int STEP_USEC = 1000000;
             int MAXWAITING_STEPS = 20000000 / STEP_USEC;  // 20 second max decode
-            spdlog::info("Forked, waiting outside {} steps for {} for files", MAXWAITING_STEPS, mode);
+            flog::info("Forked, waiting outside {} steps for {} for files", MAXWAITING_STEPS, mode);
 
             while (true) {
                 auto finished = mydta.completed.load();
-                spdlog::info("Usleep {} begin for {}", nwaiting, mode);
+                flog::info("Usleep {} begin for {}", nwaiting, mode);
                 usleep(STEP_USEC);
                 nwaiting++;
-                spdlog::info("Usleep {} finished for {}, outpath={}", nwaiting-1, mode, outPath.c_str());
+                flog::info("Usleep {} finished for {}, outpath={}", nwaiting-1, mode, outPath.c_str());
                 if (nwaiting > MAXWAITING_STEPS) {
-                    spdlog::warn("MAXWAITING_STEPS elapsed for "+mode+" -> will abort");
+                    flog::warn("MAXWAITING_STEPS elapsed for {} -> will abort",mode);
                     break;
                 }
                 try {
@@ -163,15 +166,15 @@ namespace dsp {
                         close(hdl);
                     }
                 } catch (std::runtime_error &err) {
-                    spdlog::info("EXCEPTION for {}: {}", mode, err.what());
+                    flog::info("EXCEPTION for {}: {}", mode, err.what());
                     finished = true;
                 }
                 if (finished) {
-                    spdlog::info("Breaking the loop for {}", mode);
+                    flog::info("Breaking the loop for {}", mode);
                     break;
                 }
             }
-            spdlog::info("FT8 Decoder ({}): process ended. Count messages: {}", mode, count);
+            flog::info("FT8 Decoder ({}): process ended. Count messages: {}", mode, count);
 #endif // !win32
         }
 
@@ -218,7 +221,7 @@ namespace dsp {
                 max = std::max<float>(abs(samples[i].r), max);
             }
 
-//            spdlog::info("max: {}", max);
+//            flog::info("max: {}", max);
             if (max == 0) {
                 max = 1;        // leave zeros. whatever.
             }

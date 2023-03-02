@@ -3,6 +3,7 @@
 #include <module.h>
 #include <module_com.h>
 #include "command_args.h"
+#include <atomic>
 
 namespace core {
     SDRPP_EXPORT ConfigManager configManager;
@@ -19,7 +20,7 @@ namespace core {
         int nargs;
         char outPath[500];
         char errPath[500];
-        std::atomic<bool> completed = false;
+        std::atomic_bool completed = false;
         char info[50];
         int pid;
         int seq;

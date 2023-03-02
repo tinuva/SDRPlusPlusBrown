@@ -1,7 +1,7 @@
 #include <gui/widgets/bandplan.h>
 #include <fstream>
-#include <spdlog/spdlog.h>
 #include <utils/wstr.h>
+#include <utils/flog.h>
 #include <filesystem>
 #include <sstream>
 #include <iomanip>
@@ -57,7 +57,7 @@ namespace bandplan {
     }
 
     void to_json(json& j, const BandPlanColor_t& ct) {
-        spdlog::error("ImGui color to JSON not implemented!!!");
+        flog::error("ImGui color to JSON not implemented!!!");
     }
 
     void from_json(const json& j, BandPlanColor_t& ct) {
@@ -82,7 +82,7 @@ namespace bandplan {
 
         BandPlan_t plan = data.get<BandPlan_t>();
         if (bandplans.find(plan.name) != bandplans.end()) {
-            spdlog::error("Duplicate band plan name ({0}), not loading.", plan.name);
+            flog::error("Duplicate band plan name ({0}), not loading.", plan.name);
             return;
         }
         bandplans[plan.name] = plan;
@@ -92,11 +92,11 @@ namespace bandplan {
 
     void loadFromDir(std::string path) {
         if (!std::filesystem::exists(path)) {
-            spdlog::error("Band Plan directory does not exist");
+            flog::error("Band Plan directory does not exist");
             return;
         }
         if (!std::filesystem::is_directory(path)) {
-            spdlog::error("Band Plan directory isn't a directory...");
+            flog::error("Band Plan directory isn't a directory...");
             return;
         }
         bandplans.clear();

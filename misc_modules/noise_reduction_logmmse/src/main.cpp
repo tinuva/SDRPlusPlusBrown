@@ -106,7 +106,7 @@ private:
 
     void updateBindings() {
         if (enabled) {
-            spdlog::info("Enabling noise reduction things");
+            flog::info("Enabling noise reduction things");
             gui::mainWindow.onWaterfallDrawn.bindHandler(&waterfallDrawnHandler);
             waterfallDrawnHandler.ctx = this;
             waterfallDrawnHandler.handler = [](ImGuiContext *gctx, void* ctx) {

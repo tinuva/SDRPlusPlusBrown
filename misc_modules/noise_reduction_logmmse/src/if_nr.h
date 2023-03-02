@@ -61,7 +61,7 @@ namespace dsp {
 
         int runMMSE(stream <complex_t> *_in, stream <complex_t> &out) {
             if (shouldReset) {
-                spdlog::info("Resetting IF NR LogMMSE");
+                flog::info("Resetting IF NR LogMMSE");
                 shouldReset = false;
                 worker1c.reset();
                 freq = (int)sigpath::iqFrontEnd.getSampleRate();

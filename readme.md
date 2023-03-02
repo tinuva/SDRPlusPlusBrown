@@ -61,7 +61,11 @@ Please note you must be logged in to GitHub to be able to download the artifacts
 2023.01.07
 
 * added transmit mode for Hermes Lite 2. Note: using my own driver (hl2_), not the one from upstream.
-* added mobile screen mode for android/landscape. With big buttons. Has big ambitions, but in early stage. 
+* added mobile screen mode for android/landscape. With big buttons. Has big ambitions, but in early stage.
+
+2023.02.15
+
+* added experimental FT4/FT8 decoding from MSHV code, tweaked for SDR++. All credit goes to MSHV author and down the line.
 
 ## Feedback
 

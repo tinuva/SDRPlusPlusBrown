@@ -1,10 +1,10 @@
 #pragma once
 #include <dsp/block.h>
 #include <volk/volk.h>
-#include <spdlog/spdlog.h>
+#include <utils/flog.h>
 #include <dsp/types.h>
 #include <dsp/processor.h>
-#include <arrays.h>
+#include "../../misc_modules/noise_reduction_logmmse/src/arrays.h"
 
 namespace dsp {
 
@@ -25,7 +25,7 @@ namespace dsp {
         std::mutex mtx;
 
         void setSampleRates(float inSampleRate, float outSampleRate) {
-            spdlog::info("carving::Set sample rate: {0} {0}", inSampleRate, outSampleRate);
+            flog::info("carving::Set sample rate: {0} {0}", inSampleRate, outSampleRate);
             std::lock_guard g(mtx);
             _inSampleRate = (int)(inSampleRate / 100);
             _outSampleRate = (int)(outSampleRate / 100);
@@ -66,10 +66,10 @@ namespace dsp {
             }
             auto in = this->_in->readBuf;
             std::lock_guard g(mtx);
-            spdlog::info("carving enter");
+            flog::info("carving enter");
             // TODO: Do float xlation
             if constexpr (std::is_same_v<T, float>) {
-                spdlog::error("NOT IMPLEMENTED FOR FLOAT");
+                flog::error("NOT IMPLEMENTED FOR FLOAT");
             }
             int nwritten = 0;
             if constexpr (std::is_same_v<T, complex_t>) {
@@ -78,10 +78,10 @@ namespace dsp {
 
             this->_in->flush();
             if (nwritten > 0){
-                spdlog::info("carving swap: {0}", nwritten);
+                flog::info("carving swap: {0}", nwritten);
                 if (!this->out.swap(nwritten)) { return -1; }
             }
-            spdlog::info("carving out: {0}", count);
+            flog::info("carving out: {0}", count);
             return count;
         }
 

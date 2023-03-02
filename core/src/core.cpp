@@ -6,7 +6,7 @@
 #include <gui/gui.h>
 #include <gui/icons.h>
 #include <version.h>
-#include <spdlog/spdlog.h>
+#include <utils/flog.h>
 #include <gui/widgets/bandplan.h>
 #include <stb_image.h>
 #include <config.h>
@@ -18,6 +18,9 @@
 
 #ifdef __linux__
 #include <sys/prctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 void setproctitle(const char* fmt, ...)
 {
@@ -82,7 +85,7 @@ namespace core {
         gui::mainWindow.updateZoom();
 
         // Debug logs
-        spdlog::info("New DSP samplerate: {0} (source samplerate is {1})", effectiveSr, samplerate);
+        flog::info("New DSP samplerate: {0} (source samplerate is {1})", effectiveSr, samplerate);
     }
 
 
@@ -117,15 +120,15 @@ namespace core {
     void cldHandler(int i) {
 #ifndef _WIN32
         write(1, "cldHandler\n", strlen("cldHandler\n"));
-        spdlog::info("SIGCLD, waiting i={}", i);
+        flog::info("SIGCLD, waiting i={}", i);
         int wstatus;
         auto q = wait(&wstatus);
-        spdlog::info("SIGCLD, waited = {}, status={}", q, wstatus);
+        flog::info("SIGCLD, waited = {}, status={}", q, wstatus);
         ForkServerResults res;
         res.seq = -1;
         res.pid = q;
         res.terminated = true;
-        spdlog::info("FORKSERVER, sending pid death: {}", q);
+        flog::info("FORKSERVER, sending pid death: {}", q);
         write(forkResult[1], &res, sizeof(res));
 #endif
     }
@@ -133,17 +136,17 @@ namespace core {
     void startForkServer() {
 #ifndef _WIN32
         if (pipe(forkPipe)) {
-            spdlog::error("Cannot create pipe.");
+            flog::error("Cannot create pipe.");
             exit(1);
         }
         if (pipe(forkResult)) {
-            spdlog::error("Cannot create pipe.");
+            flog::error("Cannot create pipe.");
             exit(1);
         }
         if (fork() == 0) {
 
             setproctitle("sdrpp (sdr++) fork server (spawning decoders)");
-            spdlog::info("FORKSERVER: fork server runs");
+            flog::info("FORKSERVER: fork server runs");
             int myPid = getpid();
             std::thread checkParentAlive([=](){
                 while(true) {
@@ -163,13 +166,13 @@ namespace core {
             while(running) {
                 SpawnCommand cmd;
                 if (sizeof(cmd) != read(forkPipe[0], &cmd, sizeof(cmd))) {
-                    spdlog::warn("FORKSERVER, misread command");
+                    flog::warn("FORKSERVER, misread command");
                     continue;
                 }
 
                 auto newPid = fork();
                 if (0 == newPid) {
-                    spdlog::info("FORKSERVER {}, forked ok", cmd.info);
+                    flog::info("FORKSERVER {}, forked ok", cmd.info);
 
                     if (true) {
                         close(0);
@@ -184,7 +187,7 @@ namespace core {
                     fprintf(stdout, "decoderPath=%s\n", args.executable);
                     fprintf(stdout, "ctm=%lld\n", currentTimeMillis());
                     fflush(stdout);
-                    spdlog::info("FT8 Decoder({}): executing: {}", cmd.info, args.executable);
+                    flog::info("FT8 Decoder({}): executing: {}", cmd.info, args.executable);
                     std::vector<char *> argsv;
                     for(int i=0; i<args.nargs; i++) {
                         argsv.emplace_back(&args.args[i][0]);
@@ -202,19 +205,19 @@ namespace core {
                     abort();     // exit does not terminate well.
 
 
-                    spdlog::warn("FORKSERVER, back from forked ok");
+                    flog::warn("FORKSERVER, back from forked ok");
                 } else {
                     ForkServerResults res;
                     res.seq = cmd.seq;
                     res.pid = newPid;
-                    spdlog::info("FORKSERVER ({}), sending pid: {}", cmd.info, newPid);
+                    flog::info("FORKSERVER ({}), sending pid: {}", cmd.info, newPid);
                     write(forkResult[1], &res, sizeof(res));
                 }
             }
         } else {
             std::thread resultReader([]() {
                 SetThreadName("forkserver_resultread");
-                spdlog::info("FORKSERVER: resultreader started");
+                flog::info("FORKSERVER: resultreader started");
                 while(true) {
                     ForkServerResults res;
                     if (0 != read(forkResult[0], &res, sizeof(res))) {
@@ -233,11 +236,11 @@ namespace core {
                                 found->second->pid = res.pid;
                             }
                             if (res.terminated != 0) {
-                                spdlog::info("FORKSERVER: marking terminated: pid={}, res={}", res.pid, (void *)&res);
+                                flog::info("FORKSERVER: marking terminated: pid={}, res={}", res.pid, (void *)&res);
                                 found->second->completed = true;
                             }
                         } else {
-                            spdlog::info("FORKSERVER: not found mark status: pid={} seq={}", res.pid, res.seq);
+                            flog::info("FORKSERVER: not found mark status: pid={} seq={}", res.pid, res.seq);
                         }
                         forkInProgressLock.unlock();
                     }
@@ -253,10 +256,10 @@ namespace core {
 
 // main
 int sdrpp_main(int argc, char* argv[]) {
-    spdlog::info("SDR++ v" VERSION_STR);
 #ifdef _WIN32
     // setlocale(LC_ALL, ".65001"); // Set locale to UTF-8
 #endif
+    flog::info("SDR++ v" VERSION_STR);
 
 #ifdef IS_MACOS_BUNDLE
     // If this is a MacOS .app, CD to the correct directory
@@ -293,16 +296,16 @@ int sdrpp_main(int argc, char* argv[]) {
     // Check root directory
     std::string root = (std::string)core::args["root"];
     if (!std::filesystem::exists(root)) {
-        spdlog::warn("Root directory {0} does not exist, creating it", root);
+        flog::warn("Root directory {0} does not exist, creating it", root);
         if (!std::filesystem::create_directories(root)) {
-            spdlog::error("Could not create root directory {0}", root);
+            flog::error("Could not create root directory {0}", root);
             return -1;
         }
     }
 
     // Check that the path actually is a directory
     if (!std::filesystem::is_directory(root)) {
-        spdlog::error("{0} is not a directory", root);
+        flog::error("{0} is not a directory", root);
         return -1;
     }
 
@@ -373,6 +376,8 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["moduleInstances"]["Airspy Source"]["enabled"] = true;
     defConfig["moduleInstances"]["AirspyHF+ Source"]["module"] = "airspyhf_source";
     defConfig["moduleInstances"]["AirspyHF+ Source"]["enabled"] = true;
+    defConfig["moduleInstances"]["Audio Source"]["module"] = "audio_source";
+    defConfig["moduleInstances"]["Audio Source"]["enabled"] = true;
     defConfig["moduleInstances"]["BladeRF Source"]["module"] = "bladerf_source";
     defConfig["moduleInstances"]["BladeRF Source"]["enabled"] = true;
     defConfig["moduleInstances"]["File Source"]["module"] = "file_source";
@@ -472,7 +477,7 @@ int sdrpp_main(int argc, char* argv[]) {
 #endif
 
     // Load config
-    spdlog::info("Loading config");
+    flog::info("Loading config");
     core::configManager.setPath(root + "/config.json");
     core::configManager.load(defConfig);
     core::configManager.enableAutoSave();
@@ -513,7 +518,7 @@ int sdrpp_main(int argc, char* argv[]) {
     // Fix missing elements in config
     for (auto const& item : defConfig.items()) {
         if (!core::configManager.conf.contains(item.key())) {
-            spdlog::info("Missing key in config {0}, repairing", item.key());
+            flog::info("Missing key in config {0}, repairing", item.key());
             core::configManager.conf[item.key()] = defConfig[item.key()];
         }
     }
@@ -522,7 +527,7 @@ int sdrpp_main(int argc, char* argv[]) {
     auto items = core::configManager.conf.items();
     for (auto const& item : items) {
         if (!defConfig.contains(item.key())) {
-            spdlog::info("Unused key in config {0}, repairing", item.key());
+            flog::info("Unused key in config {0}, repairing", item.key());
             core::configManager.conf.erase(item.key());
         }
     }
@@ -552,7 +557,7 @@ int sdrpp_main(int argc, char* argv[]) {
     // Assert that the resource directory is absolute and check existence
     resDir = std::filesystem::absolute(resDir).string();
     if (!std::filesystem::is_directory(resDir)) {
-        spdlog::error("Resource directory doesn't exist! Please make sure that you've configured it correctly in config.json (check readme for details)");
+        flog::error("Resource directory doesn't exist! Please make sure that you've configured it correctly in config.json (check readme for details)");
         return 1;
     }
 
@@ -568,20 +573,20 @@ int sdrpp_main(int argc, char* argv[]) {
     LoadingScreen::init();
 
     LoadingScreen::show("Loading icons");
-    spdlog::info("Loading icons");
+    flog::info("Loading icons");
     if (!icons::load(resDir)) { return -1; }
 
     LoadingScreen::show("Loading band plans");
-    spdlog::info("Loading band plans");
+    flog::info("Loading band plans");
     bandplan::loadFromDir(resDir + "/bandplans");
 
     LoadingScreen::show("Loading band plan colors");
-    spdlog::info("Loading band plans color table");
+    flog::info("Loading band plans color table");
     bandplan::loadColorTable(bandColors);
 
     gui::mainWindow.init();
 
-    spdlog::info("Ready.");
+    flog::info("Ready.");
 
     // Run render loop (TODO: CHECK RETURN VALUE)
     backend::renderLoop();
@@ -603,6 +608,6 @@ int sdrpp_main(int argc, char* argv[]) {
     core::configManager.save();
 #endif
 
-    spdlog::info("Exiting successfully");
+    flog::info("Exiting successfully");
     return 0;
 }

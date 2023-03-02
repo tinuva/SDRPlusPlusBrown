@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <signal_path/signal_path.h>
 #include <volk/volk.h>
-#include <spdlog/spdlog.h>
+#include <utils/flog.h>
 #include <gui/gui.h>
 #include <gui/style.h>
 #include <imgui/imgui_internal.h>
@@ -20,7 +20,7 @@
     std::lock_guard lck(mtx); \
     t0 = currentTimeMillis() - t0; \
     if (false && t0 > 5) { \
-        spdlog::info("Lock took {0}, line {1}", t0, __LINE__); \
+        flog::info("Lock took {0}, line {1}", t0, __LINE__); \
     }
 
 #define MEASURE_LOCK(mtx) \
@@ -28,7 +28,7 @@
     mtx.lock(); \
     t0 = currentTimeMillis() - t0; \
     if (false && t0 > 5) { \
-        spdlog::info("Lock took {0}, line {1}", t0, __LINE__); \
+        flog::info("Lock took {0}, line {1}", t0, __LINE__); \
     }
 
 
@@ -694,7 +694,7 @@ namespace ImGui {
             }
         }
 
-        spdlog::info("Full waterfall update fb: {0} msec, full width: {1}, draw width: {2}", currentTimeMillis() - ctm, dataWidth, drawDataSize);
+        flog::info("Full waterfall update fb: {0} msec, full width: {1}, draw width: {2}", currentTimeMillis() - ctm, dataWidth, drawDataSize);
         waterfallUpdate = true;
 
         for (int i = 0; i < WATERFALL_NUMBER_OF_SECTIONS; ++i) {
@@ -1457,7 +1457,7 @@ namespace ImGui {
     void WaterFall::showWaterfall() {
         MEASURE_LOCK_GUARD(buf_mtx);
         if (rawFFTs == NULL) {
-            spdlog::error("Null rawFFT");
+            flog::error("Null rawFFT");
         }
         waterfallVisible = true;
         onResize();
@@ -1517,7 +1517,7 @@ namespace ImGui {
             width = 524288;
         }
         if (offset < 0) {
-            spdlog::warn("Offset is negative: {}", offset);
+            flog::warn("Offset is negative: {}", offset);
             offset = 0;
         }
 

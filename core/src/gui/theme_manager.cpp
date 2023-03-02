@@ -1,7 +1,7 @@
 #include <json.hpp>
 #include <gui/theme_manager.h>
 #include <imgui_internal.h>
-#include <spdlog/spdlog.h>
+#include <utils/flog.h>
 #include <filesystem>
 #include <fstream>
 #include "utils/wstr.h"
@@ -24,7 +24,7 @@ bool ThemeManager::loadThemesFromDir(std::string path) {
 
 
     if (!std::filesystem::is_directory(path)) {
-        spdlog::error("Theme directory doesn't exist: {0}", path);
+        flog::error("Theme directory doesn't exist: {0}", path);
         return false;
     }
     themes.clear();
@@ -42,7 +42,7 @@ bool ThemeManager::loadTheme(std::string path) {
     maybeInitThemeManager();
 
     if (!std::filesystem::is_regular_file(path)) {
-        spdlog::error("Theme file doesn't exist: {0}", path);
+        flog::error("Theme file doesn't exist: {0}", path);
         return false;
     }
 
@@ -58,24 +58,24 @@ bool ThemeManager::loadTheme(std::string path) {
 
     // Load theme name
     if (!data.contains("name")) {
-        spdlog::error("Theme {0} is missing the name parameter", path);
+        flog::error("Theme {0} is missing the name parameter", path);
         return false;
     }
     if (!data["name"].is_string()) {
-        spdlog::error("Theme {0} contains invalid name field. Expected string", path);
+        flog::error("Theme {0} contains invalid name field. Expected string", path);
         return false;
     }
     std::string name = data["name"];
 
     if (themes.find(name) != themes.end()) {
-        spdlog::error("A theme named '{0}' already exists", name);
+        flog::error("A theme named '{0}' already exists", name);
         return false;
     }
 
     // Load theme author if available
     if (data.contains("author")) {
         if (!data["author"].is_string()) {
-            spdlog::error("Theme {0} contains invalid author field. Expected string", path);
+            flog::error("Theme {0} contains invalid author field. Expected string", path);
             return false;
         }
         thm.author = data["author"];
@@ -89,7 +89,7 @@ bool ThemeManager::loadTheme(std::string path) {
         // Exception for non-imgu colors
         if (param == "WaterfallBackground" || param == "ClearColor" || param == "FFTHoldColor") {
             if (val[0] != '#' || !std::all_of(val.begin() + 1, val.end(), ::isxdigit) || val.length() != 9) {
-                spdlog::error("Theme {0} contains invalid {1} field. Expected hex RGBA color", path, param);
+                flog::error("Theme {0} contains invalid {1} field. Expected hex RGBA color", path, param);
                 return false;
             }
             continue;
@@ -100,14 +100,14 @@ bool ThemeManager::loadTheme(std::string path) {
         // If param is a color, check that it's a valid RGBA hex value
         if (IMGUI_COL_IDS.find(param) != IMGUI_COL_IDS.end()) {
             if (val[0] != '#' || !std::all_of(val.begin() + 1, val.end(), ::isxdigit) || val.length() != 9) {
-                spdlog::error("Theme {0} contains invalid {1} field. Expected hex RGBA color", path, param);
+                flog::error("Theme {0} contains invalid {1} field. Expected hex RGBA color", path, param);
                 return false;
             }
             isValid = true;
         }
 
         if (!isValid) {
-            spdlog::error("Theme {0} contains unknown {1} field.", path, param);
+            flog::error("Theme {0} contains unknown {1} field.", path, param);
             return false;
         }
     }
@@ -123,7 +123,7 @@ bool ThemeManager::applyTheme(std::string name) {
     maybeInitThemeManager();
 
     if (themes.find(name) == themes.end()) {
-        spdlog::error("Unknown theme: {0}", name);
+        flog::error("Unknown theme: {0}", name);
         return false;
     }
 

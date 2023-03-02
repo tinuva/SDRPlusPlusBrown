@@ -1,6 +1,6 @@
 #include "server.h"
 #include "core.h"
-#include <spdlog/spdlog.h>
+#include <utils/flog.h>
 #include <version.h>
 #include <config.h>
 #include <filesystem>
@@ -53,7 +53,7 @@ namespace server {
 
 
     int main() {
-        spdlog::info("=====| SERVER MODE |=====");
+        flog::info("=====| SERVER MODE |=====");
 #ifdef __linux__
         signal(SIGPIPE, SIG_IGN);
 #endif
@@ -96,7 +96,7 @@ namespace server {
         // Initialize SmGui in server mode
         SmGui::init(true);
 
-        spdlog::info("Loading modules");
+        flog::info("Loading modules");
         // Load modules and check type to only load sources ( TODO: Have a proper type parameter int the info )
         // TODO LATER: Add whitelist/blacklist stuff
         if (std::filesystem::is_directory(modulesDir)) {
@@ -109,12 +109,12 @@ namespace server {
                 if (!file.is_regular_file()) { continue; }
                 if (fn.find("source") == std::string::npos) { continue; }
 
-                spdlog::info("Loading {0}", path);
+                flog::info("Loading {0}", path);
                 core::moduleManager.loadModule(path);
             }
         }
         else {
-            spdlog::warn("Module directory {0} does not exist, not loading modules from directory", modulesDir);
+            flog::warn("Module directory {0} does not exist, not loading modules from directory", modulesDir);
         }
 
         // Load additional modules through the config ( TODO: Have a proper type parameter int the info )
@@ -129,7 +129,7 @@ namespace server {
             if (!std::filesystem::is_regular_file(file)) { continue; }
             if (fn.find("source") == std::string::npos) { continue; }
 
-            spdlog::info("Loading {0}", path);
+            flog::info("Loading {0}", path);
             core::moduleManager.loadModule(path);
         }
 
@@ -138,7 +138,7 @@ namespace server {
             std::string mod = _module["module"];
             bool enabled = _module["enabled"];
             if (core::moduleManager.modules.find(mod) == core::moduleManager.modules.end()) { continue; }
-            spdlog::info("Initializing {0} ({1})", name, mod);
+            flog::info("Initializing {0} ({1})", name, mod);
             core::moduleManager.createInstance(name, mod);
             if (!enabled) { core::moduleManager.disableInstance(name); }
         }
@@ -163,7 +163,7 @@ namespace server {
         listener = net::listen(host, port);
         listener->acceptAsync(_clientHandler, NULL);
 
-        spdlog::info("Ready, listening on {0}:{1}", host, port);
+        flog::info("Ready, listening on {0}:{1}", host, port);
         while(1) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); }
 
         return 0;
@@ -172,7 +172,7 @@ namespace server {
     void _clientHandler(net::Conn conn, void* ctx) {
         // Reject if someone else is already connected
         if (client && client->isOpen()) {
-            spdlog::info("REJECTED Connection from {0}:{1}, another client is already connected.", "TODO", "TODO");
+            flog::info("REJECTED Connection from {0}:{1}, another client is already connected.", "TODO", "TODO");
             
             // Issue a disconnect command to the client
             uint8_t buf[sizeof(PacketHeader) + sizeof(CommandHeader)];
@@ -193,7 +193,7 @@ namespace server {
             return;
         }
 
-        spdlog::info("Connection from {0}:{1}", "TODO", "TODO");
+        flog::info("Connection from {0}:{1}", "TODO", "TODO");
         client = std::move(conn);
         client->readAsync(sizeof(PacketHeader), rbuf, _packetHandler, NULL);
 
@@ -308,7 +308,7 @@ namespace server {
             compression = *(uint8_t*)data;
         }
         else {
-            spdlog::error("Invalid Command: {0} (len = {1})", cmd, len);
+            flog::error("Invalid Command: {0} (len = {1})", (int)cmd, len);
             sendError(ERROR_INVALID_COMMAND);
         }
     }

@@ -2,7 +2,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <config.h>
-#include <spdlog/spdlog.h>
+#include <utils/flog.h>
 #include <filesystem>
 #include "utils/wstr.h"
 
@@ -25,7 +25,7 @@ namespace style {
     bool loadFonts(std::string resDir) {
         ImFontAtlas* fonts = ImGui::GetIO().Fonts;
         if (!std::filesystem::is_directory(wstr::str2wstr(resDir))) {
-            spdlog::error("Invalid resource directory: {0}", resDir);
+            flog::error("Invalid resource directory: {0}", resDir);
             return false;
         }
 

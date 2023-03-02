@@ -67,7 +67,7 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
     }
 
     void start() override {
-        spdlog::info("AudioInToTransmitter: Start");
+        flog::info("AudioInToTransmitter: Start");
         auto bandwidth = 2500.0;
         if (this->submode == "LSB") {
             xlator1.init(NULL, -bandwidth / 2, 48000);
@@ -124,7 +124,7 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
         sampleCount+=rd;
         this->_in->flush();
         if (!out.swap(rd)) {
-            spdlog::info("Does not write to output stream", totalRead);
+            flog::info("Does not write to output stream", totalRead);
             return -1;
         }
         return rd;
@@ -180,7 +180,7 @@ struct AudioInToFFT : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
 //                char buf[1000];
 //                sprintf(buf, "input: %f %f %f %f %f %f %f %f", ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
 //                std::string sbuf = buf;
-//                spdlog::info("in qsopanel: {}", sbuf);
+//                flog::info("in qsopanel: {}", sbuf);
 //            }
             auto inputMul = muleach(hanningWin, inputArray);
             auto result = dsp::arrays::npfftfft(inputMul, plan);
@@ -299,12 +299,12 @@ struct CWPanel {
         }
         if (stateTime == 0 && state != 0) {
             // start any tone
-            spdlog::info("Set Tone Enabled: true, time={}, ctm={}", currentTime, currentTimeMillis());
+            flog::info("Set Tone Enabled: true, time={}, ctm={}", currentTime, currentTimeMillis());
             setToneEnabled(true);
         }
         if (state == DOT && stateTime == dot || state == DA && stateTime == 3*dot) {
             // stop tone at specified time
-            spdlog::info("Set Tone Enabled: OFF , time={}, ctm={}", currentTime, currentTimeMillis());
+            flog::info("Set Tone Enabled: OFF , time={}, ctm={}", currentTime, currentTimeMillis());
             setToneEnabled(false);
         }
         if (state == DA) {
@@ -357,7 +357,7 @@ struct SimpleRecorder {
                 while (true) {
                     auto rd = audioIn.read();
                     if (rd < 0) {
-                        spdlog::info("audioInToFFT->out.read() causes loop break, rd={0}", rd);
+                        flog::info("audioInToFFT->out.read() causes loop break, rd={0}", rd);
                         break;
                     }
                     s2m.process(rd, audioIn.readBuf, s2m.out.writeBuf);
@@ -375,7 +375,7 @@ struct SimpleRecorder {
                 while (true) {
                     auto rd = audioIn.read();
                     if (rd < 0) {
-                        spdlog::info("audioInToFFT->out.read() causes loop break, rd={0}", rd);
+                        flog::info("audioInToFFT->out.read() causes loop break, rd={0}", rd);
                         break;
                     }
                     s2m.process(rd, audioIn.readBuf, s2m.out.writeBuf);
@@ -794,7 +794,7 @@ void MobileMainWindow::draw() {
                 od = pow(od, 1.4) * sign;
 //                od *= 5;
             }
-            spdlog::info("od={} encoder.currentFrequency={}", od, encoder.currentFrequency);
+            flog::info("od={} encoder.currentFrequency={}", od, encoder.currentFrequency);
             encoder.currentFrequency -= od;
             auto cf = ((int)(encoder.currentFrequency / 10)) * 10.0;
             tuner::tune(tuningMode, gui::waterfall.selectedVFO, cf);
@@ -1143,10 +1143,10 @@ void QSOPanel::startSoundPipeline() {
         while (true) {
             auto rd = audioInToFFT->out.read();
             if (rd < 0) {
-                spdlog::info("audioInToFFT->out.read() causes loop break, rd={0}", rd);
+                flog::info("audioInToFFT->out.read() causes loop break, rd={0}", rd);
                 break;
             }
-//            spdlog::info("audioInToFFT->out.read() exited, data={0} {1} {2} {3} {4} {5} {6} {7}",
+//            flog::info("audioInToFFT->out.read() exited, data={0} {1} {2} {3} {4} {5} {6} {7}",
 //                         audioInToFFT->out.readBuf[0].re,
 //                         audioInToFFT->out.readBuf[1].re,
 //                         audioInToFFT->out.readBuf[2].re,
@@ -1214,12 +1214,12 @@ void QSOPanel::handleTxButton(bool tx, bool tune) {
 
 void QSOPanel::stopSoundPipeline() {
     sigpath::sinkManager.defaultInputAudio.unbindStream(&audioIn);
-    spdlog::info("QSOPanel::stop. Calling audioInToFFT->stop()");
+    flog::info("QSOPanel::stop. Calling audioInToFFT->stop()");
     audioInToFFT->stop();
     audioInToFFT->out.stopReader();
-    spdlog::info("Calling audioInToFFT->reset()");
+    flog::info("Calling audioInToFFT->reset()");
     audioInToFFT.reset();
-    spdlog::info("Reset complete");
+    flog::info("Reset complete");
 }
 
 float rtmax(std::vector<float> &v) {

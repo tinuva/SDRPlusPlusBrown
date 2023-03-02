@@ -7,8 +7,7 @@
 #include <signal_path/sink.h>
 #include <dsp/buffer/packer.h>
 #include <dsp/convert/stereo_to_mono.h>
-#include <spdlog/spdlog.h>
-
+#include <utils/flog.h>
 #include <RtAudio.h>
 #include <config.h>
 #include <core.h>
@@ -62,7 +61,7 @@ public:
             if (info.isDefaultInput) {
                 inputDeviceInfo = info;
                 defaultInputDeviceId = i;
-                spdlog::info("Default input: " + info.name+" defaultInputDeviceId="+std::to_string(i));
+                flog::info("Default input: {} defaultInputDeviceId={}", info.name, std::to_string(i));
             }
             if (!info.probed) {
                 RtAudio::StreamParameters parameters;
@@ -110,20 +109,16 @@ public:
     }
 
     ~AudioSink() {
+        stop();
     }
 
     void start() {
-        if (running) {
-            return;
-        }
-        doStart();
-        running = true;
+        if (running) { return; }
+        running = doStart();
     }
 
     void stop() {
-        if (!running) {
-            return;
-        }
+        if (!running) { return; }
         doStop();
         running = false;
     }
@@ -212,12 +207,12 @@ public:
     const int microFrames = 4;
 
 private:
-    void doStart() {
+    bool doStart() {
 
-        spdlog::info("Starting RtAudio streams..");
+        flog::info("Starting RtAudio streams..");
         RtAudio::StreamParameters inputParameters;
         inputParameters.deviceId = defaultInputDeviceId;
-        inputParameters.nChannels = 2;
+        inputParameters.nChannels = 1;
 
         {
             RtAudio::StreamParameters outputParameters;
@@ -229,7 +224,7 @@ private:
             opts.flags = RTAUDIO_MINIMIZE_LATENCY;
             opts.streamName = _streamName;
             std::replace(opts.streamName.begin(), opts.streamName.end(), '#', '_');
-            spdlog::info("Starting RtAudio stream " + _streamName + " parameters.deviceId=" + std::to_string(outputParameters.deviceId)+" it is default input? "+std::to_string(defaultInputDeviceId == outputParameters.deviceId));
+            flog::info("Starting RtAudio stream {}  parameters.deviceId={}  it is default input? {}", _streamName, outputParameters.deviceId, defaultInputDeviceId == outputParameters.deviceId);
 
             try {
                 unsigned int microBuffer = bufferFrames/microFrames;
@@ -239,44 +234,46 @@ private:
                 stereoPacker.start();
             }
             catch (RtAudioError& e) {
-                spdlog::error("Could not open audio device: " + e.getMessage());
-                return;
+                flog::error("Could not open audio device: {}",  e.getMessage());
+                return false;
             }
 
-            spdlog::info("RtAudio output stream open");
+            flog::info("RtAudio output stream open");
         }
         if (defaultInputDeviceId != deviceIds[devId] && defaultInputDeviceId != -1) {
             // input device differs from output
             RtAudio::StreamOptions opts;
             opts.flags = RTAUDIO_MINIMIZE_LATENCY;
             opts.streamName = inputDeviceInfo.name;
-            spdlog::info("Starting (separately) RtAudio INPUT stream " + inputDeviceInfo.name + " parameters.deviceId=" + std::to_string(defaultInputDeviceId)+" (output was: "+std::to_string(deviceIds[devId])+")");
+            flog::info("Starting (separately) RtAudio INPUT stream {}  parameters.deviceId={} (output was: {})", inputDeviceInfo.name, defaultInputDeviceId, deviceIds[devId]);
             unsigned int bufferFrames = sampleRate / 60 / microFrames;
 
             try {
                 audio2.openStream(nullptr, &inputParameters, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback2, this, &opts);
                 audio2.startStream();
-                spdlog::info("RtAudio input stream open");
+                flog::info("RtAudio input stream open");
             }
             catch (RtAudioError& e) {
-                spdlog::error("Could not open INPUT audio device: " + e.getMessage());
+                flog::error("Could not open INPUT audio device: {}", e.getMessage());
+                return false;
             }
 
         }
-        spdlog::info("sigpath::sinkManager.defaultInputAudio.init(microphone)");
+        flog::info("sigpath::sinkManager.defaultInputAudio.init(microphone)");
         sigpath::sinkManager.defaultInputAudio.setInput(&microphone);
         sigpath::sinkManager.defaultInputAudio.start();
         microphone.setBufferSize(sampleRate / 60);
+        return true;
     }
 
     dsp::stream<dsp::stereo_t> microphone;
 
 
     void doStop() {
-        spdlog::info("Stopping RtAudio stream:  "+_streamName);
+        flog::info("Stopping RtAudio stream:  {}", _streamName);
 
         sigpath::sinkManager.defaultInputAudio.stop();
-        spdlog::info("sigpath::sinkManager.defaultInputAudio.setInput(nullptr)");
+        flog::info("sigpath::sinkManager.defaultInputAudio.setInput(nullptr)");
         sigpath::sinkManager.defaultInputAudio.setInput(nullptr);
 
         s2m.stop();
@@ -285,19 +282,19 @@ private:
         monoPacker.out.stopReader();
         stereoPacker.out.stopReader();
         if (audio2.isStreamRunning()) {
-            spdlog::info("Stopping RtAudio stream p.3");
+            flog::info("Stopping RtAudio stream p.3");
             audio2.stopStream();
         }
         if (audio2.isStreamOpen()) {
-            spdlog::info("Stopping RtAudio stream p.4");
+            flog::info("Stopping RtAudio stream p.4");
             audio2.closeStream();
         }
         if (audio.isStreamRunning()) {
-            spdlog::info("Stopping RtAudio stream p.1");
+            flog::info("Stopping RtAudio stream p.1");
             audio.stopStream();
         }
         if (audio.isStreamOpen()) {
-            spdlog::info("Stopping RtAudio stream p.2");
+            flog::info("Stopping RtAudio stream p.2");
             audio.closeStream();
         }
         monoPacker.out.clearReadStop();
@@ -342,11 +339,11 @@ private:
         if (_this->playBuffer.size() >= nBufferFrames) {
 
             // For debug purposes only...
-            // if (nBufferFrames != count) { spdlog::warn("Buffer size mismatch, wanted {0}, was asked for {1}", count, nBufferFrames); }
+            // if (nBufferFrames != count) { flog::warn("Buffer size mismatch, wanted {0}, was asked for {1}", count, nBufferFrames); }
             // for (int i = 0; i < count; i++) {
-            //     if (_this->stereoPacker.out.readBuf[i].l == NAN || _this->stereoPacker.out.readBuf[i].r == NAN) { spdlog::error("NAN in audio data"); }
-            //     if (_this->stereoPacker.out.readBuf[i].l == INFINITY || _this->stereoPacker.out.readBuf[i].r == INFINITY) { spdlog::error("INFINITY in audio data"); }
-            //     if (_this->stereoPacker.out.readBuf[i].l == -INFINITY || _this->stereoPacker.out.readBuf[i].r == -INFINITY) { spdlog::error("-INFINITY in audio data"); }
+            //     if (_this->stereoPacker.out.readBuf[i].l == NAN || _this->stereoPacker.out.readBuf[i].r == NAN) { flog::error("NAN in audio data"); }
+            //     if (_this->stereoPacker.out.readBuf[i].l == INFINITY || _this->stereoPacker.out.readBuf[i].r == INFINITY) { flog::error("INFINITY in audio data"); }
+            //     if (_this->stereoPacker.out.readBuf[i].l == -INFINITY || _this->stereoPacker.out.readBuf[i].r == -INFINITY) { flog::error("-INFINITY in audio data"); }
             // }
 
 

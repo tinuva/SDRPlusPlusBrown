@@ -29,9 +29,9 @@ enum {
 
 ConfigManager config;
 
-class TCIServerModule : public ModuleManager::Instance {
+class SigctlServerModule : public ModuleManager::Instance {
 public:
-    TCIServerModule(std::string name) {
+    SigctlServerModule(std::string name) {
         this->name = name;
 
         config.acquire();
@@ -57,7 +57,7 @@ public:
         gui::menu.registerEntry(name, menuHandler, this, NULL);
     }
 
-    ~TCIServerModule() {
+    ~SigctlServerModule() {
         gui::menu.removeEntry(name);
         sigpath::vfoManager.onVfoCreated.unbindHandler(&vfoCreatedHandler);
         sigpath::vfoManager.onVfoDeleted.unbindHandler(&vfoDeletedHandler);
@@ -105,7 +105,7 @@ public:
 
 private:
     static void menuHandler(void* ctx) {
-        TCIServerModule* _this = (TCIServerModule*)ctx;
+        SigctlServerModule* _this = (SigctlServerModule*)ctx;
         float menuWidth = ImGui::GetContentRegionAvail().x;
 
         bool listening = (_this->listener && _this->listener->isListening());
@@ -201,7 +201,7 @@ private:
             listener->acceptAsync(clientHandler, this);
         }
         catch (std::exception e) {
-            spdlog::error("Could not start rigctl server: {0}", e.what());
+            flog::error("Could not start rigctl server: {0}", e.what());
         }
     }
 
@@ -287,39 +287,38 @@ private:
     }
 
     static void _vfoCreatedHandler(VFOManager::VFO* vfo, void* ctx) {
-        TCIServerModule* _this = (TCIServerModule*)ctx;
+        SigctlServerModule* _this = (SigctlServerModule*)ctx;
         _this->refreshModules();
         _this->selectVfoByName(_this->selectedVfo);
     }
 
     static void _vfoDeletedHandler(std::string _name, void* ctx) {
-        TCIServerModule* _this = (TCIServerModule*)ctx;
+        SigctlServerModule* _this = (SigctlServerModule*)ctx;
         _this->refreshModules();
         _this->selectVfoByName(_this->selectedVfo);
     }
 
     static void _modChangeHandler(std::string _name, void* ctx) {
-        TCIServerModule* _this = (TCIServerModule*)ctx;
+        SigctlServerModule* _this = (SigctlServerModule*)ctx;
         _this->refreshModules();
         _this->selectRecorderByName(_this->selectedRecorder);
     }
 
     static void clientHandler(net::Conn _client, void* ctx) {
-        TCIServerModule* _this = (TCIServerModule*)ctx;
-        //spdlog::info("New client!");
+        SigctlServerModule* _this = (SigctlServerModule*)ctx;
 
         _this->client = std::move(_client);
         _this->client->readAsync(1024, _this->dataBuf, dataHandler, _this, false);
         _this->client->waitForEnd();
         _this->client->close();
 
-        //spdlog::info("Client disconnected!");
+        //flog::info("Client disconnected!");
 
         _this->listener->acceptAsync(clientHandler, _this);
     }
 
     static void dataHandler(int count, uint8_t* data, void* ctx) {
-        TCIServerModule* _this = (TCIServerModule*)ctx;
+        SigctlServerModule* _this = (SigctlServerModule*)ctx;
 
         for (int i = 0; i < count; i++) {
             if (data[i] == '\n') {
@@ -371,7 +370,7 @@ private:
             return;
         }
 
-        spdlog::info("Rigctl command: '{0}'", cmd);
+        flog::info("Rigctl command: '{0}'", cmd);
 
         // Otherwise, execute the command
         if (parts[0] == "F" || parts[0] == "\\set_freq") {
@@ -692,7 +691,7 @@ private:
         }
         else {
             // If command is not recognized, return error
-            spdlog::error("Rigctl client sent invalid command: '{0}'", cmd);
+            flog::error("Rigctl client sent invalid command: '{0}'", cmd);
             resp = "RPRT 1\n";
             client->write(resp.size(), (uint8_t*)resp.c_str());
             return;
@@ -739,11 +738,11 @@ MOD_EXPORT void _INIT_() {
 }
 
 MOD_EXPORT ModuleManager::Instance* _CREATE_INSTANCE_(std::string name) {
-    return new TCIServerModule(name);
+    return new SigctlServerModule(name);
 }
 
 MOD_EXPORT void _DELETE_INSTANCE_(void* instance) {
-    delete (TCIServerModule*)instance;
+    delete (SigctlServerModule*)instance;
 }
 
 MOD_EXPORT void _END_() {

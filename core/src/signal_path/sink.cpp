@@ -1,5 +1,5 @@
 #include <signal_path/sink.h>
-#include <spdlog/spdlog.h>
+#include <utils/flog.h>
 #include <imgui/imgui.h>
 #include <gui/style.h>
 #include <gui/icons.h>
@@ -100,7 +100,7 @@ void SinkManager::Stream::setSampleRate(float sampleRate) {
 
 void SinkManager::registerSinkProvider(std::string name, SinkProvider provider) {
     if (providers.find(name) != providers.end()) {
-        spdlog::error("Cannot register sink provider '{0}', this name is already taken", name);
+        flog::error("Cannot register sink provider '{0}', this name is already taken", name);
         return;
     }
 
@@ -121,7 +121,7 @@ void SinkManager::registerSinkProvider(std::string name, SinkProvider provider) 
 
 void SinkManager::unregisterSinkProvider(std::string name) {
     if (providers.find(name) == providers.end()) {
-        spdlog::error("Cannot unregister sink provider '{0}', no such provider exists.", name);
+        flog::error("Cannot unregister sink provider '{0}', no such provider exists.", name);
         return;
     }
 
@@ -158,7 +158,7 @@ bool SinkManager::configContains(const std::string& name) const {
 
 void SinkManager::registerStream(std::string name, SinkManager::Stream* stream) {
     if (streams.find(name) != streams.end()) {
-        spdlog::error("Cannot register stream '{0}', this name is already taken", name);
+        flog::error("Cannot register stream '{0}', this name is already taken", name);
         return;
     }
 
@@ -182,7 +182,7 @@ void SinkManager::registerStream(std::string name, SinkManager::Stream* stream) 
 
 void SinkManager::unregisterStream(std::string name) {
     if (streams.find(name) == streams.end()) {
-        spdlog::error("Cannot unregister stream '{0}', this stream doesn't exist", name);
+        flog::error("Cannot unregister stream '{0}', this stream doesn't exist", name);
         return;
     }
     onStreamUnregister.emit(name);
@@ -196,7 +196,7 @@ void SinkManager::unregisterStream(std::string name) {
 
 void SinkManager::startStream(std::string name) {
     if (streams.find(name) == streams.end()) {
-        spdlog::error("Cannot start stream '{0}', this stream doesn't exist", name);
+        flog::error("Cannot start stream '{0}', this stream doesn't exist", name);
         return;
     }
     streams[name]->start();
@@ -204,7 +204,7 @@ void SinkManager::startStream(std::string name) {
 
 void SinkManager::stopStream(std::string name) {
     if (streams.find(name) == streams.end()) {
-        spdlog::error("Cannot stop stream '{0}', this stream doesn't exist", name);
+        flog::error("Cannot stop stream '{0}', this stream doesn't exist", name);
         return;
     }
     streams[name]->stop();
@@ -212,7 +212,7 @@ void SinkManager::stopStream(std::string name) {
 
 float SinkManager::getStreamSampleRate(std::string name) {
     if (streams.find(name) == streams.end()) {
-        spdlog::error("Cannot get sample rate of stream '{0}', this stream doesn't exist", name);
+        flog::error("Cannot get sample rate of stream '{0}', this stream doesn't exist", name);
         return -1.0f;
     }
     return streams[name]->getSampleRate();
@@ -220,7 +220,7 @@ float SinkManager::getStreamSampleRate(std::string name) {
 
 dsp::stream<dsp::stereo_t>* SinkManager::bindStream(std::string name) {
     if (streams.find(name) == streams.end()) {
-        spdlog::error("Cannot bind to stream '{0}'. Stream doesn't exist", name);
+        flog::error("Cannot bind to stream '{0}'. Stream doesn't exist", name);
         return NULL;
     }
     return streams[name]->bindStream();
@@ -228,7 +228,7 @@ dsp::stream<dsp::stereo_t>* SinkManager::bindStream(std::string name) {
 
 void SinkManager::unbindStream(std::string name, dsp::stream<dsp::stereo_t>* stream) {
     if (streams.find(name) == streams.end()) {
-        spdlog::error("Cannot unbind from stream '{0}'. Stream doesn't exist", name);
+        flog::error("Cannot unbind from stream '{0}'. Stream doesn't exist", name);
         return;
     }
     streams[name]->unbindStream(stream);
@@ -236,12 +236,12 @@ void SinkManager::unbindStream(std::string name, dsp::stream<dsp::stereo_t>* str
 
 void SinkManager::setStreamSink(std::string name, std::string providerName) {
     if (streams.find(name) == streams.end()) {
-        spdlog::error("Cannot set sink for stream '{0}'. Stream doesn't exist", name);
+        flog::error("Cannot set sink for stream '{0}'. Stream doesn't exist", name);
         return;
     }
     Stream* stream = streams[name];
     if (providers.find(providerName) == providers.end()) {
-        spdlog::error("Unknown sink provider '{0}'", providerName);
+        flog::error("Unknown sink provider '{0}'", providerName);
         return;
     }
 

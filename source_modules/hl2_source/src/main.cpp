@@ -5,14 +5,14 @@
 
 #include <imgui.h>
 #include <gui/smgui.h>
-#include <spdlog/spdlog.h>
+#include <utils/flog.h>
 #include <module.h>
 #include <gui/gui.h>
 #include <signal_path/signal_path.h>
 #include <core.h>
 #include <config.h>
 #ifdef __ANDROID__
-#include <spdlog/sinks/android_sink.h>
+#include <flog/sinks/android_sink.h>
 #endif
 
 #include "hl2_device.h"
@@ -47,9 +47,9 @@ public:
     explicit HermesLite2SourceModule(const std::string &name) {
 
 #ifdef __ANDROID__
-        auto console_sink = std::make_shared<spdlog::sinks::android_sink_st>("SDR++/hl2_source");
-        auto logger = std::shared_ptr<spdlog::logger>(new spdlog::logger("", { console_sink }));
-        spdlog::set_default_logger(logger);
+        auto console_sink = std::make_shared<flog::sinks::android_sink_st>("SDR++/hl2_source");
+        auto logger = std::shared_ptr<flog::logger>(new flog::logger("", { console_sink }));
+        flog::set_default_logger(logger);
 #endif
 
 
@@ -198,12 +198,12 @@ private:
     static void menuSelected(void* ctx) {
         auto* _this = (HermesLite2SourceModule*)ctx;
         core::setInputSampleRate(_this->sampleRate);
-        spdlog::info("HermerList2SourceModule '{0}': Menu Select!", _this->name);
+        flog::info("HermerList2SourceModule '{0}': Menu Select!", _this->name);
     }
 
     static void menuDeselected(void* ctx) {
         auto* _this = (HermesLite2SourceModule*)ctx;
-        spdlog::info("HermerList2SourceModule '{0}': Menu Deselect!", _this->name);
+        flog::info("HermerList2SourceModule '{0}': Menu Deselect!", _this->name);
     }
 
     std::vector<dsp::complex_t> incomingBuffer;
@@ -223,7 +223,7 @@ private:
         if (_this->running) {
             return; }
         if (_this->selectedIP.empty()) {
-            spdlog::error("Tried to start HL2 source with null serial");
+            flog::error("Tried to start HL2 source with null serial");
             return;
         }
 
@@ -261,7 +261,7 @@ private:
         }
         _this->running = true;
         sigpath::transmitter = _this;
-        spdlog::info("HL2SourceModule '{0}': Start!", _this->name);
+        flog::info("HL2SourceModule '{0}': Start!", _this->name);
     }
 
     static void stop(void* ctx) {
@@ -271,7 +271,7 @@ private:
         _this->device->stop();
         _this->stream.stopWriter();
         _this->stream.clearWriteStop();
-        spdlog::info("HermerList2SourceModule '{0}': Stop!", _this->name);
+        flog::info("HermerList2SourceModule '{0}': Stop!", _this->name);
         _this->device.reset();
 
         sigpath::transmitter = nullptr;
@@ -282,7 +282,7 @@ private:
         if (_this->device) {
             _this->device->setFrequency((int)freq);
         }
-        spdlog::info("HermerList2SourceModule '{0}': Tune: {1}!", _this->name, freq);
+        flog::info("HermerList2SourceModule '{0}': Tune: {1}!", _this->name, freq);
     }
 
     static void menuHandler(void* ctx) {
@@ -433,7 +433,7 @@ private:
                     if (buffer.size() == 63) {
                         addedBlocks++;
                         if (addedBlocks % 1000 == 0) {
-                            spdlog::info("Added {} blocks to tx buffer, rd samples {}  ndreads {}", addedBlocks, readSamples, nreads);
+                            flog::info("Added {} blocks to tx buffer, rd samples {}  ndreads {}", addedBlocks, readSamples, nreads);
                         }
                         device->samplesToSendLock.lock();
                         device->samplesToSend.emplace_back(std::make_shared<std::vector<dsp::complex_t>>(buffer));
@@ -510,7 +510,7 @@ MOD_EXPORT void _INIT_() {
 
     iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
     if (iResult != 0) {
-        spdlog::error("WSAStartup failed: %d\n", iResult);
+        flog::error("WSAStartup failed: %d\n", iResult);
         exit(1);
     }
 #endif

@@ -1,7 +1,7 @@
 #pragma once
 #include "../processor.h"
 #include "../taps/tap.h"
-#include <spdlog/spdlog.h>
+#include <utils/flog.h>
 
 namespace dsp::filter {
     template <class D, class T>

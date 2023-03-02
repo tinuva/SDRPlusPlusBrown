@@ -11,6 +11,7 @@
 #include "../dsp/math/conjugate.h"
 #include <fftw3.h>
 #include "utils/event.h"
+#include <atomic>
 
 class IQFrontEnd {
 public:

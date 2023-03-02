@@ -7,6 +7,10 @@
 #include <ctm.h>
 #include <core.h>
 
+#ifdef __linux__
+#include <unistd.h>
+#endif
+
 #define DATA_PORT 1024
 
 struct ControlData {
@@ -400,8 +404,8 @@ struct HL2Device {
                 }
             }
             ss << "\nEnd of packet\n";
-            spdlog::info("packet follows");
-            spdlog::info("{}", ss.str());
+            flog::info("packet follows");
+            flog::info("{}", ss.str());
         }
         if (sendto(data_socket, (const char *)metis_buffer, 1024+8, 0, (struct sockaddr *) &data_addr, data_addr_length) != 1024+8) {
             perror("sendto socket failed for metis_send_data\n");
@@ -591,7 +595,7 @@ struct HL2Device {
             start_protocol1_thread();
             metis_restart();
         } catch (std::exception &ex) {
-            spdlog::error(ex.what());
+            flog::error(ex.what());
         }
 
     }
@@ -677,7 +681,7 @@ struct HL2Device {
 /*
         static int counter = 0;
         if (counter++ % 30 == 0) {
-            spdlog::info("hl2_device: next udp packet, samplesToSend.size()={}  tx={}", samplesToSend.size(), transmitMode);
+            flog::info("hl2_device: next udp packet, samplesToSend.size()={}  tx={}", samplesToSend.size(), transmitMode);
         }
 */
         sent++;
@@ -687,7 +691,7 @@ struct HL2Device {
         }
         sendToEndpoint(0x2, output_buffer);
 //        if (sent % 1000 == 0) {
-//            spdlog::info("Sent {} packets, of total {} calls", sent, returned+sent);
+//            flog::info("Sent {} packets, of total {} calls", sent, returned+sent);
 //        }
     }
 
@@ -717,7 +721,7 @@ struct HL2Device {
 #endif
 
         auto ua = (unsigned char *)&discovered->info.network.interface_address.sin_addr;
-        spdlog::info("HL2: Binding socket to interface {}: {}.{}.{}.{}", discovered->info.network.interface_name, ua[0], ua[1], ua[2], ua[3]);
+        flog::info("HL2: Binding socket to interface {}: {}.{}.{}.{}", discovered->info.network.interface_name, ua[0], ua[1], ua[2], ua[3]);
         // bind to the interface
         if (bind(data_socket, (struct sockaddr *) &discovered->info.network.interface_address, discovered->info.network.interface_length) < 0) {
             auto what = std::string("protocol1: bind socket failed for data_socket: errno=") + std::to_string(errno);
@@ -730,7 +734,7 @@ struct HL2Device {
         data_addr.sin_port = htons(DATA_PORT);
         sendStartTime = 0;
         ua = (unsigned char *)&data_addr.sin_addr;
-        spdlog::info("HL2: Target address: {}.{}.{}.{}", ua[0], ua[1], ua[2], ua[3]);
+        flog::info("HL2: Target address: {}.{}.{}.{}", ua[0], ua[1], ua[2], ua[3]);
 
         receiveThread = std::make_shared<std::thread>([&] {
             struct sockaddr_in addr;
@@ -762,7 +766,7 @@ struct HL2Device {
                         //                                printf("protocol1: receiver_thread: recvfrom socket failed: %s\n", "Radio not sending data\n");
                     } else {
                         if (errno != EINTR) {
-                            spdlog::info("protocol1: receiver_thread: recvfrom socket failed: {0}\n", getLastSocketError());
+                            flog::info("protocol1: receiver_thread: recvfrom socket failed: {0}\n", getLastSocketError());
                         }
                     }
                     //running=FALSE;

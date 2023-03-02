@@ -19,7 +19,6 @@
 #include "../../radio/src/demodulators/usb.h"
 #include <utils/kmeans.h>
 
-#include <spdlog/sinks/android_sink.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -331,7 +330,7 @@ struct SingleDecoder {
                 if (shouldStartProcessing) {
                     // no processing is done.
                     if (processingBlock->size() / VFO_SAMPLE_RATE > getBlockDuration()+1 || processingBlock->size() / VFO_SAMPLE_RATE <= getBlockDuration()-2) {
-                        spdlog::info("Block size ({}) is not matching: {}, curtime={}",
+                        flog::info("Block size ({}) is not matching: {}, curtime={}",
                                      getModeString(),
                                      processingBlock->size() / VFO_SAMPLE_RATE,
                                      curtime);
@@ -350,7 +349,7 @@ struct SingleDecoder {
             fullBlock->reserve((getBlockDuration() + 1) * VFO_SAMPLE_RATE);
         }
         fullBlock->insert(std::end(*fullBlock), std::begin(data), std::end(data));
-        //        spdlog::info("{} Got {} samples: {}", blockNumber, data.size(), data[0].l);
+        //        flog::info("{} Got {} samples: {}", blockNumber, data.size(), data[0].l);
     }
 
     void startBlockProcessing(const std::shared_ptr<std::vector<dsp::stereo_t>>& block, int blockNumber, int originalOffset);
@@ -384,7 +383,7 @@ struct SingleFT8Decoder : SingleDecoder {
 struct SingleFT4Decoder : SingleDecoder {
 
     SingleFT4Decoder() {
-        spdlog::info("FT4 decoder created");
+        flog::info("FT4 decoder created");
     }
 
     double getBlockDuration() override {
@@ -522,7 +521,7 @@ public:
                     fgroups++;
                 }
             }
-//            spdlog::info("Found {} groups among {} results", fgroups, decodedResults.size());
+//            flog::info("Found {} groups among {} results", fgroups, decodedResults.size());
 
             // sorting groups by distance
             for(int i=0; i<ngroups; i++) {
@@ -593,7 +592,7 @@ public:
                     auto fdr2 = std::make_shared<FT8DrawableDecodedDistRange>(label, freqq);
                     fdr2->layoutX = scanX;
                     fdr2->layoutY = scanY;
-//                    spdlog::info("closing: {} {} {}", i, fdr2->layoutX, fdr2->layoutY);
+//                    flog::info("closing: {} {} {}", i, fdr2->layoutX, fdr2->layoutY);
                     decodedResultsDrawables.emplace_back(fdr2);
                     scanX = 0;
                     scanY += baseTextSize.y + baseTextSize.y /2.5;
@@ -706,7 +705,7 @@ public:
         if (!enabled) {
             std::for_each(allDecoders.begin(), allDecoders.end(), [](auto& d) { d->bind(); });
             enabled = true;
-            spdlog::info("FT8 Decoder enabled");
+            flog::info("FT8 Decoder enabled");
         }
     }
 
@@ -722,7 +721,7 @@ public:
         if (enabled) {
             std::for_each(allDecoders.begin(), allDecoders.end(), [](auto& d) { d->unbind(); });
             enabled = false;
-            spdlog::info("FT8 Decoder disabled");
+            flog::info("FT8 Decoder disabled");
         }
     }
 
@@ -957,12 +956,12 @@ void SingleDecoder::handleData(int rd, dsp::stereo_t* inputData) {
         }
         if (newOffset == INVALID_OFFSET) {
             if (onTheFrequency) {
-                spdlog::info("ON FREQUENCY: FALSE ({}) {} {} -> {}", getModeString(), gui::waterfall.getCenterFrequency(), gui::waterfall.getBandwidth(), newOffset);
+                flog::info("ON FREQUENCY: FALSE ({}) {} {} -> {}", getModeString(), gui::waterfall.getCenterFrequency(), gui::waterfall.getBandwidth(), newOffset);
                 onTheFrequency = false;
             }
         } else { // not invalid
             if (!onTheFrequency) {
-                spdlog::info("ON FREQUENCY: TRUE ({}) {} {} -> {}", getModeString(), gui::waterfall.getCenterFrequency(), gui::waterfall.getBandwidth(), newOffset);
+                flog::info("ON FREQUENCY: TRUE ({}) {} {} -> {}", getModeString(), gui::waterfall.getCenterFrequency(), gui::waterfall.getBandwidth(), newOffset);
                 onTheFrequency = true;
             }
             if (newOffset == (int)vfoOffset) {
@@ -970,7 +969,7 @@ void SingleDecoder::handleData(int rd, dsp::stereo_t* inputData) {
             }
             else {
                 vfoOffset = newOffset;
-                spdlog::info("FT8 vfo ({}): center offset {}, bandwidth: {}", getModeString(), vfoOffset, USB_BANDWIDTH);
+                flog::info("FT8 vfo ({}): center offset {}, bandwidth: {}", getModeString(), vfoOffset, USB_BANDWIDTH);
                 vfo->setOffset(vfoOffset - USB_BANDWIDTH / 2);
             }
         }
@@ -986,13 +985,13 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
     std::thread processor([=]() {
         SetThreadName(getModeString()+"_startBlockProcessing");
         std::time_t bst = (std::time_t)(blockNumber * getBlockDuration());
-        spdlog::info("Start processing block ({}), size={}, block time: {}", this->getModeString(), block->size(), std::asctime(std::gmtime(&bst)));
+        flog::info("Start processing block ({}), size={}, block time: {}", this->getModeString(), block->size(), std::asctime(std::gmtime(&bst)));
         blockProcessorsRunning.fetch_add(1);
         auto started = currentTimeMillis();
         std::unique_ptr<int, std::function<void(int*)>> myPtr(new int, [&](int* p) {
             delete p;
             blockProcessorsRunning.fetch_add(-1);
-            spdlog::info("blockProcessorsRunning released after {} msec", currentTimeMillis() - started);
+            flog::info("blockProcessorsRunning released after {} msec", currentTimeMillis() - started);
         });
         int count = 0;
         long long time0 = 0;
@@ -1020,7 +1019,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
                 if (!callsign.empty() && callsign[0] == '<') {
                     callHashCacheMutex.lock();
                     auto ncallsign = callHashCache.findCall(callsign, bst * 1000);
-                    spdlog::info("Found call: {} -> {}", callsign, ncallsign);
+                    flog::info("Found call: {} -> {}", callsign, ncallsign);
                     callsign = ncallsign;
                     callHashCacheMutex.unlock();
                 }
@@ -1063,7 +1062,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
             auto start = currentTimeMillis();
             dsp::ft8::decodeFT8(getModeString(), VFO_SAMPLE_RATE, block->data(), block->size(), handler);
             auto end = currentTimeMillis();
-            spdlog::info("FT8 decoding ({}) took {} ms", this->getModeString(), end - start);
+            flog::info("FT8 decoding ({}) took {} ms", this->getModeString(), end - start);
             lastDecodeCount = (int)count;
             lastDecodeTime = (int)(end - start);
             lastDecodeTime0 = (int)(time0 - start);
@@ -1079,7 +1078,7 @@ void SingleDecoder::init(const std::string &name) {
     sigpath::iqFrontEnd.onEffectiveSampleRateChange.bindHandler(&iqSampleRateListener);
     iqSampleRateListener.ctx = this;
     iqSampleRateListener.handler = [](double newSampleRate, void* ctx) {
-        spdlog::info("FT8 decoder: effective sample rate changed to {}", newSampleRate);
+        flog::info("FT8 decoder: effective sample rate changed to {}", newSampleRate);
         ((SingleDecoder*)ctx)->vfo->setInSamplerate(newSampleRate);
     };
 
@@ -1093,7 +1092,7 @@ void SingleDecoder::init(const std::string &name) {
     //        usbDemod->setFrozen(true);
     ifChain.setInput(&vfo->out, [&](auto ifchainOut) {
         usbDemod->setInput(ifchainOut);
-        spdlog::info("ifchain change out");
+        flog::info("ifchain change out");
         // next
     });
 
@@ -1153,9 +1152,9 @@ MOD_EXPORT void _INIT_() {
     loadCTY(resDir + "/cty/cty_rus.dat", ", RUS", cty);
 
 #ifdef __ANDROID__
-    auto console_sink = std::make_shared<spdlog::sinks::android_sink_st>("SDR++");
-    auto logger = std::shared_ptr<spdlog::logger>(new spdlog::logger("", { console_sink }));
-    spdlog::set_default_logger(logger);
+    auto console_sink = std::make_shared<flog::sinks::android_sink_st>("SDR++");
+    auto logger = std::shared_ptr<flog::logger>(new flog::logger("", { console_sink }));
+    flog::set_default_logger(logger);
 #endif
 
 }

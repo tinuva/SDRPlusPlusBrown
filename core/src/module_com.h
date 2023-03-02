@@ -1,8 +1,8 @@
 #pragma once
 #include <map>
 #include <string>
+#include <vector>
 #include <mutex>
-#include <spdlog/spdlog.h>
 
 struct ModuleComInterface {
     std::string moduleName;

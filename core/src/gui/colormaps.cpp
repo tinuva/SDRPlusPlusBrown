@@ -1,6 +1,6 @@
 #include <gui/colormaps.h>
 #include <filesystem>
-#include <spdlog/spdlog.h>
+#include <utils/flog.h>
 #include <fstream>
 #include <json.hpp>
 #include "utils/wstr.h"
@@ -12,7 +12,7 @@ namespace colormaps {
 
     void loadMap(std::string path) {
         if (!std::filesystem::is_regular_file(wstr::str2wstr(path))) {
-            spdlog::error("Could not load {0}, file doesn't exist", path);
+            flog::error("Could not load {0}, file doesn't exist", path);
             return;
         }
 
@@ -30,7 +30,7 @@ namespace colormaps {
             mapTxt = data["map"].get<std::vector<std::string>>();
         }
         catch (const std::exception&) {
-            spdlog::error("Could not load {0}", path);
+            flog::error("Could not load {0}", path);
             return;
         }
 

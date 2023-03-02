@@ -6,11 +6,7 @@
 #include <regex>
 #include <signal_path/signal_path.h>
 #include <core.h>
-#include <recorder_interface.h>
-#include <meteor_demodulator_interface.h>
 #include <config.h>
-#include <cctype>
-#include <radio_interface.h>
 #include <websocket.h>
 #include <iostream>
 #include <ctm.h>
@@ -148,7 +144,7 @@ public:
                 static int count;
                 audioDataStream.flush();
                 if (count++ % 2000 == 0) {
-                    spdlog::info("....stream data exists...");
+                    flog::info("....stream data exists...");
                 }
             }
         });
@@ -357,7 +353,7 @@ private:
         std::mutex connectionsLock;
 
         void sendCommand(WSConn& conn, const std::string& command) {
-            spdlog::info("TCI outgoing: {0}", command);
+            flog::info("TCI outgoing: {0}", command);
             conn.send(websocket::OPCODE_TEXT, (const uint8_t*)command.c_str(), command.size());
         }
 
@@ -370,7 +366,7 @@ private:
                          uint32_t resp_extensions_size) {
             struct sockaddr_in addr;
             conn.getPeername(addr);
-            spdlog::info("======= ws connection from: {0}:{1}", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+            flog::info("======= ws connection from: {0}:{1}", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
             connectionsLock.lock();
             connections.emplace_back(&conn);
             connectionsLock.unlock();
@@ -384,7 +380,7 @@ private:
                 connections.erase(iter);
             }
             connectionsLock.unlock();
-            spdlog::info("------- ws close, status_code: {0} reason: {1}", status_code, reason);
+            flog::info("------- ws close, status_code: {0} reason: {1}", status_code, reason);
             clientCount--;
         }
 
@@ -404,7 +400,7 @@ private:
             std::string str((const char*)payload, pl_len);
             auto pos = str.find(":");
             if (pos != std::string::npos && str[str.size() - 1] == ';') {
-                spdlog::info("TCI incoming cmd: {0}", str);
+                flog::info("TCI incoming cmd: {0}", str);
                 auto cmd = str.substr(0, pos);
                 str = str.substr(pos + 1);
                 str.resize(str.size() - 1);
@@ -413,7 +409,7 @@ private:
                 }
             }
             else {
-                spdlog::warn("unparsed TCI data: {0}", str);
+                flog::warn("unparsed TCI data: {0}", str);
             }
         }
 
@@ -506,7 +502,7 @@ private:
 //                memcpy(ds.data, toSend.data(), sizeof(toSend[0]) * toCopy);
                 conn->user_data.sentPackets++;
                 if (conn->user_data.sentPackets % 100 == 0) {
-                    spdlog::info("Sent sound packets to TCI client: {0}", conn->user_data.sentPackets);
+                    flog::info("Sent sound packets to TCI client: {0}", conn->user_data.sentPackets);
                 }
                 sendData(*conn, (const uint8_t*)&ds, sizeof(ds));
             }
@@ -532,7 +528,7 @@ private:
     void startServer() {
         wsserver = std::make_shared<Server::WSServer>();
         if (!wsserver->init(hostname, port)) {
-            spdlog::error("Could not start tci server: {0}", wsserver->getLastError());
+            flog::error("Could not start tci server: {0}", wsserver->getLastError());
             wsserver.reset();
             return;
         }
@@ -686,14 +682,14 @@ private:
 
     //    static void clientHandler(net::Conn _client, void* ctx) {
     //        SigctlServerModule* _this = (SigctlServerModule*)ctx;
-    //        //spdlog::info("New client!");
+    //        //flog::info("New client!");
     //
     //        _this->client = std::move(_client);
     //        _this->client->readAsync(1024, _this->dataBuf, dataHandler, _this, false);
     //        _this->client->waitForEnd();
     //        _this->client->close();
     //
-    //        //spdlog::info("Client disconnected!");
+    //        //flog::info("Client disconnected!");
     //
     //        _this->listener->acceptAsync(clientHandler, _this);
     //    }
@@ -751,7 +747,7 @@ private:
     //            return;
     //        }
     //
-    //        spdlog::info("tci command: '{0}'", cmd);
+    //        flog::info("tci command: '{0}'", cmd);
     //
     //        // Otherwise, execute the command
     //        if (parts[0] == "F" || parts[0] == "\\set_freq") {
@@ -1072,7 +1068,7 @@ private:
     //        }
     //        else {
     //            // If command is not recognized, return error
-    //            spdlog::error("tci client sent invalid command: '{0}'", cmd);
+    //            flog::error("tci client sent invalid command: '{0}'", cmd);
     //            resp = "RPRT 1\n";
     //            client->write(resp.size(), (uint8_t*)resp.c_str());
     //            return;

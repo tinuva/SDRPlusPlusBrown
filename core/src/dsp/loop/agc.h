@@ -90,6 +90,9 @@ namespace dsp::loop {
                         gain = std::min<float>(_setPoint / amp, _maxGain);
                     }
                 }
+                else {
+                    gain = 1.0f;
+                }
 
                 // If clipping is detected look ahead and correct
                 if (false && inAmp*gain > _maxOutputAmp) {
