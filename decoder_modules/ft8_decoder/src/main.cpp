@@ -331,7 +331,8 @@ struct SingleDecoder {
                 if (shouldStartProcessing) {
                     // no processing is done.
                     if (processingBlock->size() / VFO_SAMPLE_RATE > getBlockDuration()+1 || processingBlock->size() / VFO_SAMPLE_RATE <= getBlockDuration()-2) {
-                        spdlog::info("Block size is not matching: {}, curtime={}",
+                        spdlog::info("Block size ({}) is not matching: {}, curtime={}",
+                                     getModeString(),
                                      processingBlock->size() / VFO_SAMPLE_RATE,
                                      curtime);
                         processingBlock.reset(); // clear for new one
@@ -375,7 +376,7 @@ struct SingleFT8Decoder : SingleDecoder {
     
 
     std::pair<int,int> calculateVFOCenterOffsetForMode(double centerFrequency, double ifBandwidth) override {
-        static std::vector<int> frequencies = { 1840000, 3573000, 7074000, 10136000, 14074000, 18100000, 21074000, 24915000, 28074000, 50000000 };
+        static std::vector<int> frequencies = { 1840000, 3573000, 5357000, 7074000, 10136000, 14074000, 18100000, 21074000, 24915000, 28074000, 50000000 };
         return calculateVFOCenterOffset(frequencies, centerFrequency, ifBandwidth);
     }
 };
@@ -478,18 +479,32 @@ public:
 
         if (decodedResults.size() > 0 && decodedResultsDrawables.size() == 0) {
 
-            KMeans<KMeansDR> kmeans;
-            std::vector<KMeansDR> kmeansData;
-            for(int i=0; i<decodedResults.size(); i++) {
-                double dst = decodedResults[i].distance;
-                if (dst <= 0) {
-                    dst = 1;
+//            KMeans<KMeansDR> kmeans;
+//            std::vector<KMeansDR> kmeansData;
+//            for(int i=0; i<decodedResults.size(); i++) {
+//                double dst = decodedResults[i].distance;
+//                if (dst <= 0) {
+//                    dst = 1;
+//                }
+//                kmeansData.emplace_back(KMeansDR(dst, i));
+//            }
+//            const int MAXGROUPS = 8;
+//            int ngroups = std::min<int>(decodedResults.size(), MAXGROUPS);
+//            kmeans.lloyd(kmeansData.data(), kmeansData.size(), ngroups, 50);
+            static int distances[] = {1000, 2000, 3000, 4000, 5000, 6000, 8000, 10000, 13000, 15000, 18000};
+            static auto getGroup = [](int distance) -> int {
+                for(int i=0; i<sizeof(distances)/sizeof(distances[0]); i++) {
+                    if (distance < distances[i]) {
+                        return i;
+                    }
                 }
-                kmeansData.emplace_back(KMeansDR(dst, i));
+                return sizeof(distances)/sizeof(distances[0])-1; // last one
+            };
+            for(int i=0; i<decodedResults.size(); i++) {
+                decodedResults[i].group = getGroup(decodedResults[i].distance);
             }
-            const int MAXGROUPS = 8;
-            int ngroups = std::min<int>(decodedResults.size(), MAXGROUPS);
-            kmeans.lloyd(kmeansData.data(), kmeansData.size(), ngroups, 50);
+            auto ngroups = sizeof(distances)/sizeof(distances[0]);
+            const int MAXGROUPS = ngroups;
             std::vector<int> groupDists;
             std::vector<bool> foundGroups;
             std::vector<int> groupSortable;
@@ -497,7 +512,7 @@ public:
             groupSortable.resize(ngroups);
             foundGroups.resize(ngroups, false);
             for(int i=0; i<decodedResults.size(); i++) {
-                decodedResults[i].group = kmeansData[i].group;
+//                decodedResults[i].group = kmeansData[i].group;
                 groupDists[decodedResults[i].group] = decodedResults[i].distance;
                 foundGroups[decodedResults[i].group] = true;
             }
@@ -968,12 +983,17 @@ void SingleDecoder::handleData(int rd, dsp::stereo_t* inputData) {
     }
 }
 void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::stereo_t>>& block, int blockNumber, int originalOffset) {
-    blockProcessorsRunning.fetch_add(1);
     std::thread processor([=]() {
         SetThreadName(getModeString()+"_startBlockProcessing");
         std::time_t bst = (std::time_t)(blockNumber * getBlockDuration());
         spdlog::info("Start processing block ({}), size={}, block time: {}", this->getModeString(), block->size(), std::asctime(std::gmtime(&bst)));
-
+        blockProcessorsRunning.fetch_add(1);
+        auto started = currentTimeMillis();
+        std::unique_ptr<int, std::function<void(int*)>> myPtr(new int, [&](int* p) {
+            delete p;
+            blockProcessorsRunning.fetch_add(-1);
+            spdlog::info("blockProcessorsRunning released after {} msec", currentTimeMillis() - started);
+        });
         int count = 0;
         long long time0 = 0;
         auto handler = [&](int mode, std::vector<std::string> result) {
@@ -1050,7 +1070,6 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
         });
         t0.join();
 
-        blockProcessorsRunning.fetch_add(-1);
     });
     processor.detach();
 }

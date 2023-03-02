@@ -20,6 +20,7 @@ namespace core {
         char outPath[500];
         char errPath[500];
         std::atomic<bool> completed = false;
+        char info[50];
         int pid;
         int seq;
     };

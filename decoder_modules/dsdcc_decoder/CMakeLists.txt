@@ -42,16 +42,17 @@ else ()
     file(RENAME ${CMAKE_BINARY_DIR}/dsdcc/dsdcc-master ${CMAKE_BINARY_DIR}/dsdcc/dsdcc-root)
     #    file(COPY lz4.cc DESTINATION ${CMAKE_BINARY_DIR}/lz4/lz4-root/lib/)
     file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/dsdcc/build)
-    execute_process(COMMAND ${CMAKE_COMMAND} ../dsdcc-root -DCMAKE_BUILD_TYPE=Release -DUSE_MBELIB=ON -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DLIBMBE_INCLUDE_DIR=${CMAKE_INSTALL_PREFIX}/include -DLIBMBE_LIBRARY=mbe -DCMAKE_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX}/lib WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/dsdcc/build)
+    execute_process(COMMAND ${CMAKE_COMMAND} ../dsdcc-root -DCMAKE_BUILD_TYPE=Release -DUSE_MBELIB=ON -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DLIBMBE_INCLUDE_DIR=${CMAKE_INSTALL_PREFIX}/include -DLIBMBE_LIBRARY="mbe -L${CMAKE_INSTALL_PREFIX}/lib" WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/dsdcc/build)
     execute_process(COMMAND ${CMAKE_COMMAND} --build  . --target install  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/dsdcc/build)
 endif ()
+
 
 #set(LZ4_SOURCE ${CMAKE_BINARY_DIR}/lz4/lz4-root/lib/lz4.cc)
 #set(LZ4_INCLUDE ${CMAKE_BINARY_DIR}/lz4/lz4-root/lib)
 
 target_include_directories(dsdcc_decoder PRIVATE ${CMAKE_INSTALL_PREFIX}/include)
 target_link_directories(dsdcc_decoder PRIVATE ${CMAKE_INSTALL_PREFIX}/lib)
-target_link_libraries(dsdcc_decoder PRIVATE dsdcc)
+#target_link_libraries(dsdcc_decoder PRIVATE dsdcc)
 
 
 

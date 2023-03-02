@@ -169,11 +169,7 @@ namespace core {
 
                 auto newPid = fork();
                 if (0 == newPid) {
-                    spdlog::info("FORKSERVER, forked ok");
-                    atexit([](){
-                        spdlog::info("FORKSERVER, atexit called");
-                    });
-
+                    spdlog::info("FORKSERVER {}, forked ok", cmd.info);
 
                     if (true) {
                         close(0);
@@ -188,7 +184,7 @@ namespace core {
                     fprintf(stdout, "decoderPath=%s\n", args.executable);
                     fprintf(stdout, "ctm=%lld\n", currentTimeMillis());
                     fflush(stdout);
-                    spdlog::info("FT8 Decoder(): executing: {}", args.executable);
+                    spdlog::info("FT8 Decoder({}): executing: {}", cmd.info, args.executable);
                     std::vector<char *> argsv;
                     for(int i=0; i<args.nargs; i++) {
                         argsv.emplace_back(&args.args[i][0]);
@@ -211,7 +207,7 @@ namespace core {
                     ForkServerResults res;
                     res.seq = cmd.seq;
                     res.pid = newPid;
-                    spdlog::info("FORKSERVER, sending pid: {}", newPid);
+                    spdlog::info("FORKSERVER ({}), sending pid: {}", cmd.info, newPid);
                     write(forkResult[1], &res, sizeof(res));
                 }
             }
@@ -237,7 +233,7 @@ namespace core {
                                 found->second->pid = res.pid;
                             }
                             if (res.terminated != 0) {
-                                spdlog::info("FORKSERVER: marking terminated: pid={}", res.pid);
+                                spdlog::info("FORKSERVER: marking terminated: pid={}, res={}", res.pid, (void *)&res);
                                 found->second->completed = true;
                             }
                         } else {

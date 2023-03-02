@@ -1511,5 +1511,86 @@ namespace ImGui {
         return d >= getCenterFrequency() - getBandwidth()/2 && d <= getCenterFrequency() + getBandwidth()/2;
     }
 
+    void WaterFall::doZoom(int offset, int width, int outWidth, float* data, float* out) const {
+        // NOTE: REMOVE THAT SHIT, IT'S JUST A HACKY FIX
+        if (width > 524288) {
+            width = 524288;
+        }
+        if (offset < 0) {
+            spdlog::warn("Offset is negative: {}", offset);
+            offset = 0;
+        }
+
+        float factor = (float)width / (float)outWidth;
+
+        float sFactor = ceilf(factor);
+        float uFactor;
+        float id = offset;
+        float maxVal, maxVal1, maxVal2, maxVal3, maxVal4, maxVal5, maxVal6, maxVal7, maxVal8, maxVal9, maxVal10, maxVal11, maxVal12, maxVal13, maxVal14, maxVal15;
+        int sId;
+        for (int i = 0; i < outWidth; i++) {
+            maxVal = -INFINITY;
+            maxVal1 = -INFINITY;
+            maxVal2 = -INFINITY;
+            maxVal3 = -INFINITY;
+            maxVal4 = -INFINITY;
+            maxVal5 = -INFINITY;
+            maxVal6 = -INFINITY;
+            maxVal7 = -INFINITY;
+//            maxVal8 = -INFINITY;
+//            maxVal9 = -INFINITY;
+//            maxVal10 = -INFINITY;
+//            maxVal11 = -INFINITY;
+//            maxVal12 = -INFINITY;
+//            maxVal13 = -INFINITY;
+//            maxVal14 = -INFINITY;
+//            maxVal15 = -INFINITY;
+            sId = (int)id;
+            uFactor = (sId + sFactor > rawFFTSize) ? sFactor - ((sId + sFactor) - rawFFTSize) : sFactor;
+            constexpr int N = 8;
+            auto uFactorN = (uFactor / N) * N;
+            int j;
+            for (j = 0; j < uFactorN; j+=N) {
+                maxVal = std::max<float>(maxVal, data[sId + j]);
+                maxVal1 = std::max<float>(maxVal1, data[sId + j + 1]);
+                maxVal2 = std::max<float>(maxVal2, data[sId + j + 2]);
+                maxVal3 = std::max<float>(maxVal3, data[sId + j + 3]);
+                maxVal4 = std::max<float>(maxVal4, data[sId + j + 4]);
+                maxVal5 = std::max<float>(maxVal5, data[sId + j + 5]);
+                maxVal6 = std::max<float>(maxVal6, data[sId + j + 6]);
+                maxVal7 = std::max<float>(maxVal7, data[sId + j + 7]);
+//                maxVal8 = std::max<float>(maxVal7, data[sId + j + 8]);
+//                maxVal9 = std::max<float>(maxVal7, data[sId + j + 9]);
+//                maxVal10 = std::max<float>(maxVal7, data[sId + j + 10]);
+//                maxVal11 = std::max<float>(maxVal7, data[sId + j + 11]);
+//                maxVal12 = std::max<float>(maxVal7, data[sId + j + 12]);
+//                maxVal13 = std::max<float>(maxVal7, data[sId + j + 13]);
+//                maxVal14 = std::max<float>(maxVal7, data[sId + j + 14]);
+//                maxVal15 = std::max<float>(maxVal7, data[sId + j + 15]);
+            }
+            maxVal = std::max<float>(maxVal, maxVal1);
+            maxVal = std::max<float>(maxVal, maxVal2);
+            maxVal = std::max<float>(maxVal, maxVal3);
+            maxVal = std::max<float>(maxVal, maxVal4);
+            maxVal = std::max<float>(maxVal, maxVal5);
+            maxVal = std::max<float>(maxVal, maxVal6);
+            maxVal = std::max<float>(maxVal, maxVal7);
+//            maxVal = std::max<float>(maxVal, maxVal8);
+//            maxVal = std::max<float>(maxVal, maxVal9);
+//            maxVal = std::max<float>(maxVal, maxVal10);
+//            maxVal = std::max<float>(maxVal, maxVal11);
+//            maxVal = std::max<float>(maxVal, maxVal12);
+//            maxVal = std::max<float>(maxVal, maxVal13);
+//            maxVal = std::max<float>(maxVal, maxVal14);
+//            maxVal = std::max<float>(maxVal, maxVal15);
+            for (; j < uFactor; j++) {
+                maxVal = std::max<float>(maxVal, data[sId + j]);
+            }
+
+            out[i] = maxVal;
+            id += factor;
+        }
+    }
+
 
 };

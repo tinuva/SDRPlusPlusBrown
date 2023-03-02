@@ -106,58 +106,68 @@ namespace dsp {
             mydta.nargs = 6;
             strcpy(mydta.errPath, errPath.c_str());
             strcpy(mydta.outPath, outPath.c_str());
+            strcpy(mydta.info, mode.c_str());
 
             core::forkIt(mydta);
             int nsent = 0;
             int count = 0;
             int nwaiting = 0;
-            int STEP_USEC = 100000;
+            int STEP_USEC = 1000000;
             int MAXWAITING_STEPS = 20000000 / STEP_USEC;  // 20 second max decode
+            spdlog::info("Forked, waiting outside {} steps for {} for files", MAXWAITING_STEPS, mode);
 
             while (true) {
                 auto finished = mydta.completed.load();
-                usleep(100000);
+                spdlog::info("Usleep {} begin for {}", nwaiting, mode);
+                usleep(STEP_USEC);
                 nwaiting++;
+                spdlog::info("Usleep {} finished for {}, outpath={}", nwaiting-1, mode, outPath.c_str());
                 if (nwaiting > MAXWAITING_STEPS) {
                     spdlog::warn("MAXWAITING_STEPS elapsed for "+mode+" -> will abort");
                     break;
                 }
-                auto hdl = open(outPath.c_str(), O_RDONLY);
-                char rdbuf[10000];
-                if (hdl > 0) {
-                    int nrd = read(hdl, rdbuf, sizeof(rdbuf) - 1);
-                    if (nrd > 0) {
-                        rdbuf[10000 - 1] = 0;
-                        rdbuf[nrd] = 0;
-                        std::vector<std::string> thisResult;
-                        splitString(rdbuf, "\n", [&](const std::string &p) {
-                            if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT") == 0) {
-                                thisResult.emplace_back(p);
+                try {
+                    auto hdl = open(outPath.c_str(), O_RDONLY);
+                    char rdbuf[10000];
+                    if (hdl > 0) {
+                        int nrd = read(hdl, rdbuf, sizeof(rdbuf) - 1);
+                        if (nrd > 0) {
+                            rdbuf[10000 - 1] = 0;
+                            rdbuf[nrd] = 0;
+                            std::vector<std::string> thisResult;
+                            splitString(rdbuf, "\n", [&](const std::string& p) {
+                                if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT") == 0) {
+                                    thisResult.emplace_back(p);
+                                }
+                            });
+                            for (int q = nsent; q < thisResult.size(); q++) {
+                                std::vector<std::string> singleBroken;
+                                splitStringV(thisResult[q], "\t", singleBroken);
+                                std::vector<std::string> selected;
+                                // FT8_OUT	1675635874870	30	{0}	120000	{1}	-19	{2}	0.2	{3}	775	{4}	SQ9KWU DL1PP -14	{5}	? 0	{6}	0.1	{7}	1975
+                                if (singleBroken.size() > 18) {
+                                    selected.emplace_back(singleBroken[4]);
+                                    selected.emplace_back(singleBroken[6]);
+                                    selected.emplace_back(singleBroken[8]);
+                                    selected.emplace_back(singleBroken[10]);
+                                    selected.emplace_back(singleBroken[12]);
+                                    selected.emplace_back(singleBroken[14]);
+                                    selected.emplace_back(singleBroken[16]);
+                                    selected.emplace_back(singleBroken[18]);
+                                    callback(DMS_FT8, selected);
+                                }
+                                count++;
                             }
-                        });
-                        for (int q = nsent; q < thisResult.size(); q++) {
-                            std::vector<std::string> singleBroken;
-                            splitStringV(thisResult[q], "\t", singleBroken);
-                            std::vector<std::string> selected;
-                            //FT8_OUT	1675635874870	30	{0}	120000	{1}	-19	{2}	0.2	{3}	775	{4}	SQ9KWU DL1PP -14	{5}	? 0	{6}	0.1	{7}	1975
-                            if (singleBroken.size() > 18) {
-                                selected.emplace_back(singleBroken[4]);
-                                selected.emplace_back(singleBroken[6]);
-                                selected.emplace_back(singleBroken[8]);
-                                selected.emplace_back(singleBroken[10]);
-                                selected.emplace_back(singleBroken[12]);
-                                selected.emplace_back(singleBroken[14]);
-                                selected.emplace_back(singleBroken[16]);
-                                selected.emplace_back(singleBroken[18]);
-                                callback(DMS_FT8, selected);
-                            }
-                            count++;
+                            nsent = thisResult.size();
                         }
-                        nsent = thisResult.size();
+                        close(hdl);
                     }
-                    close(hdl);
+                } catch (std::runtime_error &err) {
+                    spdlog::info("EXCEPTION for {}: {}", mode, err.what());
+                    finished = true;
                 }
                 if (finished) {
+                    spdlog::info("Breaking the loop for {}", mode);
                     break;
                 }
             }
