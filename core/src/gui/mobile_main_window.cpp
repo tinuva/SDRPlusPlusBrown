@@ -299,12 +299,12 @@ struct CWPanel {
         }
         if (stateTime == 0 && state != 0) {
             // start any tone
-            flog::info("Set Tone Enabled: true, time={}, ctm={}", currentTime, currentTimeMillis());
+            flog::info("Set Tone Enabled: true, time={}, ctm={}", (int64_t)currentTime, (int64_t)currentTimeMillis());
             setToneEnabled(true);
         }
         if (state == DOT && stateTime == dot || state == DA && stateTime == 3*dot) {
             // stop tone at specified time
-            flog::info("Set Tone Enabled: OFF , time={}, ctm={}", currentTime, currentTimeMillis());
+            flog::info("Set Tone Enabled: OFF , time={}, ctm={}", (int64_t)currentTime, (int64_t)currentTimeMillis());
             setToneEnabled(false);
         }
         if (state == DA) {

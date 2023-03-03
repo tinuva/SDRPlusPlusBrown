@@ -31,7 +31,6 @@ namespace flog {
     std::string __toString__(const char* value);
     std::string __toString__(const void* value);
     std::string __toString__(void* value);
-    std::string __toString__(const long long &);
 #ifdef __ANDROID__
     std::string __toString__(long long);
 #endif

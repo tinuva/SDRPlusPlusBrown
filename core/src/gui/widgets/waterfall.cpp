@@ -20,7 +20,7 @@
     std::lock_guard lck(mtx); \
     t0 = currentTimeMillis() - t0; \
     if (false && t0 > 5) { \
-        flog::info("Lock took {0}, line {1}", t0, __LINE__); \
+        flog::info("Lock took {0}, line {1}", (int64_t)t0, __LINE__); \
     }
 
 #define MEASURE_LOCK(mtx) \
@@ -28,7 +28,7 @@
     mtx.lock(); \
     t0 = currentTimeMillis() - t0; \
     if (false && t0 > 5) { \
-        flog::info("Lock took {0}, line {1}", t0, __LINE__); \
+        flog::info("Lock took {0}, line {1}", (int64_t)t0, __LINE__); \
     }
 
 
@@ -694,7 +694,7 @@ namespace ImGui {
             }
         }
 
-        flog::info("Full waterfall update fb: {0} msec, full width: {1}, draw width: {2}", currentTimeMillis() - ctm, dataWidth, drawDataSize);
+        flog::info("Full waterfall update fb: {0} msec, full width: {1}, draw width: {2}", (int64_t)currentTimeMillis() - ctm, dataWidth, drawDataSize);
         waterfallUpdate = true;
 
         for (int i = 0; i < WATERFALL_NUMBER_OF_SECTIONS; ++i) {

@@ -333,7 +333,7 @@ struct SingleDecoder {
                         flog::info("Block size ({}) is not matching: {}, curtime={}",
                                      getModeString(),
                                      processingBlock->size() / VFO_SAMPLE_RATE,
-                                     curtime);
+                                     (int64_t)curtime);
                         processingBlock.reset(); // clear for new one
                     } else {
                         // block size is ok.
@@ -991,7 +991,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
         std::unique_ptr<int, std::function<void(int*)>> myPtr(new int, [&](int* p) {
             delete p;
             blockProcessorsRunning.fetch_add(-1);
-            flog::info("blockProcessorsRunning released after {} msec", currentTimeMillis() - started);
+            flog::info("blockProcessorsRunning released after {} msec", (int64_t)(currentTimeMillis() - started));
         });
         int count = 0;
         long long time0 = 0;
@@ -1062,7 +1062,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
             auto start = currentTimeMillis();
             dsp::ft8::decodeFT8(getModeString(), VFO_SAMPLE_RATE, block->data(), block->size(), handler);
             auto end = currentTimeMillis();
-            flog::info("FT8 decoding ({}) took {} ms", this->getModeString(), end - start);
+            flog::info("FT8 decoding ({}) took {} ms", this->getModeString(), (int64_t)(end - start));
             lastDecodeCount = (int)count;
             lastDecodeTime = (int)(end - start);
             lastDecodeTime0 = (int)(time0 - start);

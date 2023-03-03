@@ -81,6 +81,10 @@ jobs:
               name: sdrpp_windows_x64
               path: ${{runner.workspace}}/sdrpp_windows_x64.zip
 
+        - name: Update Nightly
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp_windows_x64.zip -R ${{github.repository}} --clobber
+
+
     build_macos:
       runs-on: macos-11
 
@@ -132,6 +136,10 @@ jobs:
             name: sdrpp_macos_intel
             path: ${{runner.workspace}}/sdrpp_macos_intel.zip
 
+        - name: Update Nightly
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp_macos_intel.zip -R ${{github.repository}} --clobber
+
+
     build_debian_buster:
         runs-on: ubuntu-latest
 
@@ -146,16 +154,10 @@ jobs:
 
         - name: Recover Deb Archive
           working-directory: ${{runner.workspace}}
-          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./
-
-        - name: Save Deb Archive
-          uses: actions/upload-artifact@v3
-          with:
-              name: sdrpp_debian_buster_amd64
-              path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_debian_buster_amd64.deb
 
         - name: Update Nightly
-          run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_amd64.deb -R ${{github.repository}} --clobber
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_buster_amd64.deb -R ${{github.repository}} --clobber
 
     build_debian_bullseye:
         runs-on: ubuntu-latest
@@ -171,16 +173,10 @@ jobs:
 
         - name: Recover Deb Archive
           working-directory: ${{runner.workspace}}
-          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./
-
-        - name: Save Deb Archive
-          uses: actions/upload-artifact@v3
-          with:
-              name: sdrpp_debian_bullseye_amd64
-              path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_debian_bullseye_amd64.deb
 
         - name: Update Nightly
-          run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_amd64.deb -R ${{github.repository}} --clobber
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_bullseye_amd64.deb -R ${{github.repository}} --clobber
 
     build_debian_sid:
         runs-on: ubuntu-latest
@@ -196,7 +192,7 @@ jobs:
 
         - name: Recover Deb Archive
           working-directory: ${{runner.workspace}}
-          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./
+          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_debian_sid_amd64.deb
 
         - name: Save Deb Archive
           uses: actions/upload-artifact@v3
@@ -205,7 +201,7 @@ jobs:
               path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
 
         - name: Update Nightly
-          run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_amd64.deb -R ${{github.repository}} --clobber
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_sid_amd64.deb -R ${{github.repository}} --clobber
 
     # build_ubuntu_bionic:
     #     runs-on: ubuntu-latest
@@ -243,16 +239,16 @@ jobs:
 
         - name: Recover Deb Archive
           working-directory: ${{runner.workspace}}
-          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./
+          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_ubuntu_focal_amd64.deb
 
         - name: Save Deb Archive
           uses: actions/upload-artifact@v3
           with:
               name: sdrpp_ubuntu_focal_amd64
-              path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+              path: ${{runner.workspace}}/sdrpp_ubuntu_focal_amd64.deb
 
         - name: Update Nightly
-          run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_amd64.deb -R ${{github.repository}} --clobber
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp_ubuntu_focal_amd64.deb -R ${{github.repository}} --clobber
 
 
     build_ubuntu_jammy:
@@ -269,16 +265,20 @@ jobs:
 
         - name: Recover Deb Archive
           working-directory: ${{runner.workspace}}
-          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./
+          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_ubuntu_jammy_amd64.deb
 
         - name: Save Deb Archive
           uses: actions/upload-artifact@v3
           with:
             name: sdrpp_ubuntu_jammy_amd64
-            path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+            path: ${{runner.workspace}}/sdrpp_ubuntu_jammy_amd64.deb
 
-            #
-#    build_raspios_bullseye_armhf:
+
+        - name: Update Nightly
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp_ubuntu_jammy_amd64.deb -R ${{github.repository}} --clobber
+
+
+  #    build_raspios_bullseye_armhf:
 #        runs-on: ARM
 #
 #        steps:
