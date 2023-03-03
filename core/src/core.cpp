@@ -16,6 +16,12 @@
 #include <backend.h>
 #include <iostream>
 
+#ifdef __APPLE__
+#include <sys/wait.h>
+#include <signal.h>
+#include <fcntl.h>
+
+#endif
 #ifdef __linux__
 #include <sys/prctl.h>
 #include <sys/types.h>
@@ -36,6 +42,7 @@ void setproctitle(const char* fmt, ...)
     memcpy(core::args.systemArgv, new_argv, sizeof(new_argv));
 
 }
+
 #else
 void setproctitle(const char* fmt, ...) {
 
@@ -105,6 +112,7 @@ namespace core {
     std::mutex forkInProgressLock;
 
     bool forkIt(SpawnCommand& cmd) {
+#ifndef _WIN32
         static std::atomic_int _seq;
         forkInProgressLock.lock();
         cmd.seq = _seq++;
@@ -114,6 +122,7 @@ namespace core {
         if (sizeof(cmd) != write(forkPipe[1], &cmd, sizeof(cmd))) {
             return false;
         }
+#endif
         return true;
     }
 

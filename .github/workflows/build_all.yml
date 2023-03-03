@@ -154,6 +154,9 @@ jobs:
               name: sdrpp_debian_buster_amd64
               path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
 
+        - name: Update Nightly
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_amd64.deb -R ${{github.repository}} --clobber
+
     build_debian_bullseye:
         runs-on: ubuntu-latest
 
@@ -176,6 +179,9 @@ jobs:
               name: sdrpp_debian_bullseye_amd64
               path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
 
+        - name: Update Nightly
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_amd64.deb -R ${{github.repository}} --clobber
+
     build_debian_sid:
         runs-on: ubuntu-latest
 
@@ -197,6 +203,9 @@ jobs:
           with:
               name: sdrpp_debian_sid_amd64
               path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+
+        - name: Update Nightly
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_amd64.deb -R ${{github.repository}} --clobber
 
     # build_ubuntu_bionic:
     #     runs-on: ubuntu-latest
@@ -241,6 +250,10 @@ jobs:
           with:
               name: sdrpp_ubuntu_focal_amd64
               path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+
+        - name: Update Nightly
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_amd64.deb -R ${{github.repository}} --clobber
+
 
     build_ubuntu_jammy:
       runs-on: ubuntu-latest
@@ -318,6 +331,9 @@ jobs:
           with:
               name: sdrpp_android
               path: ${{runner.workspace}}/sdrpp.apk
+
+        - name: Update Nightly
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp.apk -R ${{github.repository}} --clobber
 
 #    create_full_archive:
 ##        needs: ['build_windows', 'build_macos', 'build_debian_buster', 'build_debian_bullseye', 'build_debian_sid', 'build_ubuntu_focal', 'build_ubuntu_jammy', 'build_raspios_bullseye_armhf', 'build_android']
