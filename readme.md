@@ -21,8 +21,17 @@ Please note you must be logged in to GitHub to be able to download the artifacts
 
 ## Features compared to original project:
 
-* Hermes Lite 2 (hl2) support -- note upstream has own version (hermes) as of Nov 2022
+Major:
+
+* Hermes Lite 2 (hl2) support -- separate from recently emerged upstream (hermes) version. Very basic SSB transmit option added.
+* FT8/FT4 decoding (experimental) - from MSHV code, moderately tweaked .
 * Noise reduction to benefit SSB/AM - wideband and audio frequency. Wideband is visible on the waterfall. Can turn on both. ***Logmmse*** algorithm is used.
+* Performance Optimizations:
+  * waterfall drawing is greatly optimized at the OpenGL level, important for 4K monitors, eliminating huge CPU/GPU transfers on each frame.
+  * waterfall scaling is SSE-friendly, gained 300% speedup, still single-threaded.
+
+Minor:
+ 
 * Mouse wheel scrolling of sliders
 * Unicode support in fonts, filenames and installation path (UTF-8), on Windows, too.
 * Saving of zoom parameter between sessions
@@ -31,8 +40,7 @@ Please note you must be logged in to GitHub to be able to download the artifacts
 * simultaneous multiple audio devices support
 * ability to output sound on left or right channel only for particular audio device.
 * Airspy HF+ Discovery - narrowing of baseband to hide attenuated parts.
-* waterfall drawing is greatly optimized for CPU and GPU bandwidth, important for 4K monitors. 
-* small screen option / transmitter - for android landscape, makes screen layout more accessible. Tuning knob is there. 
+* small screen option + android landscape, makes screen layout more accessible. Tuning knob is there. 
 
 ## Version log (newest last)
 
@@ -66,6 +74,11 @@ Please note you must be logged in to GitHub to be able to download the artifacts
 2023.02.15
 
 * added experimental FT4/FT8 decoding from MSHV code, tweaked for SDR++. All credit goes to MSHV author and down the line.
+
+2023.03.01
+
+* was playing with slow resizing (zooming) of the waterfall. Found a place to optimize it using SSE vector operations in most deep loop. 
+  Gained 300% speedup. Still single-threaded, multithreaded will come later.  
 
 ## Feedback
 

@@ -261,9 +261,11 @@ namespace flog {
         sprintf(buf, "0x%p", value);
         return buf;
     }
+#ifdef __ANDROID__
     std::string __toString__(long long value) {
         char buf[32];
         sprintf(buf, "%lld", value);
         return buf;
     }
 }
+#endif

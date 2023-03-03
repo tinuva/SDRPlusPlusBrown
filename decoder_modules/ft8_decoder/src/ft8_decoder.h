@@ -12,12 +12,15 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #endif
 
 #ifdef __APPLE__
 #include <sys/wait.h>
 #include <signal.h>
+#include <fcntl.h>
+
 #endif
 
 // extern int four2a_d2c_cnt;
