@@ -206,7 +206,7 @@ public:
 
     const int microFrames = 4;
 
-    
+
 private:
     bool doStart() {
 
