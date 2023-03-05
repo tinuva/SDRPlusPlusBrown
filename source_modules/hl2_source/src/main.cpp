@@ -11,9 +11,6 @@
 #include <signal_path/signal_path.h>
 #include <core.h>
 #include <config.h>
-#ifdef __ANDROID__
-#include <flog/sinks/android_sink.h>
-#endif
 
 #include "hl2_device.h"
 

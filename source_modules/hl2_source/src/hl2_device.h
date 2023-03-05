@@ -9,7 +9,17 @@
 
 #ifdef __linux__
 #include <unistd.h>
+#include <sys/prctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #endif
+
+#ifdef __APPLE__
+#include <sys/wait.h>
+#include <signal.h>
+#include <fcntl.h>
+#endif
+
 
 #define DATA_PORT 1024
 

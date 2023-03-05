@@ -15,6 +15,8 @@
 #include <gui/widgets/folder_select.h>
 #include <fstream>
 #include <chrono>
+#include <unordered_map>
+#include <unordered_set>
 #include "ft8_decoder.h"
 #include "../../radio/src/demodulators/usb.h"
 #include <utils/kmeans.h>
@@ -40,7 +42,7 @@ enum DecodedMode {
     DM_FT4 = 2
 };
 
-static ImVec2 baseTextSize;
+static ImVec2 baseTextSize; // 6 wide chars
 
 
 struct CallHashCache {
@@ -162,7 +164,7 @@ struct DecodedResult {
     DecodedResult(DecodedMode mode, long long int decodeEndTimestamp, long long int frequency, const std::string& shortString, const std::string& detailedString);
 
     bool operator == (const DecodedResult&another) const {
-        return mode == another.mode && decodeEndTimestamp == another.decodeEndTimestamp && frequency == another.frequency && shortString == another.shortString;
+        return mode == another.mode && shortString == another.shortString;
     }
 
     std::string detailedString;
@@ -178,16 +180,24 @@ struct DecodedResult {
     std::string qth = "";
     long long addedTime = 0;
 
+    // this is to save between drawables re-creation
+    ImVec2 current; // on the waterfall
+    int stepsToGo;
+    int totalSteps;
+
 };
 
 
 struct DrawableDecodedResult {
     virtual long long getDecodeEndTimestamp() = 0;
     virtual long long getFrequency() = 0;
-    double layoutY = 0;     // y on the waterfall relative to decodeEndTimestamp, in pixels;
-    double layoutX = 0;     // x on the waterfall relative its to frequency (after rescale, relayout needed), in pixels
+    ImVec2 layout;
     const char *info;
     virtual void draw(const ImVec2& origin, ImGuiWindow* pWindow) = 0;
+    static constexpr int TOTAL_STEPS = 4 * 60;
+    virtual void planTo(ImVec2 n) {
+        layout = n;
+    }
 };
 
 struct FT8DrawableDecodedResult : DrawableDecodedResult {
@@ -201,6 +211,9 @@ struct FT8DrawableDecodedResult : DrawableDecodedResult {
 
 struct FT8DrawableDecodedDistRange : DrawableDecodedResult {
     std::string extraText;
+
+    static std::unordered_map<std::string, ImVec2> lastCoords; // by title
+
     long long freq;
     explicit FT8DrawableDecodedDistRange(const std::string& extraText, long long freq);
 
@@ -208,6 +221,8 @@ struct FT8DrawableDecodedDistRange : DrawableDecodedResult {
     long long int getFrequency() override;
     void draw(const ImVec2& origin, ImGuiWindow* pWindow) override;
 };
+
+std::unordered_map<std::string, ImVec2> FT8DrawableDecodedDistRange::lastCoords;
 
 struct KMeansDR {
     double distance;
@@ -423,15 +438,20 @@ public:
     std::mutex decodedResultsLock;
 
 
-    void addDecodedResult(const DecodedResult&x) {
+    void addDecodedResult(const DecodedResult& incoming) {
         std::lock_guard g(decodedResultsLock);
-        for(const auto & decodedResult : decodedResults) {
-            if(decodedResult == x) {
+        for(auto & scan : decodedResults) {
+            if(scan == incoming) {
+                scan.detailedString = incoming.detailedString;
+                scan.decodeEndTimestamp = incoming.decodeEndTimestamp;
+                scan.strengthRaw = incoming.strengthRaw;
+                scan.strength = incoming.strength;
                 return;
             }
         }
-        decodedResults.push_back(x);
-        decodedResults.back().addedTime = currentTimeMillis();
+        decodedResults.push_back(incoming);
+        decodedResults.back().current.x = -1;
+        decodedResults.back().current.y = -1;
         decodedResultsDrawables.clear();
     }
 
@@ -447,19 +467,17 @@ public:
 //        auto ctm = currentTimeMillis();
         decodedResultsLock.lock();
 //        auto wfHeight = args.wfMax.y - args.wfMin.y;
-        auto wfWidth = args.wfMax.x - args.wfMin.x;
-        //        auto timeDisplayed = (wfMax.y - wfMin.y) * sigpath::iqFrontEnd.getFFTRate() / waterfallHeight;
-        double timePerLine = 1000.0 / sigpath::iqFrontEnd.getFFTRate();
+//        auto wfWidth = args.wfMax.x - args.wfMin.x;
+//        double timePerLine = 1000.0 / sigpath::iqFrontEnd.getFFTRate();
         auto currentTime = sigpath::iqFrontEnd.getCurrentStreamTime();
 
-        const ImVec2 vec2 = ImGui::GetMousePos();
 
 
         // delete obsolete ones, and detect relayout
         for(int i=0; i<decodedResults.size(); i++) {
             auto& result = decodedResults[i];
             auto resultTimeDelta = currentTime - result.decodeEndTimestamp;
-            if (resultTimeDelta > secondsToKeepResults*1000 + 5000) {
+            if (resultTimeDelta > (2*secondsToKeepResults)*1000 + 5000) { // this deletes anyway when new results came.
                 decodedResults.erase(decodedResults.begin() + i);
                 decodedResultsDrawables.clear();
                 i--;
@@ -476,20 +494,18 @@ public:
         ImGui::PopFont();
 
 
-        if (decodedResults.size() > 0 && decodedResultsDrawables.size() == 0) {
+        if (!decodedResults.empty() && decodedResultsDrawables.empty()) {
 
-//            KMeans<KMeansDR> kmeans;
-//            std::vector<KMeansDR> kmeansData;
-//            for(int i=0; i<decodedResults.size(); i++) {
-//                double dst = decodedResults[i].distance;
-//                if (dst <= 0) {
-//                    dst = 1;
-//                }
-//                kmeansData.emplace_back(KMeansDR(dst, i));
-//            }
-//            const int MAXGROUPS = 8;
-//            int ngroups = std::min<int>(decodedResults.size(), MAXGROUPS);
-//            kmeans.lloyd(kmeansData.data(), kmeansData.size(), ngroups, 50);
+            for(int i=0; i<decodedResults.size(); i++) {                // this clear obsolete as soon as new batch arrives, not earlier (not in the middle of cycle).
+                auto& result = decodedResults[i];
+                auto resultTimeDelta = currentTime - result.decodeEndTimestamp;
+                if (resultTimeDelta > secondsToKeepResults*1000 + 5000) {
+                    decodedResults.erase(decodedResults.begin() + i);
+                    i--;
+                    continue;
+                }
+            }
+
             static int distances[] = {1000, 2000, 3000, 4000, 5000, 6000, 8000, 10000, 13000, 15000, 18000};
             static auto getGroup = [](int distance) -> int {
                 for(int i=0; i<sizeof(distances)/sizeof(distances[0]); i++) {
@@ -499,31 +515,22 @@ public:
                 }
                 return sizeof(distances)/sizeof(distances[0])-1; // last one
             };
-            for(int i=0; i<decodedResults.size(); i++) {
-                decodedResults[i].group = getGroup(decodedResults[i].distance);
+            for(auto & decodedResult : decodedResults) {
+                decodedResult.group = getGroup(decodedResult.distance);
             }
             auto ngroups = sizeof(distances)/sizeof(distances[0]);
-            const int MAXGROUPS = ngroups;
+            const auto MAXGROUPS = ngroups;
             std::vector<int> groupDists;
             std::vector<bool> foundGroups;
             std::vector<int> groupSortable;
             groupDists.resize(ngroups);
             groupSortable.resize(ngroups);
             foundGroups.resize(ngroups, false);
-            for(int i=0; i<decodedResults.size(); i++) {
-//                decodedResults[i].group = kmeansData[i].group;
-                groupDists[decodedResults[i].group] = decodedResults[i].distance;
-                foundGroups[decodedResults[i].group] = true;
+            for(auto & decodedResult : decodedResults) {
+                groupDists[decodedResult.group] = decodedResult.distance;
+                foundGroups[decodedResult.group] = true;
             }
-            int fgroups = 0;
-            for(auto fg: foundGroups) {
-                if (fg) {
-                    fgroups++;
-                }
-            }
-//            flog::info("Found {} groups among {} results", fgroups, decodedResults.size());
 
-            // sorting groups by distance
             for(int i=0; i<ngroups; i++) {
                 groupSortable[i] = i;
             }
@@ -532,10 +539,12 @@ public:
             });
             double scanY = 0;
             double scanX = 0;
-            double maxColumnWidth = baseTextSize.x * layoutWidth;
+            double maxColumnWidth = args.wfMax.x - args.wfMin.x - baseTextSize.x / 3 * 4; // "xxxxx" -> "12734 km"
 
             ft8decoder.totalCallsignsDisplayed = 0;
             ft4decoder.totalCallsignsDisplayed = 0;
+
+            std::unordered_set<std::string> usedDistances;
 
             for(int i=0;i<ngroups; i++) {
                 std::vector<DecodedResult*>insideGroup;
@@ -567,8 +576,23 @@ public:
                         }
 
                         auto fdr = std::make_shared<FT8DrawableDecodedResult>(decodedResult);
-                        fdr->layoutX = scanX;
-                        fdr->layoutY = scanY;
+                        if (decodedResult->current.x < 0) { // never been yet, come from center
+                            fdr->layout = (args.wfMax - args.wfMin) / 2;
+                            decodedResult->current = fdr->layout;
+                            int steps = fdr->TOTAL_STEPS;
+                            if (decodedResult->distance < 5000) {
+                                steps /= 2;
+                            }
+                            if (decodedResult->distance < 2500) {
+                                steps /= 2;
+                            }
+                            if (decodedResult->distance < 1250) {
+                                steps /= 2;
+                            }
+                            decodedResult->stepsToGo = steps;
+                            decodedResult->totalSteps = steps;
+                        }
+                        fdr->planTo(ImVec2(scanX, scanY));
                         fdr->result->intensity = (1.0 / (MAXGROUPS - 1)) * i;
                         decodedResultsDrawables.emplace_back(fdr);
                         switch(decodedResult->mode) {
@@ -590,14 +614,33 @@ public:
                         label = "=> setup your GRID SQUARE";
                     }
                     auto fdr2 = std::make_shared<FT8DrawableDecodedDistRange>(label, freqq);
-                    fdr2->layoutX = scanX;
-                    fdr2->layoutY = scanY;
+                    auto &that = FT8DrawableDecodedDistRange::lastCoords[label];
+                    fdr2->layout = that;
+                    fdr2->planTo(ImVec2(scanX, scanY));
+
 //                    flog::info("closing: {} {} {}", i, fdr2->layoutX, fdr2->layoutY);
                     decodedResultsDrawables.emplace_back(fdr2);
+                    usedDistances.emplace(label);
                     scanX = 0;
                     scanY += baseTextSize.y + baseTextSize.y /2.5;
                 }
 
+            }
+
+            for(auto it = FT8DrawableDecodedDistRange::lastCoords.begin(); it != FT8DrawableDecodedDistRange::lastCoords.end();it++) {
+                if (usedDistances.find(it->first) == usedDistances.end()) {
+                    it->second.x = args.wfMax.x - args.wfMin.x;
+                    it->second.y = args.wfMax.y - args.wfMin.y;
+                }
+            }
+
+            double maxy = 0;
+            for (auto& result : decodedResultsDrawables) {
+                //                mdf = std::min<long long>(result->getFrequency(), mdf);
+                maxy = std::max<double>(maxy, result->layout.y);
+            }
+            for (auto& result : decodedResultsDrawables) {
+                result->layout.y += (args.wfMax.y - args.wfMin.y) - maxy - baseTextSize.y;
             }
 
         }
@@ -609,21 +652,16 @@ public:
         // place new ones
 
         if (!decodedResultsDrawables.empty()) {
-            auto mdf = decodedResultsDrawables[0]->getFrequency();
-            for (auto& result : decodedResultsDrawables) {
-                mdf = std::min<long long>(result->getFrequency(), mdf);
-            }
+//            auto mdf = decodedResultsDrawables[0]->getFrequency();
             for (int i = 0; i < decodedResultsDrawables.size(); i++) {
                 auto& result = decodedResultsDrawables[i];
 
-                auto df = mdf - gui::waterfall.getCenterFrequency();
-                auto dx = (wfWidth / 2) + df / (gui::waterfall.getViewBandwidth() / 2) * (wfWidth / 2); // in pixels, on waterfall
+//                auto df = mdf - gui::waterfall.getCenterFrequency();
+//                auto dx = (wfWidth / 2) + df / (gui::waterfall.getViewBandwidth() / 2) * (wfWidth / 2); // in pixels, on waterfall
 
-                auto drawX = dx;
-                auto drawY = 20;
-                const ImVec2 origin = ImVec2(args.wfMin.x + drawX, args.wfMin.y + drawY);
-
-                result->draw(origin, args.window);
+//                auto drawX = 0;
+//                auto drawY = 20;
+                result->draw(args.wfMin, args.window);
             }
         }
 
@@ -660,9 +698,6 @@ public:
             strcpy(myCallsign, qq.data());
         } else {
             myCallsign[0] = 0;
-        }
-        if (config.conf[name].find("layoutWidth") != config.conf[name].end()) {
-            layoutWidth = config.conf[name]["layoutWidth"];
         }
         if (config.conf[name].find("secondsToKeepResults") != config.conf[name].end()) {
             secondsToKeepResults = config.conf[name]["secondsToKeepResults"];
@@ -746,20 +781,6 @@ public:
         } else {
             ImGui::Text("Invalid");
         }
-        ImGui::LeftLabel("My Callsign");
-        ImGui::FillWidth();
-        if (ImGui::InputText(CONCAT("##_my_callsign_", _this->name), _this->myCallsign, 12)) {
-            config.acquire();
-            config.conf[_this->name]["myCallsign"] = _this->myCallsign;
-            config.release(true);
-        }
-        ImGui::LeftLabel("Layout width");
-        ImGui::FillWidth();
-        if (ImGui::SliderInt("##ft8_layout_width", &_this->layoutWidth, 3, 10, "%d", 0)) {
-            config.acquire();
-            config.conf[_this->name]["layoutWidth"] = _this->layoutWidth;
-            config.release(true);
-        }
         ImGui::LeftLabel("Keep results (sec)");
         ImGui::FillWidth();
         if (ImGui::SliderInt("##ft8_keep_results_sec", &_this->secondsToKeepResults, 15, 300, "%d", 0)) {
@@ -790,13 +811,22 @@ public:
         }
         ImGui::SameLine();
         ImGui::Text("Count: %d(%d) in %d..%d msec", _this->ft4decoder.lastDecodeCount.load(), _this->ft4decoder.totalCallsignsDisplayed.load(), _this->ft4decoder.lastDecodeTime0.load(), _this->ft4decoder.lastDecodeTime.load());
-        ImGui::LeftLabel("PskReporter");
-        ImGui::FillWidth();
+        ImGui::LeftLabel("PSKReporter");
         if (ImGui::Checkbox(CONCAT("##_enable_psk_reporter_", _this->name), &_this->enablePSKReporter)) {
             config.acquire();
             config.conf[_this->name]["enablePSKReporter"] = _this->enablePSKReporter;
             config.release(true);
         }
+        ImGui::SameLine();
+        ImGui::Text("using callsign:");
+        ImGui::SameLine();
+        ImGui::FillWidth();
+        if (ImGui::InputText(CONCAT("##_my_callsign_", _this->name), _this->myCallsign, 12)) {
+            config.acquire();
+            config.conf[_this->name]["myCallsign"] = _this->myCallsign;
+            config.release(true);
+        }
+
     }
 
     void calculateMyLoc() {
@@ -812,7 +842,6 @@ public:
     char myCallsign[13];
     LatLng myPos = LatLng::invalid();
     bool enablePSKReporter = true;
-    int layoutWidth = 3;
     int secondsToKeepResults = 120;
 
 
@@ -846,7 +875,17 @@ static int toColor(double coss) {
 void FT8DrawableDecodedResult::draw(const ImVec2& _origin, ImGuiWindow* window) {
 
     ImVec2 origin = _origin;
-    origin += ImVec2(layoutX, layoutY);
+
+    auto lo = layout;
+    if (this->result->stepsToGo <= 0) {
+        // already at home
+    } else {
+        lo = this->result->current + (layout - this->result->current) * ((this->result->totalSteps - this->result->stepsToGo) / (float )this->result->totalSteps);
+        this->result->stepsToGo--;
+    }
+    origin += lo;
+    this->result->current = lo;
+
 
     auto phase = result->intensity * 2 * M_PI;
     auto RR= toColor(cos((phase - M_PI / 4 - M_PI - M_PI / 4) / 2));
@@ -906,16 +945,20 @@ void FT8DrawableDecodedResult::draw(const ImVec2& _origin, ImGuiWindow* window) 
     window->DrawList->AddText(origin + ImVec2(+1, +1), black, str);
     window->DrawList->AddText(origin, white, str);
     ImGui::PopFont();
-    float nsteps = 12.0;
+    float nsteps = 8.0;
     float h = 4.0;
     float yy = textSize.y - h;
-    for(float x=0; x<baseTextSize.x; x+=baseTextSize.x/nsteps) {
+    float xlimit = baseTextSize.x * 3 / 4;
+    for(float x=0; x< xlimit; x+=xlimit/nsteps) {
         auto x0 = x;
         auto x1 = x + baseTextSize.x/nsteps;
         auto x0m = x0 + (0.8)*(x1-x0);
         bool green = (x / baseTextSize.x) < result->strength;
+        if (!green) {
+            break;
+        }
         window->DrawList->AddRectFilled(ImVec2(x0, yy) + origin, ImVec2(x0m, yy+h) + origin, green ? IM_COL32(64, 255, 0, 255) : IM_COL32(180, 180, 180, 255));
-        window->DrawList->AddRectFilled(ImVec2(x0m, yy) + origin, ImVec2(x1, yy+h) + origin, IM_COL32(180, 180, 180, 255));
+//        window->DrawList->AddRectFilled(ImVec2(x0m, yy) + origin, ImVec2(x1, yy+h) + origin, IM_COL32(180, 180, 180, 255));
     }
 
 }
@@ -935,7 +978,7 @@ long long int FT8DrawableDecodedDistRange::getFrequency() {
 }
 void FT8DrawableDecodedDistRange::draw(const ImVec2& _origin, ImGuiWindow* window) {
     ImVec2 origin = _origin;
-    origin += ImVec2(layoutX, layoutY);
+    origin += layout;
     ImGui::PushFont(style::tinyFont);
     const char* str = this->extraText.c_str();
     auto strSize = ImGui::CalcTextSize(str);

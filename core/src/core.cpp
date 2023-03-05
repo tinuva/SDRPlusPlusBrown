@@ -20,8 +20,8 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <fcntl.h>
-
 #endif
+
 #ifdef __linux__
 #include <sys/prctl.h>
 #include <sys/types.h>

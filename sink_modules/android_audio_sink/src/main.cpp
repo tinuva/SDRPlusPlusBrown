@@ -12,7 +12,6 @@
 #include <android/log.h>
 #include <jni.h>
 #include <android_native_app_glue.h>
-#include <spdlog/sinks/android_sink.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 

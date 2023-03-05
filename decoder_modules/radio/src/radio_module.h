@@ -308,10 +308,24 @@ private:
 
         if (!_this->bandwidthLocked) {
             ImGui::LeftLabel("Bandwidth");
-            ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
+            ImGui::SetNextItemWidth(200);
             if (ImGui::InputFloat(("##_radio_bw_" + _this->name).c_str(), &_this->bandwidth, 1, 100, "%.0f")) {
                 _this->bandwidth = std::clamp<float>(_this->bandwidth, _this->minBandwidth, _this->maxBandwidth);
                 _this->setBandwidth(_this->bandwidth);
+            }
+            int limit = 12000;
+            switch(_this->selectedDemodID) {        // convenience to fully utilize slider, edit with above field for outside values
+            case RadioModule::RADIO_DEMOD_LSB:
+            case RadioModule::RADIO_DEMOD_USB:
+                limit = 3500;
+                break;
+            case RadioModule::RADIO_DEMOD_CW:
+                limit = 1000;
+                break;
+            }
+            ImGui::SameLine();
+            if (ImGui::SliderFloat(("##_radio_bw_slider_" + _this->name).c_str(), &_this->bandwidth, 50, limit, "")) {
+                _this->setNBLevel(_this->nbLevel);
             }
         }
 
