@@ -275,7 +275,7 @@ namespace core {
 // main
 int sdrpp_main(int argc, char* argv[]) {
 #ifdef _WIN32
-    // setlocale(LC_ALL, ".65001"); // Set locale to UTF-8
+    setlocale(LC_ALL, ".65001"); // Set locale to UTF-8
 #endif
     flog::info("SDR++ v" VERSION_STR);
 
