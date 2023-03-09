@@ -286,6 +286,7 @@ struct SingleDecoder {
     std::atomic_bool running;
     bool processingEnabled = true;
     FT8DecoderModule *mod2;
+    char decodeError[1000] = {0};
 
     void handleData(int rd, dsp::stereo_t* inputData);
 
@@ -794,7 +795,17 @@ public:
             config.conf[_this->name]["secondsToKeepResults"] = _this->secondsToKeepResults;
             config.release(true);
         }
+        //
+        // FT8
+        //
+        auto ft8processing = _this->ft8decoder.blockProcessorsRunning.load();
+        if (ft8processing) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0, 1.0f));
+        }
         ImGui::LeftLabel("Decode FT8");
+        if (ft8processing) {
+            ImGui::PopStyleColor();
+        }
         if (ImGui::Checkbox(CONCAT("##_processing_enabled_ft8_", _this->name), &_this->ft8decoder.processingEnabled)) {
             config.acquire();
             config.conf[_this->name]["processingEnabledFT8"] = _this->ft8decoder.processingEnabled;
@@ -805,7 +816,22 @@ public:
         }
         ImGui::SameLine();
         ImGui::Text("Count: %d(%d) in %d..%d msec", _this->ft8decoder.lastDecodeCount.load(), _this->ft8decoder.totalCallsignsDisplayed.load(), _this->ft8decoder.lastDecodeTime0.load(), _this->ft8decoder.lastDecodeTime.load());
+        if (_this->ft4decoder.decodeError[0]) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
+            ImGui::Text("Error: %s", _this->ft4decoder.decodeError);
+            ImGui::PopStyleColor();
+        }
+        //
+        // FT4
+        //
+        auto ft4processing = _this->ft4decoder.blockProcessorsRunning.load();
+        if (ft4processing) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0, 1.0f));
+        }
         ImGui::LeftLabel("Decode FT4");
+        if (ft4processing) {
+            ImGui::PopStyleColor();
+        }
         ImGui::FillWidth();
         if (ImGui::Checkbox(CONCAT("##_processing_enabled_ft4_", _this->name), &_this->ft4decoder.processingEnabled)) {
             config.acquire();
@@ -817,6 +843,14 @@ public:
         }
         ImGui::SameLine();
         ImGui::Text("Count: %d(%d) in %d..%d msec", _this->ft4decoder.lastDecodeCount.load(), _this->ft4decoder.totalCallsignsDisplayed.load(), _this->ft4decoder.lastDecodeTime0.load(), _this->ft4decoder.lastDecodeTime.load());
+        if (_this->ft4decoder.decodeError[0]) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
+            ImGui::Text("Error: %s", _this->ft4decoder.decodeError);
+            ImGui::PopStyleColor();
+        }
+        //
+        // PSK Reporter
+        //
         ImGui::LeftLabel("PSKReporter");
         _this->enablePSKReporter = false; // until implemented
         if (ImGui::Checkbox(CONCAT("##_enable_psk_reporter_", _this->name), &_this->enablePSKReporter)) {
@@ -1049,80 +1083,87 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
         long long time0 = 0;
         auto handler = [&](int mode, std::vector<std::string> result, std::atomic<const char *> &progress) {
             progress ="in-handler";
-            if (time0 == 0) {
-                time0 = currentTimeMillis();
-            }
-            auto message = result[4];
-            auto pipe = message.find('|');
-            std::string callsigns;
-            std::string callsign;
-            if (pipe != std::string::npos) {
-                progress ="pipe1";
-                callsigns = message.substr(pipe + 1);
-                message = message.substr(0, pipe);
-                std::vector<std::string> callsignsV;
-                progress ="pipe2";
-                splitStringV(callsigns, ";", callsignsV);
-                progress ="pipe3";
-                if (callsignsV.size() > 1) {
-                    progress ="pipe4";
-                    callsign = callsignsV[1];
-                    callHashCacheMutex.lock();
-                    progress ="pipe5";
-                    callHashCache.addCall(callsignsV[0], bst * 1000);
-                    callHashCache.addCall(callsignsV[1], bst * 1000);
-                    callHashCacheMutex.unlock();
-                    progress ="pipe6";
-                }
-                if (!callsign.empty() && callsign[0] == '<') {
-                    progress ="pipe7";
-                    callHashCacheMutex.lock();
-                    auto ncallsign = callHashCache.findCall(callsign, bst * 1000);
-                    progress ="pipe8";
-                    flog::info("Found call: {} -> {}", callsign, ncallsign);
-                    callsign = ncallsign;
-                    callHashCacheMutex.unlock();
-                    progress ="pipe9";
-                }
+            if (result.size() == 2 && result[0] == "ERROR") {
+                strcpy(decodeError, result[1].c_str());
             } else {
-                progress ="pre-extract";
-                callsign = extractCallsignFromFT8(message);
-                progress ="post-extract";
-            }
-            count++;
-            if (callsign.empty() || callsign.find('<') != std::string::npos) {  // ignore <..> callsigns
-                return;
-            }
-            double distance = 0;
-            CTY::Callsign cs;
-            if (callsign.empty()) {
-                callsign = "?? " + message;
-            } else {
-                progress ="pre-find";
-                cs = cty.findCallsign(callsign);
-                progress ="post-find";
-                if (mod->myPos.isValid()) {
-                    auto bd = bearingDistance(mod->myPos, cs.ll);
-                    distance = bd.distance;
+                strcpy(decodeError , "");
+                if (time0 == 0) {
+                    time0 = currentTimeMillis();
                 }
+                auto message = result[4];
+                auto pipe = message.find('|');
+                std::string callsigns;
+                std::string callsign;
+                if (pipe != std::string::npos) {
+                    progress = "pipe1";
+                    callsigns = message.substr(pipe + 1);
+                    message = message.substr(0, pipe);
+                    std::vector<std::string> callsignsV;
+                    progress = "pipe2";
+                    splitStringV(callsigns, ";", callsignsV);
+                    progress = "pipe3";
+                    if (callsignsV.size() > 1) {
+                        progress = "pipe4";
+                        callsign = callsignsV[1];
+                        callHashCacheMutex.lock();
+                        progress = "pipe5";
+                        callHashCache.addCall(callsignsV[0], bst * 1000);
+                        callHashCache.addCall(callsignsV[1], bst * 1000);
+                        callHashCacheMutex.unlock();
+                        progress = "pipe6";
+                    }
+                    if (!callsign.empty() && callsign[0] == '<') {
+                        progress = "pipe7";
+                        callHashCacheMutex.lock();
+                        auto ncallsign = callHashCache.findCall(callsign, bst * 1000);
+                        progress = "pipe8";
+                        flog::info("Found call: {} -> {}", callsign, ncallsign);
+                        callsign = ncallsign;
+                        callHashCacheMutex.unlock();
+                        progress = "pipe9";
+                    }
+                }
+                else {
+                    progress = "pre-extract";
+                    callsign = extractCallsignFromFT8(message);
+                    progress = "post-extract";
+                }
+                count++;
+                if (callsign.empty() || callsign.find('<') != std::string::npos) { // ignore <..> callsigns
+                    return;
+                }
+                double distance = 0;
+                CTY::Callsign cs;
+                if (callsign.empty()) {
+                    callsign = "?? " + message;
+                }
+                else {
+                    progress = "pre-find";
+                    cs = cty.findCallsign(callsign);
+                    progress = "post-find";
+                    if (mod->myPos.isValid()) {
+                        auto bd = bearingDistance(mod->myPos, cs.ll);
+                        distance = bd.distance;
+                    }
+                }
+                progress = "pre-mkdecoded-result";
+                DecodedResult decodedResult(getModeDM(), (long long)(blockNumber * getBlockDuration() * 1000 + getBlockDuration()), originalOffset, callsign, message);
+                decodedResult.distance = (int)distance;
+                auto strength = atof(result[1].c_str());
+                strength = (strength + 24) / (24 + 24);
+                if (strength < 0.0) strength = 0.0;
+                if (strength > 1.0) strength = 1.0;
+                decodedResult.strength = strength;
+                decodedResult.strengthRaw = atof(result[1].c_str());
+                decodedResult.intensity = 0;
+                // (random() % 100) / 100.0;
+                if (!cs.dxccname.empty()) {
+                    decodedResult.qth = cs.dxccname;
+                }
+                progress = "pre-add-result";
+                mod->addDecodedResult(decodedResult);
+                progress = "post-add-result";
             }
-            progress ="pre-mkdecoded-result";
-            DecodedResult decodedResult(getModeDM(), (long long)(blockNumber * getBlockDuration() * 1000 + getBlockDuration()), originalOffset, callsign, message);
-            decodedResult.distance = (int)distance;
-            auto strength = atof(result[1].c_str());
-            strength = (strength + 24) / (24 + 24);
-            if (strength < 0.0) strength = 0.0;
-            if (strength > 1.0) strength = 1.0;
-            decodedResult.strength = strength;
-            decodedResult.strengthRaw = atof(result[1].c_str());
-            decodedResult.intensity = 0;
-             // (random() % 100) / 100.0;
-            if (!cs.dxccname.empty()) {
-                decodedResult.qth = cs.dxccname;
-            }
-            progress ="pre-add-result";
-            mod->addDecodedResult(decodedResult);
-            progress ="post-add-result";
             return;
         };
         std::atomic<const char *> progress;
@@ -1135,7 +1176,11 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
             flog::info("FT8 decoding ({}) took {} ms", this->getModeString(), (int64_t)(end - start));
             lastDecodeCount = (int)count;
             lastDecodeTime = (int)(end - start);
-            lastDecodeTime0 = (int)(time0 - start);
+            if (time0 == 0) {
+                lastDecodeTime0 = 0;
+            } else {
+                lastDecodeTime0 = (int)(time0 - start);
+            }
         });
 
         auto future = std::async(std::launch::async, &std::thread::join, &t0);

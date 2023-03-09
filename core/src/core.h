@@ -20,6 +20,7 @@ namespace core {
         int nargs;
         char outPath[500];
         char errPath[500];
+        int completeStatus;
         std::atomic_bool completed = false;
         char info[50];
         int pid;

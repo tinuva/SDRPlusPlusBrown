@@ -28,24 +28,21 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-void setproctitle(const char* fmt, ...)
-{
+void setproctitle(const char* fmt, ...) {
     static char title[1024];
     va_list args;
     va_start(args, fmt);
     vsnprintf(title, sizeof(title), fmt, args);
     va_end(args);
-//    prctl(PR_SET_NAME, title, 0, 0, 0);
+    //    prctl(PR_SET_NAME, title, 0, 0, 0);
     static char dash[100];
     strcpy(dash, "--");
-    char* new_argv[] = {core::args.systemArgv[0], dash, title,  NULL};
+    char* new_argv[] = { core::args.systemArgv[0], dash, title, NULL };
     memcpy(core::args.systemArgv, new_argv, sizeof(new_argv));
-
 }
 
 #else
 void setproctitle(const char* fmt, ...) {
-
 }
 #endif
 
@@ -80,7 +77,10 @@ namespace core {
 
     void setInputSampleRate(double samplerate) {
         // Forward this to the server
-        if (args["server"].b()) { server::setInputSampleRate(samplerate); return; }
+        if (args["server"].b()) {
+            server::setInputSampleRate(samplerate);
+            return;
+        }
 
         // Update IQ frontend input samplerate and get effective samplerate
         sigpath::iqFrontEnd.setSampleRate(samplerate);
@@ -96,7 +96,6 @@ namespace core {
     }
 
 
-
     /// FORK SERVER
 
     int forkPipe[2];
@@ -106,6 +105,7 @@ namespace core {
         int seq = 0;
         int pid = 0;
         bool terminated = false;
+        int wstatus = 0;
     };
 
     std::unordered_map<int, SpawnCommand*> forkInProgress;
@@ -137,6 +137,7 @@ namespace core {
         res.seq = -1;
         res.pid = q;
         res.terminated = true;
+        res.wstatus = wstatus;
         flog::info("FORKSERVER, sending pid death: {}", q);
         write(forkResult[1], &res, sizeof(res));
 #endif
@@ -157,12 +158,12 @@ namespace core {
             setproctitle("sdrpp (sdr++) fork server (spawning decoders)");
             flog::info("FORKSERVER: fork server runs");
             int myPid = getpid();
-            std::thread checkParentAlive([=](){
-                while(true) {
+            std::thread checkParentAlive([=]() {
+                while (true) {
                     sleep(1);
                     if (getppid() == 1) {
                         kill(myPid, SIGHUP);
-                        break ;
+                        break;
                     }
                 }
             });
@@ -172,7 +173,7 @@ namespace core {
 #endif
             signal(SIGCLD, cldHandler);
             bool running = true;
-            while(running) {
+            while (running) {
                 SpawnCommand cmd;
                 if (sizeof(cmd) != read(forkPipe[0], &cmd, sizeof(cmd))) {
                     flog::warn("FORKSERVER, misread command");
@@ -182,27 +183,32 @@ namespace core {
                 auto newPid = fork();
                 if (0 == newPid) {
                     flog::info("FORKSERVER {}, forked ok", cmd.info);
+                    auto& args = cmd;
+                    std::string execDir = args.executable;
+                    auto pos = execDir.rfind('/');
+                    if (pos != std::string::npos) {
+                        execDir = execDir.substr(0, pos);
+                        execDir = "LD_LIBRARY_PATH=" + execDir;
+                        putenv((char*)execDir.c_str());
+                        flog::info("FORKSERVER, in child, before exec putenv {}", execDir);
+                    }
+                    flog::info("decoderPath={}", args.executable);
+                    flog::info("FT8 Decoder({}): executing: {}", cmd.info, args.executable);
 
                     if (true) {
                         close(0);
                         close(1);
                         close(2);
-                        open("/dev/null", O_RDONLY, 0600);                       // input
+                        open("/dev/null", O_RDONLY, 0600);                     // input
                         open(cmd.outPath, O_CREAT | O_TRUNC | O_WRONLY, 0600); // out
                         open(cmd.errPath, O_CREAT | O_TRUNC | O_WRONLY, 0600); // err
                     }
-                    auto &args = cmd;
-                    write(1, "sample output here 0\n", strlen("sample output here 0\n"));
-                    fprintf(stdout, "decoderPath=%s\n", args.executable);
-                    fprintf(stdout, "ctm=%lld\n", currentTimeMillis());
-                    fflush(stdout);
-                    flog::info("FT8 Decoder({}): executing: {}", cmd.info, args.executable);
-                    std::vector<char *> argsv;
-                    for(int i=0; i<args.nargs; i++) {
+                    std::vector<char*> argsv;
+                    for (int i = 0; i < args.nargs; i++) {
                         argsv.emplace_back(&args.args[i][0]);
                     }
                     argsv.emplace_back(nullptr);
-                    auto err = execv((const char *)(&args.executable[0]), argsv.data());
+                    auto err = execv((const char*)(&args.executable[0]), argsv.data());
                     static auto q = errno;
                     if (err < 0) {
                         perror("exec");
@@ -211,11 +217,12 @@ namespace core {
                     close(0);
                     close(1);
                     close(2);
-                    abort();     // exit does not terminate well.
+                    abort(); // exit does not terminate well.
 
 
                     flog::warn("FORKSERVER, back from forked ok");
-                } else {
+                }
+                else {
                     ForkServerResults res;
                     res.seq = cmd.seq;
                     res.pid = newPid;
@@ -223,17 +230,18 @@ namespace core {
                     write(forkResult[1], &res, sizeof(res));
                 }
             }
-        } else {
+        }
+        else {
             std::thread resultReader([]() {
                 SetThreadName("forkserver_resultread");
                 flog::info("FORKSERVER: resultreader started");
-                while(true) {
+                while (true) {
                     ForkServerResults res;
                     if (0 != read(forkResult[0], &res, sizeof(res))) {
                         forkInProgressLock.lock();
                         auto found = forkInProgress.find(res.seq);
                         if (res.seq < 0) {
-                            for(auto it : forkInProgress) {
+                            for (auto it : forkInProgress) {
                                 if (it.second->pid == res.pid) {
                                     found = forkInProgress.find(it.first);
                                     break;
@@ -245,10 +253,12 @@ namespace core {
                                 found->second->pid = res.pid;
                             }
                             if (res.terminated != 0) {
-                                flog::info("FORKSERVER: marking terminated: pid={}, res={}", res.pid, (void *)&res);
+                                flog::info("FORKSERVER: marking terminated: pid={}, res={}", res.pid, (void*)&res);
+                                found->second->completeStatus = res.wstatus;
                                 found->second->completed = true;
                             }
-                        } else {
+                        }
+                        else {
                             flog::info("FORKSERVER: not found mark status: pid={} seq={}", res.pid, res.seq);
                         }
                         forkInProgressLock.unlock();
@@ -256,7 +266,6 @@ namespace core {
                 }
             });
             resultReader.detach();
-            
         }
 #endif
     }
@@ -278,7 +287,7 @@ int sdrpp_main(int argc, char* argv[]) {
 
     // Define command line options and parse arguments
     core::args.defineAll();
-    if (core::args.parse(argc, argv) < 0) { return -1; } 
+    if (core::args.parse(argc, argv) < 0) { return -1; }
 
     // Show help and exit if requested
     if (core::args["help"].b()) {
@@ -370,7 +379,6 @@ int sdrpp_main(int argc, char* argv[]) {
 
     defConfig["menuElements"][7]["name"] = "Display";
     defConfig["menuElements"][7]["open"] = true;
-
 
 
 #ifdef __ANDROID__

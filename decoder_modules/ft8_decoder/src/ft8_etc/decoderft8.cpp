@@ -2652,7 +2652,7 @@ void DecoderFt8::PrintMsg(QString tmm,int nsnr,double xdt,double f1,QString mess
         <<message<<str_iaptype
         <<QString("%1").arg(qual,0,'f',1)
         <<QString("%1").arg((int)f1);
-        EmitDecodetTextFt(list);//1.27 psk rep fopen bool true, false no file open
+        EmitDecodedTextFt(list);//1.27 psk rep fopen bool true, false no file open
         have_dec = true;
     }
     if (!s_fopen8) ft8_a7_save(tmm,xdt,f1,message);//2.66 for ap7 s_fopen8
@@ -3148,7 +3148,7 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
     delete [] s_;   //qDebug()<<"ft8b Dec"<<decid<<s_ndecodes;
 }
 
-void DecoderFt8::EmitDecodetTextFt(QStringList lst) {
+void DecoderFt8::EmitDecodedTextFt(QStringList lst) {
     char buf[1000] ="";
     sprintf(buf+strlen(buf), "FT8_OUT\t%lld\t%02d", currentTimeMillis(), outCount++);
     for(int i=0; i<lst.count(); i++) {

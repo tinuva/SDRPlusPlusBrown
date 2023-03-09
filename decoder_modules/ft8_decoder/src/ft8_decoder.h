@@ -125,6 +125,14 @@ namespace dsp {
             while (true) {
                 progress = "usleeping";
                 auto finished = mydta.completed.load();
+                if (finished && mydta.completeStatus != 0) {
+                    std::vector<std::string> selected;
+                    selected.emplace_back("ERROR");
+                    selected.emplace_back("decoder exec failed");
+                    progress = "pre-err-callback";
+                    callback(DMS_FT8, selected, progress);
+                    progress = "post-err-callback";
+                }
                 flog::info("Usleep {} begin for {}", nwaiting, mode);
                 usleep(STEP_USEC);
                 nwaiting++;
@@ -148,7 +156,7 @@ namespace dsp {
                             std::vector<std::string> thisResult;
                             progress = "split...";
                             splitString(rdbuf, "\n", [&](const std::string& p) {
-                                if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT") == 0) {
+                                if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT") == 0 || p.find("ERROR") == 0) {
                                     thisResult.emplace_back(p);
                                 }
                             });
@@ -172,6 +180,13 @@ namespace dsp {
                                     progress = "pre-callback";
                                     callback(DMS_FT8, selected, progress);
                                     progress = "post-callback";
+                                }
+                                if (singleBroken.size() > 1 && singleBroken[0] == "ERROR") {
+                                    selected.emplace_back("ERROR");
+                                    selected.emplace_back(singleBroken[1]);
+                                    progress = "pre-err-callback";
+                                    callback(DMS_FT8, selected, progress);
+                                    progress = "post-err-callback";
                                 }
                                 count++;
                             }

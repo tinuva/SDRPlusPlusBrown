@@ -45,7 +45,7 @@ public:
 
 
 //signals:
-    void EmitDecodetTextFt(QStringList lst);
+    void EmitDecodedTextFt(QStringList lst);
     void EmitBackColor() {
 //        abort();
     }
