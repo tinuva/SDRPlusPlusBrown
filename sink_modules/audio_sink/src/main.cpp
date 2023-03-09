@@ -206,7 +206,6 @@ public:
 
     const int microFrames = 4;
 
-
 private:
     bool doStart() {
 
@@ -241,29 +240,30 @@ private:
 
             flog::info("RtAudio output stream open");
         }
-        if (defaultInputDeviceId != deviceIds[devId] && defaultInputDeviceId != -1) {
-            // input device differs from output
-            RtAudio::StreamOptions opts;
-            opts.flags = RTAUDIO_MINIMIZE_LATENCY;
-            opts.streamName = inputDeviceInfo.name;
-            flog::info("Starting (separately) RtAudio INPUT stream {}  parameters.deviceId={} (output was: {})", inputDeviceInfo.name, defaultInputDeviceId, deviceIds[devId]);
-            unsigned int bufferFrames = sampleRate / 60 / microFrames;
+        if (SinkManager::getSecondaryStreamIndex(_streamName).second == 0) {
+            if (defaultInputDeviceId != deviceIds[devId] && defaultInputDeviceId != -1) {
+                // input device differs from output
+                RtAudio::StreamOptions opts;
+                opts.flags = RTAUDIO_MINIMIZE_LATENCY;
+                opts.streamName = inputDeviceInfo.name;
+                flog::info("Starting (separately) RtAudio INPUT stream {}  parameters.deviceId={} (output was: {})", inputDeviceInfo.name, defaultInputDeviceId, deviceIds[devId]);
+                unsigned int bufferFrames = sampleRate / 60 / microFrames;
 
-            try {
-                audio2.openStream(nullptr, &inputParameters, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback2, this, &opts);
-                audio2.startStream();
-                flog::info("RtAudio input stream open");
+                try {
+                    audio2.openStream(nullptr, &inputParameters, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback2, this, &opts);
+                    audio2.startStream();
+                    flog::info("RtAudio input stream open");
+                }
+                catch (RtAudioError& e) {
+                    flog::error("Could not open INPUT audio device: {}", e.getMessage());
+                    return false;
+                }
             }
-            catch (RtAudioError& e) {
-                flog::error("Could not open INPUT audio device: {}", e.getMessage());
-                return false;
-            }
-
+            flog::info("sigpath::sinkManager.defaultInputAudio.init(microphone)");
+            sigpath::sinkManager.defaultInputAudio.setInput(&microphone);
+            sigpath::sinkManager.defaultInputAudio.start();
+            microphone.setBufferSize(sampleRate / 60);
         }
-        flog::info("sigpath::sinkManager.defaultInputAudio.init(microphone)");
-        sigpath::sinkManager.defaultInputAudio.setInput(&microphone);
-        sigpath::sinkManager.defaultInputAudio.start();
-        microphone.setBufferSize(sampleRate / 60);
         return true;
     }
 
@@ -283,20 +283,24 @@ private:
         monoPacker.out.stopReader();
         stereoPacker.out.stopReader();
         if (audio2.isStreamRunning()) {
-            flog::info("Stopping RtAudio stream p.3");
+            flog::info("Stopping RtAudio-2 stream p.3");
             audio2.stopStream();
+            flog::info("Stopped RtAudio stream p.3");
         }
         if (audio2.isStreamOpen()) {
-            flog::info("Stopping RtAudio stream p.4");
+            flog::info("Stopping RtAudio-2 stream p.4");
             audio2.closeStream();
+            flog::info("Stopped RtAudio stream p.4");
         }
         if (audio.isStreamRunning()) {
-            flog::info("Stopping RtAudio stream p.1");
+            flog::info("Stopping RtAudio-1 stream p.1");
             audio.stopStream();
+            flog::info("Stopped RtAudio stream p.1");
         }
         if (audio.isStreamOpen()) {
-            flog::info("Stopping RtAudio stream p.2");
+            flog::info("Stopping RtAudio-1 stream p.2");
             audio.closeStream();
+            flog::info("Stopped RtAudio stream p.2");
         }
         monoPacker.out.clearReadStop();
         stereoPacker.out.clearReadStop();
