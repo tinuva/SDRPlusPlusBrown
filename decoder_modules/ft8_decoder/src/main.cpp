@@ -352,7 +352,7 @@ struct SingleDecoder {
                     if (processingBlock->size() / VFO_SAMPLE_RATE > getBlockDuration()+1 || processingBlock->size() / VFO_SAMPLE_RATE <= getBlockDuration()-2) {
                         flog::info("Block size ({}) is not matching: {}, curtime={}",
                                      getModeString(),
-                                     processingBlock->size() / VFO_SAMPLE_RATE,
+                                     (int64_t)(processingBlock->size() / VFO_SAMPLE_RATE),
                                      (int64_t)curtime);
                         processingBlock.reset(); // clear for new one
                     } else {
@@ -1037,7 +1037,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
     std::thread processor([=]() {
         SetThreadName(getModeString()+"_startBlockProcessing");
         std::time_t bst = (std::time_t)(blockNumber * getBlockDuration());
-        flog::info("Start processing block ({}), size={}, block time: {}", this->getModeString(), block->size(), std::asctime(std::gmtime(&bst)));
+        flog::info("Start processing block ({}), size={}, block time: {}", this->getModeString(), (int64_t)block->size(), std::asctime(std::gmtime(&bst)));
         blockProcessorsRunning.fetch_add(1);
         auto started = currentTimeMillis();
         std::unique_ptr<int, std::function<void(int*)>> myPtr(new int, [&](int* p) {

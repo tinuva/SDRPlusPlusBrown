@@ -7,16 +7,16 @@
 #include <utils/wstr.h>
 
 #ifdef __linux__
-
+#include <unistd.h>
 #include <wait.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #endif
 
 #ifdef __APPLE__
+#include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
 #include <fcntl.h>
