@@ -13,6 +13,25 @@
 #include "ft8_etc/mscore.h"
 #include "ft8_etc/decoderms.h"
 
+#ifdef __linux__
+#include <unistd.h>
+#include <sys/prctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#endif
+
+#ifdef __APPLE__
+#include <unistd.h>
+#include <sys/wait.h>
+#include <signal.h>
+#include <fcntl.h>
+#endif
+
+#ifdef _WIN32
+#define usleep(x) Sleep(x/1000)
+#endif
+
+
 namespace ft8 {
 
 
@@ -94,7 +113,6 @@ namespace ft8 {
 
 void doDecode(const char *mode, const char *path, std::function<void(int mode, std::vector<std::string> result)> callback) {
     mshv_init();
-    write(1, "sample output here\n", strlen("sample output here\n"));
     FILE *f = fopen(path,"rb");
     if (!f) {
         fprintf(stderr,"ERROR Cannot open file %s\n", path);
@@ -121,7 +139,6 @@ void doDecode(const char *mode, const char *path, std::function<void(int mode, s
     printf("BitDepth: %d\n", hdr->bitDepth);
     printf("Codec: %d\n", hdr->codec);
     fflush(stdout);
-    write(1, "sample output here 2\n", strlen("sample output here 2\n"));
     bool handled = hdr->codec == 3 && hdr->bitDepth == 32 && hdr->channelCount == 2;
     handled |= hdr->codec == 1 && hdr->bitDepth == 16 && hdr->channelCount == 2;
     if (!handled) {
@@ -157,7 +174,6 @@ void doDecode(const char *mode, const char *path, std::function<void(int mode, s
             std::cout << "Time taken: " << currentTimeMillis() - ctm << " ms" << std::endl;
             fflush(stdout);
         }
-        write(1, "sample output here 3\n", strlen("sample output here 3\n"));
     } catch (std::runtime_error &e) {
         fprintf(stderr,"ERROR %s \n", e.what());
     }

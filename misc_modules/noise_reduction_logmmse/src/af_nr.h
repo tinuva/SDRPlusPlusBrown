@@ -176,7 +176,7 @@ namespace dsp {
             }
             if (!params.Xk_prev) {
                 auto Slen = (int)floor(0.02 * 48000);
-                flog::info("Sampling, total samples: {0}, will be used: {1}", worker1c->size(), noiseFrames * Slen);
+                flog::info("Sampling, total samples: {0}, will be used: {1}", (int64_t)worker1c->size(), noiseFrames * Slen);
                 LogMMSE::logmmse_sample(worker1c, processingBandwidthHz, 0.15f, &params, noiseFrames);
                 worker1c->erase(worker1c->begin(), worker1c->begin() + curSize); // skip everything already sent to the output before
             }
