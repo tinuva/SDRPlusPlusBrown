@@ -324,8 +324,10 @@ private:
                 break;
             }
             ImGui::SameLine();
+            ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
             if (ImGui::SliderFloat(("##_radio_bw_slider_" + _this->name).c_str(), &_this->bandwidth, 50, limit, "")) {
-                _this->setNBLevel(_this->nbLevel);
+                _this->bandwidth = std::clamp<float>(_this->bandwidth, _this->minBandwidth, _this->maxBandwidth);
+                _this->setBandwidth(_this->bandwidth);
             }
         }
 

@@ -40,7 +40,8 @@ Minor:
 * simultaneous multiple audio devices support
 * ability to output sound on left or right channel only for particular audio device.
 * Airspy HF+ Discovery - narrowing of baseband to hide attenuated parts.
-* small screen option + android landscape, makes screen layout more accessible. Tuning knob is there. 
+* small screen option + android landscape, makes screen layout more accessible. Tuning knob is there.
+* bandwidth can be edited by slider as well
 
 ## Version log (newest last)
 
@@ -79,6 +80,10 @@ Minor:
 
 * was playing with slow resizing (zooming) of the waterfall. Found a place to optimize it using SSE vector operations in most deep loop. 
   Gained 300% speedup. Still single-threaded, multithreaded will come later.  
+
+2023.02.05
+
+* rewrote ft8 layout. Added bandwidth slider as one user suggested on discord. Added UI scale less than 100% as another user suggested on discord. 
 
 ## Feedback
 

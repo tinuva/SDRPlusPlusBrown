@@ -111,6 +111,10 @@ namespace displaymenu {
 
 
         // Define and load UI scales
+        uiScales.define(0.5f, "50%", 0.5f);
+        uiScales.define(0.66f, "66%", 0.66f);
+        uiScales.define(0.75f, "75%", 0.75f);
+        uiScales.define(0.9f, "90%", 0.9f);
         uiScales.define(1.0f, "100%", 1.0f);
         uiScales.define(1.25f, "125%", 1.25f);
         uiScales.define(1.50f, "150%", 1.50f);

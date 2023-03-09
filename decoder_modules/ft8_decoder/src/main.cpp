@@ -15,6 +15,7 @@
 #include <gui/widgets/folder_select.h>
 #include <fstream>
 #include <chrono>
+#include <future>
 #include <unordered_map>
 #include <unordered_set>
 #include "ft8_decoder.h"
@@ -335,12 +336,16 @@ struct SingleDecoder {
         long long int curtime = sigpath::iqFrontEnd.getCurrentStreamTime();
         double blockNumber = floor((curtime / 1000.0) / getBlockDuration());
         if (blockNumber != prevBlockNumber) {
+            flog::info("handleIFdata new block ({}) : {} ", getModeString(), blockNumber);
             if (fullBlock) {
                 bool shouldStartProcessing = true;
                 std::shared_ptr<std::vector<dsp::stereo_t>> processingBlock;
                 processingBlock = fullBlock;
-                if (blockProcessorsRunning > 0) {
+                int currentlyRunning = blockProcessorsRunning.load();
+                if (currentlyRunning > 0) {
                     shouldStartProcessing = false;
+                    flog::info("blockProcessorsRunning ({}) not starting: {}", getModeString(), currentlyRunning);
+
                 }
                 if (shouldStartProcessing) {
                     // no processing is done.
@@ -414,7 +419,7 @@ struct SingleFT4Decoder : SingleDecoder {
         return "ft4";
     }
     std::pair<int,int> calculateVFOCenterOffsetForMode(double centerFrequency, double ifBandwidth) override {
-        static std::vector<int> frequencies = { 7047500, 10140000, 14080000, 21140000, 28180000 };
+        static std::vector<int> frequencies = { 7047500, 10140000, 14080000, 18104000, 21140000, 28180000 };
         return calculateVFOCenterOffset(frequencies, centerFrequency, ifBandwidth);
     }
 
@@ -767,15 +772,16 @@ public:
     static void menuHandler(void* ctx) {
         FT8DecoderModule* _this = (FT8DecoderModule*)ctx;
         ImGui::LeftLabel("My Grid");
-        ImGui::FillWidth();
+        ImGui::SetNextItemWidth(100 * style::uiScale);
         if (ImGui::InputText(CONCAT("##_my_grid_", _this->name), _this->myGrid, 8)) {
             config.acquire();
             config.conf[_this->name]["myGrid"] = _this->myGrid;
             config.release(true);
             _this->calculateMyLoc();
         }
-        ImGui::LeftLabel("My Loc: ");
-        ImGui::FillWidth();
+        ImGui::SameLine();
+        ImGui::Text("My Loc: ");
+        ImGui::SameLine();
         if (_this->myPos.isValid()) {
             ImGui::Text("%+02.5f %+02.5f", _this->myPos.lat, _this->myPos.lon);
         } else {
@@ -812,6 +818,7 @@ public:
         ImGui::SameLine();
         ImGui::Text("Count: %d(%d) in %d..%d msec", _this->ft4decoder.lastDecodeCount.load(), _this->ft4decoder.totalCallsignsDisplayed.load(), _this->ft4decoder.lastDecodeTime0.load(), _this->ft4decoder.lastDecodeTime.load());
         ImGui::LeftLabel("PSKReporter");
+        _this->enablePSKReporter = false; // until implemented
         if (ImGui::Checkbox(CONCAT("##_enable_psk_reporter_", _this->name), &_this->enablePSKReporter)) {
             config.acquire();
             config.conf[_this->name]["enablePSKReporter"] = _this->enablePSKReporter;
@@ -887,7 +894,9 @@ void FT8DrawableDecodedResult::draw(const ImVec2& _origin, ImGuiWindow* window) 
     this->result->current = lo;
 
 
-    auto phase = result->intensity * 2 * M_PI;
+    double intensity = result->intensity;
+    intensity = 0.1;  // rainbow could be tiring
+    auto phase = intensity * 2 * M_PI;
     auto RR= toColor(cos((phase - M_PI / 4 - M_PI - M_PI / 4) / 2));
     auto GG= toColor(cos((phase - M_PI / 4 - M_PI / 2) / 2));
     auto BB = toColor(cos(phase - M_PI / 4));
@@ -1033,12 +1042,13 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
         auto started = currentTimeMillis();
         std::unique_ptr<int, std::function<void(int*)>> myPtr(new int, [&](int* p) {
             delete p;
-            blockProcessorsRunning.fetch_add(-1);
-            flog::info("blockProcessorsRunning released after {} msec", (int64_t)(currentTimeMillis() - started));
+            auto prev = blockProcessorsRunning.fetch_add(-1);
+            flog::info("blockProcessorsRunning ({}) released after {} msec, prev={}", getModeString(), (int64_t)(currentTimeMillis() - started), prev);
         });
         int count = 0;
         long long time0 = 0;
-        auto handler = [&](int mode, std::vector<std::string> result) {
+        auto handler = [&](int mode, std::vector<std::string> result, std::atomic<const char *> &progress) {
+            progress ="in-handler";
             if (time0 == 0) {
                 time0 = currentTimeMillis();
             }
@@ -1047,27 +1057,37 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
             std::string callsigns;
             std::string callsign;
             if (pipe != std::string::npos) {
+                progress ="pipe1";
                 callsigns = message.substr(pipe + 1);
                 message = message.substr(0, pipe);
                 std::vector<std::string> callsignsV;
+                progress ="pipe2";
                 splitStringV(callsigns, ";", callsignsV);
+                progress ="pipe3";
                 if (callsignsV.size() > 1) {
+                    progress ="pipe4";
                     callsign = callsignsV[1];
                     callHashCacheMutex.lock();
+                    progress ="pipe5";
                     callHashCache.addCall(callsignsV[0], bst * 1000);
                     callHashCache.addCall(callsignsV[1], bst * 1000);
                     callHashCacheMutex.unlock();
-
+                    progress ="pipe6";
                 }
                 if (!callsign.empty() && callsign[0] == '<') {
+                    progress ="pipe7";
                     callHashCacheMutex.lock();
                     auto ncallsign = callHashCache.findCall(callsign, bst * 1000);
+                    progress ="pipe8";
                     flog::info("Found call: {} -> {}", callsign, ncallsign);
                     callsign = ncallsign;
                     callHashCacheMutex.unlock();
+                    progress ="pipe9";
                 }
             } else {
+                progress ="pre-extract";
                 callsign = extractCallsignFromFT8(message);
+                progress ="post-extract";
             }
             count++;
             if (callsign.empty() || callsign.find('<') != std::string::npos) {  // ignore <..> callsigns
@@ -1078,12 +1098,15 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
             if (callsign.empty()) {
                 callsign = "?? " + message;
             } else {
+                progress ="pre-find";
                 cs = cty.findCallsign(callsign);
+                progress ="post-find";
                 if (mod->myPos.isValid()) {
                     auto bd = bearingDistance(mod->myPos, cs.ll);
                     distance = bd.distance;
                 }
             }
+            progress ="pre-mkdecoded-result";
             DecodedResult decodedResult(getModeDM(), (long long)(blockNumber * getBlockDuration() * 1000 + getBlockDuration()), originalOffset, callsign, message);
             decodedResult.distance = (int)distance;
             auto strength = atof(result[1].c_str());
@@ -1097,20 +1120,36 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
             if (!cs.dxccname.empty()) {
                 decodedResult.qth = cs.dxccname;
             }
+            progress ="pre-add-result";
             mod->addDecodedResult(decodedResult);
+            progress ="post-add-result";
             return;
         };
+        std::atomic<const char *> progress;
+        progress = "Starting";
         std::thread t0([&]() {
             SetThreadName(getModeString()+"_callDecode");
             auto start = currentTimeMillis();
-            dsp::ft8::decodeFT8(getModeString(), VFO_SAMPLE_RATE, block->data(), block->size(), handler);
+            dsp::ft8::decodeFT8(getModeString(), VFO_SAMPLE_RATE, block->data(), block->size(), handler, progress);
             auto end = currentTimeMillis();
             flog::info("FT8 decoding ({}) took {} ms", this->getModeString(), (int64_t)(end - start));
             lastDecodeCount = (int)count;
             lastDecodeTime = (int)(end - start);
             lastDecodeTime0 = (int)(time0 - start);
         });
-        t0.join();
+
+        auto future = std::async(std::launch::async, &std::thread::join, &t0);
+        int count0=0;
+        while(true) {
+            if (future.wait_for(std::chrono::seconds(1)) == std::future_status::timeout) {
+                flog::info("outside progress({}: decoding ({}) : {}", count0, this->getModeString(), progress.load());
+                count0++;
+            } else {
+                break;
+            }
+        }
+
+        flog::info("blockProcessorsRunning ({}) gracefully completed {}", getModeString(), blockNumber);
 
     });
     processor.detach();

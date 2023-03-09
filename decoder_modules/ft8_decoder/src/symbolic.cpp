@@ -70,8 +70,13 @@ BearingDistance bearingDistance(LatLng fromCoords, LatLng toCoords) {
     auto dLon = degToRad(toCoords.lon - fromCoords.lon); // dlam
     auto fromLat = degToRad(fromCoords.lat); // fi 1
     auto toLat = degToRad(toCoords.lat); // fi 2
-    auto a =
-        pow(sin(dLat / 2), 2) + pow(sin(dLon / 2), 2) * cos(fromLat) * cos(toLat);
+    auto a = pow(sin(dLat / 2), 2) + pow(sin(dLon / 2), 2) * cos(fromLat) * cos(toLat);
+    if (a < 0) {
+        a = 0;
+    }
+    if (a > 1) {
+        a = 1;
+    }
     auto b = 2 * atan2(sqrt(a), sqrt(1 - a));
 
     auto y = sin(dLon) * cos(toLat);
@@ -83,7 +88,7 @@ BearingDistance bearingDistance(LatLng fromCoords, LatLng toCoords) {
         az += 2 * M_PI;
     }
 
-    return BearingDistance( az, b * 6371);
+    return { az, b * 6371};
 }
 
 

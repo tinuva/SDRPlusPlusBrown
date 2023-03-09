@@ -42,7 +42,7 @@ namespace dsp {
 
         void invokeDecoder(const std::string &mode, const std::string &wavPath, const std::string &outPath,
                            const std::string &errPath, std::function<void(int mode,
-                                                                          std::vector<std::string> result)> callback) {
+                                                                          std::vector<std::string> result, std::atomic<const char *> &progress)> callback, std::atomic<const char *> &progress) {
 
 #ifdef __ANDROID__
             Dl_info info;
@@ -123,32 +123,41 @@ namespace dsp {
             flog::info("Forked, waiting outside {} steps for {} for files", MAXWAITING_STEPS, mode);
 
             while (true) {
+                progress = "usleeping";
                 auto finished = mydta.completed.load();
                 flog::info("Usleep {} begin for {}", nwaiting, mode);
                 usleep(STEP_USEC);
                 nwaiting++;
                 flog::info("Usleep {} finished for {}, outpath={}", nwaiting-1, mode, outPath.c_str());
                 if (nwaiting > MAXWAITING_STEPS) {
+                    progress = "break_maxwait";
                     flog::warn("MAXWAITING_STEPS elapsed for {} -> will abort",mode);
                     break;
                 }
                 try {
+                    progress = "open...";
                     auto hdl = open(outPath.c_str(), O_RDONLY);
+                    progress = "opened.";
                     char rdbuf[10000];
                     if (hdl > 0) {
                         int nrd = read(hdl, rdbuf, sizeof(rdbuf) - 1);
+                        progress = "freaded";
                         if (nrd > 0) {
                             rdbuf[10000 - 1] = 0;
                             rdbuf[nrd] = 0;
                             std::vector<std::string> thisResult;
+                            progress = "split...";
                             splitString(rdbuf, "\n", [&](const std::string& p) {
                                 if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT") == 0) {
                                     thisResult.emplace_back(p);
                                 }
                             });
+                            progress = "split ok";
                             for (int q = nsent; q < thisResult.size(); q++) {
                                 std::vector<std::string> singleBroken;
+                                progress = "split small";
                                 splitStringV(thisResult[q], "\t", singleBroken);
+                                progress = "split small ok";
                                 std::vector<std::string> selected;
                                 // FT8_OUT	1675635874870	30	{0}	120000	{1}	-19	{2}	0.2	{3}	775	{4}	SQ9KWU DL1PP -14	{5}	? 0	{6}	0.1	{7}	1975
                                 if (singleBroken.size() > 18) {
@@ -160,30 +169,37 @@ namespace dsp {
                                     selected.emplace_back(singleBroken[14]);
                                     selected.emplace_back(singleBroken[16]);
                                     selected.emplace_back(singleBroken[18]);
-                                    callback(DMS_FT8, selected);
+                                    progress = "pre-callback";
+                                    callback(DMS_FT8, selected, progress);
+                                    progress = "post-callback";
                                 }
                                 count++;
                             }
                             nsent = thisResult.size();
                         }
+                        progress = "pre-close";
                         close(hdl);
+                        progress = "post-close";
                     }
                 } catch (std::runtime_error &err) {
+                    progress = "except";
                     flog::info("EXCEPTION for {}: {}", mode, err.what());
                     finished = true;
                 }
                 if (finished) {
+                    progress = "finishing..";
                     flog::info("Breaking the loop for {}", mode);
                     break;
                 }
             }
             flog::info("FT8 Decoder ({}): process ended. Count messages: {}", mode, count);
+            progress = "finished ok.";
 #endif // !win32
         }
 
         inline void decodeFT8(const std::string &mode, int sampleRate, dsp::stereo_t *samples, long long nsamples,
                               std::function<void(int mode,
-                                                 std::vector<std::string> result)> callback) {
+                                                 std::vector<std::string> result, std::atomic<const char *> &progress)> callback, std::atomic<const char *> &progress) {
 
             static std::atomic_int _seq = 100;
             int seq = ++_seq;
@@ -257,7 +273,7 @@ namespace dsp {
             auto outPath = tempPath + "/sdrpp_ft8_mshv.out." + seqS;
             auto errPath = tempPath + "/sdrpp_ft8_mshv.err." + seqS;
 
-            invokeDecoder(mode, wavPath, outPath, errPath, callback);
+            invokeDecoder(mode, wavPath, outPath, errPath, callback, progress);
 
             return;
         }

@@ -622,7 +622,13 @@ void MainWindow::draw() {
     ImGui::NextColumn();
     ImGui::BeginChild("WaterfallControls");
 
-    ImVec2 wfSliderSize((displaymenu::smallScreen ? 40.0 : 20.0) * style::uiScale, (displaymenu::smallScreen ? 100.0 : 140.0) * style::uiScale);
+    static int sliderDynamicAdjustmentY = 0;
+
+    ImVec2 wfSliderSize((displaymenu::smallScreen ? 40.0 : 20.0) * style::uiScale, (displaymenu::smallScreen ? 100.0 : 140.0) * style::uiScale - sliderDynamicAdjustmentY);
+    const int MIN_SLIDER_HEIGHT = 10;
+    if (wfSliderSize.y < MIN_SLIDER_HEIGHT) {
+        wfSliderSize.y = MIN_SLIDER_HEIGHT;    // Prevents dynamic adjustment too large;
+    }
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - (ImGui::CalcTextSize("Zoom").x / 2.0));
     ImGui::TextUnformatted("Zoom");
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - wfSliderSize.x/2);
@@ -670,6 +676,11 @@ void MainWindow::draw() {
     } else {
         addMaxSlider();
         addMinSlider();
+    }
+    const ImVec2 remainder = ImGui::GetContentRegionAvail();
+    if (remainder.y <= 0 && wfSliderSize.y > MIN_SLIDER_HEIGHT) {
+        // this fits the sliders to any height.
+        sliderDynamicAdjustmentY++;
     }
 
     ImGui::EndChild();
