@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.sdrpp.sdrpp">
 
+    <uses-feature android:name="android.hardware.usb.host" />
+
     <application
         android:label="SDR++"
         android:allowBackup="false"
@@ -20,6 +22,10 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
             </intent-filter>
         </activity>
     </application>
