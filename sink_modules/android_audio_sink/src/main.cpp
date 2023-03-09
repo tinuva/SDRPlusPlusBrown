@@ -87,7 +87,7 @@ private:
 
     void doStart() {
         bufferSize = round(sampleRate / 60.0);
-        sigpath::sinkManager.defaultInputAudio.init(&microphone);
+        sigpath::sinkManager.defaultInputAudio.setInput(&microphone);
         sigpath::sinkManager.defaultInputAudio.start();
         microphone.setBufferSize(sampleRate / 60);
 

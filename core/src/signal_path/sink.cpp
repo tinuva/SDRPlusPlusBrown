@@ -21,6 +21,8 @@ SinkManager::SinkManager() : defaultInputAudio(nullptr) {
         _this->setAllMuted(txOn);
     };
 
+    defaultInputAudio.init(nullptr);
+
 }
 
 SinkManager::Stream::Stream(dsp::stream<dsp::stereo_t>* in, EventHandler<float>* srChangeHandler, float sampleRate) {
