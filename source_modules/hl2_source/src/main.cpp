@@ -43,12 +43,6 @@ public:
 
     explicit HermesLite2SourceModule(const std::string &name) {
 
-#ifdef __ANDROID__
-        auto console_sink = std::make_shared<flog::sinks::android_sink_st>("SDR++/hl2_source");
-        auto logger = std::shared_ptr<flog::logger>(new flog::logger("", { console_sink }));
-        flog::set_default_logger(logger);
-#endif
-
 
         this->name = name;
         memset(sevenRelays, 0, sizeof(sevenRelays));

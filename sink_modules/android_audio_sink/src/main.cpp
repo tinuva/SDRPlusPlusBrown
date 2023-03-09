@@ -12,6 +12,7 @@
 #include <android/log.h>
 #include <jni.h>
 #include <android_native_app_glue.h>
+#include <unistd.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -49,9 +50,6 @@ public:
         // TODO: Add choice? I don't think anyone cares on android...
         sampleRate = 48000;
         _stream->setSampleRate(sampleRate);
-        auto console_sink = std::make_shared<spdlog::sinks::android_sink_st>("SDR++/android_audio_sink");
-        auto logger = std::shared_ptr<spdlog::logger>(new spdlog::logger("", { console_sink }));
-        spdlog::set_default_logger(logger);
 
     }
 
@@ -260,7 +258,7 @@ private:
     }
 
     static int logcat(const std::string &s) {
-        spdlog::info("{}", s);
+        flog::info("{}", s);
         android_app *app = backend::app;
         if (!app) {
             return 0;

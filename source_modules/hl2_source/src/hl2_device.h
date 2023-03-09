@@ -15,10 +15,17 @@
 #endif
 
 #ifdef __APPLE__
+#include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
 #include <fcntl.h>
+
 #endif
+
+#ifdef _WIN32
+#define usleep(x) Sleep(x/1000)
+#endif
+
 
 
 #define DATA_PORT 1024

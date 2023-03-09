@@ -1233,11 +1233,6 @@ MOD_EXPORT void _INIT_() {
     loadCTY(resDir + "/cty/VK_cty.dat", ", VK", cty);
     loadCTY(resDir + "/cty/cty_rus.dat", ", RUS", cty);
 
-#ifdef __ANDROID__
-    auto console_sink = std::make_shared<flog::sinks::android_sink_st>("SDR++");
-    auto logger = std::shared_ptr<flog::logger>(new flog::logger("", { console_sink }));
-    flog::set_default_logger(logger);
-#endif
 
 }
 

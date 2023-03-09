@@ -80,7 +80,7 @@ namespace dsp {
                             selected.emplace_back(singleBroken[16]);
                             selected.emplace_back(singleBroken[18]);
                             count++;
-                            callback(DMS_FT8, selected);
+                            callback(DMS_FT8, selected, progress);
                         }
                     }
                 }
