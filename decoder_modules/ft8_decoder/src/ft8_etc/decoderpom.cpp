@@ -946,17 +946,7 @@ void PomFt::initPomFt()
     twopi=8.0*atan(1.0);
     pi=4.0*atan(1.0);
 }
-/*
-#include "../HvMsPlayer/libsound/boost/boost_14.hpp"
-short crc14_pomft(unsigned char const * data, int length)
-{
-    return boost::augmented_crc<14, TRUNCATED_POLYNOMIAL14>(data, length);
-}
-short PomFt::crc14(unsigned char const * data, int length)
-{
-    return crc14_pomft(data,length);
-}
-*/
+
 void PomFt::nuttal_window(double *win,int n)
 {
     double a0=0.3635819;

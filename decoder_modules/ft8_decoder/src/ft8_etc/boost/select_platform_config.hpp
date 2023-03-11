@@ -17,74 +17,14 @@
 // linux, also other platforms (Hurd etc) that use GLIBC, should these really have their own config headers though?
 #  define BOOST_PLATFORM_CONFIG "linux.hpp"
 
-#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
-// BSD:
-#  define BOOST_PLATFORM_CONFIG "bsd.hpp"
-
-#elif defined(sun) || defined(__sun)
-// solaris:
-#  define BOOST_PLATFORM_CONFIG "solaris.hpp"
-
-#elif defined(__sgi)
-// SGI Irix:
-#  define BOOST_PLATFORM_CONFIG "irix.hpp"
-
-#elif defined(__hpux)
-// hp unix:
-#  define BOOST_PLATFORM_CONFIG "hpux.hpp"
-
-#elif defined(__CYGWIN__)
-// cygwin is not win32:
-#  define BOOST_PLATFORM_CONFIG "cygwin.hpp"
 
 #elif defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
 // win32:
 #  define BOOST_PLATFORM_CONFIG "win32.hpp"
 
-#elif defined(__HAIKU__)
-// Haiku
-#  define BOOST_PLATFORM_CONFIG "haiku.hpp"
-
-#elif defined(__BEOS__)
-// BeOS
-#  define BOOST_PLATFORM_CONFIG "beos.hpp"
-
 #elif defined(macintosh) || defined(__APPLE__) || defined(__APPLE_CC__)
 // MacOS
 #  define BOOST_PLATFORM_CONFIG "macos.hpp"
-
-#elif defined(__IBMCPP__) || defined(_AIX)
-// IBM
-#  define BOOST_PLATFORM_CONFIG "aix.hpp"
-
-#elif defined(__amigaos__)
-// AmigaOS
-#  define BOOST_PLATFORM_CONFIG "amigaos.hpp"
-
-#elif defined(__QNXNTO__)
-// QNX:
-#  define BOOST_PLATFORM_CONFIG "qnxnto.hpp"
-
-#elif defined(__VXWORKS__)
-// vxWorks:
-#  define BOOST_PLATFORM_CONFIG "vxworks.hpp"
-
-#elif defined(__SYMBIAN32__) 
-// Symbian: 
-#  define BOOST_PLATFORM_CONFIG "symbian.hpp" 
-
-#elif defined(_CRAYC)
-// Cray:
-#  define BOOST_PLATFORM_CONFIG "cray.hpp" 
-
-#elif defined(__VMS) 
-// VMS:
-#  define BOOST_PLATFORM_CONFIG "vms.hpp" 
-
-#elif defined(__CloudABI__)
-// Nuxi CloudABI:
-#  define BOOST_PLATFORM_CONFIG "cloudabi.hpp"
-#else
 
 #  if defined(unix) \
       || defined(__unix) \
@@ -101,37 +41,7 @@
 
 #  endif
 
-#  if defined (BOOST_ASSERT_CONFIG)
-      // this must come last - generate an error if we don't
-      // recognise the platform:
-#     error "Unknown platform - please configure and report the results to boost.org"
-#  endif
 
 #endif
 
-#if 0
-//
-// This section allows dependency scanners to find all the files we *might* include:
-//
-#  include "linux.hpp"
-#  include "bsd.hpp"
-#  include "solaris.hpp"
-#  include "irix.hpp"
-#  include "hpux.hpp"
-#  include "cygwin.hpp"
-#  include "win32.hpp"
-#  include "beos.hpp"
-#  include "macos.hpp"
-#  include "aix.hpp"
-#  include "amigaos.hpp"
-#  include "qnxnto.hpp"
-#  include "vxworks.hpp"
-#  include "symbian.hpp" 
-#  include "cray.hpp" 
-#  include "vms.hpp" 
-#  include "posix_features.hpp"
-
-
-
-#endif
 

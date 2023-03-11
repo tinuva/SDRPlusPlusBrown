@@ -19,7 +19,7 @@
 
 // if we don't have a user config, then use the default location:
 #if !defined(BOOST_USER_CONFIG) && !defined(BOOST_NO_USER_CONFIG)
-#  define BOOST_USER_CONFIG "user.hpp"
+//#  define BOOST_USER_CONFIG "user.hpp"
 #if 0
 // For dependency trackers:
 #  include "user.hpp"
