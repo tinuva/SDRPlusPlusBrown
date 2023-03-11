@@ -479,6 +479,7 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["lockMenuOrder"] = false;
     defConfig["smallScreen"] = false;
 #endif
+    defConfig["transcieverLayout"] = 0;
 
 #if defined(_WIN32)
     defConfig["modulesDirectory"] = "./modules";

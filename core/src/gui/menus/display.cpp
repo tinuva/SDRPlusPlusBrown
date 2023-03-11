@@ -19,10 +19,14 @@ namespace displaymenu {
     int selectedWindow = 0;
     int fftRate = 20;
     int uiScaleId = 0;
+    int transcieverLayoutId = 0;
     bool restartRequired = false;
     bool fftHold = false;
     int fftHoldSpeed = 60;
     bool smallScreen = false;
+
+    TranscieverLayout transcieverLayout = TRAL_NONE;
+
 #ifdef __ANDROID__
     float displayDensity = 1.0;  // 1.0 = 160 dpi. 3.5 = kinda high dpi etc. Coincides with good default scale
 #endif
@@ -107,6 +111,7 @@ namespace displaymenu {
         gui::menu.locked = core::configManager.conf["lockMenuOrder"];
 
         smallScreen = core::configManager.conf["smallScreen"];
+        transcieverLayout = core::configManager.conf["transcieverLayout"];
 
         fftHold = core::configManager.conf["fftHold"];
         fftHoldSpeed = core::configManager.conf["fftHoldSpeed"];

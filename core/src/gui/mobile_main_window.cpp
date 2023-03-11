@@ -656,7 +656,7 @@ void MobileMainWindow::autoDetectBand(int frequency) {
 
 void MobileMainWindow::draw() {
     gui::waterfall.alwaysDrawLine = false;
-    if (!displaymenu::smallScreen) {
+    if (displaymenu::transcieverLayout == 0) {
         this->shouldInitialize = true;
         MainWindow::draw();
         return;
