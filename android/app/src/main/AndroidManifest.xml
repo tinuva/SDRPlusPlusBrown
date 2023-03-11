@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.sdrpp.sdrpp">
+    package="org.sdrppbrown.sdrppbrown">
 
     <uses-feature android:name="android.hardware.usb.host" />
 
     <application
-        android:label="SDR++"
+        android:label="SDR++Brown"
         android:allowBackup="false"
         android:extractNativeLibs="true"
         android:fullBackupContent="false"
@@ -13,7 +13,7 @@
 
         <activity
             android:exported="true"
-            android:name="org.sdrpp.sdrpp.MainActivity"
+            android:name=".MainActivity"
             android:icon="@mipmap/ic_launcher"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
             android:configChanges="orientation|keyboardHidden|screenSize">
@@ -27,11 +27,16 @@
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
             </intent-filter>
+
+            <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
         </activity>
     </application>
 
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.USB_PERMISSION"/>
 </manifest>

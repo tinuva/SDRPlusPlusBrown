@@ -502,8 +502,3 @@ extern "C" {
         sdrpp_main(5, dummy);
     }
 }
-extern "C"
-JNIEXPORT void JNICALL
-Java_org_sdrpp_sdrpp_AndroidAudioInput_addAudioSamples(JNIEnv *env, jclass clazz, jfloatArray arr) {
-    // TODO: implement addAudioSamples()
-}
