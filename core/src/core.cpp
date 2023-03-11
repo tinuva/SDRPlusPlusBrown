@@ -15,6 +15,7 @@
 #include <gui/menus/theme.h>
 #include <backend.h>
 #include <iostream>
+#include <gui/menus/display.h>
 
 #ifdef __APPLE__
 #include <sys/wait.h>
@@ -445,7 +446,7 @@ int sdrpp_main(int argc, char* argv[]) {
     // Themes
     defConfig["theme"] = "Dark";
 #ifdef __ANDROID__
-    defConfig["uiScale"] = 3.0f;
+    defConfig["uiScale"] = displaymenu::displayDensity;
 #else
     defConfig["uiScale"] = 1.0f;
 #endif

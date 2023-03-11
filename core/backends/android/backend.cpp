@@ -1,6 +1,7 @@
 #include <backend.h>log
 #include "android_backend.h"
 #include <core.h>
+#include <gui/menus/display.h>
 #include <gui/gui.h>
 #include "imgui.h"
 #include "imgui_impl_android.h"
@@ -402,6 +403,10 @@ namespace backend {
         return callStringGetter("getThisCacheDir");
     }
 
+    std::string getDisplayDensityStr() {
+        return callStringGetter("getDisplayDensityStr");
+    }
+
 
 
     const std::vector<DevVIDPID> AIRSPY_VIDPIDS = {
@@ -497,6 +502,11 @@ extern "C" {
         auto cacheDir = backend::getCacheDir();
         char* cacheDirPath = new char[cacheDir.size() + 1];
         strcpy(cacheDirPath, cacheDir.c_str());
+
+        float displayDensity = atof(backend::getDisplayDensityStr().c_str());
+        if (displayDensity != 0.0f) {
+            displaymenu::displayDensity = displayDensity;
+        }
 
         char* dummy[] = { "", "-r", rootpath, "-x", cacheDirPath };
         sdrpp_main(5, dummy);

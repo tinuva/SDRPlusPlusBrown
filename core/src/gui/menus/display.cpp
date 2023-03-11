@@ -23,6 +23,10 @@ namespace displaymenu {
     bool fftHold = false;
     int fftHoldSpeed = 60;
     bool smallScreen = false;
+#ifdef __ANDROID__
+    float displayDensity = 1.0;  // 1.0 = 160 dpi. 3.5 = kinda high dpi etc. Coincides with good default scale
+#endif
+
 
     OptionList<float, float> uiScales;
 
@@ -111,18 +115,25 @@ namespace displaymenu {
 
 
         // Define and load UI scales
-        uiScales.define(0.5f, "50%", 0.5f);
-        uiScales.define(0.66f, "66%", 0.66f);
-        uiScales.define(0.75f, "75%", 0.75f);
-        uiScales.define(0.9f, "90%", 0.9f);
-        uiScales.define(1.0f, "100%", 1.0f);
-        uiScales.define(1.25f, "125%", 1.25f);
-        uiScales.define(1.50f, "150%", 1.50f);
-        uiScales.define(1.75f, "175%", 1.75f);
-        uiScales.define(2.0f, "200%", 2.0f);
-        uiScales.define(2.50f, "250%", 2.50f);
-        uiScales.define(3.0f, "300%", 3.0f);
-        uiScales.define(4.0f, "400%", 4.0f);
+
+        std::vector<float> scales = {0.25f, 0.5f, 0.66f, 0.75f, 0.9f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f, 4.0f};
+        bool hasNativeScale = false;
+#ifdef __ANDROID__
+        for (int i = 0; i < scales.size(); i++) {
+            float scale = scales[i];
+            if (scale == displayDensity) {
+                hasNativeScale = true;
+            }
+        }
+        if (!hasNativeScale) {
+            uiScales.define(displayDensity, std::to_string((int)(displayDensity * 100)) + "% (native)", displayDensity);
+        }
+#endif
+        for (int i = 0; i < scales.size(); i++) {
+            float scale = scales[i];
+            uiScales.define(scale, std::to_string((int)(scale * 100)) + "%", scale);
+        }
+
         uiScaleId = uiScales.valueId(style::uiScale);
     }
 

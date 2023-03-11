@@ -31,6 +31,8 @@
 #include <android/input.h>
 #include <android/keycodes.h>
 #include <android/log.h>
+#include <android/configuration.h>
+#include <android_native_app_glue.h>
 
 // Android data
 static double                                   g_Time = 0.0;
@@ -263,6 +265,8 @@ bool ImGui_ImplAndroid_Init(ANativeWindow* window)
 void ImGui_ImplAndroid_Shutdown()
 {
 }
+
+
 
 void ImGui_ImplAndroid_NewFrame()
 {
