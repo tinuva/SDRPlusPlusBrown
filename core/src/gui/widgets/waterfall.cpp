@@ -1523,8 +1523,7 @@ namespace ImGui {
 
         float factor = (float)width / (float)outWidth;
 
-        float sFactor = ceilf(factor);
-        float uFactor;
+        int sFactor = (int)ceilf(factor);
         float id = offset;
         float maxVal, maxVal1, maxVal2, maxVal3, maxVal4, maxVal5, maxVal6, maxVal7, maxVal8, maxVal9, maxVal10, maxVal11, maxVal12, maxVal13, maxVal14, maxVal15;
         int sId;
@@ -1537,18 +1536,12 @@ namespace ImGui {
             maxVal5 = -INFINITY;
             maxVal6 = -INFINITY;
             maxVal7 = -INFINITY;
-//            maxVal8 = -INFINITY;
-//            maxVal9 = -INFINITY;
-//            maxVal10 = -INFINITY;
-//            maxVal11 = -INFINITY;
-//            maxVal12 = -INFINITY;
-//            maxVal13 = -INFINITY;
-//            maxVal14 = -INFINITY;
-//            maxVal15 = -INFINITY;
+            // more than 8 is not worth it
             sId = (int)id;
-            uFactor = (sId + sFactor > rawFFTSize) ? sFactor - ((sId + sFactor) - rawFFTSize) : sFactor;
+            int uFactor = (sId + sFactor > rawFFTSize) ? rawFFTSize - sId : sFactor;
+
             constexpr int N = 8;
-            auto uFactorN = (uFactor / N) * N;
+            auto uFactorN = (((int)uFactor) / N) * N;
             int j;
             for (j = 0; j < uFactorN; j+=N) {
                 maxVal = std::max<float>(maxVal, data[sId + j]);
@@ -1559,14 +1552,6 @@ namespace ImGui {
                 maxVal5 = std::max<float>(maxVal5, data[sId + j + 5]);
                 maxVal6 = std::max<float>(maxVal6, data[sId + j + 6]);
                 maxVal7 = std::max<float>(maxVal7, data[sId + j + 7]);
-//                maxVal8 = std::max<float>(maxVal7, data[sId + j + 8]);
-//                maxVal9 = std::max<float>(maxVal7, data[sId + j + 9]);
-//                maxVal10 = std::max<float>(maxVal7, data[sId + j + 10]);
-//                maxVal11 = std::max<float>(maxVal7, data[sId + j + 11]);
-//                maxVal12 = std::max<float>(maxVal7, data[sId + j + 12]);
-//                maxVal13 = std::max<float>(maxVal7, data[sId + j + 13]);
-//                maxVal14 = std::max<float>(maxVal7, data[sId + j + 14]);
-//                maxVal15 = std::max<float>(maxVal7, data[sId + j + 15]);
             }
             maxVal = std::max<float>(maxVal, maxVal1);
             maxVal = std::max<float>(maxVal, maxVal2);
@@ -1575,14 +1560,6 @@ namespace ImGui {
             maxVal = std::max<float>(maxVal, maxVal5);
             maxVal = std::max<float>(maxVal, maxVal6);
             maxVal = std::max<float>(maxVal, maxVal7);
-//            maxVal = std::max<float>(maxVal, maxVal8);
-//            maxVal = std::max<float>(maxVal, maxVal9);
-//            maxVal = std::max<float>(maxVal, maxVal10);
-//            maxVal = std::max<float>(maxVal, maxVal11);
-//            maxVal = std::max<float>(maxVal, maxVal12);
-//            maxVal = std::max<float>(maxVal, maxVal13);
-//            maxVal = std::max<float>(maxVal, maxVal14);
-//            maxVal = std::max<float>(maxVal, maxVal15);
             for (; j < uFactor; j++) {
                 maxVal = std::max<float>(maxVal, data[sId + j]);
             }
