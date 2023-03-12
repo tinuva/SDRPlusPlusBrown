@@ -1,4 +1,3 @@
-#include "sdrpp_server_client.h"
 #include <imgui.h>
 #include <utils/flog.h>
 #include <module.h>
@@ -21,6 +20,7 @@ SDRPP_MOD_INFO{
 };
 
 struct KiwiSDRClient {
+    std::string hostPort;
 
 };
 
@@ -120,7 +120,7 @@ private:
     static void menuHandler(void* ctx) {
         KiwiSDRSourceModule* _this = (KiwiSDRSourceModule*)ctx;
 
-        if (ImGui::Button("Select server"))
+//        if (ImGui::Button("Select server"))
 //        float menuWidth = ImGui::GetContentRegionAvail().x;
 
 ////        bool connected = (_this->client && _this->client->isOpen());
@@ -205,36 +205,36 @@ private:
     }
 
     void tryConnect() {
-        try {
-            if (client) { client.reset(); }
-            client = server::connect(hostname, port, &stream);
-            deviceInit();
-        }
-        catch (std::exception e) {
-            flog::error("Could not connect to SDR: {0}", e.what());
-            if (!strcmp(e.what(), "Server busy")) { serverBusy = true; }
-        }
+//        try {
+//            if (client) { client.reset(); }
+//            client = server::connect(hostname, port, &stream);
+//            deviceInit();
+//        }
+//        catch (std::exception e) {
+//            flog::error("Could not connect to SDR: {0}", e.what());
+//            if (!strcmp(e.what(), "Server busy")) { serverBusy = true; }
+//        }
     }
 
     void deviceInit() {
         // Generate the config name
-        char buf[4096];
-        sprintf(buf, "%s:%05d", hostname, port);
-        devConfName = buf;
-
-        // Load settings
-        sampleTypeId = sampleTypeList.valueId(dsp::compression::PCM_TYPE_I16);
-        if (config.conf["servers"][devConfName].contains("sampleType")) {
-            std::string key = config.conf["servers"][devConfName]["sampleType"];
-            if (sampleTypeList.keyExists(key)) { sampleTypeId = sampleTypeList.keyId(key); }
-        }
-        if (config.conf["servers"][devConfName].contains("compression")) {
-            compression = config.conf["servers"][devConfName]["compression"];
-        }
-
-        // Set settings
-        client->setSampleType(sampleTypeList[sampleTypeId]);
-        client->setCompression(compression);
+//        char buf[4096];
+//        sprintf(buf, "%s:%05d", hostname, port);
+//        devConfName = buf;
+//
+//        // Load settings
+//        sampleTypeId = sampleTypeList.valueId(dsp::compression::PCM_TYPE_I16);
+//        if (config.conf["servers"][devConfName].contains("sampleType")) {
+//            std::string key = config.conf["servers"][devConfName]["sampleType"];
+//            if (sampleTypeList.keyExists(key)) { sampleTypeId = sampleTypeList.keyId(key); }
+//        }
+//        if (config.conf["servers"][devConfName].contains("compression")) {
+//            compression = config.conf["servers"][devConfName]["compression"];
+//        }
+//
+//        // Set settings
+//        client->setSampleType(sampleTypeList[sampleTypeId]);
+//        client->setCompression(compression);
     }
 
     std::string name;

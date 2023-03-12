@@ -3,6 +3,7 @@ package org.sdrppbrown.sdrppbrown
 import android.Manifest
 import android.app.NativeActivity
 import android.app.PendingIntent
+import android.app.PendingIntent.FLAG_MUTABLE
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -16,7 +17,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
-import android.util.DisplayMetrics
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
@@ -25,7 +25,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.PermissionChecker
 import java.io.File
 import java.io.FileOutputStream
-import java.util.HashMap
+import java.util.*
 import java.util.concurrent.LinkedBlockingQueue
 
 private const val ACTION_USB_PERMISSION = "org.sdrppbrown.sdrppbrown.USB_PERMISSION";
@@ -124,14 +124,20 @@ class MainActivity : NativeActivity() {
         usbReceiver.devList = usbManager!!.getDeviceList();
 //        Log.w("SDR++", "Dev list size: " + devList.size.toString())
 
-        val permissionIntent = makePermissionIntent()
+        val permissionIntent = makeUsbPermissionIntent()
 
         for ((name, dev) in usbReceiver.devList) {
             Log.w("SDR++", "Dev list item: $name $dev")
-            if ((dev.productName?:"").indexOf("LAN") == -1) {
-                usbManager!!.requestPermission(dev, permissionIntent);
-                break; // next request in the handler.
-            }
+            val prodName = dev.productName?.toUpperCase(Locale.US) ?: ""
+            if (prodName.indexOf("Network") != -1
+                || prodName.indexOf("LAN") != -1
+                || prodName.indexOf("KEYBOARD") != -1
+                || prodName.indexOf("MOUSE") != -1
+            )
+                // ignore LAN device.
+                continue
+            usbManager!!.requestPermission(dev, permissionIntent);
+            break; // next request in the handler.
         }
 
         // Ask for internet permission
@@ -163,12 +169,23 @@ class MainActivity : NativeActivity() {
         super.onCreate(savedInstanceState)
     }
 
-    private fun makePermissionIntent() = PendingIntent.getBroadcast(
-        this@MainActivity,
-        0,
-        Intent(ACTION_USB_PERMISSION),
-        0
-    )
+    private fun makeUsbPermissionIntent(): PendingIntent? {
+        try {
+            return PendingIntent.getBroadcast(
+                this@MainActivity,
+                0,
+                Intent(ACTION_USB_PERMISSION),
+                0
+            )
+        } catch (e: Exception) {
+            return PendingIntent.getBroadcast(
+                this@MainActivity,
+                0,
+                Intent(ACTION_USB_PERMISSION),
+                FLAG_MUTABLE
+            )
+        }
+    }
 
     fun getThisCacheDir(): String {
         return thisCacheDir;
