@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 #include "memory.h"
 
 inline void splitString(const std::string & str, const char *sep, const std::function<void(const std::string&)> &callback) {

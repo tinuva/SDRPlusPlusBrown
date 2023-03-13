@@ -22,11 +22,7 @@
 
 #endif
 
-#ifdef _WIN32
-#define usleep(x) Sleep(x/1000)
-#endif
-
-
+#include <utils/usleep.h>
 
 #define DATA_PORT 1024
 

@@ -31,11 +31,11 @@
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
 typedef int socklen_t;
-inline void usleep(int micros) {
-    Sleep(micros / 1000);
-}
 
 #endif
+
+#include <utils/usleep.h>
+
 
 #ifdef SOAPYSDR
 #include <SoapySDR/Device.h>

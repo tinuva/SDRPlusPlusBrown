@@ -1,6 +1,7 @@
 
 #pragma once
 
+
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <vector>
@@ -22,15 +23,6 @@
 #include <malloc.h>
 #include <windows.h>
 
-//extern "C" {
-//void Sleep(unsigned long dwMilliseconds);
-//}
-
-inline void usleep(int i) {
-
-    ::Sleep(i / 1000);
-}
-
 typedef std::thread pthread_t;
 #define pthread_create(pThrVar, NU, fun, arg) std::swap(*pThrVar, std::thread([=] { fun(arg); }))
 #define pthread_detach(thr)                   thr.detach();
@@ -38,6 +30,8 @@ typedef std::thread pthread_t;
 #else
 #include <unistd.h>
 #endif
+
+#include <utils/usleep.h>
 
 
 inline int toInt(const std::string &s, bool &ok, int radix) {

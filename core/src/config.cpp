@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include "utils/wstr.h"
+#include "utils/usleep.h"
 
 ConfigManager::ConfigManager() {
 }
@@ -32,13 +33,15 @@ void ConfigManager::load(json def, bool lock) {
         return;
     }
 
+    auto filesize = std::filesystem::file_size(path);
     try {
         std::ifstream file(wstr::str2wstr(path));
         file >> conf;
         file.close();
     }
     catch (std::exception e) {
-        flog::error("Config file '{0}' is corrupted, resetting it", path);
+        flog::error("Config file '{}' with size={} is corrupted ({}), resetting it", path, filesize, e.what());
+        usleep(3000000);
         conf = def;
         save(false);
     }
