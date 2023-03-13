@@ -4,6 +4,7 @@
 #include "pfx_sfx.h"
 #include "decoderpom.h"
 #include <functional>
+#include <utils/strings.h>
 
 char mshv_chars[256];
 char mshv_chars_m1[256];
@@ -173,29 +174,6 @@ void QString::replace(const char* string, const char* string1) {
     return replace(string, string1);
 }
 
-static void splitString(const std::string & str, char sep, const std::function<void(const std::string&)> &callback) {
-    const char *c = str.data();
-    size_t limit = str.length();
-    if (limit == 0) {
-        return;
-    }
-    long long start = 0;
-    for (long long i = 0; i < limit; i++) {
-        if (i == limit - 1) {
-            if (c[i] == sep) {
-                callback(std::string(c + start, i - start));
-            } else {
-                callback(std::string(c + start, i - start + 1));
-            }
-            break;
-        }
-        if (c[i] == sep) {
-            callback(std::string(c + start, i - start));
-            start = i + 1;
-        }
-    }
-}
-
 
 QStringList QString::split(const char* separ) const {
     if (strlen(separ) != 1) {
@@ -209,7 +187,7 @@ QStringList QString::split(const char* separ) const {
     while(!ns.empty() && ns[ns.length()-1] == separ[0]) {
         ns = ns.substr(0, ns.length()-1);
     }
-    splitString(ns, separ[0], [&](const std::string& s) {
+    splitString(ns, separ, [&](const std::string& s) {
         rv.list->emplace_back(s);
     });
     return rv;

@@ -5,6 +5,7 @@
 #include <utils/riff.h>
 #include "symbolic.h"
 #include <utils/wstr.h>
+#include <utils/strings.h>
 
 #ifdef __linux__
 #include <unistd.h>

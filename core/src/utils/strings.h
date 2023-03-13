@@ -29,7 +29,7 @@ inline void splitString(const std::string & str, const char *sep, const std::fun
 
 
 
-void splitStringV(const std::string & str, const char *sep, std::vector<std::string> &dest) {
+inline void splitStringV(const std::string & str, const char *sep, std::vector<std::string> &dest) {
     dest.clear();
     splitString(str,sep,[&](const std::string &str) {
         dest.emplace_back(str);

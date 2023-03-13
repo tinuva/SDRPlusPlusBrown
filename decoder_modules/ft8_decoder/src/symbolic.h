@@ -6,9 +6,6 @@
 
 std::string extractCallsignFromFT8(const std::string &message);
 
-void splitString(const std::string & str, const char *sep, const std::function<void(const std::string&)> &callback);
-void splitStringV(const std::string & str, const char *sep, std::vector<std::string> &dest);
-
 struct LatLng {
     double lat;
     double lon;
