@@ -252,7 +252,7 @@ private:
                 try {
                     audio2.openStream(nullptr, &inputParameters, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback2, this, &opts);
                     audio2.startStream();
-                    flog::info("RtAudio input stream open");
+                    flog::info("RtAudio2 input stream open");
                 }
                 catch (RtAudioError& e) {
                     flog::error("Could not open INPUT audio device: {}", e.getMessage());
@@ -282,6 +282,7 @@ private:
         stereoPacker.stop();
         monoPacker.out.stopReader();
         stereoPacker.out.stopReader();
+
         if (audio2.isStreamRunning()) {
             flog::info("Stopping RtAudio-2 stream p.3");
             audio2.stopStream();

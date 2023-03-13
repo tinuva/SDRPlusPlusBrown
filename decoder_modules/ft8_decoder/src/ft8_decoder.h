@@ -57,7 +57,7 @@ namespace dsp {
             core::configManager.release(false);
             auto decoderPath = modules+"/../../sdrpp_ft8_mshv";
 #ifdef _WIN32
-            decoderPath += ".exe";
+            decoderPath = modules + "/../sdrpp_ft8_mshv.exe";
             auto cmd = decoderPath + " --decode " + wavPath + " --mode " + mode;
             std::replace(cmd.begin(), cmd.end(), '/', '\\');
             flog::info("FT8decoder: spawn: {}", cmd);

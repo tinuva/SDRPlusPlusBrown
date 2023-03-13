@@ -1,3 +1,12 @@
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2ipdef.h>
+#include <ws2tcpip.h>
+inline void usleep(int micros) {
+    Sleep(micros / 1000);
+}
+#endif
+
 #include <imgui.h>
 #include <utils/flog.h>
 #include <module.h>

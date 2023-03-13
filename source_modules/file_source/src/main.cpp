@@ -11,6 +11,7 @@
 #include <gui/tuner.h>
 #include <iostream>
 #include <time.h>
+#include <ctime>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -228,10 +229,12 @@ private:
         if (pos == std::string::npos) return 0;
         std::string dateTimeStre = filename.substr(pos+3, 19);
         std::tm tm;
+        memset(&tm, 0, sizeof(tm));
         char* end;
 #ifdef _WIN32
         int n = sscanf(dateTimeStre.c_str(), "%d-%d-%d_%d-%d-%d", &tm.tm_hour, &tm.tm_min, &tm.tm_sec, &tm.tm_mday, &tm.tm_mon, &tm.tm_year);
         tm.tm_mon--;
+        tm.tm_year-=1900;
         if (n == 6) {
             end = nullptr;
         }
@@ -243,7 +246,10 @@ private:
 #endif
         if (!end || *end == 0) {
             std::time_t t1 = std::mktime(&tm);
-            std::cout << std::asctime(&tm) << '\n';
+            if (t1 < 0) {
+                return 0;
+            }
+                //            std::cout << std::asctime(&tm) << '\n';
             return ((long long)t1) * 1000;
         } else {
             return 0;
