@@ -426,6 +426,8 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["moduleInstances"]["SoapySDR Source"]["enabled"] = true;
     defConfig["moduleInstances"]["SpyServer Source"]["module"] = "spyserver_source";
     defConfig["moduleInstances"]["SpyServer Source"]["enabled"] = true;
+    defConfig["moduleInstances"]["KiwiSDR Source"]["module"] = "kiwisdr_source";
+    defConfig["moduleInstances"]["KiwiSDR Source"]["enabled"] = true;
     defConfig["moduleInstances"]["PlutoSDR Source"]["module"] = "plutosdr_source";
     defConfig["moduleInstances"]["PlutoSDR Source"]["enabled"] = true;
     defConfig["moduleInstances"]["HL2 Source"]["module"] = "hl2_source";
@@ -523,6 +525,7 @@ int sdrpp_main(int argc, char* argv[]) {
     core::configManager.conf["modules"][modCount++] = "rtl_tcp_source.so";
     core::configManager.conf["modules"][modCount++] = "sdrpp_server_source.so";
     core::configManager.conf["modules"][modCount++] = "spyserver_source.so";
+    core::configManager.conf["modules"][modCount++] = "kiwisdr_source.so";
 
     core::configManager.conf["modules"][modCount++] = "network_sink.so";
     core::configManager.conf["modules"][modCount++] = "audio_sink.so";
