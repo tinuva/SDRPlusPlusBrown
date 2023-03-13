@@ -129,9 +129,11 @@ public:
 
         afsplitter.start();
 
-        for(auto &s: streams) {
-            s->start();
-        }
+//        if (sigpath::sinkManager.configured) { // not start streams unless sinkmanager is ready
+            for (auto& s : streams) {
+                s->start();
+            }
+//        }
 
         // Register the menu
         gui::menu.registerEntry(name, menuHandler, this, this);

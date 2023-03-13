@@ -334,16 +334,19 @@ void SinkManager::loadStreamConfig(std::string name) {
     if (providers.find(provName) == providers.end()) {
         provName = providerNames[0];
     }
-    if (stream->running) {
-        stream->sink->stop();
-    }
-    delete stream->sink;
-    SinkManager::SinkProvider prov = providers[provName];
-    stream->providerId = std::distance(providerNames.begin(), std::find(providerNames.begin(), providerNames.end(), provName));
-    stream->providerName = provName;
-    stream->sink = prov.create(stream, name, prov.ctx);
-    if (stream->running) {
-        stream->sink->start();
+    long newProvider = std::distance(providerNames.begin(), std::find(providerNames.begin(), providerNames.end(), provName));
+    if (newProvider != stream->providerId) {
+        if (stream->running) {
+            stream->sink->stop();
+        }
+        delete stream->sink;
+        SinkManager::SinkProvider prov = providers[provName];
+        stream->providerId = newProvider;
+        stream->providerName = provName;
+        stream->sink = prov.create(stream, name, prov.ctx);
+        if (stream->running) {
+            stream->sink->start();
+        }
     }
     stream->setVolume(conf["volume"]);
     stream->volumeAjust.setMuted(conf["muted"]);
