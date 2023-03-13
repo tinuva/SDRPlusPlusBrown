@@ -349,7 +349,9 @@ void MainWindow::drawUpperLine(ImGui::WaterfallVFO* vfo) {
     else { // TODO: Might need to check if there even is a device
         ImGui::PushID(ImGui::GetID("sdrpp_play_btn"));
         if (ImGui::ImageButton(icons::PLAY, btnSize, ImVec2(0, 0), ImVec2(1, 1), 5, ImVec4(0, 0, 0, 0), textCol) || ImGui::IsKeyPressed(ImGuiKey_End, false)) {
-            setPlayState(true);
+            if (!playButtonLocked) {
+                setPlayState(true);
+            }
         }
         ImGui::PopID();
     }

@@ -273,8 +273,12 @@ namespace core {
 
 };
 
+extern void test1();
+
 // main
 int sdrpp_main(int argc, char* argv[]) {
+
+//    test1();
 #ifdef _WIN32
     setlocale(LC_ALL, ".65001"); // Set locale to UTF-8
 #endif
@@ -426,6 +430,8 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["moduleInstances"]["PlutoSDR Source"]["enabled"] = true;
     defConfig["moduleInstances"]["HL2 Source"]["module"] = "hl2_source";
     defConfig["moduleInstances"]["HL2 Source"]["enabled"] = true;
+    defConfig["moduleInstances"]["KiwiSDR Source"]["module"] = "kiwisdr_source";
+    defConfig["moduleInstances"]["KiwiSDR Source"]["enabled"] = true;
 
     defConfig["moduleInstances"]["Audio Sink"] = "audio_sink";
     defConfig["moduleInstances"]["Network Sink"] = "network_sink";

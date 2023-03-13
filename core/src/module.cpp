@@ -44,7 +44,15 @@ ModuleManager::Module_t ModuleManager::loadModule(std::string path) {
     mod.deleteInstance = (void (*)(Instance*))GetProcAddress(mod.handle, "_DELETE_INSTANCE_");
     mod.end = (void (*)())GetProcAddress(mod.handle, "_END_");
 #else
-    mod.handle = dlopen(path.c_str(), RTLD_LAZY | RTLD_LOCAL);
+    try {
+        mod.handle = dlopen(path.c_str(), RTLD_LAZY | RTLD_LOCAL);
+    } catch(std::exception& e) {
+        flog::error("Couldn't load {}: {}", path, e.what());
+        mod.handle = NULL;
+    } catch(...) {
+        flog::error("Couldn't load {0}.", path);
+        mod.handle = NULL;
+    }
     if (mod.handle == NULL) {
         char *err = dlerror();
         flog::error("Couldn't load {0}: {1}.", path, err);
@@ -94,6 +102,7 @@ ModuleManager::Module_t ModuleManager::loadModule(std::string path) {
     }
     mod.init();
     modules[mod.info->name] = mod;
+    flog::info(" ..... ok {}", path);
     return mod;
 }
 

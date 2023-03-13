@@ -36,6 +36,9 @@ namespace dsp {
         }
 
         virtual void setBufferSize(int samples) {
+            if (!writeBuf) {
+                abort();
+            }
             buffer::free(writeBuf);
             buffer::free(readBuf);
             writeBuf = buffer::alloc<T>(samples);
