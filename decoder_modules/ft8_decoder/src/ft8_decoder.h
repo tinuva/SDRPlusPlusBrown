@@ -1,27 +1,29 @@
 #pragma once
 
 #include <core.h>
+#include <iostream>
 #include <utils/wav.h>
 #include <utils/riff.h>
 #include "symbolic.h"
 #include <utils/wstr.h>
 #include <utils/strings.h>
+#include <fcntl.h>
 
 #ifdef __linux__
 #include <unistd.h>
 #include <wait.h>
-#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
 #endif
 
 #ifdef __APPLE__
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include <fcntl.h>
+#endif
 
+#ifdef _WIN32
+#include <io.h>
 #endif
 
 // extern int four2a_d2c_cnt;
@@ -36,6 +38,80 @@ namespace dsp {
 
     namespace ft8 {
 
+#ifdef _WIN32
+
+        void PrintLastError(const std::string &ctx) {
+            DWORD errorCode = GetLastError();
+            if (errorCode != 0) {
+                LPVOID lpMsgBuf;
+                DWORD msgLength = FormatMessage(
+                    FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                    NULL,
+                    errorCode,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                    (LPTSTR)&lpMsgBuf,
+                    0,
+                    NULL);
+
+                if (msgLength > 0) {
+                    flog::error("{} - ERROR: {}", ctx, lpMsgBuf);
+                    LocalFree(lpMsgBuf);
+                }
+                else {
+                    flog::error("{} - ERROR {} - Failed to retrieve error message.", ctx, (int64_t)errorCode);
+                }
+            }
+        }
+
+        FILE* popen_gpt4(const char* command, const char* type) {
+            // gpt4 was just released (today).
+            SECURITY_ATTRIBUTES sa;
+            sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+            sa.lpSecurityDescriptor = NULL;
+            sa.bInheritHandle = TRUE;
+
+            HANDLE readPipe, writePipe;
+            if (!CreatePipe(&readPipe, &writePipe, &sa, 0)) {
+                PrintLastError("popen - CreatePipe");
+                return NULL;
+            }
+
+            PROCESS_INFORMATION pi;
+            STARTUPINFO si;
+            ZeroMemory(&si, sizeof(STARTUPINFO));
+            si.cb = sizeof(STARTUPINFO);
+            si.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
+            si.wShowWindow = SW_HIDE;
+
+            if (type[0] == 'r') {
+                si.hStdOutput = writePipe;
+                si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+                si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+            }
+            else {
+                si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+                si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+                si.hStdInput = readPipe;
+            }
+
+            if (!CreateProcess(NULL, const_cast<char*>(command), NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+                PrintLastError("popen - CreateProcess");
+                return NULL;
+            }
+
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
+
+            if (type[0] == 'r') {
+                CloseHandle(writePipe);
+                return _fdopen(_open_osfhandle((intptr_t)readPipe, _O_RDONLY), type);
+            }
+            else {
+                CloseHandle(readPipe);
+                return _fdopen(_open_osfhandle((intptr_t)writePipe, _O_WRONLY), type);
+            }
+        }
+#endif
 
         enum {
             DMS_FT8 = 11
@@ -61,7 +137,7 @@ namespace dsp {
             auto cmd = decoderPath + " --decode " + wavPath + " --mode " + mode;
             std::replace(cmd.begin(), cmd.end(), '/', '\\');
             flog::info("FT8decoder: spawn: {}", cmd);
-            FILE* data = _popen(cmd.c_str(), "r");
+            FILE* data = popen_gpt4(cmd.c_str(), "r");
             int count = 0;
             if (data) {
                 char line[4096];
