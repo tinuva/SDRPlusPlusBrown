@@ -13,7 +13,6 @@ inline void usleep(int micros) {
 #include <gui/gui.h>
 #include <signal_path/signal_path.h>
 #include <core.h>
-#include <bit>
 #include <gui/style.h>
 #include <config.h>
 #include <gui/widgets/stepped_slider.h>
