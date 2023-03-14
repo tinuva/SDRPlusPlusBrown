@@ -96,7 +96,7 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
             if (start == "MSG") {
                 flog::info("BIN/MSG: {} text: {}", msg.size(), msg);
             } else if (start == "SND") {
-                flog::info("{} Got sound: bytes={} )", (int64_t)currentTimeMillis(), msg.size());
+                flog::info("{} Got sound: bytes={} )", (int64_t)currentTimeMillis(), (int64_t)msg.size());
                 long long int ctm = currentTimeMillis();
                 times.emplace_back(ctm);
                 int lastSecondCount = 0;

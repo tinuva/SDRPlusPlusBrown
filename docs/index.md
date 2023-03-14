@@ -26,7 +26,7 @@ Note that different features in this fork have different level of maturity. Clic
 * Unicode support in fonts (Cyrillic), filenames and installation path (UTF-8), on Windows, too.
 * For Airspy HF+, added Fill-In option which cuts far sides of the spectrum which are attenuated (low passed) by hardware.
 * For file source, added live timestamp display, matching the factual time of the recording.
-* Proof of concept KiwiSDR support, no options yet.
+* Proof of concept KiwiSDR support (12 KHz bandwidth), no options yet.
 * [Multiple output audio devices support](#multiple-output-audio-devices-support). Output to the left or right channel only.
 * [More display scaling factors](#more-display-scaling-factors). Output to the left or right channel only.
 * [Bandwidth slider](#bandwidth-slider) to easily edit bandwidth on touch devices and not only.
@@ -34,21 +34,20 @@ Note that different features in this fork have different level of maturity. Clic
 ## Improved rendering performance
 
 In contrast to current upstream, this fork does not send full waterfall image to GPU on each frame, which is important 
-for 4K monitors, where it burns significantly less CPU. Instead, it is implemented as tiles, and it sends 
-updates only to the single tile.
+for 4K monitors; it burns significantly less CPU by implementing waterfall as tiles and sending 
+updates only to the single tile, thus reducing system memory bandwidth.
 
 Also, zooming and re-generation of waterfall is faster by 2-3 times by employing more optimal routines, 
-which can be noticed on 4K monitors. Note, upstream author promises to implement scaling in shader, which is going to 
-be even better than all this.
+which can be noticed on wider SDR bandwidths. Note: upstream author promises to implement scaling in shader, 
+which is going to be even better than all this.
 
 ## Bundled FT8 decoder
 
-Taken from great [MSHV project](http://lz2hv.org/mshv), stripped out of the Qt spaghetti, keeping the spirit of Fortran code but with C++
-syntax, pure decoder currently supports FT4/FT8 simultaneous decoding. You enter your location, and you get decodes
-instantly, you can even scan the band elsewhere, they are grouped by the distance, so you can 
+Reused from great [MSHV project](http://lz2hv.org/mshv), stripped out of the Qt spaghetti, made lightweight, 
+keeping the spirit of Fortran legacy but with C++ syntax, pure decoder currently supports FT4/FT8 simultaneous decoding. 
+You enter your location, and you get decodes instantly, you can even scan the band elsewhere, they are grouped by the distance, so you can 
 immediately see the band condition and your antenna performance. Concurrent FT4/FT8 decoding is supported. Decoder is 
 implemented as standalone binary.
-
 
 ![](ft8-decodes.jpg)
 
@@ -125,7 +124,7 @@ The Volume slider is smaller, the frequency selection is shrunk to sub-GHz range
 
 ## Bandwidth slider
 
-On touch devices, it is hard to select the bandwidth with the slider on the waterfall. 
+On touch devices, it is hard to select the bandwidth directly on the waterfall. 
 This is why slider has been added on the menu side. Large values outside of slider can 
 still be entered manually.
 
