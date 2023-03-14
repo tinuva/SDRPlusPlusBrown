@@ -1,5 +1,5 @@
 
-# SDR++ (sannysanoff fork), The bloat-free SDR software<br>
+# SDR++ (Brown fork), The bloat-free SDR software
 
 [Changelog](changelog.md)
 
@@ -8,12 +8,14 @@ Please see [upstream project page](https://github.com/AlexandreRouma/SDRPlusPlus
 ## Thanks
 
 Thanks and due respect to original author, Alexandre Rouma, for his great work. 
+
 Thanks and due respect to the MSHV author, LZ2HV, for his great work.
+
 Thanks and due respect to logmmse/python authors for their great work.
 
 ## Feedback
 
-``Have an issue? Works worse than original? File an [issue](https://github.com/sannysanoff/SDRPlusPlus/issues).
+Have an issue? Works worse than original? File an [issue](https://github.com/sannysanoff/SDRPlusPlusBrown/issues).
 
 ## Debugging reminders
 

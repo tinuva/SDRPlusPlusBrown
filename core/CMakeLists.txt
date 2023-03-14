@@ -19,6 +19,7 @@ list(FILTER SRC EXCLUDE REGEX "sdrpp_ft8_mshv_main.cpp" )
 
 
 add_definitions(-DSDRPP_IS_CORE)
+add_definitions(-DFLOG_ANDROID_TAG="SDR++")
 if (MSVC)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif ()
