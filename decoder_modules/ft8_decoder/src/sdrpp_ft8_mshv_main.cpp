@@ -14,6 +14,7 @@
 #include "ft8_etc/decoderms.h"
 #include "symbolic.h"
 #include <utils/wstr.h>
+#include <utils/strings.h>
 
 extern void doDecode(const char *mode, const char *path, std::function<void(int mode, std::vector<std::string> result)> callback);
 
