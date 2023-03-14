@@ -3,7 +3,7 @@ project(ft8_decoder)
 
 
 file(GLOB_RECURSE SRC "src/*.cpp" "src/*.c" ../../misc_modules/recorder/src/wav.cpp ../../misc_modules/recorder/src/riff.cpp)
-list(FILTER SRC EXCLUDE REGEX "sdrpp_ft8_mshv_main.cpp" )
+list(FILTER SRC EXCLUDE REGEX "sdrpp_ft8_mshv_main.cpp")
 #list(FILTER SRC EXCLUDE REGEX "ft8_etc/*" )
 
 add_library(ft8_decoder SHARED ${SRC})
@@ -24,13 +24,14 @@ endif ()
 install(TARGETS ft8_decoder DESTINATION lib/sdrpp/plugins)
 
 file(GLOB_RECURSE SDRPP_FT8MSHV_SRC src/*.cpp src/*.c EXCLUDE main.c)
-list(FILTER SDRPP_FT8MSHV_SRC EXCLUDE REGEX "main.c*" )
+list(FILTER SDRPP_FT8MSHV_SRC EXCLUDE REGEX "main.c*")
 
-if (ZZMSVC)
-add_executable(sdrpp_ft8_mshv WIN32 "src/sdrpp_ft8_mshv_main.cpp" "src/sdrpp_ft8_mshv.cpp" ${SDRPP_FT8MSHV_SRC})
-else()
-add_executable(sdrpp_ft8_mshv "src/sdrpp_ft8_mshv_main.cpp" "src/sdrpp_ft8_mshv.cpp" ${SDRPP_FT8MSHV_SRC})
-endif()
+if (MSVC)
+    # winmain-type code
+    add_executable(sdrpp_ft8_mshv WIN32 "src/sdrpp_ft8_mshv_main.cpp" "src/sdrpp_ft8_mshv.cpp" ${SDRPP_FT8MSHV_SRC})
+else ()
+    add_executable(sdrpp_ft8_mshv "src/sdrpp_ft8_mshv_main.cpp" "src/sdrpp_ft8_mshv.cpp" ${SDRPP_FT8MSHV_SRC})
+endif ()
 
 target_include_directories(sdrpp_ft8_mshv PUBLIC "../../core/src")
 
@@ -46,7 +47,7 @@ if (MSVC)
 
     # FFTW3
     find_package(FFTW3f CONFIG REQUIRED)
-    target_link_libraries(sdrpp_ft8_mshv PUBLIC FFTW3::fftw3f )
+    target_link_libraries(sdrpp_ft8_mshv PUBLIC FFTW3::fftw3f)
 
     # WinSock2
     target_link_libraries(sdrpp_ft8_mshv PUBLIC wsock32 ws2_32 iphlpapi)
@@ -63,7 +64,7 @@ elseif (ANDROID)
             android
             )
 
-else()
+else ()
     find_package(PkgConfig)
     pkg_check_modules(FFTW3 REQUIRED fftw3f)
     pkg_check_modules(VOLK REQUIRED volk)
@@ -83,7 +84,7 @@ else()
             ${VOLK_LIBRARIES}
             )
 
-endif()
+endif ()
 
 #target_link_options(test0 PUBLIC -fsanitize=memory)
 
@@ -94,10 +95,10 @@ if (ANDROID)
     add_custom_command(TARGET sdrpp_ft8_mshv POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E time ${CMAKE_CURRENT_LIST_DIR}/android_pack.sh $<TARGET_FILE:sdrpp_ft8_mshv> ${CMAKE_CURRENT_LIST_DIR}
             )
-endif()
+endif ()
 
-set(TARGETS sdrpp_ft8_mshv )
-foreach(TGT IN LISTS TARGETS)
+set(TARGETS sdrpp_ft8_mshv)
+foreach (TGT IN LISTS TARGETS)
     if (MSVC)
         target_compile_options(${TGT} PRIVATE /std:c++17 /EHsc)
     elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -105,5 +106,5 @@ foreach(TGT IN LISTS TARGETS)
     else ()
         target_compile_options(${TGT} PRIVATE -std=c++17)
     endif ()
-endforeach()
+endforeach ()
 
