@@ -23,10 +23,10 @@ static void help(const char *cmd) {
     exit(1);
 }
 
-#ifdef _ZWIN32
+#ifdef _WIN32
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
     auto args = wstr::wstr2str(std::wstring(pCmdLine));
-    args = "--decode C:\\Temp\\sdrpp_ft8_mshv.wav.132 --mode ft8";
+//    args = "--decode C:\\Temp\\sdrpp_ft8_mshv.wav.132 --mode ft8";
     std::vector<std::string> argsV;
     splitStringV(args, " ", argsV);
     std::vector<const char*> argv;

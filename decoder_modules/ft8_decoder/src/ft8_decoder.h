@@ -291,6 +291,10 @@ namespace dsp {
 
             invokeDecoder(mode, wavPath, outPath, errPath, callback, progress);
 
+            std::filesystem::remove(wavPath);
+            std::filesystem::remove(outPath);
+            std::filesystem::remove(errPath);
+
             return;
         }
     }

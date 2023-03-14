@@ -1,7 +1,7 @@
 
 # SDR++Brown is a fork (patch-set)
 
-* [Download](https://github.com/sannysanoff/SDRPlusPlusBrown/releases/tag/rolling) <--- here, and you may also download [older builds](https://github.com/sannysanoff/SDRPlusPlusBrown/actions), however you will need to be logged in to GitHub to download them. 
+* [Download](https://github.com/sannysanoff/SDRPlusPlusBrown/releases/tag/rolling) <--- here, and you may also download [older builds](https://github.com/sannysanoff/SDRPlusPlusBrown/actions/workflows/build_all.yml), however you will need to be logged in to GitHub to download them. 
 * [Changelog](https://github.com/sannysanoff/SDRPlusPlusBrown/blob/master/changelog.md)
 * [Source code](https://github.com/sannysanoff/SDRPlusPlusBrown/)
 * [Читать описание по-русски](https://sdrpp--brown-san-systems.translate.goog/?_x_tr_sch=http&_x_tr_sl=en&_x_tr_tl=ru&_x_tr_hl=en&_x_tr_pto=wapp) через гугл-переводчик, норм переводит, я подстраивался.
@@ -32,6 +32,7 @@ read on below.
 * [Multiple output audio devices support](#multiple-output-audio-devices-support). Also, possibility to output to the left or right channel only.
 * [More display scaling factors](#more-display-scaling-factors). 
 * [Bandwidth change slider](#bandwidth-slider) to easily edit bandwidth on touch devices.
+* [TCI connector](#tci-connector) (basic), output only. Tested to work with MSHV. 
 * [Roadmap](#roadmap)
 
 ## Improved rendering performance
@@ -135,6 +136,15 @@ This is why slider has been added on the menu side. Large values outside of slid
 still be entered manually.
 
 ![](bandwidth-slider.jpg)
+
+## TCI connector
+
+This is a basic implementation of TCI connector, which is a protocol for remote control of transceivers. It 
+allows uni-directional communication from SDR++ to the transceiver. It supports both audio and wideband
+data transfer to the programs. It works for me, it has not been tested by anyone else. Please become a tester.
+Demand the TCI support from the software you use!
+
+![](tci-interface.jpg)
 
 
 ## Roadmap
