@@ -1,7 +1,12 @@
 
-# SDR++Brown is a fork (patch-set) 
+# SDR++Brown is a fork (patch-set)
 
-Upstream project is also very good, please check it out [by clicking here](http://sdrpp.org). I cannot recomend it enough. 
+* [Download](https://github.com/sannysanoff/SDRPlusPlusBrown/releases/tag/rolling)
+* [Changelog](https://github.com/sannysanoff/SDRPlusPlusBrown/blob/master/changelog.md)
+* [Source code](https://github.com/sannysanoff/SDRPlusPlusBrown/)
+
+Upstream project is also very good, I am standing on the shoulders of the giants (Alexandre Rouma and others) 
+please check it out [by clicking here](http://sdrpp.org). I cannot recomend it enough. 
 SDR++Brown is maintaining all original features from it, synchronizing the source code on regular basis.
 
 However, this fork adds several features that could not find their way into the upstream. It is also observed that addition 
