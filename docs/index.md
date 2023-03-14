@@ -1,35 +1,42 @@
 
 # SDR++Brown is a fork (patch-set)
 
-* [Download](https://github.com/sannysanoff/SDRPlusPlusBrown/releases/tag/rolling)
+* [Download](https://github.com/sannysanoff/SDRPlusPlusBrown/releases/tag/rolling) <--- here, and you may also download [older builds](https://github.com/sannysanoff/SDRPlusPlusBrown/actions), however you need to be logged in to GitHub to download them. 
 * [Changelog](https://github.com/sannysanoff/SDRPlusPlusBrown/blob/master/changelog.md)
 * [Source code](https://github.com/sannysanoff/SDRPlusPlusBrown/)
 
 Upstream project is also very good, I am standing on the shoulders of the giants (Alexandre Rouma and others) 
 please check it out [by clicking here](http://sdrpp.org). I cannot recomend it enough. 
-SDR++Brown is maintaining all original features from it, synchronizing the source code on regular basis.
 
-However, this fork adds several features that could not find their way into the upstream. It is also observed that addition 
-of some features in this fork improves the chances of same features appearance in the upstream!     
+SDR++Brown is maintaining all original features from it, synchronizing the source code on regular basis. Because
+it is less tested (smaller user base), you can expect bugs.
+
+However, this fork adds several features which could not find their way into the upstream. 
+It has also been observed that addition of some features in this fork improves the chances of same features appearance in the upstream!     
 
 Note that different features in this fork have different level of maturity. Click for more details.
 
-* [Improved rendering speed](#improved-rendering-speed)
+* [Even more improved rendering performance](#improved-rendering-performance)
 * [Bundled FT8 decoder](#bundled-ft8-decoder) - extracted from MSHV code, slightly tweaked.
-* [Hermes Lite 2 support](#hermes_lite_2_support) - hl2_source plugin.
+* [Hermes Lite 2 support](#hermes-lite-2-support) - hl2_source plugin.
 * [Transmit mode](#transmit-mode) for Hermes Lite 2 - at the time of the writing, basic SSB transmit is implemented.
 * [SNR Chart](#snr-chart) to compare SNR while tweaking antennas, denoising etc.
 * Saving of zoom parameter between sessions
 * Mouse wheel support on the sliders
 * Unicode support in fonts (Cyrillic), filenames and installation path (UTF-8), on Windows, too.
+* For Airspy HF+, added Fill-In option which cuts far sides of the spectrum which are attenuated (low passed) by hardware.
+* For file source, added live timestamp display, matching the factual time of the recording.
+* Proof of concept KiwiSDR support, no options yet.
 * [Multiple output audio devices support](#multiple-output-audio-devices-support). Output to the left or right channel only.
-* [More display scaling factors](#multiple-output-audio-devices-support). Output to the left or right channel only.
+* [More display scaling factors](#more-display-scaling-factors). Output to the left or right channel only.
 * [Bandwidth slider](#bandwidth-slider) to easily edit bandwidth on touch devices and not only.
 
-## Improved rendering speed
+## Improved rendering performance
 
 In contrast to current upstream, this fork does not send full waterfall image to GPU on each frame, which is important 
-for 4K monitors, where it burns significantly less CPU. Instead, it is tiling it and sends updates only to the one tile. 
+for 4K monitors, where it burns significantly less CPU. Instead, it is implemented as tiles, and it sends 
+updates only to the single tile.
+
 Also, zooming and re-generation of waterfall is faster by 2-3 times by employing more optimal routines, 
 which can be noticed on 4K monitors. Note, upstream author promises to implement scaling in shader, which is going to 
 be even better than all this.
@@ -50,7 +57,9 @@ implemented as standalone binary.
 
 Noise reduction (logmmse_noise_reduction plugin) works fine for AM/SSB/CW, this is C++ port of 
 the [python implementation](https://pypi.org/project/logmmse/). It was made adaptive, so it does not require "silience" training
-like original one. SDR++Brown is, af ar as I know, the only place where you can apply noise 
+like original one. 
+
+It is remarkable that SDR++Brown is, af ar as I know, the only place where you can apply noise 
 reduction to whole wideband and see it reflected in the waterfall. 
 Secondary noise reduction can be applied independently on the audio stream, improving (or distorting) 
 sound even more. Note that it will have small or, more likely, negative effect on the digital modes, 

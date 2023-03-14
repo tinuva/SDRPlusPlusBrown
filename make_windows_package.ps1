@@ -53,7 +53,7 @@ cp $build_dir/source_modules/soapy_source/Release/soapy_source.dll sdrpp_windows
 
 cp $build_dir/source_modules/spyserver_source/Release/spyserver_source.dll sdrpp_windows_x64/modules/
 
-# cp $build_dir/source_modules/usrp_source/Release/usrp_source.dll sdrpp_windows_x64/modules/
+cp $build_dir/decoder_modules/kiwisdr_source/Release/kiwisdr_source.dll sdrpp_windows_x64/modules/
 
 
 # Copy sink modules
@@ -66,7 +66,6 @@ cp $build_dir/sink_modules/network_sink/Release/network_sink.dll sdrpp_windows_x
 # Copy decoder modules
 cp $build_dir/decoder_modules/m17_decoder/Release/m17_decoder.dll sdrpp_windows_x64/modules/
 cp $build_dir/decoder_modules/ft8_decoder/Release/ft8_decoder.dll sdrpp_windows_x64/modules/
-cp $build_dir/decoder_modules/kiwisdr_decoder/Release/kiwisdr_decoder.dll sdrpp_windows_x64/modules/
 cp $build_dir/decoder_modules/ft8_decoder/Release/sdrpp_ft8_mshv.exe sdrpp_windows_x64/
 cp "C:/Program Files/codec2/lib/libcodec2.dll" sdrpp_windows_x64/
 
