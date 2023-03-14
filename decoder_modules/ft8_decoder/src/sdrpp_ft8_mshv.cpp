@@ -28,6 +28,7 @@
 #endif
 
 #include <utils/usleep.h>
+#include <utils/strings.h>
 
 namespace ft8 {
 
