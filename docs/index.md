@@ -7,14 +7,23 @@
 * [Читать описание по-русски](https://sdrpp--brown-san-systems.translate.goog/?_x_tr_sch=http&_x_tr_sl=en&_x_tr_tl=ru&_x_tr_hl=en&_x_tr_pto=wapp) через гугл-переводчик, норм переводит, я подстраивался.
 * [Telegram channel](https://t.me/sdrpp_hermes_fork) for feedback.
 
-Main project is also very good, I am standing on the shoulders of the giants (Alexandre Rouma and others) 
+## What is SDR++ (and its fork)
+
+This is the software that allows display and decoding of radio frequency signals on PC and Android. To run the software, you
+need the hardware that can receive radio signals, such as [RTL-SDR](https://www.rtl-sdr.com/), [Airspy](https://airspy.com/).
+If you're not lucky enough, you can use [KiwiSDR](https://kiwisdr.com/) or [WebSDR](https://websdr.org/) to see how it feels.
+(However, you're lucky enough to use KiwiSDR without its web part now, because SDR++Brown begins to support it now.)
+
+## Why fork?
+
+Main project is very good, so I am standing on the shoulders of the giants (Alexandre Rouma and others) 
 please check it out [by clicking here](http://sdrpp.org). My best recommendations. 
 
-SDR++Brown is maintaining all original features from main project, the synchronization of the source code happens on regular basis. 
-Because it is less tested (smaller user base), you can find occasional bugs.
+However, this Brown fork adds several features which could not find their way into the main project. 
+It has also been observed that addition of some features in this fork improves the chances of same features appearance in the main project!
 
-However, this fork adds several features which could not find their way into the main project. 
-It has also been observed that addition of some features in this fork improves the chances of same features appearance in the main project!     
+SDR++Brown is maintaining all original features from main project, the synchronization of the source code happens on regular basis.
+Because it is less tested (smaller user base), you can find occasional bugs.
 
 Note that different features in this fork have different level of readiness. Click for more details on each feature, or 
 read on below.
