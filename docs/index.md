@@ -32,7 +32,7 @@ read on below.
 * [Multiple output audio devices support](#multiple-output-audio-devices-support). Also, possibility to output to the left or right channel only.
 * [More display scaling factors](#more-display-scaling-factors). 
 * [Bandwidth change slider](#bandwidth-slider) to easily edit bandwidth on touch devices.
-* [TCI connector](#tci-connector) (basic), output only. Tested to work with MSHV. 
+* [TCI protocol](#tci-protocol) (basic), output only. Tested to work with MSHV software. 
 * [Roadmap](#roadmap)
 
 ## Improved rendering performance
@@ -48,11 +48,11 @@ which is going to be even better than all this.
 ## Bundled FT8 decoder
 
 Borrowed from great [MSHV project](http://lz2hv.org/mshv), stripped out of the Qt-specific code, made lightweight, 
-keeping the spirit of Fortran legacy but with C++ syntax, this pure decoder currently supports FT4/FT8 simultaneous decoding. 
-You enter your location, and you get decodes instantly, they are grouped by the distance. 
-You can even tune to the band elsewhere, it will keep decoding. 
-Using this decoder, you can immediately see the band condition and your antenna performance, because FT8-addicted ham operators are always on the air. 
-Simultaneous FT4 / FT8 decoding is supported. Decoder is implemented as standalone executable. Detection of secondary streams 
+keeping the spirit of Fortran legacy but with C++ syntax, this pure decoder currently supports FT4 and FT8 modes. 
+You enter your location, and you get decodes grouped by the distance. 
+You can even tune on the other frequency, it will keep decoding, while it's within the SDR wideband. 
+Using this decoder, you can immediately see the band condition and your antenna performance, because FT8-addicted ham operators are always on the air and fill it with their 
+signals. Simultaneous FT4/FT8 decoding is supported. Decoder is implemented as standalone executable. Detection of secondary streams 
 (appearing during DX expedtions) is planned.
 
 ![](ft8-decodes.jpg)
@@ -76,12 +76,12 @@ FM modulated signal etc.
 ## Hermes Lite 2 support
 
 This small device, produced by [Hermes Project](http://www.hermeslite.com/) is an interesting good SDR receiver. 
-Made of cheap parts, it has 12bit ADC, 5W Power amplifier, passband filters and 48KHz transmit stream. 
+Made of cheap parts, it has 12bit ADC, 5W Power amplifier, passband filters and 48KHz transmit stream bandwidth. 
 It is connected via Ethernet, so it does not require any drivers.
 
 ![](hermes-lite-2.jpg)
 
-Another implementation of same board comes from [LiteSDR project](https://www.litesdr.pp.ua/), formerly Hermes-2000, 
+Another implementation of same transciever comes from [LiteSDR project](https://www.litesdr.pp.ua/), formerly Hermes-2000, 
 that is slightly less expensive, and has alternative PA and filters schematics, also it is even smaller:
 
 ![](hermes-2000.jpg)
@@ -90,8 +90,8 @@ that is slightly less expensive, and has alternative PA and filters schematics, 
 
 Transmit mode is currently minimalistic. It supports microphone on desktop OS and built-in microphone on android. 
 It has tuning knob with physics/inertia, all what we love.
-It has UI (however functional) which is ugly to the degree it cannot be shown here at the moment in its full glory. 
-It lacks AGC on TRX and audio level. However, I already made QSO with it in the portable mode. 
+It has UI (functional enough) which is ugly to the degree it cannot be shown here at the moment in its full glory. 
+It currently lacks AGC on TRX and audio level. However, I already made QSO with it in the portable mode. 
 There's a picture from video of that historical moment (perspective corrected, fingers are distorted):
 
 ![](trx-mode.jpg)
@@ -99,7 +99,7 @@ There's a picture from video of that historical moment (perspective corrected, f
 ## SNR Chart
 
 This shows the peaks history of SNR meter, so it allows objective comparison of what was before and after you changed 
-processing or antenna. The background noise level is calculated slightly differently than in original, showing closer to 0 in the quiet areas.
+singla processing or switched between your antennas. The background noise level is calculated slightly differently than in original, showing closer to 0 in the quiet areas.
 SNR chart is part of logmmse_noise_reduction plugin
 
 ![](snr-chart.jpg)
@@ -124,7 +124,7 @@ which is detected on startup and brings proper scale factor right from beginning
 
 Even if you're not transmitting on your android phone, but still use SDR++ here, sliders on the right will adapt to the
 screen height not to cause overflow / scrollbar. They are wider for finger and re-arranged. 
-The Volume slider is smaller, the frequency selection is shrunk to sub-GHz range to make more space for the SNR indicator 
+The Volume slider was made smaller, the frequency selection was shrunk to sub-GHz range to make more space for the SNR indicator 
 (and chart). This is the default option on Android. 
 
 ![](small-screen.jpg)
@@ -137,22 +137,22 @@ still be entered manually.
 
 ![](bandwidth-slider.jpg)
 
-## TCI connector
+## TCI protocol
 
 This is a basic implementation of TCI connector, which is a protocol for remote control of transceivers. It 
-allows uni-directional communication from SDR++ to the transceiver. It supports both audio and wideband
-data transfer to the programs. It works for me, it has not been tested by anyone else. Please become a tester.
-Demand the TCI support from the software you use!
+currently allows only uni-directional communication from SDR++ to the transceiver. It supports both audio and wideband
+data transfer to the programs. It works for me, but it has not been tested by someone else. Please become a tester.
+Demand the TCI support from all other software you use!
 
 ![](tci-interface.jpg)
 
 
 ## Roadmap
 
-Direction of this fork development points towards:
+Direction of this fork development:
 
-* Keeping in sync with original project.
-* Hearing and decoding more
-* Transmitting with ease, with attention to Android, for portable operations.
-* More non-canonical and controversial ideas.
+* To keep in sync with original project.
+* To hear and decode more.
+* To Transmit with ease, with attention to Android, for portable operations.
+* To add more non-canonical and controversial ideas.
 
