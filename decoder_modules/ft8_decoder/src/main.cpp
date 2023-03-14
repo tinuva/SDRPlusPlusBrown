@@ -852,12 +852,13 @@ public:
         // PSK Reporter
         //
         ImGui::LeftLabel("PSKReporter");
-        _this->enablePSKReporter = false; // until implemented
+        ImGui::BeginDisabled();
         if (ImGui::Checkbox(CONCAT("##_enable_psk_reporter_", _this->name), &_this->enablePSKReporter)) {
             config.acquire();
             config.conf[_this->name]["enablePSKReporter"] = _this->enablePSKReporter;
             config.release(true);
         }
+        ImGui::EndDisabled();
         ImGui::SameLine();
         ImGui::Text("using callsign:");
         ImGui::SameLine();
