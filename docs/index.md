@@ -19,7 +19,7 @@ If you're not lucky enough, you can use [KiwiSDR](https://kiwisdr.com/) or [WebS
 Main project is very good, so I am standing on the shoulders of the giants (Alexandre Rouma and others) 
 please check it out [by clicking here](http://sdrpp.org). My best recommendations. 
 
-However, this Brown fork adds several features which could not find their way into the main project. 
+However, this fork adds several features which could not find their way into the main project. 
 It has also been observed that addition of some features in this fork improves the chances of same features appearance in the main project!
 
 SDR++Brown is maintaining all original features from main project, the synchronization of the source code happens on regular basis.
