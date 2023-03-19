@@ -109,22 +109,28 @@ namespace core {
         int wstatus = 0;
     };
 
-    std::unordered_map<int, SpawnCommand*> forkInProgress;
+    std::unordered_map<int, std::shared_ptr<SpawnCommand>> forkInProgress;
     std::mutex forkInProgressLock;
 
-    bool forkIt(SpawnCommand& cmd) {
+    bool forkIt(const std::shared_ptr<SpawnCommand> &cmd) {
 #ifndef _WIN32
         static std::atomic_int _seq;
         forkInProgressLock.lock();
-        cmd.seq = _seq++;
-        cmd.completed = false;
-        forkInProgress[cmd.seq] = &cmd;
+        cmd->seq = _seq++;
+        cmd->completed = false;
+        forkInProgress[cmd->seq] = cmd;
         forkInProgressLock.unlock();
-        if (sizeof(cmd) != write(forkPipe[1], &cmd, sizeof(cmd))) {
+        if (sizeof(*cmd.get()) != write(forkPipe[1], cmd.get(), sizeof(*cmd.get()))) {
             return false;
         }
 #endif
         return true;
+    }
+
+    void removeForkInProgress(int seq) {
+        forkInProgressLock.lock();
+        forkInProgress.erase(seq);
+        forkInProgressLock.unlock();
     }
 
     void cldHandler(int i) {

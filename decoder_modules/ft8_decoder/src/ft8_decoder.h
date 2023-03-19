@@ -178,18 +178,18 @@ namespace dsp {
             // non-windows code
 #ifndef _WIN32
 
-            core::SpawnCommand mydta;
-            strcpy(mydta.executable, decoderPath.c_str());
-            strcpy(mydta.args[0], decoderPath.c_str());
-            strcpy(mydta.args[1], outPath.c_str());
-            strcpy(mydta.args[2], "--decode");
-            strcpy(mydta.args[3], wavPath.c_str());
-            strcpy(mydta.args[4], "--mode");
-            strcpy(mydta.args[5], mode.c_str());
-            mydta.nargs = 6;
-            strcpy(mydta.errPath, errPath.c_str());
-            strcpy(mydta.outPath, outPath.c_str());
-            strcpy(mydta.info, mode.c_str());
+            auto mydta = std::make_shared<core::SpawnCommand>();
+            strcpy(mydta->executable, decoderPath.c_str());
+            strcpy(mydta->args[0], decoderPath.c_str());
+            strcpy(mydta->args[1], outPath.c_str());
+            strcpy(mydta->args[2], "--decode");
+            strcpy(mydta->args[3], wavPath.c_str());
+            strcpy(mydta->args[4], "--mode");
+            strcpy(mydta->args[5], mode.c_str());
+            mydta->nargs = 6;
+            strcpy(mydta->errPath, errPath.c_str());
+            strcpy(mydta->outPath, outPath.c_str());
+            strcpy(mydta->info, mode.c_str());
 
             core::forkIt(mydta);
             int nsent = 0;
@@ -201,8 +201,8 @@ namespace dsp {
 
             while (true) {
                 progress = "usleeping";
-                auto finished = mydta.completed.load();
-                if (finished && mydta.completeStatus != 0) {
+                auto finished = mydta->completed.load();
+                if (finished && mydta->completeStatus != 0) {
                     std::vector<std::string> selected;
                     selected.emplace_back("ERROR");
                     selected.emplace_back("decoder exec failed");
@@ -284,6 +284,7 @@ namespace dsp {
                     break;
                 }
             }
+            core::removeForkInProgress(mydta->seq);
             flog::info("FT8 Decoder ({}): process ended. Count messages: {}", mode, count);
             progress = "finished ok.";
 #endif // !win32

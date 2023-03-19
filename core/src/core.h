@@ -27,7 +27,8 @@ namespace core {
         int seq;
     };
 
-    SDRPP_EXPORT bool forkIt(SpawnCommand &cmd);
+    SDRPP_EXPORT bool forkIt(const std::shared_ptr<SpawnCommand> &cmd);
+    SDRPP_EXPORT void removeForkInProgress(int seq);
 
 };
 

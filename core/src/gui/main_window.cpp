@@ -412,7 +412,11 @@ void MainWindow::drawUpperLine(ImGui::WaterfallVFO* vfo) {
     ImGui::SNRMeter((vfo != NULL) ? gui::waterfall.selectedVFOSNR : 0);
 
 }
+
+int64_t lastDrawTime = 0;
+
 void MainWindow::draw() {
+    auto ctm = currentTimeMillis();
     ImGui::WaterfallVFO* vfo;
     this->preDraw(vfo);
     ImGui::Begin("Main", NULL, WINDOW_FLAGS);
@@ -456,7 +460,7 @@ void MainWindow::draw() {
     // Handle menu resize
     ImVec2 winSize = ImGui::GetWindowSize();
     ImVec2 mousePos = ImGui::GetMousePos();
-    if (!lockWaterfallControls && showMenu) {
+    if (!lockWaterfallControls && showMenu &&  ImGui::GetTopMostPopupModal() == NULL) {
         float curY = ImGui::GetCursorPosY();
         bool click = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
         bool down = ImGui::IsMouseDown(ImGuiMouseButton_Left);
@@ -518,6 +522,7 @@ void MainWindow::draw() {
 
         if (ImGui::CollapsingHeader("Debug")) {
             ImGui::Text("Frame time: %.3f ms/frame", ImGui::GetIO().DeltaTime * 1000.0f);
+            ImGui::Text("Real draw time: %lld ms", (long long)lastDrawTime);
             ImGui::Text("Framerate: %.1f FPS", ImGui::GetIO().Framerate);
             ImGui::Text("Center Frequency: %.0f Hz", gui::waterfall.getCenterFrequency());
             ImGui::Text("Source name: %s", sourceName.c_str());
@@ -573,7 +578,7 @@ void MainWindow::draw() {
     ImGui::EndChild();
 
 
-    if (!lockWaterfallControls) {
+    if (!lockWaterfallControls && ImGui::GetTopMostPopupModal() == NULL) {
         // Handle arrow keys
         if (vfo != NULL && (gui::waterfall.mouseInFFT || gui::waterfall.mouseInWaterfall)) {
             bool freqChanged = false;
@@ -697,6 +702,8 @@ void MainWindow::draw() {
     if (showCredits) {
         credits::show();
     }
+
+    lastDrawTime = currentTimeMillis() - ctm;
 
 }
 

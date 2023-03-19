@@ -14,6 +14,7 @@ inline void usleep(int micros) {
 #include <signal_path/signal_path.h>
 #include <core.h>
 #include <gui/style.h>
+#include <gui/widgets/geomap.h>
 #include <config.h>
 #include <gui/widgets/stepped_slider.h>
 #include <utils/optionlist.h>
@@ -96,7 +97,7 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
             if (start == "MSG") {
                 flog::info("BIN/MSG: {} text: {}", (int64_t)msg.size(), msg);
             } else if (start == "SND") {
-                flog::info("{} Got sound: bytes={} )", (int64_t)currentTimeMillis(), (int64_t)msg.size());
+//                flog::info("{} Got sound: bytes={} )", (int64_t)currentTimeMillis(), (int64_t)msg.size());
                 long long int ctm = currentTimeMillis();
                 times.emplace_back(ctm);
                 int lastSecondCount = 0;
@@ -342,8 +343,36 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
         flog::info("KiwiSDRSourceModule '{0}': Tune: {1}!", _this->name, freq);
     }
 
+    geomap::GeoMap geoMap;
+
     static void menuHandler(void* ctx) {
         KiwiSDRSourceModule* _this = (KiwiSDRSourceModule*)ctx;
+
+        if (ImGui::Button("Choose on map")) {
+            ImGui::OpenPopup("My KiwiSDR Map");
+        }
+
+        if (ImGui::BeginPopupModal("My KiwiSDR Map", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            // Set the modal dialog's width and height
+            float modalWidth = 800.0f;
+            float modalHeight = 600.0f;
+            ImGui::SetWindowSize(ImVec2(modalWidth, modalHeight));
+
+            ImGui::BeginChild("##geomap-kiwisdr", ImVec2(modalWidth, modalHeight - 50), true, 0);
+
+            _this->geoMap.draw();
+
+            ImGui::EndChild();
+            // Display some text in the modal dialog
+            ImGui::Text("This is a modal dialog box with specified width and height.");
+
+            // Close button
+            if (ImGui::Button("Close")) {
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
 
 //
 //        if (_this->fileSelect.render("##file_source_" + _this->name)) {
