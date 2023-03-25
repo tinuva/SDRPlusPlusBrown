@@ -1,5 +1,11 @@
 # Changelog
 
+Newest entries are at the top.
+
+2023.03.25
+
+* Added parallel (multithreaded) waterfall update. 2 threads give the best result (maybe number memory channels?) 
+
 2023.03.13
 
 * Added kiwisdr source, no good UI yet. 

@@ -51,8 +51,8 @@ In contrast to current upstream, this fork does not send full image of waterfall
 for 4K monitors; it burns significantly less CPU by implementing waterfall as tiles and sending 
 updates only to the single tile, thus reducing consumed system memory bandwidth.
 
-Also, zooming and re-generation of waterfall is faster by 2-3 times by employing more optimal routines, 
-which can be noticed especially on wider SDR bandwidths. Note: upstream author promises to implement scaling in shader, 
+Also, zooming and re-generation of waterfall is faster by 4-6 times by employing vector operations and multithreading, 
+which can be noticed especially on higher FFT sizes. Note: upstream author promises to implement scaling in shader, 
 which is going to be even better than all this.
 
 ## Bundled FT8 decoder
