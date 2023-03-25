@@ -362,5 +362,6 @@ namespace ImGui {
         const int rawFFTIndex(double frequency) const;
         void testAlloc(const std::string& where);
 
+
     };
 };

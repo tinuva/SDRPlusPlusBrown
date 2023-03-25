@@ -44,6 +44,9 @@ namespace net::websock {
                 break;
             case INCOMPLETE_FRAME:
                 return 0;
+            case ERROR_FRAME:
+                printf("ERROR FRAME: %x\n", frameType);
+                break;
             case PING_FRAME:
                 sendPong();
                 break;

@@ -51,7 +51,7 @@ option(OPT_BUILD_SPYSERVER_SOURCE "Build SpyServer Source Module (no dependencie
 option(OPT_BUILD_PLUTOSDR_SOURCE "Build PlutoSDR Source Module (Dependencies: libiio, libad9361)" ON)
 option(OPT_BUILD_HL2_SOURCE "Build Hermes Lite 2 Source Module" ON)
 option(OPT_BUILD_USRP_SOURCE "Build USRP Source Module (libuhd)" OFF)
-option(OPT_BUILD_KIWISDR_SOURCE "Build KiwiSDR (web) Source Module" ON)
+option(OPT_BUILD_KIWISDR_SOURCE "Build KiwiSDR (web) Source Module" OFF)
 
 # Sinks
 option(OPT_BUILD_ANDROID_AUDIO_SINK "Build Android Audio Sink Module (Dependencies: AAudio, only for android)" OFF)

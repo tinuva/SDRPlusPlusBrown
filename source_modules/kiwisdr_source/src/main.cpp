@@ -46,7 +46,8 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
     static constexpr int IQDATA_FREQUENCY = 12000;
     static constexpr int NETWORK_BUFFER_SECONDS = 2;
     static constexpr int NETWORK_BUFFER_SIZE = NETWORK_BUFFER_SECONDS * IQDATA_FREQUENCY;
-    std::string kiwisdrSite = "kiwi-iva.aprs.fi";
+    std::string kiwisdrSite = "www.na5b.com";
+//    std::string kiwisdrSite = "kiwi-iva.aprs.fi";
     char connectionStatus[100];
     std::vector<int64_t> times;
     int64_t lastPing;

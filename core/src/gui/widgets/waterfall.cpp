@@ -111,6 +111,8 @@ namespace ImGui {
         wholeBandwidth = 1.0;
 
         updatePallette(DEFAULT_COLOR_MAP, 13);
+
+        int nthreads = 8;
     }
 
     void WaterFall::init() {
@@ -121,6 +123,7 @@ namespace ImGui {
         for (int i = 0; i < WATERFALL_NUMBER_OF_SECTIONS; ++i) {
             setTextureStatus(i, TEXTURE_SPECIFY_REQUIRED);
         }
+
     }
 
     void WaterFall::drawFFT() {
@@ -657,7 +660,6 @@ namespace ImGui {
         }
         double offsetRatio = viewOffset / (wholeBandwidth / 2.0);
         float* tempData = tempDataForUpdateWaterfallFb;
-        float pixel;
         float dataRange = waterfallMax - waterfallMin;
         int count = std::min<float>(waterfallHeight, fftLines);
         long ctm = currentTimeMillis();
@@ -671,21 +673,55 @@ namespace ImGui {
             } else {
                 waterfallFbIndex = (waterfallFbHeadRowIndex * dataWidth) % totalNumberOfPixels;
             }
-            for (int i = 0; i < count; i++) {
-                doZoom(drawDataStart, drawDataSize, dataWidth, &rawFFTs[((i + currentFFTLine) % waterfallHeight) * rawFFTSize], tempData);
-                for (int j = 0; j < dataWidth; j++) {
-                    pixel = (std::clamp<float>(tempData[j], waterfallMin, waterfallMax) - waterfallMin) / dataRange;
-                    if (waterfallFbIndex >= dataWidth * waterfallHeight) {
-                        abort();
+
+            if (count != 0) {
+                int NTHREADS = 4;
+
+                int wfi = waterfallFbIndex;
+                int blockSize = count / NTHREADS;
+                std::vector<std::shared_ptr<std::thread>> threads;
+                threads.reserve(NTHREADS);
+
+                for (int b = 0; b < NTHREADS; b++) {
+                    int ii = b * blockSize;
+                    auto cnt = blockSize;
+                    if (b == NTHREADS - 1) {
+                        cnt = count - ii;
                     }
-                    waterfallFb[waterfallFbIndex++] = waterfallPallet[(int)(pixel * (WATERFALL_RESOLUTION - 1))];
+
+
+                    threads.emplace_back(std::make_shared<std::thread>([=]() {
+                        std::vector<float> tempdata(dataWidth);
+                        auto td = tempdata.data();
+                        auto waterfallFbIndexLocal = wfi % totalNumberOfPixels;
+                        for (int i = ii; i < ii + cnt; i++) {
+                            doZoom(drawDataStart, drawDataSize, dataWidth, &rawFFTs[((i + currentFFTLine) % waterfallHeight) * rawFFTSize], td);
+                            for (int j = 0; j < dataWidth; j++) {
+                                auto pixel = (std::clamp<float>(td[j], waterfallMin, waterfallMax) - waterfallMin) / dataRange;
+                                if (waterfallFbIndexLocal >= totalNumberOfPixels) {
+                                    flog::info("failure, waterfallFbIndex: {}, totalNumberOfPixels: {}, dataWidth: {}, waterfallHeight: {}", waterfallFbIndexLocal, totalNumberOfPixels, dataWidth, waterfallHeight);
+                                    abort();
+                                }
+                                waterfallFb[waterfallFbIndexLocal++] = waterfallPallet[(int)(pixel * (WATERFALL_RESOLUTION - 1))];
+                            }
+                            waterfallFbIndexLocal %= totalNumberOfPixels;
+                        }
+                    }));
+                    wfi = (wfi + cnt * dataWidth) % totalNumberOfPixels;
+
                 }
-                waterfallFbIndex %= totalNumberOfPixels;
+                for (int b = 0; b < NTHREADS; b++) {
+                    threads[b]->join();
+                }
+                waterfallFbIndex = wfi % totalNumberOfPixels; // for continuing
             }
 
+
+            waterfallFbIndex %= totalNumberOfPixels;
             for (int i = count; i < waterfallHeight; i++) {
                 for (int j = 0; j < dataWidth; j++) {
-                    if (waterfallFbIndex >= dataWidth * waterfallHeight) {
+                    if (waterfallFbIndex >= totalNumberOfPixels) {
+                        flog::info("failure, waterfallFbIndex: {}, totalNumberOfPixels: {}, dataWidth: {}, waterfallHeight: {}", waterfallFbIndex, totalNumberOfPixels, dataWidth, waterfallHeight);
                         abort();
                     }
                     waterfallFb[waterfallFbIndex++] = (uint32_t)255 << 24;
