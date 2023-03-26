@@ -36,6 +36,8 @@ public:
 
     Event<bool> onPlayStateChange;
     Event<ImGuiContext *> onWaterfallDrawn;
+    Event<ImGuiContext *> onDebugDraw;
+
     void setFirstMenuRender() {
         firstMenuRender = true;
     }

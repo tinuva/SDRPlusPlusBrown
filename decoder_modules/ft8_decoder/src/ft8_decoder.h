@@ -292,7 +292,10 @@ namespace dsp {
 
         inline void decodeFT8(const std::string &mode, int sampleRate, dsp::stereo_t *samples, long long nsamples,
                               std::function<void(int mode,
-                                                 std::vector<std::string> result, std::atomic<const char *> &progress)> callback, std::atomic<const char *> &progress) {
+                                                 std::vector<std::string> result, std::atomic<const char *> &progress)> callback,
+                              std::atomic<const char *> &progress,
+                              bool removeFiles
+                              ) {
 
             static std::atomic_int _seq = 100;
             int seq = ++_seq;
@@ -368,9 +371,11 @@ namespace dsp {
 
             invokeDecoder(mode, wavPath, outPath, errPath, callback, progress);
 
-            std::filesystem::remove(wavPath);
-            std::filesystem::remove(outPath);
-            std::filesystem::remove(errPath);
+            if (removeFiles) {
+                std::filesystem::remove(wavPath);
+                std::filesystem::remove(outPath);
+                std::filesystem::remove(errPath);
+            }
 
             return;
         }

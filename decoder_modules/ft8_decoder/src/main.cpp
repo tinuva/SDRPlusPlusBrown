@@ -154,11 +154,14 @@ struct CallHashCache {
     }
 };
 
+bool removeFiles = true;
 
 struct DecodedResult {
     DecodedMode mode;
     long long decodeEndTimestamp;
     long long frequency;
+    std::string decodedBlock;       // in ALL.TXT format
+    std::string frequencyBand;       // in MHZ float string
     std::string shortString;
     // above is unique key
 
@@ -459,6 +462,35 @@ public:
         decodedResults.back().current.x = -1;
         decodedResults.back().current.y = -1;
         decodedResultsDrawables.clear();
+        if (this->enableAllTXT) {
+            FILE *f = fopen(this->allTxtPath, "at");
+            if (f) {
+                char modeString[10];
+                switch(incoming.mode) {
+                case DM_FT8:
+                    sprintf(modeString, "FT8");
+                    break;
+                case DM_FT4:
+                    sprintf(modeString, "FT4");
+                    break;
+                default:
+                    sprintf(modeString, "???");
+                    break;
+                }
+                auto band = atof(incoming.frequencyBand.c_str());   // band in mhz
+                fprintf(f, "%s%10s Rx %s%7d  0.0%5d %s\n",
+                        incoming.decodedBlock.c_str(),
+                        incoming.frequencyBand.c_str(),
+                        modeString,
+                        (int)incoming.strengthRaw,
+                        (int)incoming.frequency + USB_BANDWIDTH/2,
+                        incoming.detailedString.c_str());
+                fclose(f);
+                this->allTxtPathError = "";
+            } else {
+                this->allTxtPathError = "can't write file";
+            }
+        }
     }
 
     void clearDecodedResults(DecodedMode mode) {
@@ -675,6 +707,7 @@ public:
     }
 
     EventHandler<ImGui::WaterFall::WaterfallDrawArgs> afterWaterfallDrawListener;
+    EventHandler<ImGuiContext *> debugDrawHandler;
 
 
     FT8DecoderModule(std::string name) {
@@ -705,6 +738,12 @@ public:
         } else {
             myCallsign[0] = 0;
         }
+        if (config.conf[name].find("allTxtPath") != config.conf[name].end()) {
+            auto qq = config.conf[name]["allTxtPath"].get<std::string>();
+            strcpy(allTxtPath, qq.data());
+        } else {
+            allTxtPath[0] = 0;
+        }
         if (config.conf[name].find("secondsToKeepResults") != config.conf[name].end()) {
             secondsToKeepResults = config.conf[name]["secondsToKeepResults"];
         }
@@ -717,6 +756,9 @@ public:
         if (config.conf[name].find("enablePSKReporter") != config.conf[name].end()) {
             enablePSKReporter = config.conf[name]["enablePSKReporter"].get<bool>();
         }
+        if (config.conf[name].find("enableALLTXT") != config.conf[name].end()) {
+            enableAllTXT = config.conf[name]["enableALLTXT"].get<bool>();
+        }
         config.release(true);
 
         gui::menu.registerEntry(name, menuHandler, this, this);
@@ -725,9 +767,24 @@ public:
             d->init(name);
         });
 
+        gui::mainWindow.onDebugDraw.bindHandler(&debugDrawHandler);
+        debugDrawHandler.ctx = this;
+        debugDrawHandler.handler = [](ImGuiContext *gctx, void* ctx) {
+            FT8DecoderModule* _this = (FT8DecoderModule*)ctx;
+            _this->drawDebugMenu(gctx);
+        };
+
+
         enable();
     }
 
+    void drawDebugMenu(ImGuiContext *gctx) {
+        ImGui::LeftLabel("Remove FT8 WAVs");
+        ImGui::FillWidth();
+        if (ImGui::Checkbox("##keep_ft8_wavs", &removeFiles)) {
+        }
+
+    }
 
 
 
@@ -868,6 +925,26 @@ public:
             config.conf[_this->name]["myCallsign"] = _this->myCallsign;
             config.release(true);
         }
+        ImGui::LeftLabel("ALL.TXT log");
+        if (ImGui::Checkbox(CONCAT("##_enable_alltxt_", _this->name), &_this->enableAllTXT)) {
+            config.acquire();
+            config.conf[_this->name]["enableALLTXT"] = _this->enableAllTXT;
+            config.release(true);
+        }
+        ImGui::SameLine();
+        ImGui::Text("filename:");
+        ImGui::SameLine();
+        ImGui::FillWidth();
+        if (ImGui::InputText(CONCAT("##_alltxt_fname_", _this->name), _this->allTxtPath, sizeof(_this->allTxtPath))) {
+            config.acquire();
+            config.conf[_this->name]["allTxtPath"] = std::string(_this->allTxtPath);
+            config.release(true);
+        }
+        if (!_this->allTxtPathError.empty()) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
+            ImGui::Text("Error: %s", _this->allTxtPathError.c_str());
+            ImGui::PopStyleColor();
+        }
 
     }
 
@@ -884,6 +961,9 @@ public:
     char myCallsign[13];
     LatLng myPos = LatLng::invalid();
     bool enablePSKReporter = true;
+    bool enableAllTXT = false;
+    char allTxtPath[1024];
+    std::string allTxtPathError;
     int secondsToKeepResults = 120;
 
 
@@ -1148,7 +1228,25 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
                     }
                 }
                 progress = "pre-mkdecoded-result";
-                DecodedResult decodedResult(getModeDM(), (long long)(blockNumber * getBlockDuration() * 1000 + getBlockDuration()), originalOffset, callsign, message);
+                auto frequencyInBand = atoi(result[3].c_str());
+
+                if (message.find(callsign) == std::string::npos) {
+                    // inject callsign into message
+                    std::string newmsg;
+                    std::vector<std::string> splitMessage;
+                    splitStringV(message, " ", splitMessage);
+                    for(auto &s : splitMessage) {
+                        if (s[0] == '<' && s[s.size()-1] == '>') {
+                            s = callsign;   // inject
+                        }
+                        newmsg += s + " ";
+                    }
+                    if (newmsg.size() > 0) {
+                        newmsg.resize(newmsg.size() - 1);
+                    }
+                    message = newmsg;
+                }
+                DecodedResult decodedResult(getModeDM(), (long long)(blockNumber * getBlockDuration() * 1000 + getBlockDuration()), frequencyInBand, callsign, message);
                 decodedResult.distance = (int)distance;
                 auto strength = atof(result[1].c_str());
                 strength = (strength + 24) / (24 + 24);
@@ -1157,6 +1255,16 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
                 decodedResult.strength = strength;
                 decodedResult.strengthRaw = atof(result[1].c_str());
                 decodedResult.intensity = 0;
+
+                time_t blocktimeUnix = blockNumber * getBlockDuration();
+                tm* ltm = std::gmtime(&blocktimeUnix);
+
+                char buf[100];
+                sprintf(buf, "%02d%02d%02d_%02d%02d%02d", ltm->tm_year % 100, ltm->tm_mon + 1, ltm->tm_mday, ltm->tm_hour, ltm->tm_min, ltm->tm_sec);
+                decodedResult.decodedBlock = buf;
+                sprintf(buf, "%0.3f", (previousCenterOffset - USB_BANDWIDTH) / 1000000.0);
+                decodedResult.frequencyBand = buf;
+
                 // (random() % 100) / 100.0;
                 if (!cs.dxccname.empty()) {
                     decodedResult.qth = cs.dxccname;
@@ -1172,7 +1280,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
         std::thread t0([&]() {
             SetThreadName(getModeString()+"_callDecode");
             auto start = currentTimeMillis();
-            dsp::ft8::decodeFT8(getModeString(), VFO_SAMPLE_RATE, block->data(), block->size(), handler, progress);
+            dsp::ft8::decodeFT8(getModeString(), VFO_SAMPLE_RATE, block->data(), block->size(), handler, progress, removeFiles);
             auto end = currentTimeMillis();
             flog::info("FT8 decoding ({}) took {} ms", this->getModeString(), (int64_t)(end - start));
             lastDecodeCount = (int)count;

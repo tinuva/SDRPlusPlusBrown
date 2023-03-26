@@ -543,6 +543,8 @@ void MainWindow::draw() {
             }
 
             ImGui::Checkbox("WF Single Click", &gui::waterfall.VFOMoveSingleClick);
+            onDebugDraw.emit(GImGui);
+
 
             ImGui::Spacing();
         }
