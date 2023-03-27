@@ -63,7 +63,7 @@ You enter your location, and you get decodes grouped by the distance.
 You can even tune on the other frequency, it will keep decoding, while it's within the SDR wideband. 
 Using this decoder, you can immediately see the band condition and your antenna performance, because FT8-addicted ham operators are always on the air and fill it with their 
 signals. Simultaneous FT4/FT8 decoding is supported. Decoder is implemented as standalone executable. Detection of secondary streams 
-(appearing during DX expeditions) is planned.
+(appearing during DX expeditions) is planned. WSJTX-compatible log file can be generated.
 
 ![](ft8-decodes.jpg)
 

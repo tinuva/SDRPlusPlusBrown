@@ -4,7 +4,8 @@ Newest entries are at the top.
 
 2023.03.25
 
-* Added parallel (multithreaded) waterfall update. 2 threads give the best result (maybe number memory channels?) 
+* Added parallel (multithreaded) waterfall update. 2 threads give the best result (maybe number memory channels?).
+* Added ALL.TXT log output from FT8/FT4 decoder.
 
 2023.03.13
 
