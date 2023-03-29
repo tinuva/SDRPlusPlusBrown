@@ -655,7 +655,8 @@ namespace ImGui {
      * from raw fft to the waterfallDB, using palette. Also, invalidates opengl textures.
      * */
     void WaterFall::updateWaterfallFb(const std::string &where) {
-        if (!waterfallVisible || rawFFTs == NULL || !wholeBandwidth) {
+        const int totalNumberOfPixels = dataWidth * waterfallHeight;
+        if (!waterfallVisible || rawFFTs == NULL || !wholeBandwidth || !totalNumberOfPixels) {
             return;
         }
         double offsetRatio = viewOffset / (wholeBandwidth / 2.0);
@@ -669,7 +670,6 @@ namespace ImGui {
         int drawDataSize = (viewBandwidth / wholeBandwidth) * rawFFTSize;
         int drawDataStart = (((double)rawFFTSize / 2.0) * (offsetRatio + 1)) - (drawDataSize / 2);
         if (rawFFTs != NULL && fftLines >= 0) {
-            const int totalNumberOfPixels = dataWidth * waterfallHeight;
             int waterfallFbIndex;
             if (totalNumberOfPixels == 0) {
                 waterfallFbIndex = (waterfallFbHeadRowIndex * dataWidth);
