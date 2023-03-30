@@ -713,8 +713,8 @@ bool DecoderFt8::ft8_downs_sync_bmet(double *dd,bool ap7,bool &newdat,double &f1
         sync8d(cd0,ibest+idt,ctwk,0,sync);
         ss[idt+4]=sync; 	//ss(idt+5)=sync
     }
-    smax=pomAll.maxval_da_beg_to_end(ss,0,8); //smax=maxval(ss)
-    int iloc=pomAll.maxloc_da_end_to_beg(ss,0,8); //iloc=maxloc(ss)
+    smax=pomAll.maxval_da_beg_to_end(ss,0,9); //smax=maxval(ss)
+    int iloc=pomAll.maxloc_da_end_to_beg(ss,0,9); //iloc=maxloc(ss)
     ibest=iloc-4+ibest;//ibest=iloc(1)-5+ibest
 
     if (ap7) xdt=(double)ibest*dt2 - 0.5;

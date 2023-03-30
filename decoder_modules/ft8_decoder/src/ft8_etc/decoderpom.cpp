@@ -301,7 +301,7 @@ void F2a::four2a_c2c(std::complex<double> *a,int nfft,int isign,int iform,int th
     else if (thr==2) HvThr2.four2a_c2c(a,ca_c2c2,plan_c2c2,nplan_c2c2,nfft,isign,iform);
     else if (thr==3) HvThr3.four2a_c2c(a,ca_c2c3,plan_c2c3,nplan_c2c3,nfft,isign,iform);
     else if (thr==4) HvThr4.four2a_c2c(a,ca_c2c4,plan_c2c4,nplan_c2c4,nfft,isign,iform);
-    else if (thr==5) HvThr5.four2a_c2c(a,ca_c2c5,plan_c2c5,nplan_c2c5,nfft,isign,iform);    
+    else if (thr==5) HvThr5.four2a_c2c(a,ca_c2c5,plan_c2c5,nplan_c2c5,nfft,isign,iform);
 }
 static int nplan_d2c0 = 0;
 static fftwf_plan plan_d2c0[NPMAX+10];
@@ -334,7 +334,7 @@ void F2a::four2a_d2c(std::complex<double> *a,double *d,int nfft,int isign,int if
     else if (thr==2) HvThr2.four2a_d2c(a,ca_d2c2,d,da_d2c2,plan_d2c2,nplan_d2c2,nfft,isign,iform);
     else if (thr==3) HvThr3.four2a_d2c(a,ca_d2c3,d,da_d2c3,plan_d2c3,nplan_d2c3,nfft,isign,iform);
     else if (thr==4) HvThr4.four2a_d2c(a,ca_d2c4,d,da_d2c4,plan_d2c4,nplan_d2c4,nfft,isign,iform);
-    else if (thr==5) HvThr5.four2a_d2c(a,ca_d2c5,d,da_d2c5,plan_d2c5,nplan_d2c5,nfft,isign,iform);    
+    else if (thr==5) HvThr5.four2a_d2c(a,ca_d2c5,d,da_d2c5,plan_d2c5,nplan_d2c5,nfft,isign,iform);
 }
 void F2a::DestroyPlansAll(bool imid)
 {
@@ -347,7 +347,7 @@ void F2a::DestroyPlansAll(bool imid)
     HvThr2.DestroyPlans(plan_c2c2,nplan_c2c2,plan_d2c2,nplan_d2c2,imid);
     HvThr3.DestroyPlans(plan_c2c3,nplan_c2c3,plan_d2c3,nplan_d2c3,imid);
     HvThr4.DestroyPlans(plan_c2c4,nplan_c2c4,plan_d2c4,nplan_d2c4,imid);
-    HvThr5.DestroyPlans(plan_c2c5,nplan_c2c5,plan_d2c5,nplan_d2c5,imid);    
+    HvThr5.DestroyPlans(plan_c2c5,nplan_c2c5,plan_d2c5,nplan_d2c5,imid);
 
     //qDebug()<<"Destroy2-------------------";
     //cplu = 0;
@@ -357,7 +357,7 @@ void F2a::DestroyPlansAll(bool imid)
 
 ////  POMALL ///
 void PomAll::initPomAll()
-{   
+{
     for (int i = 0; i < 141100; ++i) pctile_shell_tmp[i] = 0.0;//int NMAX=141072;
 }
 double PomAll::peakup(double ym,double y0,double yp)
@@ -382,9 +382,9 @@ double PomAll::maxval_da_beg_to_end(double*a,int a_beg,int a_end)
 }
 int PomAll::maxloc_da_end_to_beg(double*a,int a_beg,int a_end)
 {
-    double max = a[a_end];
-    int loc = a_end;
-    for (int i = a_end-1; i >= a_beg; i--)
+    double max = a[a_end-1];
+    int loc = a_end-1;
+    for (int i = a_end-2; i >= a_beg; i--)
     {
         if (a[i]>max)
         {
@@ -403,7 +403,7 @@ int PomAll::maxloc_da_end_to_beg(double*a,int a_beg,int a_end)
         if (da[i]<min)
         {
         	min=da[i];
-        	pos = i;        	
+        	pos = i;
        	}
     }
     return pos;
@@ -833,19 +833,19 @@ bool PomAll::isStandardCall(const QString &w)//2.61 same as  MultiAnswerModW
     QRegExp rx("^\\s*([A-Z]{0,2}|[A-Z][0-9]|[0-9][A-Z])([0-9][A-Z]{0,3})(/R|/P)?\\s*$");
     rx.setCaseSensitivity(QRegExp::CaseInsensitive);
     bool res0 = rx.exactMatch(w); //qDebug()<<w<<res0;
-    return res0;                       
+    return res0;
 }
 /*bool PomAll::isStandardCall(QString w)
-{            
-    bool res = true;           
+{
+    bool res = true;
     bool spr = true;
     short n = w.count();
     if (n<2) return false;
     if (w[n-2]=='/')
     {
     	if (w.at(n-1)=='P' || w.at(n-1)=='R') n = n - 2;
-    	else spr = false;    	    	
-   	}   
+    	else spr = false;
+   	}
     //! Check for standard callsign
     short iarea=-1;
     //int n = strlen(callsign);  //n=len(trim(callsign))
@@ -867,9 +867,9 @@ bool PomAll::isStandardCall(const QString &w)//2.61 same as  MultiAnswerModW
     {//do i=iarea+1,n
         if (w.at(i).isLetter()) nslet++;
     }
-    if (iarea<1 || iarea>2 || nplet==0 || npdig>=iarea || nslet>3) res = false; 
-    if (!res || !spr) res = false;  
-    return res;       
+    if (iarea<1 || iarea>2 || nplet==0 || npdig>=iarea || nslet>3) res = false;
+    if (!res || !spr) res = false;
+    return res;
 }*/
 /*bool PomAll::is_digit(char c)
 {
@@ -885,18 +885,18 @@ bool PomAll::is_letter(char c)
 }
 bool PomAll::isStandardCall(QString callsign0)//not correct XX2XX/P or R is standard
 {
-	char callsign[100];        
+	char callsign[100];
     strncpy(callsign,callsign0.toUtf8(),32);
 	int n = callsign0.count();
-	
-    bool res = true;           
+
+    bool res = true;
     bool spr = true;
     if (n<2) return false;
     if (callsign[n-2]=='/')
     {
     	if (callsign[n-1]=='P' || callsign[n-1]=='R') n = n - 2;
-    	else spr = false;    	    	
-   	}    
+    	else spr = false;
+   	}
     //! Check for standard callsign
     int iarea=-1;
     //int n = strlen(callsign);  //n=len(trim(callsign))
@@ -920,8 +920,8 @@ bool PomAll::isStandardCall(QString callsign0)//not correct XX2XX/P or R is stan
     }
     //c++   ==.EQ. !=.NE. >.GT. <.LT. >=.GE. <=.LE.
     //if(iarea<2 || iarea>3 || nplet==0 || npdig>=iarea-1 || nslet>3)
-    if (iarea<1 || iarea>2 || nplet==0 || npdig>=iarea || nslet>3) res = false; 
-    if (!res || !spr) res = false;   
+    if (iarea<1 || iarea>2 || nplet==0 || npdig>=iarea || nslet>3) res = false;
+    if (!res || !spr) res = false;
     return res;
 }*/
 //// END  POMALL ///
@@ -1390,7 +1390,7 @@ void PomFt::decode174_91(double *llr,int maxosd,int norder,bool *apmask,bool *me
             /*for (int i = 0; i < K; ++i)
             {
                 decoded[i]=cw[i];//decoded=cw(1:K)
-            } 
+            }
             chkcrc14a(decoded,nbadcrc);*/
 
             for (int i = 0; i < 96; ++i)
@@ -1424,8 +1424,8 @@ void PomFt::decode174_91(double *llr,int maxosd,int norder,bool *apmask,bool *me
                     /*if (llr[i]>=0.0)
                         hdec[i]=1;
                     else
-                        hdec[i]=0;*/                        
-                    hdec[i]=0;    
+                        hdec[i]=0;*/
+                    hdec[i]=0;
                 	if (llr[i]>=0.0) hdec[i]=1;
                     nxor[i]=hdec[i] ^ cw[i]; //nxor=ieor(hdec,cw)
                     dmin+=(double)nxor[i]*fabs(llr[i]);	//dmin=sum(nxor*abs(llr))
@@ -1512,9 +1512,9 @@ void PomFt::decode174_91(double *llr,int maxosd,int norder,bool *apmask,bool *me
                 /*if (llr[i]>=0.0)
                     hdec[i]=1;
                 else
-                    hdec[i]=0;*/                    
-                hdec[i]=0;    
-                if (llr[i]>=0.0) hdec[i]=1;                    
+                    hdec[i]=0;*/
+                hdec[i]=0;
+                if (llr[i]>=0.0) hdec[i]=1;
                 nxor[i]=hdec[i] ^ cw[i]; //nxor=ieor(hdec,cw)
                 dmin+=(double)nxor[i]*fabs(llr[i]);	//dmin=sum(nxor*abs(llr))
             }
@@ -1532,7 +1532,7 @@ void PomFt::encode174_91_nocrc(bool *message910,bool *codeword)
     const int N=174;
     const int K=91;
     const int M=N-K;//=83
-    bool pchecks[95];   
+    bool pchecks[95];
 
     if (first_enc174_91_nocrc)
     {
@@ -1551,7 +1551,7 @@ void PomFt::encode174_91_nocrc(bool *message910,bool *codeword)
                 for (int jj = 0; jj < 4; ++jj)
                 {
                     int irow=(j)*4+jj;//irow=(j-1)*4+jj
-                    if ( irow <= 90 ) gen_osd174_91_nocrc[irow][i]=(1 & (istr >> (3-jj)));//if( btest(istr,4-jj) ) gen(irow,i)=1	
+                    if ( irow <= 90 ) gen_osd174_91_nocrc[irow][i]=(1 & (istr >> (3-jj)));//if( btest(istr,4-jj) ) gen(irow,i)=1
                 }
             }
         }
@@ -1634,7 +1634,7 @@ void PomFt::osd174_91_1(double *llr,/*int Keff=91*/bool *apmask,int ndeep,bool *
             encode174_91_nocrc(message910,cw);
             for (int j = 0; j < N; ++j)
                 gen_osd174_91_[j][i]=cw[j];
-        }       
+        }
         first_osd174_91=false;
     }
 
@@ -1886,7 +1886,7 @@ void PomFt::osd174_91_1(double *llr,/*int Keff=91*/bool *apmask,int ndeep,bool *
                     nrejected++;
             }
             /*QString sss = "";///gen_osd174_[174][87];
-            for (int z= 0; z < 87; z++)//decoded=87   cw-174 
+            for (int z= 0; z < 87; z++)//decoded=87   cw-174
             {
                 sss.append(QString("%1").arg((int)misub[z]));
                 sss.append(",");
@@ -2005,7 +2005,7 @@ c998:
             if (i>81) m96[i]=cw[i-5];//m96(83:96)=cw(78:91)
         }
     }
-  
+
     int nbadcrc;
     get_crc14(m96,96,nbadcrc); //qDebug()<<nbadcrc;
 
