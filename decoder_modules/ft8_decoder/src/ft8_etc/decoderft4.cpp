@@ -276,6 +276,7 @@ void DecoderFt4::ft4_baseline(double *s,int nfa,int nfb,double *sbase)
         sbase[i]=pow(10,(sbase[i]/10.0)); //sbase[i]=10**(sbase[i]/10.0)  nt=pow(2,2*nsym);//nt=2**(2*nsym)
     }
 }
+
 void DecoderFt4::getcandidates4(double *dd,double fa,double fb,double fa1,double fb1,double syncmin,double nfqso,
                                 int maxcand,double candidate[2][115],int &ncand)
 {
