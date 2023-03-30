@@ -32,6 +32,7 @@ typedef std::thread pthread_t;
 #endif
 
 #include <utils/usleep.h>
+#include <functional>
 
 
 inline int toInt(const std::string &s, bool &ok, int radix) {
@@ -80,6 +81,14 @@ struct QStringList {
 
 
 struct QRegExp;
+
+struct deferred {
+    std::function<void()> f;
+    deferred(std::function<void()> f) : f(f) {}
+    ~deferred() {
+        f();
+    }
+};
 
 
 struct QChar {

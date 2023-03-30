@@ -288,12 +288,14 @@ void DecoderFt4::getcandidates4(double *dd,double fa,double fb,double fa1,double
     DYNAMIC_ARRAY(double, x, NFFT1+10)
     std::complex<double> cx[NFFT1+50];
     std::vector <double> s_0((NHSYM + 10)*(NH1 + 10)); //(NH1,NHSYM)
-    std::vector <std::array<double,NH1 + 10>> s_(NHSYM + 10);
+    auto s_ = new double[NHSYM + 10][NH1 + 10];
+    deferred s_cleanup([&] { delete[] s_; });
     DYNAMIC_ARRAY(double, savsm, NH1 + 50)
     //int indx[NH1+50];
     DYNAMIC_ARRAY(double, sbase, NH1 + 50)
     DYNAMIC_ARRAY(double, savg, NH1 + 50)
-    std::vector <std::array<double,2>> candidatet(115);
+    auto candidatet = new double [2][115];
+    deferred candidatet_cleanup([&] { delete[] candidatet; });
     //qDebug()<<NHSYM;
 
     if (first_ft4detcad)
