@@ -23,6 +23,14 @@
         flog::info("Lock took {0}, line {1}", (int64_t)t0, __LINE__); \
     }
 
+#define MEASURE_LOCK_GUARD1(mtx) \
+    auto t01 = currentTimeMillis();                      \
+    std::lock_guard lck01(mtx); \
+    t01 = currentTimeMillis() - t01; \
+    if (false && t01 > 5) { \
+        flog::info("Lock took {0}, line {1}", (int64_t)t01, __LINE__); \
+    }
+
 #define MEASURE_LOCK(mtx) \
     auto t0l = currentTimeMillis();                      \
     mtx.lock(); \
@@ -31,14 +39,6 @@
         flog::info("Lock took {0}, line {1}", (int64_t)t0l, __LINE__); \
     }
 
-
-#define MEASURE_LOCK_GUARD1(mtx) \
-    auto t01 = currentTimeMillis();                      \
-    mtx.lock(); \
-    t01 = currentTimeMillis() - t01; \
-    if (false && t01 > 5) { \
-        flog::info("Lock took {0}, line {1}", (int64_t)t01, __LINE__); \
-    }
 
 
 
