@@ -430,3 +430,7 @@ inline double cabs(std::complex<double> c) {
 }
 
 void mshv_init();
+
+#define DYNAMIC_ARRAY(typ, name, size) \
+    std::vector<typ> name##0(size); \
+    auto name = (name##0).data();

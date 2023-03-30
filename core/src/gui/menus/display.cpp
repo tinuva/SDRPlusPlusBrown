@@ -8,6 +8,7 @@
 #include <signal_path/signal_path.h>
 #include <gui/style.h>
 #include <utils/optionlist.h>
+#include <algorithm>
 
 namespace displaymenu {
     bool showWaterfall;
@@ -23,6 +24,8 @@ namespace displaymenu {
     bool restartRequired = false;
     bool fftHold = false;
     int fftHoldSpeed = 60;
+    bool fftSmoothing = false;
+    int fftSmoothingSpeed = 100;
     bool smallScreen = false;
 
     TranscieverLayout transcieverLayout = TRAL_NONE;
@@ -30,7 +33,6 @@ namespace displaymenu {
 #ifdef __ANDROID__
     float displayDensity = 1.0;  // 1.0 = 160 dpi. 3.5 = kinda high dpi etc. Coincides with good default scale
 #endif
-
 
     OptionList<float, float> uiScales;
 
@@ -66,8 +68,9 @@ namespace displaymenu {
         IQFrontEnd::FFTWindow::NUTTALL
     };
 
-    void updateFFTHoldSpeed() {
-        gui::waterfall.setFFTHoldSpeed(fftHoldSpeed / (fftRate * 10.0f));
+    void updateFFTSpeeds() {
+        gui::waterfall.setFFTHoldSpeed((float)fftHoldSpeed / ((float)fftRate * 10.0f));
+        gui::waterfall.setFFTSmoothingSpeed(std::min<float>((float)fftSmoothingSpeed / (float)(fftRate * 10.0f), 1.0f));
     }
 
     void init() {
@@ -116,7 +119,9 @@ namespace displaymenu {
         fftHold = core::configManager.conf["fftHold"];
         fftHoldSpeed = core::configManager.conf["fftHoldSpeed"];
         gui::waterfall.setFFTHold(fftHold);
-        updateFFTHoldSpeed();
+        fftSmoothing = core::configManager.conf["fftSmoothing"];
+        fftSmoothingSpeed = core::configManager.conf["fftSmoothingSpeed"];
+        updateFFTSpeeds();
 
 
         // Define and load UI scales
@@ -182,12 +187,29 @@ namespace displaymenu {
             core::configManager.release(true);
         }
 
+        if (ImGui::Checkbox("FFT Smoothing##_sdrpp", &fftSmoothing)) {
+            gui::waterfall.setFFTSmoothing(fftSmoothing);
+            core::configManager.acquire();
+            core::configManager.conf["fftSmoothing"] = fftSmoothing;
+            core::configManager.release(true);
+        }
+
         ImGui::LeftLabel("FFT Hold Speed");
         ImGui::FillWidth();
         if (ImGui::InputInt("##sdrpp_fft_hold_speed", &fftHoldSpeed)) {
-            updateFFTHoldSpeed();
+            updateFFTSpeeds();
             core::configManager.acquire();
             core::configManager.conf["fftHoldSpeed"] = fftHoldSpeed;
+            core::configManager.release(true);
+        }
+
+        ImGui::LeftLabel("FFT Smoothing Speed");
+        ImGui::FillWidth();
+        if (ImGui::InputInt("##sdrpp_fft_smoothing_speed", &fftSmoothingSpeed)) {
+            fftSmoothingSpeed = std::max<int>(fftSmoothingSpeed, 1);
+            updateFFTSpeeds();
+            core::configManager.acquire();
+            core::configManager.conf["fftSmoothingSpeed"] = fftSmoothingSpeed;
             core::configManager.release(true);
         }
 
@@ -205,7 +227,7 @@ namespace displaymenu {
         if (ImGui::InputInt("##sdrpp_fft_rate", &fftRate, 1, 10)) {
             fftRate = std::max<int>(1, fftRate);
             sigpath::iqFrontEnd.setFFTRate(fftRate);
-            updateFFTHoldSpeed();
+            updateFFTSpeeds();
             core::configManager.acquire();
             core::configManager.conf["fftRate"] = fftRate;
             core::configManager.release(true);

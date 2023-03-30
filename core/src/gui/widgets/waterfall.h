@@ -157,6 +157,9 @@ namespace ImGui {
         void setFFTHold(bool hold);
         void setFFTHoldSpeed(float speed);
 
+        void setFFTSmoothing(bool enabled);
+        void setFFTSmoothingSpeed(float speed);
+
         float* acquireLatestFFT(int& width);
         void releaseLatestFFT();
 
@@ -282,6 +285,7 @@ namespace ImGui {
         std::recursive_mutex buf_mtx;
         std::recursive_mutex latestFFTMtx;
         std::mutex texMtx;
+        std::mutex smoothingBufMtx;
 
         float vRange;
 
@@ -315,9 +319,10 @@ namespace ImGui {
 
         //std::vector<std::vector<float>> rawFFTs;
         int rawFFTSize;
-        float* rawFFTs = NULL;              // this is where incoming FFTS are stored, multiple lines, (rawFFTSize * waterfallHeight) elements
-        float* latestFFT;                   // output buffer where last line is scaled to (after doZoom)
-        float* latestFFTHold;
+        float* rawFFTs = NULL;
+        float* latestFFT = NULL;
+        float* latestFFTHold = NULL;
+        float* smoothingBuf = NULL;
         int currentFFTLine = 0;
         int fftLines = 0;
 
@@ -348,6 +353,10 @@ namespace ImGui {
 
         bool fftHold = false;
         float fftHoldSpeed = 0.3f;
+
+        bool fftSmoothing = false;
+        float smoothingAlpha = 0.5;
+        float smoothingBeta = 0.5;
 
         // UI Select elements
         bool fftResizeSelect = false;

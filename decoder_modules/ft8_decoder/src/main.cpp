@@ -449,19 +449,6 @@ public:
 
     void addDecodedResult(const DecodedResult& incoming) {
         std::lock_guard g(decodedResultsLock);
-        for(auto & scan : decodedResults) {
-            if(scan == incoming) {
-                scan.detailedString = incoming.detailedString;
-                scan.decodeEndTimestamp = incoming.decodeEndTimestamp;
-                scan.strengthRaw = incoming.strengthRaw;
-                scan.strength = incoming.strength;
-                return;
-            }
-        }
-        decodedResults.push_back(incoming);
-        decodedResults.back().current.x = -1;
-        decodedResults.back().current.y = -1;
-        decodedResultsDrawables.clear();
         if (this->enableAllTXT) {
             FILE *f = fopen(this->allTxtPath, "at");
             if (f) {
@@ -491,6 +478,19 @@ public:
                 this->allTxtPathError = "can't write file";
             }
         }
+        for(auto & scan : decodedResults) {
+            if(scan == incoming) {
+                scan.detailedString = incoming.detailedString;
+                scan.decodeEndTimestamp = incoming.decodeEndTimestamp;
+                scan.strengthRaw = incoming.strengthRaw;
+                scan.strength = incoming.strength;
+                return;
+            }
+        }
+        decodedResults.push_back(incoming);
+        decodedResults.back().current.x = -1;
+        decodedResults.back().current.y = -1;
+        decodedResultsDrawables.clear();
     }
 
     void clearDecodedResults(DecodedMode mode) {

@@ -15,6 +15,7 @@ namespace net::websock {
         std::random_device rd;
         std::default_random_engine e1;
         std::uniform_int_distribution<int> uniform_dist;
+        bool stopped = false;
 
         WSClient() : socket(), rd(), e1(rd()), uniform_dist(0, 255) {
             flog::info("WSClient instance: {}", (void*)this);
@@ -231,7 +232,15 @@ namespace net::websock {
 
         void connectAndReceiveLoop(const std::string& host, int port, const std::string& path) {
             flog::info("WSClient connectAndReceiveLoop: inst={}", (void*)this);
+            stopped = false;
             socket = net::connect(Address(host, port));
+            if (stopped) {
+                if (socket) {
+                    socket->close();
+                    socket.reset();
+                    return;
+                }
+            }
 
             std::string initHeaders =
                 "Accept-Encoding: gzip, deflate\r\n"
@@ -301,7 +310,9 @@ namespace net::websock {
             }
         }
         void stopSocket() {
-            socket->close();
+            if (socket) {
+                socket->close();
+            }
         }
     };
 

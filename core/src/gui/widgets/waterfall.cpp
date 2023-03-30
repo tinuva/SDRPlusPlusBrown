@@ -24,11 +24,20 @@
     }
 
 #define MEASURE_LOCK(mtx) \
-    auto t0 = currentTimeMillis();                      \
+    auto t0l = currentTimeMillis();                      \
     mtx.lock(); \
-    t0 = currentTimeMillis() - t0; \
-    if (false && t0 > 5) { \
-        flog::info("Lock took {0}, line {1}", (int64_t)t0, __LINE__); \
+    t0l = currentTimeMillis() - t0l; \
+    if (false && t0l > 5) { \
+        flog::info("Lock took {0}, line {1}", (int64_t)t0l, __LINE__); \
+    }
+
+
+#define MEASURE_LOCK_GUARD1(mtx) \
+    auto t01 = currentTimeMillis();                      \
+    mtx.lock(); \
+    t01 = currentTimeMillis() - t01; \
+    if (false && t01 > 5) { \
+        flog::info("Lock took {0}, line {1}", (int64_t)t01, __LINE__); \
     }
 
 
@@ -880,6 +889,7 @@ namespace ImGui {
 
     void WaterFall::onResize() {
         MEASURE_LOCK_GUARD(latestFFTMtx);
+        MEASURE_LOCK_GUARD1(smoothingBufMtx);
         // return if widget is too small
         if (widgetSize.x < 100 || widgetSize.y < 100) {
             return;
@@ -936,6 +946,15 @@ namespace ImGui {
         }
         latestFFTHold = new float[dataWidth];
 
+        // Reallocate smoothing buffer
+        if (fftSmoothing) {
+            if (smoothingBuf) { delete[] smoothingBuf; }
+            smoothingBuf = new float[dataWidth];
+            for (int i = 0; i < dataWidth; i++) {
+                smoothingBuf[i] = -1000.0f; 
+            }
+        }
+
         if (waterfallVisible) {
             delete[] waterfallFb;
             // allocate extra rows, will be used to create continuous pixels for textures
@@ -947,8 +966,8 @@ namespace ImGui {
             tempDataForUpdateWaterfallFb = new float[dataWidth];
         }
         for (int i = 0; i < dataWidth; i++) {
-            latestFFT[i] = -1000.0; // Hide everything
-            latestFFTHold[i] = -1000.0;
+            latestFFT[i] = -1000.0f; // Hide everything
+            latestFFTHold[i] = -1000.0f;
         }
         fftAreaMin = ImVec2(widgetPos.x + (50.0f * style::uiScale), widgetPos.y + (9.0f * style::uiScale));
         fftAreaMax = ImVec2(fftAreaMin.x + dataWidth, fftAreaMin.y + fftHeight + 1);
@@ -1087,6 +1106,15 @@ namespace ImGui {
         else {
             doZoom(drawDataStart, drawDataSize, dataWidth, rawFFTs, latestFFT);
             fftLines = 1;
+        }
+
+        // Apply smoothing if enabled
+        if (fftSmoothing && latestFFT != NULL && smoothingBuf != NULL && fftLines != 0) {
+            std::lock_guard<std::mutex> lck2(smoothingBufMtx);
+            volk_32f_s32f_multiply_32f(latestFFT, latestFFT, smoothingAlpha, dataWidth);
+            volk_32f_s32f_multiply_32f(smoothingBuf, smoothingBuf, smoothingBeta, dataWidth);
+            volk_32f_x2_add_32f(smoothingBuf, latestFFT, smoothingBuf, dataWidth);
+            memcpy(latestFFT, smoothingBuf, dataWidth * sizeof(float));
         }
 
         if (selectedVFO != "" && vfos.size() > 0) {
@@ -1331,6 +1359,50 @@ namespace ImGui {
         fftHoldSpeed = speed;
     }
 
+    void WaterFall::setFFTSmoothing(bool enabled) {
+        std::lock_guard<std::mutex> lck(smoothingBufMtx);
+        fftSmoothing = enabled;
+
+        // Free buffer if not null
+        if (smoothingBuf) {delete[] smoothingBuf; }
+
+        // If disabled, stop here
+        if (!enabled) {
+            smoothingBuf = NULL;
+            return;
+        }
+
+        // Allocate and copy existing FFT into it
+        smoothingBuf = new float[dataWidth];
+        if (latestFFT) {
+            std::lock_guard<std::recursive_mutex> lck2(latestFFTMtx);
+            memcpy(smoothingBuf, latestFFT, dataWidth * sizeof(float));
+        }
+        else {
+            memset(smoothingBuf, 0, dataWidth * sizeof(float));
+        }
+    }
+
+    void WaterFall::setFFTSmoothingSpeed(float speed) {
+        std::lock_guard<std::mutex> lck(smoothingBufMtx);
+        smoothingAlpha = speed;
+        smoothingBeta = 1.0f - speed;
+    }
+
+    float* WaterFall::acquireLatestFFT(int& width) {
+        latestFFTMtx.lock();
+        if (!latestFFT) {
+            latestFFTMtx.unlock();
+            return NULL;
+        }
+        width = dataWidth;
+        return latestFFT;
+    }
+
+    void WaterFall::releaseLatestFFT() {
+        latestFFTMtx.unlock();
+    }
+
     void WaterfallVFO::setOffset(double offset) {
         generalOffset = offset;
         if (reference == REF_CENTER) {
@@ -1536,19 +1608,6 @@ namespace ImGui {
         snapInterval = interval;
     }
 
-    float* WaterFall::acquireLatestFFT(int& width) {
-        latestFFTMtx.lock();
-        if (!latestFFT) {
-            latestFFTMtx.unlock();
-            return NULL;
-        }
-        width = dataWidth;
-        return latestFFT;
-    }
-
-    void WaterFall::releaseLatestFFT() {
-        latestFFTMtx.unlock();
-    }
     bool WaterFall::containsFrequency(double d) {
         return d >= getCenterFrequency() - getBandwidth()/2 && d <= getCenterFrequency() + getBandwidth()/2;
     }

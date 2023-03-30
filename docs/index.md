@@ -150,9 +150,11 @@ still be entered manually.
 
 ## TCI protocol
 
-This is a basic implementation of TCI connector, which is a protocol for remote control of transceivers. It 
-currently allows only uni-directional communication from SDR++ to the transceiver. It supports both audio and wideband
-data transfer to the programs. It works for me, but it has not been tested by someone else. Please become a tester.
+This is a basic implementation of TCI connector, which is a protocol for remote control of transceivers by software. It 
+currently allows only uni-directional stream from SDR++ to the consumer (here, MSHV). And bi-directional
+synchronization of freqency etc. It supports both audio and wideband data transfer to the consumer. 
+I plan to add bi-directional transfer and couple it with the SDR++Brown transmit pipeline. 
+So far, it works for me with MSHV (2.69 tested), but it has not been tested by someone else. Please become a tester. 
 Demand the TCI support from all other software you use!
 
 ![](tci-interface.jpg)
