@@ -9,6 +9,9 @@ list(FILTER SRC EXCLUDE REGEX "sdrpp_ft8_mshv_main.cpp")
 add_library(ft8_decoder SHARED ${SRC})
 target_link_libraries(ft8_decoder PRIVATE sdrpp_core)
 set_target_properties(ft8_decoder PROPERTIES PREFIX "")
+if (ANDROID)
+    target_link_libraries(ft8_decoder PRIVATE log)
+endif()
 
 target_include_directories(ft8_decoder PRIVATE "src/")
 
@@ -61,7 +64,7 @@ elseif (ANDROID)
             ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libcpu_features.a
             ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libvolk.so
             ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3f.so
-            android
+            android log
             )
 
 else ()
