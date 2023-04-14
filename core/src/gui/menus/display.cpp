@@ -121,6 +121,7 @@ namespace displaymenu {
         gui::waterfall.setFFTHold(fftHold);
         fftSmoothing = core::configManager.conf["fftSmoothing"];
         fftSmoothingSpeed = core::configManager.conf["fftSmoothingSpeed"];
+        gui::waterfall.setFFTSmoothing(fftSmoothing);
         updateFFTSpeeds();
 
 
