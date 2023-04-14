@@ -43,7 +43,6 @@ public:
 
     explicit HermesLite2SourceModule(const std::string &name) {
 
-
         this->name = name;
         memset(sevenRelays, 0, sizeof(sevenRelays));
 
@@ -381,8 +380,8 @@ private:
 
     std::string name;
     bool enabled = true;
-    dsp::stream<dsp::complex_t> stream;
-    dsp::stream<dsp::complex_t> txstream;
+    dsp::stream<dsp::complex_t> stream = "hl2.stream";
+    dsp::stream<dsp::complex_t> txstream = "hl2.txstream";
     int sampleRate;
     SourceManager::SourceHandler handler{};
     bool running = false;

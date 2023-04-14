@@ -1,6 +1,7 @@
 #include <gui/main_window.h>
 #include <gui/gui.h>
 #include "imgui.h"
+#include "utils/usleep.h"
 #include <stdio.h>
 #include <thread>
 #include <complex>
@@ -27,6 +28,7 @@
 #include <gui/colormaps.h>
 #include <gui/widgets/snr_meter.h>
 #include <gui/tuner.h>
+#include <dsp/buffer/buffer.h>
 
 void MainWindow::init() {
     LoadingScreen::show("Initializing UI");
@@ -44,6 +46,8 @@ void MainWindow::init() {
     // Assert that directories are absolute
     modulesDir = std::filesystem::absolute(modulesDir).string();
     resourcesDir = std::filesystem::absolute(resourcesDir).string();
+
+    dsp::buffer::runVerifier();
 
     // Load menu elements
     gui::menu.order.clear();
@@ -133,6 +137,7 @@ void MainWindow::init() {
     }
 
     // Create module instances
+    usleep(100000);
     for (auto const& [name, _module] : modList) {
         std::string mod = _module["module"];
         bool enabled = _module["enabled"];

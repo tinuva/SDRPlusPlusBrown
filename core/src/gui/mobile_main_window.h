@@ -177,12 +177,13 @@ public:
     };
     MobileMainWindow();
     void draw() override;
+    void end() override;
     std::string getCurrentMode();
-    void setCurrentMode(std::string);
-    std::string getCurrentBand();
+    static void setCurrentMode(std::string);
+    static std::string getCurrentBand();
     void selectCurrentBand(const std::string &band, int leavingFrequency);
-    std::string getCurrentModeAttr(std::string key);
-    void setCurrentModeAttr(std::string key, std::string val);
+    std::string getCurrentModeAttr(const std::string& key);
+    void setCurrentModeAttr(const std::string& key, std::string val);
     void updateFrequencyAfterChange();
     void updateSubmodeAfterChange();
     void autoDetectBand(int frequency);

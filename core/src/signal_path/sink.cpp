@@ -21,6 +21,8 @@ SinkManager::SinkManager() : defaultInputAudio(nullptr) {
         _this->setAllMuted(txOn);
     };
 
+    defaultInputAudio.origin = "SinkManager.defaultInputAudio";
+
 }
 
 SinkManager::Stream::Stream(dsp::stream<dsp::stereo_t>* in, EventHandler<float>* srChangeHandler, float sampleRate) {
@@ -34,8 +36,8 @@ void SinkManager::Stream::init(EventHandler<float>* srChangeHandler, float sampl
     if (!_in) {
         _in = &_in0;
     }
-
-    splitter.init(_in);
+    merger.bindStream(0, _in);
+    splitter.init(merger.getOutput());
     splitter.bindStream(&volumeInput);
     volumeAjust.init(&volumeInput, 1.0f, false);
     sinkOut = &volumeAjust.out;
@@ -46,6 +48,7 @@ void SinkManager::Stream::start() {
         return;
     }
 
+    merger.start();
     splitter.start();
     volumeAjust.start();
     sink->start();
@@ -57,6 +60,7 @@ void SinkManager::Stream::stop() {
         return;
     }
     splitter.stop();
+    merger.stop();
     volumeAjust.stop();
     sink->stop();
     running = false;
@@ -77,13 +81,15 @@ float SinkManager::Stream::getSampleRate() {
 
 void SinkManager::Stream::setInput(dsp::stream<dsp::stereo_t>* in) {
     std::lock_guard<std::mutex> lck(ctrlMtx);
+    merger.unbindStream(_in);
     _in = in;
-    splitter.setInput(_in);
+    merger.bindStream(0, _in);
 }
 
 dsp::stream<dsp::stereo_t>* SinkManager::Stream::bindStream() {
     dsp::stream<dsp::stereo_t>* stream = new dsp::stream<dsp::stereo_t>;
     splitter.bindStream(stream);
+    stream->origin = "SinkManager::Stream::bindStream(new)";
     return stream;
 }
 
@@ -232,6 +238,14 @@ void SinkManager::unbindStream(std::string name, dsp::stream<dsp::stereo_t>* str
         return;
     }
     streams[name]->unbindStream(stream);
+}
+
+dsp::routing::Merger<dsp::stereo_t> *SinkManager::getMerger(std::string name) {
+    if (streams.find(name) == streams.end()) {
+        flog::error("Cannot unbind from stream '{0}'. Stream doesn't exist", name);
+        return nullptr;
+    }
+    return streams[name]->getMerger();
 }
 
 void SinkManager::setStreamSink(std::string name, std::string providerName) {

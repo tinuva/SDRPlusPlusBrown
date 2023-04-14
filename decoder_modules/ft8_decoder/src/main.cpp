@@ -285,7 +285,7 @@ struct SingleDecoder {
     int beforeAdjust = (int)(VFO_SAMPLE_RATE * ADJUST_PERIOD);
     int previousCenterOffset = 0;
     bool onTheFrequency = false;
-    dsp::stream<dsp::complex_t> iqdata;
+    dsp::stream<dsp::complex_t> iqdata = "singledecoder.iqdata";
     std::atomic_bool running;
     bool processingEnabled = true;
     FT8DecoderModule *mod2;

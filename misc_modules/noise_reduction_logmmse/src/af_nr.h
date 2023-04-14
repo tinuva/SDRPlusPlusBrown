@@ -101,7 +101,7 @@ namespace dsp {
             }
         }
 
-        int processingBandwidthHz = 10000;
+        int processingBandwidthHz = 48000/2;
 
         std::mutex freqMutex;
 
@@ -123,6 +123,8 @@ namespace dsp {
 
         double lastVFOFrequency = 0.0;
         double lastVFOBandwidth = 0.0;
+        int switchTrigger = 0;
+        int overlapTrigger = -100000;
 
         bool allowed = false;   // initial value
         int afnrBandwidth = 10; // this is UI model value, just stored there.
@@ -132,10 +134,66 @@ namespace dsp {
         void start() override {
             txHandler.ctx = this;
             txHandler.handler = [](bool txActive, void *ctx) {
-                auto _this = (IFNRLogMMSE*)ctx;
+                auto _this = (AFNRLogMMSE*)ctx;
                 _this->params.hold = txActive;
             };
             block::start();
+        }
+
+        void process(complex_t *readBuf, int count, complex_t *writeBuf, int &wrote) {
+            wrote = 0;
+            std::lock_guard<std::mutex> lock(freqMutex);
+            auto curSize = worker1c->size();
+            worker1c->resize(curSize + count);
+            memmove(worker1c->data() + curSize, readBuf, count * sizeof(complex_t));
+            switchTrigger += count;
+            overlapTrigger += count;
+
+            int noiseFrames = 12;
+            int fram = processingBandwidthHz / 100;
+            auto Slen = (int)floor(0.02 * processingBandwidthHz);
+            if (!params.noise_mu2) {
+                if (worker1c->size() >= noiseFrames * Slen) {
+                    // finally can sample
+                    flog::info("Sampling, total samples: {0}, will be used: {1}", (int64_t)worker1c->size(), noiseFrames * Slen);
+                    LogMMSE::logmmse_sample(worker1c, processingBandwidthHz, 0.15f, &params, noiseFrames);
+                    worker1c->erase(worker1c->begin(), worker1c->begin() + curSize); // skip everything already sent to the output before
+                } else {
+                    // pass throug until it fills
+                    memmove(writeBuf, worker1c->data() + curSize, count * sizeof(complex_t));
+                    wrote = count;
+                    return;
+                }
+            }
+            int size1 = worker1c->size();
+            if (worker1c->size() >= 4 * params.Slen && params.noise_mu2) {
+                ALLOC_AND_CHECK(worker1c, size1, "afnr point -5")
+                auto rv = LogMMSE::logmmse_all(worker1c, processingBandwidthHz, 0.15f, &params);
+                int limit = rv->size();
+                auto dta = rv->data();
+                ALLOC_AND_CHECK(worker1c, size1, "afnr point -3")
+
+                sma.write(dta, limit);
+                ALLOC_AND_CHECK(worker1c, size1, "afnr point -2")
+
+                if (sma.available() >= limit) {
+                    wrote = limit;
+                    ALLOC_AND_CHECK(worker1c, size1, "afnr point -1")
+                    sma.read(writeBuf, limit);
+                    ALLOC_AND_CHECK(worker1c, size1, "afnr point 0")
+                    memmove(worker1c->data(), ((complex_t*)worker1c->data()) + limit, sizeof(complex_t) * (worker1c->size() - limit));
+                    ALLOC_AND_CHECK(worker1c, size1, "afnr point 0.1")
+                    unsigned long nsize = worker1c->size() - limit;
+                    char buf[100];
+                    sprintf(buf, "afnr point 0.2 size = %lld curr=%lld",(long long)nsize, (long long)worker1c->size());
+                    worker1c->resize(nsize);
+                    size1 = nsize;
+                    ALLOC_AND_CHECK(worker1c, size1, buf)
+                }
+            } else {
+
+            }
+            return;
         }
 
         void stop() override {
@@ -156,60 +214,17 @@ namespace dsp {
 
             int count = _in->read();
             if (count < 0) { return -1; }
-            static int switchTrigger = 0;
-            static int overlapTrigger = -100000;
-            auto curSize = worker1c->size();
-            worker1c->resize(curSize + count);
-            memmove(worker1c->data() + curSize, _in->readBuf, count * sizeof(complex_t));
-            switchTrigger += count;
-            overlapTrigger += count;
-            _in->flush();
 
-            int noiseFrames = 12;
-            int fram = processingBandwidthHz / 100;
-            int initialDemand = fram * (noiseFrames + 2) * 2;
-            if (worker1c->size() < initialDemand && !params.Xk_prev) {
-                // pass throug until it fills
-                memmove(out.writeBuf, worker1c->data() + curSize, count * sizeof(complex_t));
-                if (!out.swap(count)) { return -1; }
+            int wrote;
+            process(_in->readBuf, count, out.writeBuf, wrote);
+            _in->flush();
+            flog::info("afnr.mmse: input = {}, output = {}", count, wrote);
+            if (!out.swap(wrote)) {
+                flog::info("afnr.mmse: swap failed");
                 return 0;
             }
-            if (!params.Xk_prev) {
-                auto Slen = (int)floor(0.02 * 48000);
-                flog::info("Sampling, total samples: {0}, will be used: {1}", (int64_t)worker1c->size(), noiseFrames * Slen);
-                LogMMSE::logmmse_sample(worker1c, processingBandwidthHz, 0.15f, &params, noiseFrames);
-                worker1c->erase(worker1c->begin(), worker1c->begin() + curSize); // skip everything already sent to the output before
-            }
-            int retCount = 0;
-            freqMutex.lock();
-            if (worker1c->size() >= 4 * params.Slen) {
-                auto rv = LogMMSE::logmmse_all(worker1c, 48000, 0.15f, &params);
-                int limit = rv->size();
-                auto dta = rv->data();
 
-                sma.write(dta, limit);
-
-                if (sma.available() >= limit) {
-                    sma.read(out.writeBuf, limit);
-//                    static int _seq = 0;
-//                    int seq = _seq++;
-//                    if (seq < 15) {
-//                        for (int i = 0; i < limit; i++) {
-//                            auto lp = out.writeBuf[i];
-//                            std::cout << i << "\t" << lp.re << "\t" << lp.im << std::endl;
-//                        }
-//                    }
-                    memmove(worker1c->data(), ((complex_t*)worker1c->data()) + rv->size(), sizeof(complex_t) * (worker1c->size() - rv->size()));
-                    worker1c->resize(worker1c->size() - rv->size());
-                    if (!out.swap(rv->size())) {
-                        freqMutex.unlock();
-                        return -1;
-                    }
-                    retCount += rv->size();
-                }
-            }
-            freqMutex.unlock();
-            return retCount;
+            return 1;
         }
     };
 

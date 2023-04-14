@@ -46,6 +46,7 @@ void IQFrontEnd::init(dsp::stream<dsp::complex_t>* in, double sampleRate, bool b
     genReshapeParams(effectiveSr, _fftSize, _fftRate, skip, _nzFFTSize);
     reshape.init(&fftIn, fftSize, skip);
     fftSink.init(&reshape.out, handler, this);
+    fftIn.origin = "iq_frontend.fft_in";
 
     fftWindowBuf = dsp::buffer::alloc<float>(_nzFFTSize);
     if (_fftWindow == FFTWindow::RECTANGULAR) {
@@ -66,6 +67,7 @@ void IQFrontEnd::init(dsp::stream<dsp::complex_t>* in, double sampleRate, bool b
     dsp::buffer::clear(fftInBuf, _fftSize - _nzFFTSize, _nzFFTSize);
 
     split.bindStream(&fftIn);
+    split.origin = "iqfrontent.split";
 
     _init = true;
 }

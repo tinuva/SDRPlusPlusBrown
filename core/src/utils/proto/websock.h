@@ -241,6 +241,7 @@ namespace net::websock {
                     return;
                 }
             }
+            flog::info("WSClient socket connected");
 
             std::string initHeaders =
                 "Accept-Encoding: gzip, deflate\r\n"
@@ -261,7 +262,7 @@ namespace net::websock {
             initHeaders += "\r\n";
 
             int len = socket->sendstr(initHeaders);
-            printf("sent: %d of %zu\n", len, initHeaders.size());
+            flog::info("sent: {} of {}", len, initHeaders.size());
 
             uint8_t buf[100000];
 
@@ -271,7 +272,7 @@ namespace net::websock {
                 throw std::runtime_error("websock: recv failed");
             }
             buf[recvd] = 0;
-            printf("recvd: %d\n", recvd);
+            flog::info("recvd: {}", recvd);
             std::vector<std::string> recvHeaders;
             std::string bufs = (char*)buf;
             auto pos = bufs.find("\r\n\r\n");

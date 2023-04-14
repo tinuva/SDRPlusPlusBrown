@@ -151,6 +151,25 @@ namespace displaymenu {
     void draw(void* ctx) {
         float menuWidth = ImGui::GetContentRegionAvail().x;
         bool homePressed = ImGui::IsKeyPressed(ImGuiKey_Home, false);
+        if (ImGui::Checkbox("Phone layout##_sdrpp", &smallScreen)) {
+            core::configManager.acquire();
+            core::configManager.conf["smallScreen"] = smallScreen;
+            core::configManager.release(true);
+        }
+        if (ImGui::RadioButton("Layout: default ##_sdrpp", transcieverLayout == TRAL_NONE)) {
+            core::configManager.acquire();
+            transcieverLayout = TRAL_NONE;
+            core::configManager.conf["transcieverLayout"] = transcieverLayout;
+            core::configManager.release(true);
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("SSB trx ##_sdrpp", transcieverLayout == TRAL_SSB_FIRST)) {
+            core::configManager.acquire();
+            transcieverLayout = TRAL_SSB_FIRST;
+            core::configManager.conf["transcieverLayout"] = transcieverLayout;
+            core::configManager.release(true);
+        }
+
         if (ImGui::Checkbox("Show Waterfall##_sdrpp", &showWaterfall) || homePressed) {
             if (homePressed) { showWaterfall = !showWaterfall; }
             showWaterfall ? gui::waterfall.showWaterfall() : gui::waterfall.hideWaterfall();
@@ -171,15 +190,6 @@ namespace displaymenu {
             core::configManager.conf["lockMenuOrder"] = gui::menu.locked;
             core::configManager.release(true);
         }
-        if (true) {
-            ImGui::SameLine();
-            if (ImGui::Checkbox("Small screen##_sdrpp", &smallScreen)) {
-                core::configManager.acquire();
-                core::configManager.conf["smallScreen"] = smallScreen;
-                core::configManager.release(true);
-            }
-        }
-
         if (ImGui::Checkbox("FFT Hold##_sdrpp", &fftHold)) {
             gui::waterfall.setFFTHold(fftHold);
             core::configManager.acquire();

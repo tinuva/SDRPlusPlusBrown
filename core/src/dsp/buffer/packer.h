@@ -15,6 +15,7 @@ namespace dsp::buffer {
             block::registerInput(_in);
             block::registerOutput(&out);
             block::_block_init = true;
+            out.origin = "packer.out";
         }
 
         void setInput(stream<T>* in) {
@@ -59,7 +60,7 @@ namespace dsp::buffer {
             return count;
         }
 
-        stream<T> out;
+        stream<T> out = "packer.out";
 
     private:
         int samples = 1;

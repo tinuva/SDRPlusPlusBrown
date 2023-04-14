@@ -6,6 +6,7 @@ namespace dsp::routing {
     class Splitter : public Sink<T> {
         using base_type = Sink<T>;
     public:
+        const char *origin = "splitter.no_origin";
         Splitter() {}
 
         Splitter(stream<T>* in) { base_type::init(in); }
@@ -50,15 +51,20 @@ namespace dsp::routing {
         }
 
         int run() {
+//            flog::info("Splitter {} reading from {}", origin, base_type::_in->origin);
             int count = base_type::_in->read();
+//            flog::info("Splitter {} got from {}: {}", origin, base_type::_in->origin, count);
             if (count < 0) { return -1; }
 
             for (const auto& stream : streams) {
                 memcpy(stream->writeBuf, base_type::_in->readBuf, count * sizeof(T));
+//                flog::info("Splitter {} flushing to {}", origin, stream->origin);
                 if (!stream->swap(count)) {
+//                    flog::info("Splitter {} flushing to {} - oops", origin, stream->origin);
                     base_type::_in->flush();
                     return -1;
                 }
+//                flog::info("Splitter {} flushed to {}.", origin, stream->origin);
             }
 
             if (hook) {

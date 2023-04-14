@@ -27,6 +27,7 @@ else ()
     pkg_check_modules(LIBCODEC2 REQUIRED codec2)
 
     target_include_directories(m17_decoder PRIVATE ${LIBCODEC2_INCLUDE_DIRS})
+    target_include_directories(m17_decoder PRIVATE "/usr/include/codec2")
     target_link_directories(m17_decoder PRIVATE ${LIBCODEC2_LIBRARY_DIRS})
     target_link_libraries(m17_decoder PRIVATE ${LIBCODEC2_LIBRARIES})
 

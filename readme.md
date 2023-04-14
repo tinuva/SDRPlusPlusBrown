@@ -3,7 +3,9 @@
 
 [Changelog](changelog.md)
 
-Please see [upstream project page](https://github.com/AlexandreRouma/SDRPlusPlus) for the main list of its features.
+Please see [upstream project page](https://github.com/AlexandreRouma/SDRPlusPlus) for the basic list of its features.
+
+Please see [brown fork page](https://sdrpp-brown.san.systems) for list of fork features.
 
 ## Thanks
 

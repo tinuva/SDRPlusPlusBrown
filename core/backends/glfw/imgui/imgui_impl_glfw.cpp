@@ -266,7 +266,7 @@ void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int acti
 
     ImGuiIO& io = ImGui::GetIO();
     if (button >= 0 && button < ImGuiMouseButton_COUNT) {
-        printf("mouse callback: %lld\n", currentTimeMillis());
+//        printf("mouse callback: %lld\n", currentTimeMillis());
         io.AddMouseButtonEvent(button, action == GLFW_PRESS);
     }
 }

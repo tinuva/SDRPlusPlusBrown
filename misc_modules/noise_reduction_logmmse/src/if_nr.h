@@ -30,13 +30,6 @@ namespace dsp {
 
     public:
 
-        void setEffectiveSampleRate(int rate) {
-            if (rate != freq) {
-                freq = rate;
-                params.reset();
-            }
-        }
-
         ComplexArray worker1c;
         std::mutex workerMutex;
         int freq = 192000;
@@ -54,7 +47,7 @@ namespace dsp {
 
         double currentCenterFrequency = -1.0;
 
-        bool shouldReset = false;
+        bool shouldReset = true;
         void reset() {
             shouldReset = true;
         }

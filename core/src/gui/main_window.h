@@ -14,6 +14,7 @@
 class MainWindow {
 public:
     void init();
+    virtual void end() {}
     virtual void preDraw(ImGui::WaterfallVFO* &vfo);
     virtual void draw();
     void drawUpperLine(ImGui::WaterfallVFO* vfo);
@@ -67,6 +68,7 @@ protected:
     int fftHeight = 300;
     bool showMenu = true;
     int tuningMode = tuner::TUNER_MODE_NORMAL;
+
     dsp::stream<dsp::complex_t> dummyStream;
     bool demoWindow = false;
     int selectedWindow = 0;

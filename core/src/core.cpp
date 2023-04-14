@@ -24,6 +24,7 @@
 #endif
 
 #ifdef __linux__
+#include <sys/resource.h>
 #include <sys/prctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -163,6 +164,17 @@ namespace core {
         if (fork() == 0) {
 
             setproctitle("sdrpp (sdr++) fork server (spawning decoders)");
+
+#ifdef __linux__
+            int priority = 19; // background, the least priority
+            int which = PRIO_PROCESS; // set priority for the current process
+            pid_t pid = 0; // use the current process ID
+            int ret = setpriority(which, pid, priority);
+            if (ret != 0) {
+                // error handling
+            }
+#endif
+
             flog::info("FORKSERVER: fork server runs");
             int myPid = getpid();
             std::thread checkParentAlive([=]() {
@@ -564,11 +576,17 @@ int sdrpp_main(int argc, char* argv[]) {
 
     // Remove unused elements
     auto items = core::configManager.conf.items();
+    flog::info("items={}",(void*)&items);
+    std::vector<std::string> keysToErase;
     for (auto const& item : items) {
         if (!defConfig.contains(item.key())) {
             flog::info("Unused key in config {0}, repairing", item.key());
-            core::configManager.conf.erase(item.key());
+            keysToErase.push_back(item.key());
         }
+        flog::info("ok item: {}", item.key());
+    }
+    for (auto const& key : keysToErase) {
+        core::configManager.conf.erase(key);
     }
 
     // Update to new module representation in config if needed
@@ -630,6 +648,7 @@ int sdrpp_main(int argc, char* argv[]) {
     // Run render loop (TODO: CHECK RETURN VALUE)
     backend::renderLoop();
 
+    gui::mainWindow.end();
     // On android, none of this shutdown should happen due to the way the UI works
 #ifndef __ANDROID__
     // Shut down all modules

@@ -360,7 +360,11 @@ namespace net {
         // Connect to server
         if (::connect(s, (sockaddr*)&addr.addr, sizeof(sockaddr_in))) {
             closeSocket(s);
+#ifdef __linux__
+            throw std::runtime_error("Could not connect: " + std::string(strerror(errno)));
+#else
             throw std::runtime_error("Could not connect");
+#endif
             return NULL;
         }
 

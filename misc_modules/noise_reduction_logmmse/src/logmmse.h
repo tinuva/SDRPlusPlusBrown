@@ -9,6 +9,20 @@
 
 namespace dsp {
 
+#if 0
+#define ALLOC_AND_CHECK(x, sz, point) \
+    { \
+        std::vector<float> lower(440, 0); \
+        if (x->size() != sz) { \
+            flog::info("Abort in {}", point); \
+            abort(); \
+        } \
+    }
+#else
+#define ALLOC_AND_CHECK(x, sz, point)
+#endif
+
+
     // ported from https://github.com/rajivpoddar/logmmse/  by sannysanoff
 
     namespace logmmse {
@@ -140,21 +154,26 @@ namespace dsp {
 
 
 #define ADD_STEP_STATS()          ctm2 = currentTimeNanos(); muSum[statIndex++] += ctm2-ctm; ctm = ctm2
-                void update_noise_mu2() {
+                void update_noise_mu2(const ComplexArray &x) {
+                    auto sz = x->size();
+                    ALLOC_AND_CHECK(x, sz, "update_noise_mu2 point 1.5a")
                     static long long muSum[30] = {0,}, muCount = 0; auto ctm = currentTimeNanos();long long ctm2; auto statIndex = 0;
                     auto nframes = noise_history.size();
                     bool audioFrequency = nFFT < 1200;
 //                    auto dump = dumpEnabler == 10;
+                    ALLOC_AND_CHECK(x, sz, "update_noise_mu2 point 0")
 
                     if (nframes > 100 && !hold) {
 //                        if (dump) {
 //                            std::cout << "Mu2 history" << std::endl;
 //                        }
                         if (audioFrequency) {
+                            ALLOC_AND_CHECK(x, sz, "update_noise_mu2 point 1")
 
                             // recalculate noise floor
                             if (generation > 0) {
                                 std::vector<float> lower(nFFT, 0);
+                                ALLOC_AND_CHECK(x, sz, "update_noise_mu2 point 1.5")
                                 const int nlower = 12;
                                 int ix = 0;
                                 for(auto &it: noise_history) {
@@ -166,14 +185,17 @@ namespace dsp {
                                     }
                                     ix++;
                                 }
+                                ALLOC_AND_CHECK(x, sz, "update_noise_mu2 point 2")
                                 for (auto w = 0; w < nFFT; w++) {
                                     lower[w] /= nlower;
                                     lower[w] *= lower[w];
                                 }
+                                ALLOC_AND_CHECK(x, sz, "update_noise_mu2 point 3")
                                 auto tnm = std::make_shared<std::vector<float>>(lower);
                                 auto tnoise_mu2 = npmavg(tnm, 6);
                                 auto tmindb = *std::min_element(tnoise_mu2->begin(), tnoise_mu2->end());
                                 auto tmaxdb = *std::max_element(tnoise_mu2->begin(), tnoise_mu2->end());
+                                ALLOC_AND_CHECK(x, sz, "update_noise_mu2 point 4")
                                 if (tmindb + tmaxdb < mindb + maxdb) {
                                     
 //                                    spdlog::info("Updated noise floor...{0} ( {1}, {2} )", (tmindb + tmaxdb)/2, tmindb, tmaxdb);
@@ -182,6 +204,7 @@ namespace dsp {
                                     noise_mu2 = tnm;
                                     stable = true;
                                 }
+                                ALLOC_AND_CHECK(x, sz, "update_noise_mu2 point 5")
                             }
 
                             if (!stable) {
@@ -193,6 +216,7 @@ namespace dsp {
                                     maxdb = *std::max_element(tnoise_mu2->begin(), tnoise_mu2->end());
                                     std::cout << "Inited noise floor..." << mindb << std::endl;
                                 }
+                                ALLOC_AND_CHECK(x, sz, "update_noise_mu2 point 6")
 
                             }
                             generation++;
@@ -350,27 +374,40 @@ namespace dsp {
             }
 
             static ComplexArray logmmse_all(const ComplexArray &x, int Srate, float eta, SavedParamsC *params) {
+                int sz = x->size();
+                ALLOC_AND_CHECK(x, sz, "logmmse_all point -2.1")
                 static long long muSum[30] = {0,}, muCount = 0; auto ctm = currentTimeNanos();long long ctm2; auto statIndex = 0;
+                ALLOC_AND_CHECK(x, sz, "logmmse_all point -1")
 
                 auto Nframes = floor(x->size() / params->len2) - floor(params->Slen / params->len2);
+                ALLOC_AND_CHECK(x, sz, "logmmse_all point -1.5")
                 ADD_STEP_STATS();
-                params->update_noise_mu2();
+                ALLOC_AND_CHECK(x, sz, "logmmse_all point -1.7")
+                params->update_noise_mu2(x);
+                ALLOC_AND_CHECK(x, sz, "logmmse_all point -1.8")
                 ADD_STEP_STATS();
                 auto xfinal = npzeros_c(Nframes * params->len2);
+                ALLOC_AND_CHECK(x, sz, "logmmse_all point 0")
                 for (int k = 0; k < Nframes * params->len2; k += params->len2) {
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 1")
                     auto insign = muleach(params->win, nparange(x, k, k + params->Slen));
                     auto spec = npfftfft(insign, params->forwardPlan);
                     auto sig = npabsolute(spec);
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 2")
                     auto sigD = sig->data();
                     for (auto z = 1; z < sig->size(); z++) {
                         if (sigD[z] == 0) {
                             sigD[z] = sigD[z - 1];      // for some reason fft returns 0 instead if small value
                         }
                     }
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 3")
                     params->add_noise_history(sig);
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 4")
                     auto sig2 = muleach(sig, sig);
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 5")
 
                     auto gammak = npminimum_(diveach(sig2, params->noise_mu2), 40);
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 6")
                     FloatArray ksi;
                     if (!npall(params->Xk_prev)) {
                         ksi = add(mul(npmaximum_(add(gammak, -1), 0), 1 - params->aa), params->aa);
@@ -380,19 +417,31 @@ namespace dsp {
                         ksi = addeach(d1, m1);
                         ksi = npmaximum_(ksi, params->ksi_min);
                     }
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 10")
                     auto A = diveach(ksi, add(ksi, 1));
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 11")
                     auto vk = muleach(A, gammak);
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 12")
                     auto ei_vk = mul(scipyspecialexpn(vk), 0.5);
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 13")
                     auto hw = muleach(A, npexp(ei_vk));
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 14")
                     sig = muleach(sig, hw);
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 15")
                     params->Xk_prev = muleach(sig, sig);
                     auto hwmulspec = muleach(hw, spec);
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 16")
                     auto xi_w0 = npfftfft(hwmulspec, params->reversePlan);
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 17")
                     auto final = addeach(params->x_old, nparange(xi_w0, 0, params->len1));
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 18")
                     nparangeset(xfinal, k, final);
                     params->x_old = nparange(xi_w0, params->len1, params->Slen);
+                    ALLOC_AND_CHECK(x, sz, "logmmse_all point 19")
                 }
+                ALLOC_AND_CHECK(x, sz, "logmmse_all point 20")
                 ADD_STEP_STATS();
+                ALLOC_AND_CHECK(x, sz, "logmmse_all point 21")
                 muCount++;
 
                 if (muCount == 1000) {
@@ -414,6 +463,8 @@ namespace dsp {
                     std::cout << std::endl;
                     muCount = 0;
                 }
+                ADD_STEP_STATS();
+                ALLOC_AND_CHECK(x, sz, "logmmse_all point 23")
                 return xfinal;
             }
 

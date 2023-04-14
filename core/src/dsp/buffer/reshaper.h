@@ -66,7 +66,7 @@ namespace dsp::buffer {
             return count;
         }
 
-        stream<T> out;
+        stream<T> out = "reshaper.out";
 
     private:
         void doStart() override {

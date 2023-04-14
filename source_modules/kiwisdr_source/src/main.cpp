@@ -46,8 +46,8 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
     static constexpr int IQDATA_FREQUENCY = 12000;
     static constexpr int NETWORK_BUFFER_SECONDS = 2;
     static constexpr int NETWORK_BUFFER_SIZE = NETWORK_BUFFER_SECONDS * IQDATA_FREQUENCY;
-//    std::string kiwisdrSite = "www.na5b.com";
-    std::string kiwisdrSite = "kiwi-iva.aprs.fi";
+    std::string kiwisdrSite = "sk6ag1.ddns.net";
+//    std::string kiwisdrSite = "kiwi-iva.aprs.fi";
     char connectionStatus[100];
     std::vector<int64_t> times;
     int64_t lastPing;
@@ -217,7 +217,7 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
         std::thread looper([=]() {
             flog::info("calling x.connectAndReceiveLoop..");
             try {
-                _this->wsClient.connectAndReceiveLoop(_this->kiwisdrSite, 8073, "/kiwi/" + std::to_string(currentTimeMillis()) + "/SND");
+                _this->wsClient.connectAndReceiveLoop(_this->kiwisdrSite, 8071, "/kiwi/" + std::to_string(currentTimeMillis()) + "/SND");
                 flog::info("x.connectAndReceiveLoop exited.");
                 strcpy(_this->connectionStatus, "Disconnected");
             } catch (const std::runtime_error& e) {

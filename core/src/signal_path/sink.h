@@ -32,6 +32,9 @@ public:
     public:
         Stream() {
             _in = &_in0;
+            _in0.origin = "stream._in0";
+            volumeInput.origin = "stream.volumeInput";
+            splitter.origin = "SinkManager.Stream.splitter";
         }
         Stream(dsp::stream<dsp::stereo_t>* in, EventHandler<float>* srChangeHandler, float sampleRate);
 
@@ -55,6 +58,10 @@ public:
         dsp::stream<dsp::stereo_t>* bindStream();
         void unbindStream(dsp::stream<dsp::stereo_t>* stream);
 
+        dsp::routing::Merger<dsp::stereo_t> *getMerger() {
+            return &merger;
+        }
+
         friend SinkManager;
         friend SinkManager::Sink;
 
@@ -67,7 +74,8 @@ public:
 
         dsp::stream<dsp::stereo_t> *_in = nullptr;
 
-        dsp::routing::Splitter<dsp::stereo_t> splitter;
+        dsp::routing::Splitter<dsp::stereo_t> splitter;     // multiple outputs
+        dsp::routing::Merger<dsp::stereo_t> merger;         // multiple inputs
         SinkManager::Sink* sink;
         dsp::stream<dsp::stereo_t> volumeInput;
         dsp::audio::Volume volumeAjust;
@@ -197,6 +205,8 @@ public:
     };
 
     Event<std::shared_ptr<StreamHook>> onStream;
+    void setAllMuted(bool muted);
+    dsp::routing::Merger<dsp::stereo_t>* getMerger(std::string name);
 
 private:
     void loadStreamConfig(std::string name);
@@ -210,5 +220,4 @@ private:
     std::vector<std::string> streamNames;
 
     EventHandler<bool> txHandler;
-    void setAllMuted(bool muted);
 };

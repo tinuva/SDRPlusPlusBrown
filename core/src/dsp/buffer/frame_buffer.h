@@ -92,7 +92,7 @@ namespace dsp::buffer {
             }
         }
 
-        stream<T> out;
+        stream<T> out = "frame_buffer.out";
 
         int writeCur = 0;
         int readCur = 0;

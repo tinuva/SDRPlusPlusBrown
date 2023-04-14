@@ -18,7 +18,7 @@
 #endif
 
 namespace server {
-    dsp::stream<dsp::complex_t> dummyInput;
+    dsp::stream<dsp::complex_t> dummyInput("server::dummyInput");
     dsp::compression::SampleStreamCompressor comp;
     dsp::sink::Handler<uint8_t> hnd;
     net::Conn client;
@@ -132,6 +132,7 @@ namespace server {
             flog::info("Loading {0}", path);
             core::moduleManager.loadModule(path);
         }
+        sleep(1);
 
         // Create module instances
         for (auto const& [name, _module] : modList) {

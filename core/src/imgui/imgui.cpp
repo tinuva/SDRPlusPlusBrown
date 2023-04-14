@@ -7853,7 +7853,7 @@ void ImGui::UpdateInputEvents(bool trickle_fast_inputs)
         }
         else if (e->Type == ImGuiInputEventType_MouseButton)
         {
-            printf("ImGuiInputEventType_MouseButton: %d %d\n", e->MouseButton.Button, e->MouseButton.Down);
+//            printf("ImGuiInputEventType_MouseButton: %d %d\n", e->MouseButton.Button, e->MouseButton.Down);
             const ImGuiMouseButton button = e->MouseButton.Button;
             IM_ASSERT(button >= 0 && button < ImGuiMouseButton_COUNT);
             if (io.MouseDown[button] != e->MouseButton.Down)

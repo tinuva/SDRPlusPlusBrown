@@ -6,7 +6,8 @@ namespace dsp {
     class Operator : public block {
         using base_type = block;
     public:
-        Operator() {}
+        Operator() {
+        }
 
         Operator(stream<A>* a, stream<B>* b) { init(a, b); }
 
@@ -54,7 +55,7 @@ namespace dsp {
 
         virtual int run() = 0;
 
-        stream<O> out;
+        stream<O> out = "operator.origin";
 
     protected:
         stream<A>* _a;

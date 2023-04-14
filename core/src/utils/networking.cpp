@@ -2,6 +2,11 @@
 #include <assert.h>
 #include <utils/flog.h>
 #include <stdexcept>
+#include <atomic>
+
+void logDebugMessage(const char *msg) {
+    flog::info("logDebugMessage: {}", msg);
+}
 
 namespace net {
 
@@ -505,4 +510,85 @@ namespace net {
 
         return Conn(new ConnClass(sock, raddr, true));
     }
+}
+
+namespace dsp::buffer {
+
+    std::atomic_int dbg_cnt = 0;
+    std::atomic_int dbg_cnt2 = 0;
+
+    struct DebugTrace {
+        int64_t STAMP1 = 0x3456345634563456;
+        void **storageVariable = nullptr;
+        void *storedValue= nullptr;
+        const char *info;
+        int64_t STAMP2 = 0x1234123412341234;
+    };
+
+    DebugTrace dbg_trace[1000];
+//#define DBGTRACE
+
+    void _trace_buffer_alloc(void *buffer) {
+#ifdef DBGTRACE
+        int seq = dbg_cnt2++;
+        flog::info("buffer alloc {} = {}", seq, buffer);
+#endif
+    }
+
+    void _register_buffer_dbg(void **buffer, const char *info) {
+#ifdef DBGTRACE
+        auto nxt = dbg_cnt++;
+        if (*buffer == nullptr) {
+            flog::error("Buffer verifier: got null pointer!");
+            abort();
+        }
+        dbg_trace[nxt].info = info;
+        dbg_trace[nxt].storedValue = *buffer;
+        dbg_trace[nxt].storageVariable = buffer;
+#endif
+    }
+    void _unregister_buffer_dbg(void *buffer) {
+#ifdef DBGTRACE
+        flog::info("buffer free: {}", buffer);
+        for(int q=0; q<dbg_cnt; q++) {
+            if (dbg_trace[q].storedValue == buffer) {
+                dbg_trace[q].storageVariable = NULL;
+                dbg_trace[q].storedValue = NULL;
+                return;
+            }
+        }
+        flog::info("Unregister alloc: miss!");
+#endif
+    }
+
+    void runVerifier() {
+#ifdef DBGTRACE
+        std::thread x([]() {
+            for(;;) {
+                auto limit = dbg_cnt.load();
+                for(int q=0; q<limit; q++) {
+                    volatile auto expected = dbg_trace[q].storedValue;
+                    volatile auto found = dbg_trace[q].storageVariable ? *dbg_trace[q].storageVariable : nullptr;
+                    if (dbg_trace[q].storageVariable && expected && found != expected) {
+                        if (dbg_trace[q].STAMP1 != 0x3456345634563456 || dbg_trace[q].STAMP2 != 0x1234123412341234) {
+                            flog::error("Buffer verifier self-corruption");
+                            abort();
+                        }
+                        expected = nullptr;
+                        found = nullptr;
+                        usleep((int64_t)expected + (int64_t)found+1000);
+                        expected = dbg_trace[q].storedValue;
+                        found = dbg_trace[q].storageVariable ? *dbg_trace[q].storageVariable : nullptr;
+                        if (expected != found) {
+                            flog::error("Buffer verifier detected a buffer corruption, expected {} found {} info={}!", (void*)dbg_trace[q].storedValue, *dbg_trace[q].storageVariable, dbg_trace[q].info);
+                            abort();
+                        }
+                    }
+                }
+            }
+        });
+        x.detach();
+#endif
+    }
+
 }

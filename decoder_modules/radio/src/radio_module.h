@@ -90,6 +90,7 @@ public:
 
         // multi-sinks setup
         afsplitter.init(afChain.out);
+        afsplitter.origin = "RadioModule.afsplitter";
         streams.emplace_back(std::make_shared<SinkManager::Stream>());
         streamNames.emplace_back(name);
         afsplitter.bindStream(streams.back()->getInput());
@@ -99,7 +100,7 @@ public:
             sigpath::sinkManager.onStream.emit(event);
         });
         streams.back()->init(&srChangeHandler, audioSampleRate);
-        sigpath::sinkManager.registerStream(name, streams.front().get());
+        sigpath::sinkManager.registerStream(name, streams.back().get());
 
         sigpath::sinkManager.onAddSubstream.bindHandler(&onAddSubstreamHandler);
         sigpath::sinkManager.onRemoveSubstream.bindHandler(&onRemoveSubstreamHandler);

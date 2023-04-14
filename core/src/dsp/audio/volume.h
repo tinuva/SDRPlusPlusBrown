@@ -14,6 +14,7 @@ namespace dsp::audio {
             _volume = powf(volume, 2);
             _muted = muted;
             _tempMuted = false;
+            out.origin = "volume.out";
             base_type::init(in);
         }
 
@@ -47,13 +48,19 @@ namespace dsp::audio {
         }
 
         virtual int run() {
+            flog::info("VolumeAdjust: reading from: {}", base_type::_in->origin);
             int count = base_type::_in->read();
             if (count < 0) { return -1; }
 
             process(count, base_type::_in->readBuf, base_type::out.writeBuf);
 
             base_type::_in->flush();
-            if (!base_type::out.swap(count)) { return -1; }
+            flog::info("VolumeAdjust: swapping to : {}", base_type::out.origin);
+            if (!base_type::out.swap(count)) {
+                flog::info("VolumeAdjust: oops");
+                return -1;
+            }
+            flog::info("VolumeAdjust: wrote to : {}", base_type::out.origin);
             return count;
         }
 

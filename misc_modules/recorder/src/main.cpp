@@ -94,6 +94,7 @@ public:
         volume.init(NULL, audioVolume, false);
         splitter.init(&volume.out);
         splitter.bindStream(&meterStream);
+        splitter.origin = "Recorder(misc_modules).splitter";
         meter.init(&meterStream);
         s2m.init(&stereoStream);
 
@@ -365,6 +366,7 @@ private:
         audioStream = sigpath::sinkManager.bindStream(name);
         if (!audioStream) { return; }
         selectedStreamName = name;
+        audioStream->origin = "recorder(module).audioStream";
         streamId = audioStreams.keyId(name);
         volume.setInput(audioStream);
         startAudioPath();

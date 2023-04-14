@@ -5,6 +5,7 @@
 #include <core.h>
 
 SourceManager::SourceManager() {
+    nullSource.origin = "source.nullsource";
 }
 
 void SourceManager::registerSource(std::string name, SourceHandler* handler) {

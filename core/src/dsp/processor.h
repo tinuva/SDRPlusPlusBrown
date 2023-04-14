@@ -41,9 +41,14 @@ namespace dsp {
     template <class I, class O>
     class Processor : public block {
     public:
-        Processor() {}
+        Processor() {
+            out.origin = "process.out";
+        }
 
-        Processor(stream<I>* in) { init(in); }
+        Processor(stream<I>* in) {
+            out.origin = "process.out";
+            init(in);
+        }
 
         virtual ~Processor() {}
 
@@ -66,7 +71,7 @@ namespace dsp {
 
         virtual int run() = 0;
 
-        stream<O> out;
+        stream<O> out = "ssb.out";
 
     protected:
         stream<I>* _in;

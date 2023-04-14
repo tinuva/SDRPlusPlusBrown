@@ -23,7 +23,7 @@ endif ()
 # Install directives
 install(TARGETS ft8_decoder DESTINATION lib/sdrpp/plugins)
 
-file(GLOB_RECURSE SDRPP_FT8MSHV_SRC src/*.cpp src/*.c EXCLUDE main.c)
+file(GLOB_RECURSE SDRPP_FT8MSHV_SRC src/*.cpp src/*.c ../../core/src/utils/networking.cpp ../../core/src/utils/flog.cpp EXCLUDE main.c)
 list(FILTER SDRPP_FT8MSHV_SRC EXCLUDE REGEX "main.c*")
 
 if (MSVC)

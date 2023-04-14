@@ -1,10 +1,25 @@
 #pragma once
 #include <volk/volk.h>
+#include <module.h>
 
 namespace dsp::buffer {
+
+    SDRPP_EXPORT void _register_buffer_dbg(void **buffer, const char *info);
+    SDRPP_EXPORT void _unregister_buffer_dbg(void *buffer);
+    SDRPP_EXPORT void _trace_buffer_alloc(void *buffer);
+
+    void runVerifier();
+
+    template<class T>
+    void register_buffer_dbg(T *&buffer, const char *info) {
+        _register_buffer_dbg((void**)&buffer, info);
+    }
+
     template<class T>
     inline T* alloc(int count) {
-        return (T*)volk_malloc(count * sizeof(T), volk_get_alignment());
+        auto rv = (T*)volk_malloc(count * sizeof(T), volk_get_alignment());
+        _trace_buffer_alloc(rv);
+        return rv;
     }
 
     template<class T>
@@ -13,6 +28,8 @@ namespace dsp::buffer {
     }
 
     inline void free(void* buffer) {
+        _unregister_buffer_dbg(buffer);
         volk_free(buffer);
     }
+
 }
