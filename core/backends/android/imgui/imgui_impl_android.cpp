@@ -148,6 +148,8 @@ static ImGuiKey ImGui_ImplAndroid_KeyCodeToImGuiKey(int32_t key_code)
         case AKEYCODE_F10:                  return ImGuiKey_F10;
         case AKEYCODE_F11:                  return ImGuiKey_F11;
         case AKEYCODE_F12:                  return ImGuiKey_F12;
+        case AKEYCODE_VOLUME_UP:                  return ImGuiKey_VolumeUp;
+        case AKEYCODE_VOLUME_DOWN:                  return ImGuiKey_VolumeDown;
         default:                            return ImGuiKey_None;
     }
 }

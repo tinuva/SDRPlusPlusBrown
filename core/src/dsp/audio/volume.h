@@ -48,19 +48,19 @@ namespace dsp::audio {
         }
 
         virtual int run() {
-            flog::info("VolumeAdjust: reading from: {}", base_type::_in->origin);
+//            flog::info("VolumeAdjust: reading from: {}", base_type::_in->origin);
             int count = base_type::_in->read();
             if (count < 0) { return -1; }
 
             process(count, base_type::_in->readBuf, base_type::out.writeBuf);
 
             base_type::_in->flush();
-            flog::info("VolumeAdjust: swapping to : {}", base_type::out.origin);
+//            flog::info("VolumeAdjust: swapping to : {}", base_type::out.origin);
             if (!base_type::out.swap(count)) {
-                flog::info("VolumeAdjust: oops");
+//                flog::info("VolumeAdjust: oops");
                 return -1;
             }
-            flog::info("VolumeAdjust: wrote to : {}", base_type::out.origin);
+//            flog::info("VolumeAdjust: wrote to : {}", base_type::out.origin);
             return count;
         }
 

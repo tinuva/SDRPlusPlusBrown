@@ -116,17 +116,17 @@ namespace dsp {
 
         virtual inline int read() {
             // Wait for data to be ready or to be stopped
-            if (this->origin == "merger.out") {
-                flog::info("stream::read:: called on from merger.out..");
-            }
+//            if (this->origin == "merger.out") {
+//                flog::info("stream::read:: called on from merger.out..");
+//            }
             std::unique_lock<std::mutex> lck(rdyMtx);
             rdyCV.wait(lck, [this] { return (dataReady || readerStop); });
 
 
             auto rv = readerStop ? -1 : dataSize;
-            if (this->origin == "merger.out") {
-                flog::info("stream::read:: has been read from merger.out: {}", rv);
-            }
+//            if (this->origin == "merger.out") {
+//                flog::info("stream::read:: has been read from merger.out: {}", rv);
+//            }
             return (rv);
         }
 

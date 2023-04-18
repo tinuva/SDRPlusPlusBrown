@@ -2,6 +2,7 @@
 #include "android_backend.h"
 #include <core.h>
 #include <gui/menus/display.h>
+#include <gui/widgets/waterfall.h>
 #include <gui/gui.h>
 #include "imgui.h"
 #include "imgui_impl_android.h"
@@ -64,6 +65,7 @@ namespace backend {
             break;
         case APP_CMD_GAINED_FOCUS:
             flog::warn("APP_CMD_GAINED_FOCUS");
+            gui::waterfall.updateWaterfallFb("onfocus");// recover textures
             break;
         case APP_CMD_LOST_FOCUS:
             flog::warn("APP_CMD_LOST_FOCUS");

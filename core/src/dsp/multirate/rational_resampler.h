@@ -79,6 +79,14 @@ namespace dsp::multirate {
             base_type::tempStart();
         }
 
+        double getInSampleRate() {
+            return _inSamplerate;
+        }
+
+        double getOutSampleRate() {
+            return _outSamplerate;
+        }
+
         inline int process(int count, const T* in, T* out) {
             switch(mode) {
                 case Mode::BOTH:

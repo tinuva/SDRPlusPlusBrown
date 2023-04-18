@@ -328,7 +328,12 @@ private:
                 outptr[q].r = inptr[q];
             }
             _this->microphone.swap(nBufferFrames);
-//            flog::info("Got from microphone: {}", nBufferFrames);
+//            char buf[10000];
+//            buf[0] = 0;
+//            for(int i=0; i<30; i++) {
+//                sprintf(buf + strlen(buf), "%1.8f ", inptr[i]);
+//            }
+//            flog::info("Got from microphone: {}", buf);
         }
         return 0;
     }

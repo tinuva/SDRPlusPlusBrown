@@ -82,6 +82,7 @@ namespace dsp {
             std::cout << dumpArr(x) << std::endl;
         }
 
+        // hanning window
         inline FloatArray nphanning(int len) {
             auto retval = std::make_shared<std::vector<float>>();
             for (int i = 0; i < len; i++) {
@@ -90,6 +91,7 @@ namespace dsp {
             return retval;
         }
 
+        // add all items together
         inline float npsum(const Arg<std::vector<float>>& v) {
             float f = 0;
             for (auto d : *v) {
@@ -98,6 +100,7 @@ namespace dsp {
             return f;
         }
 
+        // multiply by scalar
         inline FloatArray mul(const Arg<std::vector<float>>& v, float e) {
             auto retval = std::make_shared<std::vector<float>>();
             if (false) {
@@ -113,6 +116,7 @@ namespace dsp {
             return retval;
         }
 
+        // add scalar to all items
         inline FloatArray add(const Arg<std::vector<float>>& v, float e) {
             auto retval = std::make_shared<std::vector<float>>();
             if (true) {
@@ -128,6 +132,7 @@ namespace dsp {
             return retval;
         }
 
+        // add two arrays
         inline FloatArray addeach(const Arg<std::vector<float>>& v, const Arg<std::vector<float>>& w) {
             auto retval = std::make_shared<std::vector<float>>();
             if (false) {
@@ -143,6 +148,7 @@ namespace dsp {
             return retval;
         }
 
+        // subtract two arrays
         inline FloatArray subeach(const Arg<std::vector<float>>& v, const Arg<std::vector<float>>& w) {
             auto retval = std::make_shared<std::vector<float>>();
             if (false) {
@@ -159,6 +165,7 @@ namespace dsp {
         }
 
 
+        // add two arrays
         inline ComplexArray addeach(const ComplexArray& v, const ComplexArray& w) {
             auto retval = std::make_shared<std::vector<dsp::complex_t>>();
 #ifndef  VOLK_VERSION
@@ -173,6 +180,7 @@ namespace dsp {
             return retval;
         }
 
+        // multiply two arrays
         inline FloatArray muleach(const Arg<std::vector<float>>& v, const Arg<std::vector<float>>& w) {
             auto retval = std::make_shared<std::vector<float>>();
             if (false) {
@@ -194,6 +202,7 @@ namespace dsp {
             return retval;
         }
 
+        // multiply two arrays
         inline ComplexArray muleach(const FloatArray& v, const ComplexArray& w) {
             auto retval = std::make_shared<std::vector<dsp::complex_t>>();
             retval->resize(v->size());
@@ -460,6 +469,15 @@ namespace dsp {
         inline FloatArray npzeros(int size) {
             auto retval = std::make_shared<std::vector<float>>(size, 0.0);
             return retval;
+        }
+
+        FloatArray linspace(float start, float stop, int num) {
+            auto array = std::make_shared<std::vector<float>>(num);
+            float step = (stop - start) / (num - 1);
+            for (int i = 0; i < num; i++) {
+                (*array)[i] = start + i * step;
+            }
+            return array;
         }
 
         inline ComplexArray npzeros_c(int size) {

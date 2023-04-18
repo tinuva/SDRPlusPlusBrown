@@ -12,8 +12,8 @@
 #include <utils/flog.h>
 #include <gui/gui.h>
 #include <gui/style.h>
-#include <imgui/imgui_internal.h>
 #include <ctm.h>
+#include "utils/strings.h"
 
 #define MEASURE_LOCK_GUARD(mtx) \
     auto t0 = currentTimeMillis();                      \
@@ -634,10 +634,18 @@ namespace ImGui {
             avgCount++;
         }
 
+//        auto ctm1 = currentTimeNanos();
+//        auto kth0 = percentile::percentile(fftValues, 0.25);    // 25% most silent bins
+//        auto ctm2 = currentTimeNanos();
         std::sort(fftValues.begin(), fftValues.end());      // sorting binds by volume
+//        auto ctm3 = currentTimeNanos();
         auto lowerPercentile = fftValues.size() / 4;
-        for(int i=0; i<lowerPercentile; i++) {              // taking 25% most silent bins
-            qavg += fftValues[i];
+        auto kth = fftValues[lowerPercentile];
+//        flog::info("size={} kth0={} kth={} time0={} time0={}", fftValues.size(), kth0, kth, int64_t (ctm2-ctm1), int64_t (ctm3-ctm2));
+        for(int i=0; i<fftValues.size(); i++) {              // taking 25% most silent bins
+            if (fftValues[i] <= kth) {
+                qavg += fftValues[i];
+            }
         }
         qavg /= (double)lowerPercentile;                  // "true" noise floor
 

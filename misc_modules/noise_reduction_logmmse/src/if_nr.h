@@ -14,7 +14,9 @@ namespace dsp {
     class IFNRLogMMSE : public Processor<complex_t, complex_t> {
         using base_type = Processor<complex_t, complex_t>;
     public:
-        IFNRLogMMSE() {}
+        IFNRLogMMSE() {
+            params.forceWideband = true;
+        }
 
         void init(stream<complex_t>* in) override {
             base_type::init(in);
@@ -52,23 +54,24 @@ namespace dsp {
             shouldReset = true;
         }
 
-        int runMMSE(stream <complex_t> *_in, stream <complex_t> &out) {
+        void process(complex_t *in, int count, complex_t *out, int &outCount) {
             if (shouldReset) {
                 flog::info("Resetting IF NR LogMMSE");
                 shouldReset = false;
                 worker1c.reset();
-                freq = (int)sigpath::iqFrontEnd.getSampleRate();
+                if (params.forceSampleRate != 0) {
+                    freq = params.forceSampleRate;
+                } else {
+                    freq = (int)sigpath::iqFrontEnd.getSampleRate();
+                }
             }
             if (!worker1c) {
                 worker1c = npzeros_c(0);
                 params.reset();
             }
-            int count = _in->read();
-            if (count < 0) { return -1; }
             for (int i = 0; i < count; i++) {
-                worker1c->emplace_back(_in->readBuf[i]);
+                worker1c->emplace_back(in[i]);
             }
-            _in->flush();
             int noiseFrames = 12;
             int fram = freq / 100;
             int initialDemand = fram * 2;
@@ -76,7 +79,8 @@ namespace dsp {
                 initialDemand = fram * (noiseFrames + 2) * 2;
             }
             if (worker1c->size() < initialDemand) {
-                return 0;
+                outCount = 0;
+                return;
             }
             int retCount = 0;
             freqMutex.lock();
@@ -91,13 +95,25 @@ namespace dsp {
             auto dta = rv->data();
             for (int i = 0; i < limit; i++) {
                 auto lp = dta[i];
-                out.writeBuf[i] = lp * 4.0;
+                out[i] = lp * 4.0;
             }
             memmove(worker1c->data(), ((complex_t *) worker1c->data()) + rv->size(), sizeof(complex_t) * (worker1c->size() - rv->size()));
             worker1c->resize(worker1c->size() - rv->size());
-            if (!out.swap(rv->size())) { return -1; }
             retCount += rv->size();
-            return retCount;
+            outCount = limit;
+            return;
+        }
+
+        int runMMSE(stream <complex_t> *_in, stream <complex_t> &out) {
+            int count = _in->read();
+            if (count < 0) { return -1; }
+            int outCount;
+            process(_in->readBuf, count, out.writeBuf, outCount);
+            _in->flush();
+            if (!out.swap(outCount)) {
+                return -1;
+            }
+            return 1;
 
         }
 

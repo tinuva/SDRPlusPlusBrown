@@ -1436,6 +1436,9 @@ enum ImGuiKey_
     ImGuiKey_ModAlt,
     ImGuiKey_ModSuper,
 
+    ImGuiKey_VolumeUp,
+    ImGuiKey_VolumeDown,
+
     ImGuiKey_COUNT,                 // No valid ImGuiKey is ever greater than this value
 
     // [Internal] Prior to 1.87 we required user to fill io.KeysDown[512] using their own native index + a io.KeyMap[] array.

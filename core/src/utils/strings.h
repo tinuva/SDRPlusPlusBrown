@@ -47,3 +47,52 @@ inline void trimString(std::string & line) {
     }
 }
 
+namespace percentile {
+
+    template<typename T>
+    int partition(std::vector<T>& arr, int low, int high) {
+        auto pivot = arr[high];
+        int i = low - 1;
+
+        for (int j = low; j <= high - 1; ++j) {
+            if (arr[j] <= pivot) {
+                ++i;
+                std::swap(arr[i], arr[j]);
+            }
+        }
+        std::swap(arr[i + 1], arr[high]);
+        return (i + 1);
+    }
+
+    template<typename T>
+    int quick_select(std::vector<T>& arr, int low, int high, int k) {
+        if (low == high) {
+            return arr[low];
+        }
+
+        int pivot_index = partition<T>(arr, low, high);
+
+        if (k == pivot_index) {
+            return arr[k];
+        } else if (k < pivot_index) {
+            return quick_select<T>(arr, low, pivot_index - 1, k);
+        } else {
+            return quick_select<T>(arr, pivot_index + 1, high, k);
+        }
+    }
+
+    template<typename T>
+    double percentile(std::vector<T>& arr, double p) {
+        int n = arr.size();
+        double k = (n - 1) * p;
+        int k_low = static_cast<int>(std::floor(k));
+        int k_high = static_cast<int>(std::ceil(k));
+
+        auto x_low = quick_select<T>(arr, 0, n - 1, k_low);
+        auto x_high = quick_select<T>(arr, 0, n - 1, k_high);
+
+        return x_low + (x_high - x_low) * (k - k_low);
+    }
+
+
+}

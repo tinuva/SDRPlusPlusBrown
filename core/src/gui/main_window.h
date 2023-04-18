@@ -13,9 +13,9 @@
 
 class MainWindow {
 public:
-    void init();
+    virtual void init();
     virtual void end() {}
-    virtual void preDraw(ImGui::WaterfallVFO* &vfo);
+    virtual void preDraw(ImGui::WaterfallVFO* *vfo);
     virtual void draw();
     void drawUpperLine(ImGui::WaterfallVFO* vfo);
     void updateZoom() {
@@ -79,4 +79,5 @@ protected:
     EventHandler<VFOManager::VFO*> vfoCreatedHandler;
 
     void updateWaterfallZoomBandwidth(float bw);
+    void handleWaterfallInput(ImGui::WaterfallVFO* vfo);
 };

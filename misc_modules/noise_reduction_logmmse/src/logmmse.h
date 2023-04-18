@@ -27,19 +27,6 @@ namespace dsp {
 
     namespace logmmse {
 
-        inline long long currentTimeNanos() {
-#ifdef __linux__
-            timespec time1;
-            clock_gettime(CLOCK_MONOTONIC_COARSE, &time1);
-            return time1.tv_nsec + time1.tv_sec * 1000000000L;
-#else
-            std::chrono::system_clock::time_point t1 = std::chrono::system_clock::now();
-            long long msec = std::chrono::time_point_cast<std::chrono::nanoseconds>(t1).time_since_epoch().count();
-            return msec;
-#endif
-        }
-
-
         // courtesy of https://github.com/jimmyberg/LowPassFilter
         class LowPassFilter {
 
@@ -85,6 +72,10 @@ namespace dsp {
                 FloatArray noise_mu2;
                 FloatArray Xk_prev;
                 ComplexArray x_old;
+                bool forceAudio = false;
+                bool forceWideband = false;
+                int forceSampleRate = 0;
+
 
                 int Slen;
                 int PERC;
@@ -160,6 +151,8 @@ namespace dsp {
                     static long long muSum[30] = {0,}, muCount = 0; auto ctm = currentTimeNanos();long long ctm2; auto statIndex = 0;
                     auto nframes = noise_history.size();
                     bool audioFrequency = nFFT < 1200;
+                    if (forceAudio) audioFrequency = true;
+                    if (forceWideband) audioFrequency = false;
 //                    auto dump = dumpEnabler == 10;
                     ALLOC_AND_CHECK(x, sz, "update_noise_mu2 point 0")
 
@@ -330,6 +323,8 @@ namespace dsp {
                 params->dev_history.clear();
                 params->len2 = params->Slen - params->len1;         // len1+len2
                 auto audioFrequency = Srate <= 24000;
+                if (params->forceAudio) audioFrequency = true;
+                if (params->forceWideband) audioFrequency = false;
                 if (audioFrequency) {
                     // probably audio frequency
                     params->win = nphanning(params->Slen);

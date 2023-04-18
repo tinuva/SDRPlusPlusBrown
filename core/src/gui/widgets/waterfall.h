@@ -239,8 +239,10 @@ namespace ImGui {
         ImVec2 freqAreaMax;
         ImVec2 wfMin;
         ImVec2 wfMax;
+        int WATERFALL_NUMBER_OF_SECTIONS = 64;
 
         bool containsFrequency(double d);
+        void updateWaterfallFb(const std::string &where = ""); // called from android, from outside
 
     private:
         void drawWaterfall();
@@ -250,7 +252,6 @@ namespace ImGui {
         void processInputs();
         void onPositionChange();
         void onResize();
-        void updateWaterfallFb(const std::string &where = "");
         void updateWaterfallTexture();
 
         enum {
@@ -331,7 +332,6 @@ namespace ImGui {
 
         int waterfallFbHeadRowIndex = 0;
 
-        const int WATERFALL_NUMBER_OF_SECTIONS = 64;
         int waterfallMaxSectionHeight = 2;
 
         int waterfallHeadSectionIndex = 0;

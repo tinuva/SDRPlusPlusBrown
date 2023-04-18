@@ -78,6 +78,7 @@ namespace dsp {
 
         AFNRLogMMSE() {
             worker1c = std::make_shared<std::vector<complex_t>>();
+            params.forceAudio = true;
         }
 
 

@@ -9,7 +9,7 @@
 #include <mutex>
 #include <gui/tuner.h>
 #include "main_window.h"
-
+#include "signal_path/sink.h"
 
 
 struct TheEncoder {
@@ -48,6 +48,8 @@ struct MobileButton {
     bool isLongPress();
 };
 
+struct SubWaterfall;
+
 
 class MobileMainWindow : public MainWindow {
 public:
@@ -64,14 +66,19 @@ public:
     std::shared_ptr<ConfigPanel> configPanel;
     std::shared_ptr<QSOPanel> qsoPanel;
     std::shared_ptr<CWPanel> cwPanel;
+
+    std::shared_ptr<SubWaterfall> audioWaterfall;
+    dsp::stream<dsp::stereo_t> *currentAudioStream = nullptr;
+    int currentAudioStreamSampleRate = 0;
+    std::string currentAudioStreamName = "";
     enum {
         VIEW_DEFAULT = 1,
         VIEW_QSO = 2,
         VIEW_CONFIG = 3
     } qsoMode = VIEW_DEFAULT;       // different ui
     bool shouldInitialize = true;
-    std::vector<std::string> modes = { "SSB", "CW", "DIGI", "FM", "AM" };
-    std::map<std::string, std::vector<std::string>> subModes = { { "SSB", { "LSB", "USB" } }, { "FM", { "WFM", "NFM" } }, { "AM", { "AM" } }, { "CW", { "CWU", "CWL" } }, { "DIGI", { "FT8", "FT4", "OLIVIA", "PSK31", "SSTV" } } };
+    std::vector<std::string> modes = { "SSB", "CW", "FM", "AM", "DIGI" };
+    std::map<std::string, std::vector<std::string>> subModes = { { "SSB", { "LSB", "USB" } }, { "FM", { "WFM", "NFM" } }, { "AM", { "AM" } }, { "CW", { "CW" /*, "CWU", "CWL"*/ } }, { "DIGI", { "FT8", "FT4", "OLIVIA", "PSK31", "SSTV" } } };
     std::vector<std::string> bands = { "MW", "LW", "160M", "80M", "60M", "40M", "30M", "20M", "17M", "15M", "12M", "10M", "2M" };
     std::map<std::string, std::pair<int, int>> bandsLimits = {
         {"MW", {527000, 160000}},
@@ -88,6 +95,10 @@ public:
         {"10M",{28000000, 29000000}},
         {"2M",{144000000, 146000000}}
     };
+    std::vector<std::string> ssbBandwidths = { "2.0", "2.2", "2.5", "2.7", "2.8", "3.0", "3.2", "3.5" };
+    std::vector<std::string> cwBandwidths = { "50", "100", "150", "200", "300" };
+    std::vector<std::string> fmBandwidths = { "6", "12" };
+    std::vector<std::string> amBandwidths = { "6", "7", "8", "9", "10", "11", "12" };
     std::map<std::string, float> frequencyDefaults = {
         { "MW", 630 },
         { "LW", 125 },
@@ -177,6 +188,7 @@ public:
     };
     MobileMainWindow();
     void draw() override;
+    void init() override;
     void end() override;
     std::string getCurrentMode();
     static void setCurrentMode(std::string);
@@ -190,4 +202,5 @@ public:
     const std::string &getBand(int frequency);
     void leaveBandOrMode(int leavingFrequency);
     void selectSSBModeForBand(const std::string& band);
+    void updateAudioWaterfallPipeline();
 };

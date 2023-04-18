@@ -58,7 +58,7 @@ namespace dsp::routing {
                     newStream->receivedData.resize(newStream->receivedData.size() + rd);
                     std::copy(newStream->astream->readBuf, newStream->astream->readBuf + rd, newStream->receivedData.begin() + dest);
                     newStream->astream->flush();
-                    flog::info("merger: {}: got something {} from stream {}, now size {}", (int64_t)currentTimeMillis(), rd, newStream->astream->origin, newStream->receivedData.size());
+//                    flog::info("merger: {}: got something {} from stream {}, now size {}", (int64_t)currentTimeMillis(), rd, newStream->astream->origin, newStream->receivedData.size());
                     newStream->dataLock.unlock();
                     dataReadyMutex.lock();
                     dataReady.notify_one();
@@ -103,13 +103,13 @@ namespace dsp::routing {
 
         int run() override {
             if (!proceedWithoutWait) {
-                flog::info("Merger waits..");
+//                flog::info("Merger waits..");
                 std::unique_lock<std::mutex> lk(dataReadyMutex);
                 dataReady.wait(lk);
             } else {
-                flog::info("Merger does not wait.");
+//                flog::info("Merger does not wait.");
             }
-            flog::info("Merger endwait");
+//            flog::info("Merger endwait");
             static int _cnt = 0;
             _cnt++;
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
@@ -145,15 +145,15 @@ namespace dsp::routing {
                         count = 1024;
                     }
                     memcpy(out.writeBuf, ss->receivedData.data(), count * sizeof(T));
-                    flog::info("merger: swapping {} to {}...", count, out.origin);
+//                    flog::info("merger: swapping {} to {}...", count, out.origin);
                     if (!out.swap(count)) {
                         flog::info("merger: swapping oops: -1");
                         return -1;
                     }
-                    flog::info("merger: swapped {}", count);
+//                    flog::info("merger: swapped {}", count);
                     ss->receivedData.erase(ss->receivedData.begin(), ss->receivedData.begin() + count);
                     proceedWithoutWait = ss->receivedData.size() > 0;
-                    flog::info("merger: {}: wrote {} from stream {}, now size remains {}", (int64_t)currentTimeMillis(), count, streamIndex, ss->receivedData.size());
+//                    flog::info("merger: {}: wrote {} from stream {}, now size remains {}", (int64_t)currentTimeMillis(), count, streamIndex, ss->receivedData.size());
                 } else {
                     ss->receivedData.clear();
                 }
