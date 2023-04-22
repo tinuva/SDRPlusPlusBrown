@@ -6,6 +6,9 @@
 #include<core.h>
 
 using namespace std;
+
+
+std::string G_calculate::resDir;
 G_calculate::G_calculate()
 {
 }
@@ -162,7 +165,6 @@ short G_calculate::Initialize(int wlen) {
    //const char* Fileexpsub = "D:/expsub1.pcm";
    //m_expsub_value = file_read<int>(Fileexpsub);
 
-    std::string resDir = core::configManager.conf["resourcesDirectory"];
 
 
 //	const char* FileexpG = "/home/san/Fun/OMLSA-MCRA/OM_LSA/Gvalue2.pcm";

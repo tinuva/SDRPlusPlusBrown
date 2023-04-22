@@ -754,11 +754,64 @@ struct Equalizer : public dsp::Processor<dsp::complex_t, dsp::complex_t> {
     }
 };
 
+
+struct FreqMaim : public dsp::Processor<dsp::complex_t, dsp::complex_t> {
+
+    Arg<fftwPlan> forward;
+    Arg<fftwPlan> backward;
+    int nbuckets = 512;
+
+    FreqMaim() : dsp::Processor<dsp::complex_t, dsp::complex_t>() {
+        forward = allocateFFTWPlan(true, 512);
+        backward = allocateFFTWPlan(true, 512);
+    }
+
+    std::vector<dsp::complex_t> buffer;
+
+    void process(size_t size, dsp::complex_t* in, dsp::complex_t* out) {
+        buffer.reserve(buffer.size()+size);
+        buffer.insert(buffer.end(), in, in+size);
+        auto ina = npzeros_c(nbuckets);
+        while (buffer.size() > nbuckets) {
+            for (int i = 0; i < nbuckets; ++i) {
+                (*ina)[i] = buffer[i];
+            }
+            auto outa = npfftfft(ina, forward);
+            auto rev = npfftfft(outa, backward);
+            for (int i = 0; i < nbuckets; ++i) {
+                out[i] = (*rev)[i];
+                out[i] *= (float)nbuckets;
+            }
+            for(int i=nbuckets-1; i>=0; --i) {
+                auto ndest = (int)(1.5*i);
+                if (ndest>=nbuckets) {
+                    out[i].re /= 512;
+                    out[i].im /= 512;
+                } else {
+                    auto amp = out[ndest].amplitude();
+                    out[i].re = out[ndest].re;
+                    out[i].im = 0;
+                }
+            }
+            out += nbuckets;
+            buffer.erase(buffer.begin(), buffer.begin()+nbuckets);
+        }
+    }
+
+
+
+    int run() override {
+        return 0;
+    }
+};
+
+
 struct ConfigPanel {
     float agcAttack = 120.0f;
     float agcDecay = 0.1f;
 //    bool doNR = true;
     bool doEqualize = true;
+    bool doFreqMaim = false;
 
     // audio passband
     int highPass = 120;
@@ -770,6 +823,7 @@ struct ConfigPanel {
 //    dsp::loop::AGC<dsp::complex_t> agc2;
     std::shared_ptr<dsp::AFNR_OMLSA_MCRA> afnr;
     Equalizer equalizer;
+    FreqMaim freqMaim;
     dsp::convert::RealToComplex r2c;
     dsp::convert::ComplexToReal c2r;
 
@@ -1131,7 +1185,7 @@ void MobileMainWindow::draw() {
         buttonsWidth = 600;
         break;
     case VIEW_CONFIG:
-        buttonsWidth = 1200;
+        buttonsWidth = style::baseFont->FontSize * 25;
         break;
     default:
         break;
@@ -1440,7 +1494,8 @@ void MobileMainWindow::draw() {
                 pressedButton->buttonText = "Tuning..";
             }
         }
-        if (txButton.currentlyPressed && !qsoPanel->audioInToTransmitter || !txButton.currentlyPressed && qsoPanel->audioInToTransmitter && qsoPanel->audioInToTransmitter->tuneFrequency == 0) {
+        bool txPressed = txButton.currentlyPressed || ImGui::IsKeyDown(ImGuiKey_VolumeUp);
+        if (txPressed && !qsoPanel->audioInToTransmitter || !txPressed && qsoPanel->audioInToTransmitter && qsoPanel->audioInToTransmitter->tuneFrequency == 0) {
             // button is pressed ok to send, or button is released and audioInToTransmitter running and it is not in tune mode
             qsoPanel->handleTxButton(this->txButton.currentlyPressed, false);
             //
@@ -1672,6 +1727,8 @@ MobileMainWindow::MobileMainWindow() : MainWindow(),
 void MobileMainWindow::init() {
     MainWindow::init();
     audioWaterfall->init();
+    G_calculate::resDir = core::configManager.conf["resourcesDirectory"];
+
 }
 
 void MobileMainWindow::end() {
@@ -1738,7 +1795,12 @@ void QSOPanel::startSoundPipeline() {
             } else {
                 memcpy(configPanel->equalizer.out.writeBuf, configPanel->r2c.out.writeBuf, rd * sizeof(dsp::complex_t));
             }
-            configPanel->c2r.process(rd, configPanel->equalizer.out.writeBuf, configPanel->c2r.out.writeBuf);
+            if (configPanel->doFreqMaim) {
+                configPanel->freqMaim.process(rd, configPanel->equalizer.out.writeBuf, configPanel->freqMaim.out.writeBuf);
+            } else {
+                memcpy(configPanel->freqMaim.out.writeBuf, configPanel->equalizer.out.writeBuf, rd * sizeof(dsp::complex_t));
+            }
+            configPanel->c2r.process(rd, configPanel->freqMaim.out.writeBuf, configPanel->c2r.out.writeBuf);
             configPanel->agc.process(rd, configPanel->c2r.out.writeBuf, configPanel->agc.out.writeBuf);
             configPanel->m2s.process(rd, configPanel->agc.out.writeBuf, configPanel->m2s.out.writeBuf);
             configPanel->afnr->process(configPanel->m2s.out.writeBuf, rd, configPanel->afnr->out.writeBuf, rd);
@@ -1844,6 +1906,7 @@ void QSOPanel::handleTxButton(bool tx, bool tune) {
             }
         }
     }
+    configPanel->afnr->allowed2 = !this->transmitting;
 }
 
 void QSOPanel::stopSoundPipeline() {
@@ -2030,6 +2093,13 @@ void ConfigPanel::draw() {
         agc.setDecay(agcDecay);
 //        agc2.setDecay(agcDecay);
     }
+    ImGui::LeftLabel("DX Equalizer / Compressor");
+    if (ImGui::Checkbox("##equalizeit", &doEqualize)) {
+    }
+    ImGui::SameLine();
+    ImGui::LeftLabel("Freq Maim");
+    if (ImGui::Checkbox("##freqmaim", &doFreqMaim)) {
+    }
     if (afnr) {
         ImGui::LeftLabel("Mic Noise Reduction");
         if (ImGui::Checkbox("##donr", &afnr->allowed)) {
@@ -2039,9 +2109,6 @@ void ConfigPanel::draw() {
 //    if (ImGui::Button("Reset NR")) {
 //        afnr.reset();
 //    }
-    ImGui::LeftLabel("DX Equalizer / Compressor");
-    if (ImGui::Checkbox("##equalizeit", &doEqualize)) {
-    }
 
     ImVec2 space = ImGui::GetContentRegionAvail();
     draw_db_gauge(space.x, outDecibels.getMax(3), outDecibels.getPeak(), -80, +20);

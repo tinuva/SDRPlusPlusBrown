@@ -70,6 +70,7 @@ namespace dsp {
         dsp::omlsa_mcra omlsa_mcra;
         std::vector<stereo_t> buffer;
         bool allowed = false;
+        bool allowed2 = true;       // just convenient for various conditions
 
         void init(stream<stereo_t>* in) override {
             base_type::init(in);
@@ -85,6 +86,7 @@ namespace dsp {
                 auto _this = (AFNR_OMLSA_MCRA*)ctx;
 //                _this->params.hold = txActive;
             };
+            G_calculate::resDir = core::configManager.conf["resourcesDirectory"];
             omlsa_mcra.setSampleRate(48000);
             sigpath::txState.bindHandler(&txHandler);
             block::start();
@@ -96,7 +98,7 @@ namespace dsp {
         }
 
         void process(stereo_t *readBuf, int count, stereo_t *writeBuf, int &wrote) {
-            if (!allowed) {
+            if (!allowed | !allowed2) {
                 std::copy(readBuf, readBuf+count, writeBuf);
                 wrote = count;
                 buffer.clear();

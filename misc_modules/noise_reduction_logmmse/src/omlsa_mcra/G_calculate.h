@@ -7,6 +7,7 @@ class G_calculate
 {
 public:
 	G_calculate();
+    static std::string resDir;
 	short G_calculate_process(Complex_num* m_winData, int blockInd);
 	short Initialize(int wlen);
 	~G_calculate();
@@ -40,11 +41,11 @@ private:
 
 	short* m_ns_storage;
 	unsigned int* m_abs_Y, *m_M;
-	int* m_int_value, *m_expsub_value, *m_G_value; //²é±í·¨Êý¾ÝÔÝ´æ¿Õ¼ä
+	int* m_int_value, *m_expsub_value, *m_G_value; //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý´ï¿½Õ¼ï¿½
 	int* m_lamda_d;
 
 	template<class T>
-	T* file_read(const char* Filename);  //¶ÁÈ¡ÎÄ¼þº¯ÊýÄ£°å
+	T* file_read(const char* Filename);  //ï¿½ï¿½È¡ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½
 
 	void NoiseEstimation(int blockInd);
 	void SpeechAbsenceEstm();
