@@ -28,7 +28,7 @@ namespace dsp::buffer {
     }
 
     inline void free(void* buffer) {
-        _unregister_buffer_dbg(buffer);
+        //_unregister_buffer_dbg(buffer);
         volk_free(buffer);
     }
 

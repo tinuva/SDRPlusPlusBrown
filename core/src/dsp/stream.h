@@ -59,11 +59,11 @@ namespace dsp {
             writeBuf0 = buffer::alloc<T>(STREAM_BUFFER_SIZE);
             if (!writeBuf0)
                 abort();
-            buffer::register_buffer_dbg(writeBuf0, origin ? origin: "stream without origin");
+            //buffer::register_buffer_dbg(writeBuf0, origin ? origin: "stream without origin");
             readBuf0 = buffer::alloc<T>(STREAM_BUFFER_SIZE);
             if (!readBuf0)
                 abort();
-            buffer::register_buffer_dbg(readBuf0, origin ? origin: "stream without origin");
+            //buffer::register_buffer_dbg(readBuf0, origin ? origin: "stream without origin");
             readBuf = readBuf0;
             writeBuf = writeBuf0;
         }
@@ -80,8 +80,8 @@ namespace dsp {
             buffer::free(readBuf0);
             writeBuf0 = buffer::alloc<T>(samples);
             readBuf0 = buffer::alloc<T>(samples);
-            buffer::register_buffer_dbg(writeBuf0, origin ? origin: "stream without origin, sbs");
-            buffer::register_buffer_dbg(readBuf0, origin ? origin: "stream without origin, sbs");
+            //buffer::register_buffer_dbg(writeBuf0, origin ? origin: "stream without origin, sbs");
+            //buffer::register_buffer_dbg(readBuf0, origin ? origin: "stream without origin, sbs");
             readBuf = readBuf0;
             writeBuf = writeBuf0;
 

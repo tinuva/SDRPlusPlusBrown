@@ -3,7 +3,6 @@
 #include"SearchChart.h"
 #include"time.h"
 #include<algorithm>
-#include<core.h>
 
 using namespace std;
 

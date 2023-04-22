@@ -30,7 +30,7 @@ namespace dsp::buffer {
             writable = size;
             _buffer = buffer::alloc<T>(size);
             buffer::clear(_buffer, size);
-            buffer::register_buffer_dbg(_buffer, "ringbuffer");
+            //buffer::register_buffer_dbg(_buffer, "ringbuffer");
             _init = true;
         }
 
