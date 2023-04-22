@@ -59,11 +59,11 @@ int G_calculate::Gvalue_solution(int Gh1_subscript,int pp_subscript) {
     if (index >= 700000 || index < 0) {
         ::abort();
     }
-    static bool bits[700000] = {false};
-    if (!bits[index]) {
-        flog::info("OMLSA: New bit: {}", index);
-        bits[index] = true;
-    }
+//    static bool bits[700000] = {false};
+//    if (!bits[index]) {
+//        flog::info("OMLSA: New bit: {}", index);
+//        bits[index] = true;
+//    }
 	g = m_G_value[index];
 	return g;
 }

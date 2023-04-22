@@ -119,7 +119,7 @@ namespace dsp {
                     bool processedOk = true;
                     if (max > 32767/scaled) { // overflow, rare, mostly due to agc did not kick in
                         float newScaled = 8191 / max;
-                        flog::info("fabs = {}, scaled={}, newScaled(once)={}", max, scaled, newScaled);
+//                        flog::info("fabs = {}, scaled={}, newScaled(once)={}", max, scaled, newScaled);
                         for (int q = 0; q < blockSize; q++) {
                             processIn[q] = buffer[q].l * newScaled;
                         }
@@ -127,7 +127,7 @@ namespace dsp {
                     auto ctm = currentTimeNanos();
                     processedOk = omlsa_mcra.process((short*)processIn.data(), blockSize, (short*)processOut.data(), wrote);
                     ctm = currentTimeNanos() - ctm;
-                    flog::info("processed: nanos {} size={} wrote={}", (int64_t)ctm, blockSize, wrote);
+//                    flog::info("processed: nanos {} size={} wrote={}", (int64_t)ctm, blockSize, wrote);
                     if (!processedOk) {
                         omlsa_mcra.reset();
                         std::copy(buffer.begin(), buffer.end(), writeBuf);

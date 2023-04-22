@@ -107,7 +107,7 @@ struct SubWaterfall {
     fftwf_complex* fft_out;
     fftwf_plan fftwPlan;
     float *spectrumLine;
-    float hiFreq = 3000;
+    float hiFreq = 5000;
     int fftSize;
     float waterfallRate = 10;
 
@@ -287,7 +287,7 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
 
     void start() override {
         flog::info("AudioInToTransmitter: Start");
-        auto bandwidth = 2700.0;
+        auto bandwidth = 4000.0;
         if (this->submode == "LSB") {
             xlator1.init(nullptr, -bandwidth / 2, 48000);
             xlator2.init(nullptr, bandwidth / 2, 48000);
@@ -1713,13 +1713,13 @@ void QSOPanel::startSoundPipeline() {
             configPanel->rawInDecibels.addSamples(audioIn.readBuf, rd);
             if (configPanel->lowPass != prevLowPass) {
                 dsp::taps::free(lopassTaps);
-                lopassTaps = dsp::taps::lowPass0<float>(configPanel->lowPass, 30, 48000);
+                lopassTaps = dsp::taps::lowPass0<float>(configPanel->lowPass/2, 200, 48000);
                 lopass.setTaps(lopassTaps);
                 prevLowPass = configPanel->lowPass;
             }
             if (configPanel->highPass != prevHighPass) {
                 dsp::taps::free(hipassTaps);
-                hipassTaps = dsp::taps::highPass0<float>(configPanel->highPass, 3000, 48000);
+                hipassTaps = dsp::taps::highPass0<float>(configPanel->highPass/2, 3000, 48000);
                 hipass.setTaps(hipassTaps);
                 prevHighPass = configPanel->highPass;
             }
@@ -2017,7 +2017,7 @@ void ConfigPanel::draw() {
     if (ImGui::SliderInt("##lowcutoff", &highPass, 0, lowPass, "%d Hz")) {
     }
     ImGui::LeftLabel("Audio hi cutoff frequency");
-    if (ImGui::SliderInt("##highcutoff", &lowPass, highPass, 3200, "%d Hz")) {
+    if (ImGui::SliderInt("##highcutoff", &lowPass, highPass, 4200, "%d Hz")) {
     }
 
     ImGui::LeftLabel("AGC Attack");
