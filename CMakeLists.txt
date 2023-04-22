@@ -207,7 +207,10 @@ add_subdirectory("source_modules/spectran_source")
 endif (OPT_BUILD_SPECTRAN_SOURCE)
 
 if (OPT_BUILD_SPECTRAN_HTTP_SOURCE)
-add_subdirectory("source_modules/spectran_http_source")
+    if (MSVC)
+    else()
+        add_subdirectory("source_modules/spectran_http_source")
+    endif()
 endif (OPT_BUILD_SPECTRAN_HTTP_SOURCE)
 
 if (OPT_BUILD_SPYSERVER_SOURCE)

@@ -18,7 +18,7 @@ namespace dsp::buffer {
     template<class T>
     inline T* alloc(int count) {
         auto rv = (T*)volk_malloc(count * sizeof(T), volk_get_alignment());
-        _trace_buffer_alloc(rv);
+        //_trace_buffer_alloc(rv);
         return rv;
     }
 
