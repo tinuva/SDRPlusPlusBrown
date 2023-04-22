@@ -2055,7 +2055,7 @@ void ConfigPanel::draw() {
         }
         if (!recorder.data.empty()) {
             ImGui::SameLine();
-            if (doFingerButton("Play")) {
+            if (doFingerButton("<------- Play")) {
                 recorder.startPlaying();
             }
         }
@@ -2071,7 +2071,7 @@ void ConfigPanel::draw() {
         }
         ImGui::EndDisabled();
         ImGui::SameLine();
-        if (doFingerButton("Stop Play")) {
+        if (doFingerButton("<-------- Stop Play")) {
             recorder.stop();
         }
         break;

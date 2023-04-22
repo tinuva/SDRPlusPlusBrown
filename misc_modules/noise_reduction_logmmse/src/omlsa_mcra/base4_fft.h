@@ -3,7 +3,9 @@
 #include "Cordic.h"
 #include <string.h>
 
+#ifndef _WIN32
 #define __int64 int64_t
+#endif
 
 typedef struct
 {

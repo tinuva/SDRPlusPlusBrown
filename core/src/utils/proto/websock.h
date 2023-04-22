@@ -262,14 +262,17 @@ namespace net::websock {
             initHeaders += "\r\n";
 
             int len = socket->sendstr(initHeaders);
-            flog::info("sent: {} of {}", len, initHeaders.size());
+            int senderr = errno;
+            flog::info("sent: {} of {}", len, (int64_t)initHeaders.size());
 
             uint8_t buf[100000];
 
             int recvd = socket->recv(buf, sizeof(buf), false, 10000);
             if (recvd <= 0) {
+                std::string msg = "websock: recv failed" + std::to_string(errno)+" (recvd="+std::to_string(recvd)+
+                                  " sent="+std::to_string(len)+" senderr="+std::to_string(senderr)+")";
                 socket->close();
-                throw std::runtime_error("websock: recv failed");
+                throw std::runtime_error(msg);
             }
             buf[recvd] = 0;
             flog::info("recvd: {}", recvd);
