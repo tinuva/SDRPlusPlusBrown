@@ -7,7 +7,9 @@
 #include <list>
 #include <ctm.h>
 
-#include "omlsa_mcra/Datablock_Read.h"
+class Datablock_Read;
+
+extern void omlsa_setResDir(std::string dir);
 
 namespace dsp {
     struct omlsa_mcra {
@@ -17,27 +19,16 @@ namespace dsp {
         omlsa_mcra() {
         }
 
-        void reset() {
-            dtr = std::make_shared<Datablock_Read>(sampleRate, 1, 10000);
-        }
+        void reset();
 
         void setSampleRate(int sampleRate) {
             this->sampleRate = sampleRate;
             reset();
         }
 
-        int blockSize() {
-            return dtr->m_wlen15;
-        }
+        int blockSize();
 
-        bool process(short *in, int incount, short *out, int &outcount) {
-            if (!dtr) {
-                ::abort();
-            }
-            short abnormal_flag = dtr->Data_procese(in, out, incount, outcount);
-            if (abnormal_flag < 0) return false;
-            return true;
-        }
+        bool process(short *in, int incount, short *out, int &outcount);
 
 
     };

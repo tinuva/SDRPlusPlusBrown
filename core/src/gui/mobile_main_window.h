@@ -71,6 +71,8 @@ public:
     dsp::stream<dsp::stereo_t> *currentAudioStream = nullptr;
     int currentAudioStreamSampleRate = 0;
     std::string currentAudioStreamName = "";
+    bool drawAudioWaterfall = true;
+    EventHandler<ImGuiContext*> displayDrawHandler;
     enum {
         VIEW_DEFAULT = 1,
         VIEW_QSO = 2,

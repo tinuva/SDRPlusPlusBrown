@@ -85,7 +85,7 @@ private:
         auto afnrlogmmse = std::make_shared<dsp::AFNRLogMMSE>();
         afnrProcessors[instanceName] = afnrlogmmse;
         afnrlogmmse->init(nullptr);
-        const shared_ptr<dsp::AFNR_OMLSA_MCRA> afnromlsa = std::make_shared<dsp::AFNR_OMLSA_MCRA>();
+        const std::shared_ptr<dsp::AFNR_OMLSA_MCRA> afnromlsa = std::make_shared<dsp::AFNR_OMLSA_MCRA>();
         afnrProcessors2[instanceName] = afnromlsa;
         core::modComManager.callInterface(instanceName, RADIO_IFACE_CMD_ADD_TO_IFCHAIN, afnrlogmmse.get(), NULL);
         core::modComManager.callInterface(instanceName, RADIO_IFACE_CMD_ADD_TO_AFCHAIN, afnromlsa.get(), NULL);
@@ -217,7 +217,7 @@ private:
 
     void menuHandler() {
         float menuWidth = ImGui::GetContentRegionAvail().x;
-        if (ImGui::Checkbox("Band NR##_sdrpp_if_nr", &ifnr)) {
+        if (ImGui::Checkbox("Baseband NR##_sdrpp_if_nr", &ifnr)) {
             //            sigpath::signalPath.setWidebandNR(_this->widebandNR);
             config.acquire();
             config.conf["IFNR"] = ifnr;
@@ -229,7 +229,7 @@ private:
 //            ImGui::SetTooltip("Algorithm running on full bandwidth. High CPU usage! Good for SSB/AM/CW only.");
 
         for(auto [k, v] : afnrProcessors) {
-            if (ImGui::Checkbox(("AF NR "+k+"##_radio_logmmse_nr_" + k).c_str(), &v->allowed)) {
+            if (ImGui::Checkbox(("Audio NR "+k+"##_radio_logmmse_nr_" + k).c_str(), &v->allowed)) {
                 actuateAFNR();
                 config.acquire();
                 config.conf["AF_NR_"+k] = v->allowed;
@@ -247,7 +247,7 @@ private:
             }
         }
         for(auto [k, v] : afnrProcessors2) {
-            if (ImGui::Checkbox(("AF NR2 "+k+"##_radio_omlsa_nr_" + k).c_str(), &v->allowed)) {
+            if (ImGui::Checkbox(("Audio NR2 "+k+"##_radio_omlsa_nr_" + k).c_str(), &v->allowed)) {
                 actuateAFNR();
                 config.acquire();
                 config.conf["AF_NR2_"+k] = v->allowed;

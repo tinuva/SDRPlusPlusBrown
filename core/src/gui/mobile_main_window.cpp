@@ -12,7 +12,6 @@
 #include <gui/icons.h>
 #include <gui/widgets/bandplan.h>
 #include <gui/style.h>
-#include <core.h>
 #include <gui/menus/display.h>
 #include <gui/menus/theme.h>
 #include <filesystem>
@@ -69,7 +68,7 @@ struct Decibelometer {
         }
         float maxx = -1000;
         for (int i = 0; i < len; i++) {
-            maxx = std::max(maxx, lastMeasures[lastMeasures.size()-1-i]);
+            maxx = std::max<float>(maxx, lastMeasures[lastMeasures.size()-1-i]);
         }
         return maxx;
     }
@@ -806,6 +805,10 @@ struct FreqMaim : public dsp::Processor<dsp::complex_t, dsp::complex_t> {
 };
 
 
+namespace dsp {
+    struct AFNR_OMLSA_MCRA;
+}
+
 struct ConfigPanel {
     float agcAttack = 120.0f;
     float agcDecay = 0.1f;
@@ -1376,7 +1379,7 @@ void MobileMainWindow::draw() {
     }
 
     ImGuiIO& io = ImGui::GetIO();
-    if (true) {
+    if (drawAudioWaterfall) {
         ImVec2 sz(io.DisplaySize.x / 6, io.DisplaySize.y / 4);
         audioWaterfall->draw(ImVec2(io.DisplaySize.x/2-sz.x/2, io.DisplaySize.y - sz.y-20), sz);
     }
@@ -1727,11 +1730,30 @@ MobileMainWindow::MobileMainWindow() : MainWindow(),
 void MobileMainWindow::init() {
     MainWindow::init();
     audioWaterfall->init();
-    G_calculate::resDir = core::configManager.conf["resourcesDirectory"];
+    omlsa_setResDir(core::configManager.conf["resourcesDirectory"]);
+    core::configManager.acquire();
+    if (core::configManager.conf.contains("showAudioWaterfall")) {
+        drawAudioWaterfall = core::configManager.conf["showAudioWaterfall"];
+    }
+    core::configManager.release(true);
+
+    displaymenu::onDisplayDraw.bindHandler(&displayDrawHandler);
+    displayDrawHandler.handler = [](ImGuiContext *ctx, void *data){
+        MobileMainWindow *_this = (MobileMainWindow*)data;
+        if (ImGui::Checkbox("Show Audio Waterfall##_sdrpp", &_this->drawAudioWaterfall)) {
+            core::configManager.acquire();
+            core::configManager.conf["showAudioWaterfall"] = _this->drawAudioWaterfall;
+            core::configManager.release(true);
+        }
+
+
+    };
+    displayDrawHandler.ctx = this;
 
 }
 
 void MobileMainWindow::end() {
+    displaymenu::onDisplayDraw.unbindHandler(&displayDrawHandler);
     MainWindow::end();
     qsoPanel.reset();
     cwPanel.reset();

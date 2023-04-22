@@ -459,7 +459,7 @@ namespace dsp {
             return retval;
         }
 
-        FloatArray hamming(int N) {
+        inline FloatArray hamming(int N) {
             FloatArray window = npzeros(N);
             const double PI = 3.14159265358979323846;
 
@@ -470,7 +470,7 @@ namespace dsp {
             return window;
         }
 
-        FloatArray linspace(float start, float stop, int num) {
+        inline FloatArray linspace(float start, float stop, int num) {
             auto array = std::make_shared<std::vector<float>>(num);
             float step = (stop - start) / (num - 1);
             for (int i = 0; i < num; i++) {
@@ -518,7 +518,7 @@ namespace dsp {
             auto rvD = retval->data();
             auto inD = in->data();
             for (auto q = 0; q < in->size(); q++) {
-                rvD[q] = std::max(inD[q], value);
+                rvD[q] = std::max<float>(inD[q], value);
             }
             return retval;
         }
@@ -593,7 +593,7 @@ namespace dsp {
         }
 
         // For FloatArray
-        FloatArray tile(const FloatArray& arr, size_t repeat) {
+        inline FloatArray tile(const FloatArray& arr, size_t repeat) {
             size_t arr_size = arr->size();
             FloatArray result = std::make_shared<std::vector<float>>(arr_size * repeat);
 
@@ -605,7 +605,7 @@ namespace dsp {
         }
 
         // For ComplexArray
-        ComplexArray tile(const ComplexArray& arr, size_t repeat) {
+        inline ComplexArray tile(const ComplexArray& arr, size_t repeat) {
             size_t arr_size = arr->size();
             ComplexArray result = std::make_shared<std::vector<complex_t>>(arr_size * repeat);
 
@@ -617,12 +617,12 @@ namespace dsp {
         }
 
         // For FloatArray
-        float amin(const FloatArray& arr) {
+        inline float amin(const FloatArray& arr) {
             return *std::min_element(arr->begin(), arr->end());
         }
 
         // For ComplexArray
-        complex_t amin(const ComplexArray& arr) {
+        inline complex_t amin(const ComplexArray& arr) {
             return *std::min_element(arr->begin(), arr->end(),
                                      [](const complex_t& a, const complex_t& b) {
                                          return a.amplitude() < b.amplitude();
@@ -631,19 +631,19 @@ namespace dsp {
 
 
         // For float values
-        float power(float base, float exponent) {
+        inline float power(float base, float exponent) {
             return std::pow(base, exponent);
         }
 
         // For complex_t values
-        complex_t power(const complex_t& base, float exponent) {
+        inline complex_t power(const complex_t& base, float exponent) {
             float r = std::pow(base.amplitude(), exponent);
             float theta = base.phase() * exponent;
             return complex_t{ r * std::cos(theta), r * std::sin(theta) };
         }
 
         // For FloatArray
-        FloatArray concatenate(const FloatArray& arr1, const FloatArray& arr2) {
+        inline FloatArray concatenate(const FloatArray& arr1, const FloatArray& arr2) {
             FloatArray result = std::make_shared<std::vector<float>>(arr1->size() + arr2->size());
             std::copy(arr1->begin(), arr1->end(), result->begin());
             std::copy(arr2->begin(), arr2->end(), result->begin() + arr1->size());
@@ -651,32 +651,32 @@ namespace dsp {
         }
 
         // For ComplexArray
-        ComplexArray concatenate(const ComplexArray& arr1, const ComplexArray& arr2) {
+        inline ComplexArray concatenate(const ComplexArray& arr1, const ComplexArray& arr2) {
             ComplexArray result = std::make_shared<std::vector<complex_t>>(arr1->size() + arr2->size());
             std::copy(arr1->begin(), arr1->end(), result->begin());
             std::copy(arr2->begin(), arr2->end(), result->begin() + arr1->size());
             return result;
         }
 
-        ComplexArray conj(const ComplexArray& arr) {
+        inline ComplexArray conj(const ComplexArray& arr) {
             ComplexArray result = std::make_shared<std::vector<complex_t>>(arr->size());
             std::transform(arr->begin(), arr->end(), result->begin(), [](const complex_t& a) { return a.conj(); });
             return result;
         }
 
-        FloatArray exp(const FloatArray& arr) {
+        inline FloatArray exp(const FloatArray& arr) {
             FloatArray result = std::make_shared<std::vector<float>>(arr->size());
             std::transform(arr->begin(), arr->end(), result->begin(), [](float a) { return std::exp(a); });
             return result;
         }
 
-        FloatArray real(const ComplexArray& arr) {
+        inline FloatArray real(const ComplexArray& arr) {
             FloatArray result = std::make_shared<std::vector<float>>(arr->size());
             std::transform(arr->begin(), arr->end(), result->begin(), [](const complex_t& a) { return a.re; });
             return result;
         }
 
-        FloatArray convolve(const FloatArray& arr1, const FloatArray& arr2) {
+        inline FloatArray convolve(const FloatArray& arr1, const FloatArray& arr2) {
             size_t size1 = arr1->size();
             size_t size2 = arr2->size();
             size_t result_size = size1 + size2 - 1;

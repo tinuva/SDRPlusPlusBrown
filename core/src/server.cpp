@@ -132,8 +132,6 @@ namespace server {
             flog::info("Loading {0}", path);
             core::moduleManager.loadModule(path);
         }
-        sleep(1);
-
         // Create module instances
         for (auto const& [name, _module] : modList) {
             std::string mod = _module["module"];

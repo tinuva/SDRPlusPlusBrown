@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <algorithm>
 #include <utils/flog.h>
 
 template <class T>

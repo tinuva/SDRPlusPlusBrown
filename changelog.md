@@ -2,6 +2,13 @@
 
 Newest entries are at the top.
 
+2023.04.22
+
+* Added OMLSA_MCRA Noise Reduction (NR2 on the menu). It's only AF NR, but it really rocks!! Carefully choose what you select.
+* Improved TRX UI and audio pipeline. As part of audio configuration, added Record/Playback functionality to check settings. Added small waterfall for audio frequency.
+* Added TX button (volume up)
+* Added noise reduction, DX compression to TX sound pipeline. Note, on android, noise reduction is not needed because android does it as part of microphone input API. However, for cheap desktop microphones, it rocks. DX compression now only has some defaults, it is not finalized and it's definitely an area for future development.
+
 2023.03.25
 
 * Added parallel (multithreaded) waterfall update. 2 threads give the best result (maybe number memory channels?).

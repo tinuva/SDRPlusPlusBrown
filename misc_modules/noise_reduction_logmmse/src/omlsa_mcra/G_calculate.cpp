@@ -8,6 +8,10 @@
 using namespace std;
 
 
+void omlsa_setResDir(std::string dir) {
+    G_calculate::resDir = dir;
+}
+
 std::string G_calculate::resDir;
 G_calculate::G_calculate()
 {

@@ -15,6 +15,8 @@ file(GLOB_RECURSE SRC "src/*.cpp" "src/*.c"
 #        "../decoder_modules/ft8_decoder/src/*.cpp"
 #        "../decoder_modules/ft8_decoder/src/ft8_etc/*.cpp"
         "../misc_modules/noise_reduction_logmmse/src/omlsa_mcra/*.cpp"
+        "../misc_modules/noise_reduction_logmmse/src/omlsa_mcra.cpp"
+
         )
 list(FILTER SRC EXCLUDE REGEX "sdrpp_ft8_mshv_main.cpp" )
 

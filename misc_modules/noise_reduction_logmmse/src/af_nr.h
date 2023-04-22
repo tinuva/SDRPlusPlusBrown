@@ -86,7 +86,9 @@ namespace dsp {
                 auto _this = (AFNR_OMLSA_MCRA*)ctx;
 //                _this->params.hold = txActive;
             };
-            G_calculate::resDir = core::configManager.conf["resourcesDirectory"];
+
+            omlsa_setResDir(core::configManager.conf["resourcesDirectory"]);
+
             omlsa_mcra.setSampleRate(48000);
             sigpath::txState.bindHandler(&txHandler);
             block::start();

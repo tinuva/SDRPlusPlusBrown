@@ -28,6 +28,8 @@ namespace displaymenu {
     int fftSmoothingSpeed = 100;
     bool smallScreen = false;
 
+    Event<ImGuiContext *> onDisplayDraw;
+
     TranscieverLayout transcieverLayout = TRAL_NONE;
 
 #ifdef __ANDROID__
@@ -275,6 +277,8 @@ namespace displaymenu {
             }
             ImGui::Text("Color map Author: %s", colorMapAuthor.c_str());
         }
+
+        onDisplayDraw.emit(GImGui);
 
         if (restartRequired) {
             ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Restart required.");

@@ -30,6 +30,7 @@ read on below.
 
 * [Even more improved rendering performance](#improved-rendering-performance)
 * [Bundled FT8 decoder](#bundled-ft8-decoder) - extracted from MSHV code, slightly tweaked.
+* [Noise Reduction](#noise-reduction) - both for audio frequency and baseband (visual noise reduction!)
 * [Hermes Lite 2 support](#hermes-lite-2-support) - hl2_source plugin (don't confuse with hermes_source).
 * [Transmit mode](#transmit-mode) for Hermes Lite 2 - at the time of the writing, basic SSB transmit is implemented. 
 * [SNR Chart](#snr-chart) to compare SNR while tweaking antennas, de-noising etc.
@@ -72,7 +73,10 @@ signals. Simultaneous FT4/FT8 decoding is supported. Decoder is implemented as s
 
 Noise reduction (logmmse_noise_reduction plugin) works fine for AM/SSB/CW, this is C++ port of 
 the [python implementation](https://pypi.org/project/logmmse/). It was made adaptive, so it does not require "silence" training
-like original one. 
+like original one.
+
+Update: Recently, second noise reduction algorithm was added, which is OMLSA_MCRA (googlable). Credits go to chinese comrades who 
+seem to be related to original paper, or their friends.  
 
 It is remarkable that SDR++Brown is, af ar as I know, the only place where you can apply noise 
 reduction to whole wideband and see it reflected in the waterfall. 
