@@ -71,6 +71,7 @@ namespace dsp {
         std::vector<stereo_t> buffer;
         bool allowed = false;
         bool allowed2 = true;       // just convenient for various conditions
+        float preAmpGain = 0.0f;
 
         void init(stream<stereo_t>* in) override {
             base_type::init(in);
@@ -100,6 +101,11 @@ namespace dsp {
         }
 
         void process(stereo_t *readBuf, int count, stereo_t *writeBuf, int &wrote) {
+            auto mult = pow(10, preAmpGain/20);
+            for(int q=0; q<count; q++) {
+                readBuf[q].l *= mult;
+                readBuf[q].l *= mult;
+            }
             if (!allowed | !allowed2) {
                 std::copy(readBuf, readBuf+count, writeBuf);
                 wrote = count;

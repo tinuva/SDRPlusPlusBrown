@@ -29,6 +29,22 @@
 
 using namespace ::dsp::arrays;
 
+template<typename X>
+void setConfig(const std::string &key, X value) {
+    core::configManager.acquire();
+    core::configManager.conf[key] = value;
+    core::configManager.release(true);
+}
+
+template<typename X>
+void getConfig(const std::string &key, X &value) {
+    core::configManager.acquire();
+    if (core::configManager.conf.find(key) != core::configManager.conf.end()) {
+        value = core::configManager.conf[key];
+    }
+    core::configManager.release(false);
+}
+
 static bool doFingerButton(const std::string &title) {
     const ImVec2& labelWidth = ImGui::CalcTextSize(title.c_str(), nullptr, true, -1);
     return ImGui::Button(title.c_str(), ImVec2(labelWidth.x + style::baseFont->FontSize, style::baseFont->FontSize * 3));
@@ -859,8 +875,19 @@ struct ConfigPanel {
 
     explicit ConfigPanel(dsp::routing::Splitter<dsp::stereo_t>* inputAudio) : recorder(inputAudio) {
 //        afnr.setProcessingBandwidth(11000);
-        agc.init(NULL, 1.0, agcAttack / 48000.0, agcDecay / 48000.0, 10e6, 10.0, INFINITY);
 //        agc2.init(NULL, 1.0, agcAttack / 48000.0, agcDecay / 48000.0, 10e6, 10.0, INFINITY);
+    }
+
+    void init() {
+        agc.init(NULL, 1.0, agcAttack / 48000.0, agcDecay / 48000.0, 10e6, 10.0, INFINITY);
+
+        getConfig("trx_highPass", highPass);
+        getConfig("trx_doEqualize", highPass);
+        getConfig("trx_compAmp", compAmp);
+        getConfig("trx_agcAttack", compAmp);
+        getConfig("trx_agcDecay", compAmp);
+        getConfig("trx_lowPass", lowPass);
+
     }
 
     void draw();
@@ -875,6 +902,7 @@ struct QSOPanel {
     }
     virtual ~QSOPanel();
     void startSoundPipeline();
+    void init();
     void stopSoundPipeline();
     void draw(float currentFreq, ImGui::WaterfallVFO* pVfo);
     dsp::stream<dsp::stereo_t> audioIn;
@@ -1751,7 +1779,9 @@ MobileMainWindow::MobileMainWindow() : MainWindow(),
 
 void MobileMainWindow::init() {
     MainWindow::init();
+    configPanel->init();
     audioWaterfall->init();
+    qsoPanel->init();
     omlsa_setResDir(core::configManager.conf["resourcesDirectory"]);
     core::configManager.acquire();
     if (core::configManager.conf.contains("showAudioWaterfall")) {
@@ -1786,6 +1816,8 @@ void MobileMainWindow::end() {
 void QSOPanel::startSoundPipeline() {
     if (!configPanel->afnr) {
         configPanel->afnr = std::make_shared<dsp::AFNR_OMLSA_MCRA>();
+        getConfig("trx_afnrAllowd", configPanel->afnr->allowed);
+        getConfig("trx_afnrPreAmpGain", configPanel->afnr->preAmpGain);
         configPanel->afnr->omlsa_mcra.setSampleRate(48000);
         configPanel->afnr->allowed = true;
     }
@@ -2100,6 +2132,7 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
         ImGui::SameLine();
         if (ImGui::SliderInt("##_radio_tx_gain_", &this->txGain, 0, 255)) {
             sigpath::transmitter->setTransmitGain(this->txGain);
+            setConfig("trx_txGain", this->txGain);
         }
     }
     else {
@@ -2118,6 +2151,10 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
 QSOPanel::~QSOPanel() {
     stopSoundPipeline();
 }
+void QSOPanel::init() {
+    getConfig("trx_txGain", this->txGain);
+}
+
 
 void ConfigPanel::draw() {
     gui::mainWindow.qsoPanel->currentFFTBufferMutex.lock();
@@ -2127,17 +2164,21 @@ void ConfigPanel::draw() {
 
     ImGui::LeftLabel("Audio lo cutoff frequency");
     if (ImGui::SliderInt("##lowcutoff", &highPass, 0, lowPass, "%d Hz")) {
+        setConfig("trx_highPass", highPass);
     }
     draw_db_gauge(space.x, highPassDecibels.getMax(3), highPassDecibels.getPeak(), -80, +20);
 
 
     ImGui::LeftLabel("DX Equalizer / Compressor");
     if (ImGui::Checkbox("##equalizeit", &doEqualize)) {
+        setConfig("trx_doEqualize", highPass);
     }
 
     ImGui::SameLine();
     ImGui::FillWidth();
-    ImGui::SliderFloat("##equalizeit-pa", &compAmp, -60.0f, 60.0f, "%.3f dB PostAmp");
+    if (ImGui::SliderFloat("##equalizeit-pa", &compAmp, -60.0f, 60.0f, "%.3f dB PostAmp")) {
+        setConfig("trx_compAmp", compAmp);
+    }
     //    ImGui::SameLine();
     //    ImGui::LeftLabel("Freq Maim");
     //    if (ImGui::Checkbox("##freqmaim", &doFreqMaim)) {
@@ -2146,11 +2187,13 @@ void ConfigPanel::draw() {
 
     ImGui::LeftLabel("AGC Attack");
     if (ImGui::SliderFloat("##attack-rec", &agcAttack, 1.0f, 200.0f)) {
+        setConfig("trx_agcAttack", compAmp);
         agc.setAttack(agcAttack);
 //        agc2.setAttack(agcAttack);
     }
     ImGui::LeftLabel("AGC Decay");
     if (ImGui::SliderFloat("##decay-rec", &agcDecay, 1.0f, 20.0f)) {
+        setConfig("trx_agcDecay", compAmp);
         agc.setDecay(agcDecay);
 //        agc2.setDecay(agcDecay);
     }
@@ -2164,11 +2207,18 @@ void ConfigPanel::draw() {
     if (afnr) {
         ImGui::LeftLabel("Mic Noise Reduction");
         if (ImGui::Checkbox("##donr", &afnr->allowed)) {
+            setConfig("trx_afnrAllowd", afnr->allowed);
+        }
+        ImGui::SameLine();
+        ImGui::FillWidth();
+        if (ImGui::SliderFloat("##nr-preamp", &afnr->preAmpGain, -60.0f, 60.0f, "%.3f dB PreAmp")) {
+            setConfig("trx_afnrPreAmpGain", afnr->preAmpGain);
         }
     }
     draw_db_gauge(space.x, nrDecibels.getMax(3), nrDecibels.getPeak(), -80, +20);
     ImGui::LeftLabel("Audio hi cutoff frequency");
     if (ImGui::SliderInt("##highcutoff", &lowPass, highPass, 4200, "%d Hz")) {
+        setConfig("trx_lowPass", lowPass);
     }
 //    ImGui::SameLine();
 //    if (ImGui::Button("Reset NR")) {

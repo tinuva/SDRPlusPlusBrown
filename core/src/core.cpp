@@ -575,6 +575,7 @@ int sdrpp_main(int argc, char* argv[]) {
     }
 
     // Remove unused elements
+    /*
     auto items = core::configManager.conf.items();
     flog::info("items={}",(void*)&items);
     std::vector<std::string> keysToErase;
@@ -588,6 +589,7 @@ int sdrpp_main(int argc, char* argv[]) {
     for (auto const& key : keysToErase) {
         core::configManager.conf.erase(key);
     }
+     */
 
     // Update to new module representation in config if needed
     for (auto [_name, inst] : core::configManager.conf["moduleInstances"].items()) {
