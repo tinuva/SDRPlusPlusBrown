@@ -19,6 +19,10 @@ namespace dsp::taps {
             if constexpr (std::is_same_v<T, float>) {
                 taps.taps[i] = math::sinc(t * omega) * window(t - half, count) * corr;
             }
+            if constexpr (std::is_same_v<T, stereo_t>) {
+                taps.taps[i].l = math::sinc(t * omega) * window(t - half, count) * corr;
+                taps.taps[i].r = math::sinc(t * omega) * window(t - half, count) * corr;
+            }
             if constexpr (std::is_same_v<T, complex_t>) {
                 complex_t cplx = { (float)math::sinc(t * omega), 0.0f };
                 taps.taps[i] = cplx * window(t - half, count) * corr;

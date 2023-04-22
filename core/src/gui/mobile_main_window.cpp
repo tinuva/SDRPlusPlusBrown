@@ -19,9 +19,7 @@
 #include <gui/tuner.h>
 #include "../../decoder_modules/radio/src/radio_module.h"
 #include "../../misc_modules/noise_reduction_logmmse/src/arrays.h"
-#include "../../misc_modules/noise_reduction_logmmse/src/logmmse.h"
 #include "../../misc_modules/noise_reduction_logmmse/src/af_nr.h"
-#include "../../misc_modules/noise_reduction_logmmse/src/if_nr.h"
 #include "dsp/convert/stereo_to_mono.h"
 #include "dsp/convert/real_to_complex.h"
 #include "dsp/convert/complex_to_real.h"
@@ -1696,7 +1694,8 @@ void QSOPanel::startSoundPipeline() {
         int64_t start = currentTimeMillis();
         int64_t count = 0;
 
-        dsp::filter::FIR<float, float> hipass, lopass;
+        dsp::filter::FIR<float, float> hipass;
+        dsp::filter::FIR<dsp::stereo_t, float> lopass;
         auto prevHighPass = configPanel->highPass;
         auto prevLowPass = configPanel->lowPass;
         auto hipassTaps = dsp::taps::highPass0<float>(prevHighPass, 30, 48000);
@@ -1714,13 +1713,13 @@ void QSOPanel::startSoundPipeline() {
             configPanel->rawInDecibels.addSamples(audioIn.readBuf, rd);
             if (configPanel->lowPass != prevLowPass) {
                 dsp::taps::free(lopassTaps);
-                lopassTaps = dsp::taps::lowPass0<float>(prevLowPass, 30, 48000);
+                lopassTaps = dsp::taps::lowPass0<float>(configPanel->lowPass, 30, 48000);
                 lopass.setTaps(lopassTaps);
                 prevLowPass = configPanel->lowPass;
             }
             if (configPanel->highPass != prevHighPass) {
                 dsp::taps::free(hipassTaps);
-                hipassTaps = dsp::taps::highPass0<float>(prevHighPass, 3000, 48000);
+                hipassTaps = dsp::taps::highPass0<float>(configPanel->highPass, 3000, 48000);
                 hipass.setTaps(hipassTaps);
                 prevHighPass = configPanel->highPass;
             }
@@ -1729,8 +1728,7 @@ void QSOPanel::startSoundPipeline() {
             audioIn.flush();
 
             hipass.process(rd, configPanel->s2m.out.writeBuf, hipass.out.writeBuf);
-            lopass.process(rd, hipass.out.writeBuf, lopass.out.writeBuf);
-            configPanel->r2c.process(rd, lopass.out.writeBuf, configPanel->r2c.out.writeBuf);
+            configPanel->r2c.process(rd, hipass.out.writeBuf, configPanel->r2c.out.writeBuf);
             if (configPanel->doEqualize) {
                 configPanel->equalizer.process(rd, configPanel->r2c.out.writeBuf, configPanel->equalizer.out.writeBuf);
                 auto micAmp = 5;       // this is the estimate power loss after the built-in equalizer
@@ -1743,11 +1741,8 @@ void QSOPanel::startSoundPipeline() {
             configPanel->c2r.process(rd, configPanel->equalizer.out.writeBuf, configPanel->c2r.out.writeBuf);
             configPanel->agc.process(rd, configPanel->c2r.out.writeBuf, configPanel->agc.out.writeBuf);
             configPanel->m2s.process(rd, configPanel->agc.out.writeBuf, configPanel->m2s.out.writeBuf);
-//            if (configPanel->doNR) {
-                configPanel->afnr->process(configPanel->m2s.out.writeBuf, rd, audioInProcessedIn.writeBuf, rd);
-//            } else {
-//                memcpy(audioInProcessedIn.writeBuf, configPanel->m2s.out.writeBuf, rd * sizeof(dsp::stereo_t));
-//            }
+            configPanel->afnr->process(configPanel->m2s.out.writeBuf, rd, configPanel->afnr->out.writeBuf, rd);
+            lopass.process(rd, configPanel->afnr->out.writeBuf, audioInProcessedIn.writeBuf);
             if (rd > 0) {
                 configPanel->outDecibels.addSamples(audioInProcessedIn.writeBuf, rd);
             }

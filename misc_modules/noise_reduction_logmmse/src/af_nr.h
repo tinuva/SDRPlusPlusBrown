@@ -96,7 +96,6 @@ namespace dsp {
         }
 
         void process(stereo_t *readBuf, int count, stereo_t *writeBuf, int &wrote) {
-            flog::info("blockSize={}", count);
             if (!allowed) {
                 std::copy(readBuf, readBuf+count, writeBuf);
                 wrote = count;
@@ -125,7 +124,10 @@ namespace dsp {
                             processIn[q] = buffer[q].l * newScaled;
                         }
                     }
+                    auto ctm = currentTimeNanos();
                     processedOk = omlsa_mcra.process((short*)processIn.data(), blockSize, (short*)processOut.data(), wrote);
+                    ctm = currentTimeNanos() - ctm;
+                    flog::info("processed: nanos {} size={} wrote={}", (int64_t)ctm, blockSize, wrote);
                     if (!processedOk) {
                         omlsa_mcra.reset();
                         std::copy(buffer.begin(), buffer.end(), writeBuf);
