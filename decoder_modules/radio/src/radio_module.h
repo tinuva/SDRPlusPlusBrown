@@ -765,17 +765,33 @@ private:
             auto proc = (dsp::Processor<dsp::complex_t, dsp::complex_t> *)in;
             _this->ifChain.addBlock(proc, false);
         }
+        else if (code == RADIO_IFACE_CMD_ADD_TO_AFCHAIN && in) {
+            auto proc = (dsp::Processor<dsp::stereo_t, dsp::stereo_t> *)in;
+            _this->afChain.addBlock(proc, false);
+        }
         else if (code == RADIO_IFACE_CMD_REMOVE_FROM_IFCHAIN && in) {
             auto proc = (dsp::Processor<dsp::complex_t, dsp::complex_t> *)in;
             _this->ifChain.removeBlock(proc, [=](dsp::stream<dsp::complex_t>* out){ _this->selectedDemod->setInput(out); });
+        }
+        else if (code == RADIO_IFACE_CMD_REMOVE_FROM_AFCHAIN && in) {
+            auto proc = (dsp::Processor<dsp::stereo_t, dsp::stereo_t> *)in;
+            _this->afChain.removeBlock(proc, [=](dsp::stream<dsp::stereo_t>* out){ _this->afsplitter.setInput(out); });
         }
         else if (code == RADIO_IFACE_CMD_ENABLE_IN_IFCHAIN && in) {
             auto proc = (dsp::Processor<dsp::complex_t, dsp::complex_t> *)in;
             _this->ifChain.setBlockEnabled(proc, true, [=](dsp::stream<dsp::complex_t>* out){ _this->selectedDemod->setInput(out); });
         }
+        else if (code == RADIO_IFACE_CMD_ENABLE_IN_AFCHAIN && in) {
+            auto proc = (dsp::Processor<dsp::stereo_t, dsp::stereo_t> *)in;
+            _this->afChain.setBlockEnabled(proc, true, [=](dsp::stream<dsp::stereo_t>* out){ _this->afsplitter.setInput(out); });
+        }
         else if (code == RADIO_IFACE_CMD_DISABLE_IN_IFCHAIN && in) {
             auto proc = (dsp::Processor<dsp::complex_t, dsp::complex_t> *)in;
             _this->ifChain.setBlockEnabled(proc, false, [=](dsp::stream<dsp::complex_t>* out){ _this->selectedDemod->setInput(out); });
+        }
+        else if (code == RADIO_IFACE_CMD_DISABLE_IN_AFCHAIN && in) {
+            auto proc = (dsp::Processor<dsp::stereo_t, dsp::stereo_t> *)in;
+            _this->afChain.setBlockEnabled(proc, false, [=](dsp::stream<dsp::stereo_t>* out){ _this->afsplitter.setInput(out); });
         }
         else {
             return;

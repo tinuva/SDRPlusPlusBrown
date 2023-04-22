@@ -6,10 +6,12 @@
 #include <dsp/stream.h>
 #include <dsp/types.h>
 #include <dsp/processor.h>
+#include <math.h>
 #include <gui/gui.h>
 #include <signal_path/signal_path.h>
 #include "arrays.h"
 #include "logmmse.h"
+#include "omlsa_mcra.h"
 
 namespace dsp {
 
@@ -60,6 +62,114 @@ namespace dsp {
             return output.size() - V;
         }
     };
+
+    struct AFNR_OMLSA_MCRA : public Processor<stereo_t, stereo_t> {
+        using base_type = Processor<stereo_t, stereo_t>;
+        EventHandler<bool> txHandler;
+        bool failed = false;
+        dsp::omlsa_mcra omlsa_mcra;
+        std::vector<stereo_t> buffer;
+        bool allowed = false;
+
+        void init(stream<stereo_t>* in) override {
+            base_type::init(in);
+        }
+
+        void setInput(stream<stereo_t>* in) override {
+            base_type ::setInput(in);
+        }
+
+        void start() override {
+            txHandler.ctx = this;
+            txHandler.handler = [](bool txActive, void *ctx) {
+                auto _this = (AFNR_OMLSA_MCRA*)ctx;
+//                _this->params.hold = txActive;
+            };
+            omlsa_mcra.setSampleRate(48000);
+            sigpath::txState.bindHandler(&txHandler);
+            block::start();
+        }
+
+        void stop() override {
+            block::stop();
+            sigpath::txState.unbindHandler(&txHandler);
+        }
+
+        void process(stereo_t *readBuf, int count, stereo_t *writeBuf, int &wrote) {
+            flog::info("blockSize={}", count);
+            if (!allowed) {
+                std::copy(readBuf, readBuf+count, writeBuf);
+                wrote = count;
+                buffer.clear();
+                return;
+            } else {
+                buffer.reserve(buffer.size() + count);
+                buffer.insert(buffer.end(), readBuf, readBuf + count);
+                int blockSize = omlsa_mcra.blockSize();
+                if (buffer.size() >= blockSize) {
+                    double max = 0;
+                    std::vector<short> processIn(blockSize, 0);
+                    std::vector<short> processOut(blockSize, 0);
+                    float scaled = 8191.0;
+                    for(int q=0; q<blockSize; q++) {
+                        if (fabs(buffer[q].l) > max) {
+                            max = fabs(buffer[q].l);
+                        }
+                        processIn[q] = buffer[q].l * scaled;
+                    }
+                    bool processedOk = true;
+                    if (max > 32767/scaled) { // overflow, rare, mostly due to agc did not kick in
+                        float newScaled = 8191 / max;
+                        flog::info("fabs = {}, scaled={}, newScaled(once)={}", max, scaled, newScaled);
+                        for (int q = 0; q < blockSize; q++) {
+                            processIn[q] = buffer[q].l * newScaled;
+                        }
+                    }
+                    processedOk = omlsa_mcra.process((short*)processIn.data(), blockSize, (short*)processOut.data(), wrote);
+                    if (!processedOk) {
+                        omlsa_mcra.reset();
+                        std::copy(buffer.begin(), buffer.end(), writeBuf);
+                        wrote = buffer.size();
+                        buffer.clear();
+                    }
+                    else {
+                        buffer.erase(buffer.begin(), buffer.begin() + blockSize);
+                        for(int q=0; q<wrote; q++) {
+                            writeBuf[q].r = writeBuf[q].l = processOut[q] / scaled;
+                        }
+                    }
+                }
+                else {
+                    wrote = 0;
+                }
+            }
+        }
+
+        int run() override {
+
+            int count = _in->read();
+            if (count < 0) { return -1; }
+//            flog::info("Sample count: {}", count);
+            int wrote;
+//            auto ctm = currentTimeMillis();
+            process(_in->readBuf, count, out.writeBuf, wrote);
+            _in->flush();
+//            flog::info("afnr.omlsa_mcra: input = {}, output = {}", count, wrote);
+            if (!out.swap(wrote)) {
+                flog::info("afnr.omlsa_mcra: swap failed");
+                return 0;
+            }
+
+            return 1;
+        }
+
+
+
+
+
+
+    };
+
 
     struct AFNRLogMMSE : public Processor<complex_t, complex_t> {
 
@@ -138,6 +248,7 @@ namespace dsp {
                 auto _this = (AFNRLogMMSE*)ctx;
                 _this->params.hold = txActive;
             };
+            sigpath::txState.bindHandler(&txHandler);
             block::start();
         }
 

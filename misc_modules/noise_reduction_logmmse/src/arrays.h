@@ -84,15 +84,15 @@ namespace dsp {
 
         // hanning window
         inline FloatArray nphanning(int len) {
-            auto retval = std::make_shared<std::vector<float>>();
+            auto retval = std::make_shared<std::vector<float>>(len);
             for (int i = 0; i < len; i++) {
-                retval->emplace_back(0.5 - 0.5 * cos(2.0 * M_PI * i / (len - 1)));
+                retval->at(i) = (0.5 - 0.5 * cos(2.0 * M_PI * i / (len - 1)));
             }
             return retval;
         }
 
         // add all items together
-        inline float npsum(const Arg<std::vector<float>>& v) {
+        inline float npsum(const FloatArray& v) {
             float f = 0;
             for (auto d : *v) {
                 f += d;
@@ -101,23 +101,15 @@ namespace dsp {
         }
 
         // multiply by scalar
-        inline FloatArray mul(const Arg<std::vector<float>>& v, float e) {
+        inline FloatArray mul(const FloatArray& v, float e) {
             auto retval = std::make_shared<std::vector<float>>();
-            if (false) {
-                retval->reserve(v->size());
-                for (auto d : *v) {
-                    retval->emplace_back(d * e);
-                }
-            }
-            else {
-                retval->resize(v->size());
-                volk_32f_s32f_multiply_32f(retval->data(), v->data(), e, v->size());
-            }
+            retval->resize(v->size());
+            volk_32f_s32f_multiply_32f(retval->data(), v->data(), e, v->size());
             return retval;
         }
 
         // add scalar to all items
-        inline FloatArray add(const Arg<std::vector<float>>& v, float e) {
+        inline FloatArray add(const FloatArray& v, float e) {
             auto retval = std::make_shared<std::vector<float>>();
             if (true) {
                 retval->reserve(v->size());
@@ -133,7 +125,7 @@ namespace dsp {
         }
 
         // add two arrays
-        inline FloatArray addeach(const Arg<std::vector<float>>& v, const Arg<std::vector<float>>& w) {
+        inline FloatArray addeach(const FloatArray& v, const FloatArray& w) {
             auto retval = std::make_shared<std::vector<float>>();
             if (false) {
                 retval->reserve(v->size());
@@ -149,18 +141,10 @@ namespace dsp {
         }
 
         // subtract two arrays
-        inline FloatArray subeach(const Arg<std::vector<float>>& v, const Arg<std::vector<float>>& w) {
+        inline FloatArray subeach(const FloatArray& v, const FloatArray& w) {
             auto retval = std::make_shared<std::vector<float>>();
-            if (false) {
-                retval->reserve(v->size());
-                for (int q = 0; q < v->size(); q++) {
-                    retval->emplace_back(v->at(q) + w->at(q));
-                }
-            }
-            else {
-                retval->resize(v->size());
-                volk_32f_x2_subtract_32f(retval->data(), v->data(), w->data(), v->size());
-            }
+            retval->resize(v->size());
+            volk_32f_x2_subtract_32f(retval->data(), v->data(), w->data(), v->size());
             return retval;
         }
 
@@ -168,7 +152,7 @@ namespace dsp {
         // add two arrays
         inline ComplexArray addeach(const ComplexArray& v, const ComplexArray& w) {
             auto retval = std::make_shared<std::vector<dsp::complex_t>>();
-#ifndef  VOLK_VERSION
+#ifndef VOLK_VERSION
             retval->reserve(v->size());
             for (int q = 0; q < v->size(); q++) {
                 retval->emplace_back(v->at(q) + w->at(q));
@@ -181,24 +165,10 @@ namespace dsp {
         }
 
         // multiply two arrays
-        inline FloatArray muleach(const Arg<std::vector<float>>& v, const Arg<std::vector<float>>& w) {
+        inline FloatArray muleach(const FloatArray& v, const FloatArray& w) {
             auto retval = std::make_shared<std::vector<float>>();
-            if (false) {
-                retval->reserve(v->size());
-                for (int q = 0; q < v->size(); q++) {
-                    auto vv = v->at(q);
-                    auto ww = w->at(q);
-                    auto mul = vv * ww;
-                    if (mul == 0 && vv != 0 && ww != 0) {
-                        mul = 1.175494351e-37;
-                    }
-                    retval->emplace_back(mul);
-                }
-            }
-            else {
-                retval->resize(v->size());
-                volk_32f_x2_multiply_32f(retval->data(), v->data(), w->data(), v->size());
-            }
+            retval->resize(v->size());
+            volk_32f_x2_multiply_32f(retval->data(), v->data(), w->data(), v->size());
             return retval;
         }
 
@@ -215,7 +185,7 @@ namespace dsp {
             return retval;
         }
 
-        inline FloatArray diveach(const Arg<std::vector<float>>& v, const Arg<std::vector<float>>& w) {
+        inline FloatArray diveach(const FloatArray& v, const FloatArray& w) {
             auto retval = std::make_shared<std::vector<float>>();
             if (false) {
                 retval->reserve(v->size());
@@ -230,7 +200,7 @@ namespace dsp {
             return retval;
         }
 
-        inline bool npall(const Arg<std::vector<float>>& v) {
+        inline bool npall(const FloatArray& v) {
             int countZeros = 0;
             //            int firstZero = -1;
             for (auto d : *v) {
@@ -250,7 +220,7 @@ namespace dsp {
             return true;
         }
 
-        inline FloatArray div(const Arg<std::vector<float>>& v, float e) {
+        inline FloatArray div(const FloatArray& v, float e) {
             auto retval = std::make_shared<std::vector<float>>();
             if (false) {
                 retval->reserve(v->size());
@@ -265,7 +235,22 @@ namespace dsp {
             return retval;
         }
 
-        inline FloatArray npminimum(const Arg<std::vector<float>>& v, float lim) {
+        inline FloatArray npminimum(const FloatArray& v, const FloatArray& w) {
+            auto retval = std::make_shared<std::vector<float>>();
+            retval->reserve(v->size());
+            //            int ix = 0;
+            for (int q = 0; q < retval->size(); q++) {
+                if (v->at(q) < w->at(q)) {
+                    retval->emplace_back(v->at(q));
+                }
+                else {
+                    retval->emplace_back(w->at(q));
+                }
+            }
+            return retval;
+        }
+
+        inline FloatArray npminimum(const FloatArray& v, float lim) {
             auto retval = std::make_shared<std::vector<float>>();
             retval->reserve(v->size());
             //            int ix = 0;
@@ -284,7 +269,7 @@ namespace dsp {
             return retval;
         }
 
-        inline FloatArray npminimum_(const Arg<std::vector<float>>& v, float lim) {
+        inline FloatArray npminimum_(const FloatArray& v, float lim) {
             auto retval = std::make_shared<std::vector<float>>(v->data(), v->data() + v->size());
             auto rvD = retval->data();
             for (int q = 0; q < retval->size(); q++) {
@@ -311,7 +296,7 @@ namespace dsp {
             return retval;
         }
 
-        inline float npmax(const Arg<std::vector<float>>& v) {
+        inline float npmax(const FloatArray& v) {
             float m = v->front();
             auto rvD = v->data();
             for (int q = 1; q < v->size(); q++) {
@@ -322,7 +307,7 @@ namespace dsp {
             return m;
         }
 
-        inline float npmin(const Arg<std::vector<float>>& v) {
+        inline float npmin(const FloatArray& v) {
             float m = v->front();
             auto rvD = v->data();
             for (int q = 1; q < v->size(); q++) {
@@ -333,7 +318,7 @@ namespace dsp {
             return m;
         }
 
-        inline FloatArray npmaximum(const Arg<std::vector<float>>& v, float lim) {
+        inline FloatArray npmaximum(const FloatArray& v, float lim) {
             auto retval = std::make_shared<std::vector<float>>(v->data(), v->data() + v->size());
             auto rvD = retval->data();
             for (int q = 0; q < retval->size(); q++) {
@@ -344,7 +329,7 @@ namespace dsp {
             return retval;
         }
 
-        inline FloatArray npmaximum_(const Arg<std::vector<float>>& v, float lim) {
+        inline FloatArray npmaximum_(const FloatArray& v, float lim) {
             auto rvD = v->data();
             for (int q = 0; q < v->size(); q++) {
                 if (rvD[q] < lim) {
@@ -355,7 +340,10 @@ namespace dsp {
         }
 
         // array range
-        inline FloatArray nparange(const Arg<std::vector<float>>& v, int begin, int end) {
+        inline FloatArray nparange(const FloatArray& v, int begin, int end) {
+            if (end == -1) {
+                end = v->size();
+            }
             auto retval = std::make_shared<std::vector<float>>();
             retval->reserve(end - begin);
             for (int i = begin; i < end; i++) {
@@ -383,7 +371,7 @@ namespace dsp {
             //            }
         }
 
-        inline FloatArray neg(const Arg<std::vector<float>>& v) {
+        inline FloatArray neg(const FloatArray& v) {
             auto retval = std::make_shared<std::vector<float>>();
             retval->reserve(v->size());
             for (auto d : *v) {
@@ -392,7 +380,7 @@ namespace dsp {
             return retval;
         }
 
-        inline FloatArray npexp(const Arg<std::vector<float>>& v) {
+        inline FloatArray npexp(const FloatArray& v) {
             auto retval = std::make_shared<std::vector<float>>();
             if (false) {
                 retval->reserve(v->size());
@@ -407,7 +395,7 @@ namespace dsp {
             return retval;
         }
 
-        inline FloatArray npsqrt(const Arg<std::vector<float>>& v) {
+        inline FloatArray npsqrt(const FloatArray& v) {
             auto retval = std::make_shared<std::vector<float>>();
             retval->reserve(v->size());
             for (auto d : *v) {
@@ -416,7 +404,7 @@ namespace dsp {
             return retval;
         }
 
-        inline FloatArray nplog(const Arg<std::vector<float>>& v) {
+        inline FloatArray nplog(const FloatArray& v) {
             auto retval = std::make_shared<std::vector<float>>();
             for (auto d : *v) {
                 retval->emplace_back(log(d));
@@ -471,6 +459,17 @@ namespace dsp {
             return retval;
         }
 
+        FloatArray hamming(int N) {
+            FloatArray window = npzeros(N);
+            const double PI = 3.14159265358979323846;
+
+            for (int i = 0; i < N; ++i) {
+                window->at(i) = 0.54 - 0.46 * cos(2 * PI * i / (N - 1));
+            }
+
+            return window;
+        }
+
         FloatArray linspace(float start, float stop, int num) {
             auto array = std::make_shared<std::vector<float>>(num);
             float step = (stop - start) / (num - 1);
@@ -512,6 +511,20 @@ namespace dsp {
                 rvD[q] = dsp::math::expn(inD[q]);
             }
             return retval;
+        }
+
+        inline FloatArray maximum(const FloatArray& in, float value) {
+            auto retval = std::make_shared<std::vector<float>>(in->size());
+            auto rvD = retval->data();
+            auto inD = in->data();
+            for (auto q = 0; q < in->size(); q++) {
+                rvD[q] = std::max(inD[q], value);
+            }
+            return retval;
+        }
+
+        inline FloatArray clone(const FloatArray& in) {
+            return std::make_shared<std::vector<float>>(*in);
         }
 
         inline FloatArray npabsolute(const ComplexArray& in) {
@@ -577,6 +590,137 @@ namespace dsp {
 
         inline std::string sampleArr(const ComplexArray& x) {
             return std::string("[") + ftos(x->at(0).re) + "," + ftos(x->at(1).re) + ",..," + ftos(x->at(40).re) + ",...]";
+        }
+
+        // For FloatArray
+        FloatArray tile(const FloatArray& arr, size_t repeat) {
+            size_t arr_size = arr->size();
+            FloatArray result = std::make_shared<std::vector<float>>(arr_size * repeat);
+
+            for (size_t i = 0; i < repeat; i++) {
+                std::copy(arr->begin(), arr->end(), result->begin() + i * arr_size);
+            }
+
+            return result;
+        }
+
+        // For ComplexArray
+        ComplexArray tile(const ComplexArray& arr, size_t repeat) {
+            size_t arr_size = arr->size();
+            ComplexArray result = std::make_shared<std::vector<complex_t>>(arr_size * repeat);
+
+            for (size_t i = 0; i < repeat; i++) {
+                std::copy(arr->begin(), arr->end(), result->begin() + i * arr_size);
+            }
+
+            return result;
+        }
+
+        // For FloatArray
+        float amin(const FloatArray& arr) {
+            return *std::min_element(arr->begin(), arr->end());
+        }
+
+        // For ComplexArray
+        complex_t amin(const ComplexArray& arr) {
+            return *std::min_element(arr->begin(), arr->end(),
+                                     [](const complex_t& a, const complex_t& b) {
+                                         return a.amplitude() < b.amplitude();
+                                     });
+        }
+
+
+        // For float values
+        float power(float base, float exponent) {
+            return std::pow(base, exponent);
+        }
+
+        // For complex_t values
+        complex_t power(const complex_t& base, float exponent) {
+            float r = std::pow(base.amplitude(), exponent);
+            float theta = base.phase() * exponent;
+            return complex_t{ r * std::cos(theta), r * std::sin(theta) };
+        }
+
+        // For FloatArray
+        FloatArray concatenate(const FloatArray& arr1, const FloatArray& arr2) {
+            FloatArray result = std::make_shared<std::vector<float>>(arr1->size() + arr2->size());
+            std::copy(arr1->begin(), arr1->end(), result->begin());
+            std::copy(arr2->begin(), arr2->end(), result->begin() + arr1->size());
+            return result;
+        }
+
+        // For ComplexArray
+        ComplexArray concatenate(const ComplexArray& arr1, const ComplexArray& arr2) {
+            ComplexArray result = std::make_shared<std::vector<complex_t>>(arr1->size() + arr2->size());
+            std::copy(arr1->begin(), arr1->end(), result->begin());
+            std::copy(arr2->begin(), arr2->end(), result->begin() + arr1->size());
+            return result;
+        }
+
+        ComplexArray conj(const ComplexArray& arr) {
+            ComplexArray result = std::make_shared<std::vector<complex_t>>(arr->size());
+            std::transform(arr->begin(), arr->end(), result->begin(), [](const complex_t& a) { return a.conj(); });
+            return result;
+        }
+
+        FloatArray exp(const FloatArray& arr) {
+            FloatArray result = std::make_shared<std::vector<float>>(arr->size());
+            std::transform(arr->begin(), arr->end(), result->begin(), [](float a) { return std::exp(a); });
+            return result;
+        }
+
+        FloatArray real(const ComplexArray& arr) {
+            FloatArray result = std::make_shared<std::vector<float>>(arr->size());
+            std::transform(arr->begin(), arr->end(), result->begin(), [](const complex_t& a) { return a.re; });
+            return result;
+        }
+
+        FloatArray convolve(const FloatArray& arr1, const FloatArray& arr2) {
+            size_t size1 = arr1->size();
+            size_t size2 = arr2->size();
+            size_t result_size = size1 + size2 - 1;
+            FloatArray result = std::make_shared<std::vector<float>>(result_size, 0);
+
+            for (size_t i = 0; i < size1; i++) {
+                for (size_t j = 0; j < size2; j++) {
+                    (*result)[i + j] += (*arr1)[i] * (*arr2)[j];
+                }
+            }
+
+            return result;
+        }
+
+        inline ComplexArray operator*(const ComplexArray& a, const FloatArray& b) {
+            return muleach(b, a);
+        }
+
+        inline FloatArray operator*(const FloatArray& a, const FloatArray& b) {
+            return muleach(b, a);
+        }
+
+        inline FloatArray operator*(const float a, const FloatArray& b) {
+            return mul(b, a);
+        }
+
+        inline FloatArray operator/(const FloatArray& a, const FloatArray& b) {
+            return diveach(b, a);
+        }
+
+        inline FloatArray operator/(const FloatArray& a, float b) {
+            return div(a, b);
+        }
+
+        inline FloatArray operator-(const FloatArray& a, float b) {
+            return add(a, -b);
+        }
+
+        inline FloatArray operator+(float a, const FloatArray& b) {
+            return add(b, a);
+        }
+
+        inline FloatArray operator+(const FloatArray& a, const FloatArray& b) {
+            return addeach(b, a);
         }
 
 

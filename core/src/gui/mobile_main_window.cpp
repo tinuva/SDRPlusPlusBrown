@@ -759,7 +759,7 @@ struct Equalizer : public dsp::Processor<dsp::complex_t, dsp::complex_t> {
 struct ConfigPanel {
     float agcAttack = 120.0f;
     float agcDecay = 0.1f;
-    bool doNR = true;
+//    bool doNR = true;
     bool doEqualize = true;
 
     // audio passband
@@ -770,7 +770,7 @@ struct ConfigPanel {
     dsp::convert::MonoToStereo m2s;
     dsp::loop::AGC<float> agc;
 //    dsp::loop::AGC<dsp::complex_t> agc2;
-    dsp::IFNRLogMMSE afnr;
+    std::shared_ptr<dsp::AFNR_OMLSA_MCRA> afnr;
     Equalizer equalizer;
     dsp::convert::RealToComplex r2c;
     dsp::convert::ComplexToReal c2r;
@@ -784,7 +784,6 @@ struct ConfigPanel {
 //        afnr.setProcessingBandwidth(11000);
         agc.init(NULL, 1.0, agcAttack / 48000.0, agcDecay / 48000.0, 10e6, 10.0, INFINITY);
 //        agc2.init(NULL, 1.0, agcAttack / 48000.0, agcDecay / 48000.0, 10e6, 10.0, INFINITY);
-        afnr.params.forceSampleRate = 48000;
     }
 
     void draw();
@@ -1686,6 +1685,11 @@ void MobileMainWindow::end() {
 
 
 void QSOPanel::startSoundPipeline() {
+    if (!configPanel->afnr) {
+        configPanel->afnr = std::make_shared<dsp::AFNR_OMLSA_MCRA>();
+        configPanel->afnr->omlsa_mcra.setSampleRate(48000);
+        configPanel->afnr->allowed = true;
+    }
     audioIn.clearReadStop();
     sigpath::sinkManager.defaultInputAudio.bindStream(&audioIn);
     std::thread inputProcessor([this] {
@@ -1736,16 +1740,14 @@ void QSOPanel::startSoundPipeline() {
             } else {
                 memcpy(configPanel->equalizer.out.writeBuf, configPanel->r2c.out.writeBuf, rd * sizeof(dsp::complex_t));
             }
-
-            if (configPanel->doNR) {
-                configPanel->afnr.process(configPanel->equalizer.out.writeBuf, rd, configPanel->afnr.out.writeBuf, rd);
-            } else {
-                memcpy(configPanel->afnr.out.writeBuf, configPanel->equalizer.out.writeBuf, rd * sizeof(dsp::complex_t));
-            }
-
-            configPanel->c2r.process(rd, configPanel->afnr.out.writeBuf, configPanel->c2r.out.writeBuf);
+            configPanel->c2r.process(rd, configPanel->equalizer.out.writeBuf, configPanel->c2r.out.writeBuf);
             configPanel->agc.process(rd, configPanel->c2r.out.writeBuf, configPanel->agc.out.writeBuf);
-            configPanel->m2s.process(rd, configPanel->agc.out.writeBuf, audioInProcessedIn.writeBuf);
+            configPanel->m2s.process(rd, configPanel->agc.out.writeBuf, configPanel->m2s.out.writeBuf);
+//            if (configPanel->doNR) {
+                configPanel->afnr->process(configPanel->m2s.out.writeBuf, rd, audioInProcessedIn.writeBuf, rd);
+//            } else {
+//                memcpy(audioInProcessedIn.writeBuf, configPanel->m2s.out.writeBuf, rd * sizeof(dsp::stereo_t));
+//            }
             if (rd > 0) {
                 configPanel->outDecibels.addSamples(audioInProcessedIn.writeBuf, rd);
             }
@@ -2033,13 +2035,15 @@ void ConfigPanel::draw() {
         agc.setDecay(agcDecay);
 //        agc2.setDecay(agcDecay);
     }
-    ImGui::LeftLabel("Mic Noise Reduction");
-    if (ImGui::Checkbox("##donr", &doNR)) {
+    if (afnr) {
+        ImGui::LeftLabel("Mic Noise Reduction");
+        if (ImGui::Checkbox("##donr", &afnr->allowed)) {
+        }
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Reset NR")) {
-        afnr.reset();
-    }
+//    ImGui::SameLine();
+//    if (ImGui::Button("Reset NR")) {
+//        afnr.reset();
+//    }
     ImGui::LeftLabel("DX Equalizer / Compressor");
     if (ImGui::Checkbox("##equalizeit", &doEqualize)) {
     }
