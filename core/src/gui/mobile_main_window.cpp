@@ -39,16 +39,33 @@ struct Decibelometer {
     long long maxSignalPeakTime = 0.0;
     std::vector<float> lastMeasures;
     void addSamples(dsp::stereo_t *samples, int count) {
-        float summ = 0;
-        for (int i = 0; i < count; i++) {
-            summ += samples[i].l * samples[i].l;
+        if (count > 0) {
+            float summ = 0;
+            for (int i = 0; i < count; i++) {
+                summ += samples[i].l * samples[i].l;
+            }
+            summ = sqrt(summ / count);
+            lastMeasures.emplace_back(20 * log10(summ));
+            if (lastMeasures.size() > 100) {
+                lastMeasures.erase(lastMeasures.begin());
+            }
+            updateMax();
         }
-        summ = sqrt(summ / count);
-        lastMeasures.emplace_back(20 * log10(summ));
-        if (lastMeasures.size() > 100) {
-            lastMeasures.erase(lastMeasures.begin());
+    }
+
+    void addSamples(dsp::complex_t *samples, int count) {
+        if (count > 0) {
+            float summ = 0;
+            for (int i = 0; i < count; i++) {
+                summ += samples[i].amplitude() * samples[i].amplitude();
+            }
+            summ = sqrt(summ / count);
+            lastMeasures.emplace_back(20 * log10(summ));
+            if (lastMeasures.size() > 100) {
+                lastMeasures.erase(lastMeasures.begin());
+            }
+            updateMax();
         }
-        updateMax();
     }
 
     float getAvg(int len) {
@@ -814,6 +831,7 @@ struct ConfigPanel {
     float agcDecay = 0.1f;
 //    bool doNR = true;
     bool doEqualize = true;
+    float compAmp = 1.0f;
     bool doFreqMaim = false;
 
     // audio passband
@@ -832,6 +850,10 @@ struct ConfigPanel {
 
     Decibelometer rawInDecibels;
     Decibelometer outDecibels;
+    Decibelometer agcDecibels;
+    Decibelometer equalizerDecibels;
+    Decibelometer highPassDecibels;
+    Decibelometer nrDecibels;
 
     SimpleRecorder recorder;
 
@@ -1807,16 +1829,18 @@ void QSOPanel::startSoundPipeline() {
             audioIn.flush();
 
             hipass.process(rd, configPanel->s2m.out.writeBuf, hipass.out.writeBuf);
+            configPanel->highPassDecibels.addSamples(hipass.out.writeBuf, rd);
             configPanel->r2c.process(rd, hipass.out.writeBuf, configPanel->r2c.out.writeBuf);
             if (configPanel->doEqualize) {
                 configPanel->equalizer.process(rd, configPanel->r2c.out.writeBuf, configPanel->equalizer.out.writeBuf);
-                auto micAmp = 5;       // this is the estimate power loss after the built-in equalizer
+                auto mult = pow(10, configPanel->compAmp/20);
                 for (int i = 0; i < rd; i++) {
-                    configPanel->equalizer.out.writeBuf[i] *= (float)micAmp;
+                    configPanel->equalizer.out.writeBuf[i] *= mult;
                 }
             } else {
                 memcpy(configPanel->equalizer.out.writeBuf, configPanel->r2c.out.writeBuf, rd * sizeof(dsp::complex_t));
             }
+            configPanel->equalizerDecibels.addSamples(configPanel->equalizer.out.writeBuf, rd);
             if (configPanel->doFreqMaim) {
                 configPanel->freqMaim.process(rd, configPanel->equalizer.out.writeBuf, configPanel->freqMaim.out.writeBuf);
             } else {
@@ -1824,8 +1848,10 @@ void QSOPanel::startSoundPipeline() {
             }
             configPanel->c2r.process(rd, configPanel->freqMaim.out.writeBuf, configPanel->c2r.out.writeBuf);
             configPanel->agc.process(rd, configPanel->c2r.out.writeBuf, configPanel->agc.out.writeBuf);
+            configPanel->agcDecibels.addSamples(configPanel->agc.out.writeBuf, rd);
             configPanel->m2s.process(rd, configPanel->agc.out.writeBuf, configPanel->m2s.out.writeBuf);
             configPanel->afnr->process(configPanel->m2s.out.writeBuf, rd, configPanel->afnr->out.writeBuf, rd);
+            configPanel->nrDecibels.addSamples(configPanel->afnr->out.writeBuf, rd);
             lopass.process(rd, configPanel->afnr->out.writeBuf, audioInProcessedIn.writeBuf);
             if (rd > 0) {
                 configPanel->outDecibels.addSamples(audioInProcessedIn.writeBuf, rd);
@@ -2097,42 +2123,58 @@ void ConfigPanel::draw() {
     gui::mainWindow.qsoPanel->currentFFTBufferMutex.lock();
     gui::mainWindow.qsoPanel->drawHistogram();
     gui::mainWindow.qsoPanel->currentFFTBufferMutex.unlock();
+    ImVec2 space = ImGui::GetContentRegionAvail();
 
     ImGui::LeftLabel("Audio lo cutoff frequency");
     if (ImGui::SliderInt("##lowcutoff", &highPass, 0, lowPass, "%d Hz")) {
     }
-    ImGui::LeftLabel("Audio hi cutoff frequency");
-    if (ImGui::SliderInt("##highcutoff", &lowPass, highPass, 4200, "%d Hz")) {
+    draw_db_gauge(space.x, highPassDecibels.getMax(3), highPassDecibels.getPeak(), -80, +20);
+
+
+    ImGui::LeftLabel("DX Equalizer / Compressor");
+    if (ImGui::Checkbox("##equalizeit", &doEqualize)) {
     }
 
+    ImGui::SameLine();
+    ImGui::FillWidth();
+    ImGui::SliderFloat("##equalizeit-pa", &compAmp, -60.0f, 60.0f, "%.3f dB PostAmp");
+    //    ImGui::SameLine();
+    //    ImGui::LeftLabel("Freq Maim");
+    //    if (ImGui::Checkbox("##freqmaim", &doFreqMaim)) {
+    //    }
+    draw_db_gauge(space.x, equalizerDecibels.getMax(3), equalizerDecibels.getPeak(), -80, +20);
+
     ImGui::LeftLabel("AGC Attack");
-    if (ImGui::SliderFloat("rec##attach", &agcAttack, 1.0f, 200.0f)) {
+    if (ImGui::SliderFloat("##attack-rec", &agcAttack, 1.0f, 200.0f)) {
         agc.setAttack(agcAttack);
 //        agc2.setAttack(agcAttack);
     }
     ImGui::LeftLabel("AGC Decay");
-    if (ImGui::SliderFloat("rec##decay", &agcDecay, 1.0f, 20.0f)) {
+    if (ImGui::SliderFloat("##decay-rec", &agcDecay, 1.0f, 20.0f)) {
         agc.setDecay(agcDecay);
 //        agc2.setDecay(agcDecay);
     }
-    ImGui::LeftLabel("DX Equalizer / Compressor");
-    if (ImGui::Checkbox("##equalizeit", &doEqualize)) {
-    }
-    ImGui::SameLine();
-    ImGui::LeftLabel("Freq Maim");
-    if (ImGui::Checkbox("##freqmaim", &doFreqMaim)) {
-    }
+    draw_db_gauge(space.x, agcDecibels.getMax(3), agcDecibels.getPeak(), -80, +20);
+
+//    ImGui::SameLine();
+//    ImGui::LeftLabel("Freq Maim");
+//    if (ImGui::Checkbox("##freqmaim", &doFreqMaim)) {
+//    }
+
     if (afnr) {
         ImGui::LeftLabel("Mic Noise Reduction");
         if (ImGui::Checkbox("##donr", &afnr->allowed)) {
         }
+    }
+    draw_db_gauge(space.x, nrDecibels.getMax(3), nrDecibels.getPeak(), -80, +20);
+    ImGui::LeftLabel("Audio hi cutoff frequency");
+    if (ImGui::SliderInt("##highcutoff", &lowPass, highPass, 4200, "%d Hz")) {
     }
 //    ImGui::SameLine();
 //    if (ImGui::Button("Reset NR")) {
 //        afnr.reset();
 //    }
 
-    ImVec2 space = ImGui::GetContentRegionAvail();
     draw_db_gauge(space.x, outDecibels.getMax(3), outDecibels.getPeak(), -80, +20);
 
     ImGui::SetCursorPos(ImGui::GetCursorPos()+ImVec2(0, style::baseFont->FontSize*0.4));
