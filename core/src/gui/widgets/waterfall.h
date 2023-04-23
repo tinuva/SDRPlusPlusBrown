@@ -135,7 +135,7 @@ namespace ImGui {
         void setZoom(double zoomLevel);
         void setOffset(double zoomOffset);
 
-        void autoRange();
+        std::pair<int, int> autoRange();
 
         void selectFirstVFO();
 

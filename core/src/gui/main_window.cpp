@@ -612,12 +612,27 @@ void MainWindow::draw() {
         ImGui::NewLine();
         ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - (ImGui::CalcTextSize("Max").x / 2.0));
         ImGui::TextUnformatted("Max");
+        ImGui::SameLine();
+        ImVec2 textSize = ImGui::CalcTextSize("Max");
+        ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - (ImGui::CalcTextSize("Max").x / 2.0));
+        if (ImGui::InvisibleButton("##max_button_auto", textSize)) {
+            const std::pair<int, int>& range = gui::waterfall.autoRange();
+            if (range.first == 0 && range.second == 0) {
+                // bad case
+
+            } else {
+                fftMin = range.first;
+                fftMax = range.second;
+            }
+        }
         ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - wfSliderSize.x / 2);
         if (ImGui::VSliderFloat("##_8_", wfSliderSize, &fftMax, 0.0, -180.0f, "")) {
             fftMax = std::max<float>(fftMax, fftMin + 10);
             core::configManager.acquire();
             core::configManager.conf["max"] = fftMax;
             core::configManager.release(true);
+            gui::waterfall.setFFTMax(fftMax);
+            gui::waterfall.setWaterfallMax(fftMax);
         }
 
     };
@@ -633,6 +648,8 @@ void MainWindow::draw() {
             core::configManager.acquire();
             core::configManager.conf["min"] = fftMin;
             core::configManager.release(true);
+            gui::waterfall.setFFTMin(fftMin);
+            gui::waterfall.setWaterfallMin(fftMin);
         }
     };
 
@@ -652,10 +669,6 @@ void MainWindow::draw() {
 
     ImGui::EndChild();
 
-    gui::waterfall.setFFTMin(fftMin);
-    gui::waterfall.setFFTMax(fftMax);
-    gui::waterfall.setWaterfallMin(fftMin);
-    gui::waterfall.setWaterfallMax(fftMax);
 
     ImGui::End();
 

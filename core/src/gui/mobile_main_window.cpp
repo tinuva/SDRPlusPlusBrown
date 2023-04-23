@@ -48,7 +48,14 @@ void getConfig(const std::string &key, X &value) {
 
 static bool doFingerButton(const std::string &title) {
     const ImVec2& labelWidth = ImGui::CalcTextSize(title.c_str(), nullptr, true, -1);
-    return ImGui::Button(title.c_str(), ImVec2(labelWidth.x + style::baseFont->FontSize, style::baseFont->FontSize * 3));
+    if (title[0] == '>') {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
+    }
+    auto rv = ImGui::Button(title.c_str(), ImVec2(labelWidth.x + style::baseFont->FontSize, style::baseFont->FontSize * 3));
+    if (title[0] == '>') {
+        ImGui::PopStyleColor();
+    }
+    return rv;
 };
 
 struct Decibelometer {
@@ -1051,48 +1058,54 @@ double TheEncoder::draw(ImGui::WaterfallVFO* vfo) {
         }
     }
 
-    if (ImGui::IsAnyMouseDown()) {
-        auto mouseX = ImGui::GetMousePos().x - widgetPos.x;
-        bool mouseInside = mouseX >= 0 && mouseX < avail.x;
-        if (!mouseInside && isnan(lastMouseAngle)) {
-            // clicked outside
-        }
-        else {
-            // can continue everywhere
-            auto mouseAngle = (ImGui::GetMousePos().y - widgetPos.y - R) / (R * DRAW_HEIGHT_PERCENT);
-            if (!isnan(lastMouseAngle)) {
-                this->somePosition += mouseAngle - lastMouseAngle;
-                retval = (float)(mouseAngle - lastMouseAngle);
+    if (enabled) {
+        if (ImGui::IsAnyMouseDown()) {
+            auto mouseX = ImGui::GetMousePos().x - widgetPos.x;
+            bool mouseInside = mouseX >= 0 && mouseX < avail.x;
+            if (!mouseInside && isnan(lastMouseAngle)) {
+                // clicked outside
             }
             else {
-                // first click!
-                auto currentFreq = vfo ? (vfo->generalOffset + gui::waterfall.getCenterFrequency()) : gui::waterfall.getCenterFrequency();
-                this->currentFrequency = (float)currentFreq;
+                // can continue everywhere
+                auto mouseAngle = (ImGui::GetMousePos().y - widgetPos.y - R) / (R * DRAW_HEIGHT_PERCENT);
+                if (!isnan(lastMouseAngle)) {
+                    this->somePosition += mouseAngle - lastMouseAngle;
+                    retval = (float)(mouseAngle - lastMouseAngle);
+                }
+                else {
+                    // first click!
+                    auto currentFreq = vfo ? (vfo->generalOffset + gui::waterfall.getCenterFrequency()) : gui::waterfall.getCenterFrequency();
+                    this->currentFrequency = (float)currentFreq;
+                }
+                lastMouseAngle = mouseAngle;
+                this->speed = 0;
+                fingerMovement.emplace_back(lastMouseAngle);
             }
-            lastMouseAngle = mouseAngle;
-            this->speed = 0;
-            fingerMovement.emplace_back(lastMouseAngle);
         }
-    }
-    else {
-        auto sz = this->fingerMovement.size();
-        if (sz >= 2) {
-            this->speed = (this->fingerMovement[sz - 1] - this->fingerMovement[sz - 2]) / 2;
+        else {
+            auto sz = this->fingerMovement.size();
+            if (sz >= 2) {
+                this->speed = (this->fingerMovement[sz - 1] - this->fingerMovement[sz - 2]) / 2;
+            }
+            this->fingerMovement.clear();
+            lastMouseAngle = nan("");
         }
-        this->fingerMovement.clear();
-        lastMouseAngle = nan("");
-    }
-    if (fabs(speed) < 0.001) {
+        if (fabs(speed) < 0.001) {
+            if (speed != 0) {
+                speed = 0;
+            }
+        }
+        this->somePosition += speed;
         if (speed != 0) {
-            speed = 0;
+            retval = (float)speed;
         }
+        this->speed *= this->delayFactor;
+        return retval;
+    } else {
+        this->speed = 0;
+        return 0;
     }
-    this->somePosition += speed;
-    if (speed != 0) {
-        retval = (float)speed;
-    }
-    this->speed *= this->delayFactor;
-    return retval;
+
 }
 
 void MobileMainWindow::updateSubmodeAfterChange() {
@@ -1315,6 +1328,7 @@ void MobileMainWindow::draw() {
     ImGui::SetCursorPos(cornerPos + ImVec2{ waterfallRegion.x + buttonsWidth, 0 });
     const ImVec2 encoderRegion = ImVec2(encoderWidth, ImGui::GetContentRegionAvail().y);
     ImGui::BeginChildEx("Encoder", ImGui::GetID("sdrpp_encoder"), encoderRegion, false, 0);
+    encoder.enabled = this->qsoMode != VIEW_QSO;
     double offsetDelta = encoder.draw(vfo);
     if (offsetDelta != 0) {
         auto externalFreq = vfo ? (vfo->generalOffset + gui::waterfall.getCenterFrequency()) : gui::waterfall.getCenterFrequency();
@@ -1348,8 +1362,8 @@ void MobileMainWindow::draw() {
     auto vertPadding = ImGui::GetStyle().WindowPadding.y;
 
 
-    MobileButton* buttonsDefault[] = {  &this->qsoButton, &this->zoomToggle, &this->modeToggle /*&this->bandUp, &this->bandDown, &this->submodeToggle,*/ };
-    MobileButton* buttonsQso[] = { &this->qsoButton, &this->txButton, &this->softTune };
+    MobileButton* buttonsDefault[] = {  &this->qsoButton, &this->zoomToggle, &this->modeToggle, &this->autoWaterfall, &this->configToggle /*&this->bandUp, &this->bandDown, &this->submodeToggle,*/ };
+    MobileButton* buttonsQso[] = { &this->endQsoButton, &this->txButton, &this->softTune, &this->configToggle };
     MobileButton* buttonsConfig[] = { &this->exitConfig };
     auto nButtonsQso = (int)((sizeof(buttonsQso) / sizeof(buttonsQso[0])));
     auto nButtonsDefault = (int)((sizeof(buttonsDefault) / sizeof(buttonsDefault[0])));
@@ -1460,7 +1474,10 @@ void MobileMainWindow::draw() {
     if (this->zoomToggle.isLongPress()) {
         makeZoom(0);
     }
-    if (this->qsoButton.isLongPress()) {
+    if (pressedButton == &this->autoWaterfall) {
+        gui::waterfall.autoRange();
+    }
+    if (pressedButton == &this->configToggle) {
         if (!this->qsoPanel->audioInToFFT) {
             this->qsoPanel->startSoundPipeline();
         }
@@ -1517,13 +1534,12 @@ void MobileMainWindow::draw() {
 //        }
     }
     if (pressedButton == &this->qsoButton) {
-        this->qsoMode = this->qsoMode == VIEW_DEFAULT ? VIEW_QSO : VIEW_DEFAULT;
-        if (this->qsoMode == VIEW_QSO) {
-            qsoPanel->startSoundPipeline();
-        }
-        else {
-            qsoPanel->stopSoundPipeline();
-        }
+        this->qsoMode = VIEW_QSO;
+        qsoPanel->startSoundPipeline();
+    }
+    if (pressedButton == &this->endQsoButton) {
+        this->qsoMode = VIEW_DEFAULT;
+        qsoPanel->stopSoundPipeline();
     }
     if (pressedButton == &this->submodeToggle) {
         std::vector<std::string>& submos = subModes[getCurrentMode()];
@@ -1565,7 +1581,7 @@ void MobileMainWindow::draw() {
         ImGui::SetWindowSize(screenSize);
         ImGui::BeginChild("##TxModePopup", ImVec2(screenSize.x, screenSize.y - style::baseFont->FontSize * 4), true, 0);
         auto currentBand = getCurrentBand();
-        ImGui::Text("Band:");
+        ImGui::Text("Band (wavelength meters):");
         ImGui::NewLine();
         for (auto &b : bands) {
             ImGui::SameLine();
@@ -1624,11 +1640,11 @@ void MobileMainWindow::draw() {
         }
         auto bandwidthk = vfo->bandwidth/1000.0;
         char fmt[32];
-        if (bandwidthk == floor(bandwidthk)) {
-            sprintf(fmt, "%0f", bandwidthk);
-        } else {
-            sprintf(fmt, "%0.1f", bandwidthk);
-        }
+        sprintf(fmt, "%0.1f", bandwidthk);
+//        if (bandwidthk == floor(bandwidthk)) {
+//            sprintf(fmt, "%0.0f", bandwidthk);
+//        } else {
+//        }
         for (auto &b : *bw) {
             ImGui::SameLine();
             bool pressed = false;
@@ -1768,9 +1784,12 @@ MobileMainWindow::MobileMainWindow() : MainWindow(),
                                        bandUp("14 Mhz", "+"),
                                        bandDown("", "-"),
                                        zoomToggle("custom", "Zoom"),
+                                       configToggle("", "Config"),
+                                       autoWaterfall("", "Waterfall!"),
                                        modeToggle("SSB", "Mode"),
                                        submodeToggle("LSB", "Submode"),
                                        qsoButton("", "QSO"),
+                                       endQsoButton("", "End QSO"),
                                        txButton("", "TX"),
                                        exitConfig("", "OK"),
                                        softTune("", SOFT_TUNE_LABEL) {
@@ -2119,25 +2138,32 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
         if (ImGui::Checkbox("PostPro(SSB)", &this->postprocess)) {
         }
         ImGui::Text("TRX Qsz: %d", (int)sigpath::transmitter->getFillLevel());
+        if (ImGui::Checkbox("PA", &this->enablePA)) {
+            sigpath::transmitter->setPAEnabled(this->enablePA);
+        }
         float swr = sigpath::transmitter->getTransmitSWR();
         if (swr >= 9.9) swr = 9.9; // just not to jump much
         lastSWR.emplace_back(swr);
         lastForward.emplace_back(sigpath::transmitter->getTransmitPower());
         lastReflected.emplace_back(sigpath::transmitter->getReflectedPower());
+        ImGui::SameLine();
         ImGui::Text("SWR:%.1f", rtmax(lastSWR));
         ImGui::SameLine();
         ImGui::Text("FWD:%.1f", rtmax(lastForward)); // below 10w will - not jump.
         ImGui::SameLine();
         ImGui::Text("REF:%.1f", rtmax(lastReflected));
-        if (ImGui::Checkbox("PA", &this->enablePA)) {
-            sigpath::transmitter->setPAEnabled(this->enablePA);
-        }
-        ImGui::SameLine();
-        ImGui::LeftLabel("TX SofGain:");
+        ImGui::LeftLabel("TX Soft PA:");
         ImGui::SameLine();
         if (ImGui::SliderInt("##_radio_tx_gain_", &this->txGain, 0, 255)) {
             sigpath::transmitter->setTransmitSoftwareGain(this->txGain);
             setConfig("trx_txGain", this->txGain);
+        }
+        ImGui::LeftLabel("TX Hard PA:");
+        ImGui::SameLine();
+        int hwgain = sigpath::transmitter->getTransmitHardwareGain();
+        if (ImGui::SliderInt("##_radio_tx_hgain_", &hwgain, 0, 255)) {
+            sigpath::transmitter->setTransmitHardwareGain(hwgain);
+            setConfig("trx_txHardwareGain", hwgain);
         }
         ImGui::LeftLabel("Buffer Latency:");
         int latency = sigpath::transmitter->getTransmittedBufferLatency();

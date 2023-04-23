@@ -1179,21 +1179,42 @@ namespace ImGui {
         updateWaterfallFb();
     }
 
-    void WaterFall::autoRange() {
-        MEASURE_LOCK_GUARD(latestFFTMtx);
-
+    std::pair<int, int> WaterFall::autoRange() {  // min, max
         float min = INFINITY;
         float max = -INFINITY;
-        for (int i = 0; i < dataWidth; i++) {
-            if (latestFFT[i] < min) {
-                min = latestFFT[i];
+        {
+            MEASURE_LOCK_GUARD(latestFFTMtx);
+
+
+            int nlines = fftLines;
+            if (nlines < 5) {
+                return std::make_pair(0, 0);
             }
-            if (latestFFT[i] > max) {
-                max = latestFFT[i];
+            nlines--;
+            int scan = currentFFTLine + 1;
+
+
+            for (int l = 0; l < nlines; l++) {
+                auto curlineWrapped = scan % waterfallHeight;
+                auto ptr = &rawFFTs[curlineWrapped * rawFFTSize];
+                for (int i = 0; i < rawFFTSize; i++) {
+                    if (ptr[i] < min) {
+                        min = ptr[i];
+                    }
+                    if (ptr[i] > max) {
+                        max = ptr[i];
+                    }
+                }
+                scan++;
             }
         }
-        fftMin = min - 5;
-        fftMax = max + 5;
+        flog::info("Waterfall: min={} max={}", min, max);
+        min = max-45;   // based on default palette
+        setFFTMin(min-5);
+        setFFTMax(max+5);
+        this->setWaterfallMin(min);
+        this->setWaterfallMax(max+30);
+        return std::make_pair(min, max);
     }
 
     void WaterFall::setCenterFrequency(double freq) {

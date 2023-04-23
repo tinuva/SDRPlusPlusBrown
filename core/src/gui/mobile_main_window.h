@@ -20,6 +20,7 @@ struct TheEncoder {
     double delayFactor = 0.96;
 
     double lastMouseAngle = nan("");
+    bool enabled = true;
 
     std::vector<double> fingerMovement;
 
@@ -57,9 +58,12 @@ public:
     MobileButton bandUp;
     MobileButton bandDown;
     MobileButton zoomToggle;
+    MobileButton autoWaterfall;
+    MobileButton configToggle;
     MobileButton modeToggle;
     MobileButton submodeToggle;
     MobileButton qsoButton;
+    MobileButton endQsoButton;
     MobileButton exitConfig;
     MobileButton txButton;
     MobileButton softTune;
