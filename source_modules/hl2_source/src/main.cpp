@@ -435,14 +435,39 @@ private:
             }
         }).detach();
     }
-    void setTransmitGain(unsigned char gain) override {
-        device->setPower(gain);
+    void setTransmitSoftwareGain(unsigned char gain) override {
+        device->setSoftwarePower(gain);
 
     }
     void setTransmitFrequency(int freq) override {
         device->setTxFrequency(freq);
-
     }
+
+public:
+    void setTransmitHardwareGain(unsigned char gain) override {
+        device->setHardwarePower(gain);
+    }
+    unsigned char getTransmitHardwareGain() override {
+        return device->hardwarePower;
+    }
+
+public:
+    int getTransmittedBufferLatency() override {
+        return device->bufferLatency;
+    }
+    void setTransmittedBufferLatency(int latency) override {
+        device->bufferLatency = latency;
+        device->setHangLatency(device->pttHangTime, device->bufferLatency);
+    }
+    int getTransmittedPttDelay() override {
+        return device->pttHangTime;
+    }
+    void setTransmittedPttDelay(int delay) override {
+        device->pttHangTime = delay;
+        device->setHangLatency(device->pttHangTime, device->bufferLatency);
+    }
+
+private:
     void startGenerateTone(int frequency) override {
         device->setFrequency(frequency);
         device->setTxFrequency(frequency);

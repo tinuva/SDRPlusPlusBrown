@@ -32,6 +32,7 @@ using namespace ::dsp::arrays;
 template<typename X>
 void setConfig(const std::string &key, X value) {
     core::configManager.acquire();
+    flog::info("Setting core config: {} = {}", key.c_str(), std::to_string(value).c_str());
     core::configManager.conf[key] = value;
     core::configManager.release(true);
 }
@@ -882,11 +883,14 @@ struct ConfigPanel {
         agc.init(NULL, 1.0, agcAttack / 48000.0, agcDecay / 48000.0, 10e6, 10.0, INFINITY);
 
         getConfig("trx_highPass", highPass);
-        getConfig("trx_doEqualize", highPass);
+        getConfig("trx_doEqualize", doEqualize);
         getConfig("trx_compAmp", compAmp);
-        getConfig("trx_agcAttack", compAmp);
-        getConfig("trx_agcDecay", compAmp);
+        getConfig("trx_agcAttack", agcAttack);
+        getConfig("trx_agcDecay", agcDecay);
         getConfig("trx_lowPass", lowPass);
+
+        agc.setAttack(agcAttack);
+        agc.setDecay(agcDecay);
 
     }
 
@@ -1550,7 +1554,7 @@ void MobileMainWindow::draw() {
         bool txPressed = txButton.currentlyPressed || ImGui::IsKeyDown(ImGuiKey_VolumeUp);
         if (txPressed && !qsoPanel->audioInToTransmitter || !txPressed && qsoPanel->audioInToTransmitter && qsoPanel->audioInToTransmitter->tuneFrequency == 0) {
             // button is pressed ok to send, or button is released and audioInToTransmitter running and it is not in tune mode
-            qsoPanel->handleTxButton(this->txButton.currentlyPressed, false);
+            qsoPanel->handleTxButton(txPressed, false);
             //
         }
     }
@@ -1816,11 +1820,11 @@ void MobileMainWindow::end() {
 void QSOPanel::startSoundPipeline() {
     if (!configPanel->afnr) {
         configPanel->afnr = std::make_shared<dsp::AFNR_OMLSA_MCRA>();
+        configPanel->afnr->allowed = true;
         getConfig("trx_afnrAllowd", configPanel->afnr->allowed);
         getConfig("trx_afnrPreAmpGain", configPanel->afnr->preAmpGain);
         configPanel->afnr->init(nullptr);
         configPanel->afnr->omlsa_mcra.setSampleRate(48000);
-        configPanel->afnr->allowed = true;
     }
     audioIn.clearReadStop();
     sigpath::sinkManager.defaultInputAudio.bindStream(&audioIn);
@@ -2129,15 +2133,26 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
             sigpath::transmitter->setPAEnabled(this->enablePA);
         }
         ImGui::SameLine();
-        ImGui::LeftLabel("TX:");
+        ImGui::LeftLabel("TX SofGain:");
         ImGui::SameLine();
         if (ImGui::SliderInt("##_radio_tx_gain_", &this->txGain, 0, 255)) {
-            sigpath::transmitter->setTransmitGain(this->txGain);
+            sigpath::transmitter->setTransmitSoftwareGain(this->txGain);
             setConfig("trx_txGain", this->txGain);
+        }
+        ImGui::LeftLabel("Buffer Latency:");
+        int latency = sigpath::transmitter->getTransmittedBufferLatency();
+        if (ImGui::SliderInt("##_tx_buf_latency_", &latency, 0, 96)) {
+            sigpath::transmitter->setTransmittedBufferLatency(latency);
+            setConfig("trx_txBufferLatency", latency);
+        }
+        int ptthang = sigpath::transmitter->getTransmittedPttDelay();
+        if (ImGui::SliderInt("##_tx_ptthang_", &ptthang, 0, 96)) {
+            sigpath::transmitter->setTransmittedPttDelay(ptthang);
+            setConfig("trx_txPTTHangTime", ptthang);
         }
     }
     else {
-        ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "Transmitter not found");
+        ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "Transmitter not playng");
         ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "Select a device");
         ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "(e.g. HL2 Source)");
     }
@@ -2172,7 +2187,7 @@ void ConfigPanel::draw() {
 
     ImGui::LeftLabel("DX Equalizer / Compressor");
     if (ImGui::Checkbox("##equalizeit", &doEqualize)) {
-        setConfig("trx_doEqualize", highPass);
+        setConfig("trx_doEqualize", doEqualize);
     }
 
     ImGui::SameLine();
@@ -2188,13 +2203,13 @@ void ConfigPanel::draw() {
 
     ImGui::LeftLabel("AGC Attack");
     if (ImGui::SliderFloat("##attack-rec", &agcAttack, 1.0f, 200.0f)) {
-        setConfig("trx_agcAttack", compAmp);
+        setConfig("trx_agcAttack", agcAttack);
         agc.setAttack(agcAttack);
 //        agc2.setAttack(agcAttack);
     }
     ImGui::LeftLabel("AGC Decay");
     if (ImGui::SliderFloat("##decay-rec", &agcDecay, 1.0f, 20.0f)) {
-        setConfig("trx_agcDecay", compAmp);
+        setConfig("trx_agcDecay", agcDecay);
         agc.setDecay(agcDecay);
 //        agc2.setDecay(agcDecay);
     }

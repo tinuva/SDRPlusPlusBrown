@@ -9,6 +9,7 @@
         android:allowBackup="false"
         android:extractNativeLibs="true"
         android:fullBackupContent="false"
+        android:usesCleartextTraffic="true"
         android:hasCode="true">
 
         <activity

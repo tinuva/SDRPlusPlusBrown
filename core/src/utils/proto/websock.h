@@ -25,6 +25,9 @@ namespace net::websock {
 
         int maybeDecodeBuffer(const std::vector<uint8_t> &data) {
             std::string buffer;
+            if (data.empty()) {
+                return 0;
+            }
             buffer.resize(data.size() + 200, ' ');
             int outLen = 0;
             int skipSize = 0;
@@ -267,9 +270,9 @@ namespace net::websock {
 
             uint8_t buf[100000];
 
-            int recvd = socket->recv(buf, sizeof(buf), false, 10000);
+            int recvd = socket->recv(buf, sizeof(buf), false, NO_TIMEOUT);
             if (recvd <= 0) {
-                std::string msg = "websock: recv failed" + std::to_string(errno)+" (recvd="+std::to_string(recvd)+
+                std::string msg = "websock: recv failed, errno=" + std::to_string(errno)+" (recvd="+std::to_string(recvd)+
                                   " sent="+std::to_string(len)+" senderr="+std::to_string(senderr)+")";
                 socket->close();
                 throw std::runtime_error(msg);
@@ -300,7 +303,7 @@ namespace net::websock {
                     data.erase(data.begin(), data.begin() + len0);
                     continue;
                 }
-                recvd = socket->recv(buf, sizeof(buf), false, 10000);
+                recvd = socket->recv(buf, sizeof(buf), false, NO_TIMEOUT);
                 onEveryReceive();
 //                printf("recvd bytes in loop: %d\n", recvd);
                 if (recvd <= 0) {

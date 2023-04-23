@@ -122,7 +122,8 @@ struct HL2Device {
     long send_sequence = -1;
     int metis_offset = 8;
     int current_rx = 0;
-    unsigned char desiredPower = 255;
+    unsigned char softwarePower = 255;  // 0..255
+    unsigned char hardwarePower = 255;  // 0..255
     int command = 1;
 
 #define LT2208_GAIN_ON            0x04
@@ -136,13 +137,16 @@ struct HL2Device {
 
     const std::function<void(double, double)> handler;
 
+    int pttHangTime = 6;
+    int bufferLatency = 0x15; // as in linhpsdr
+
     HL2Device(DISCOVERED _discovered, const std::function<void(double, double)> &handler) : _discovered(_discovered), handler(handler) {
         discovered = &this->_discovered;
         setADCGain(0);
         setFrequency(7000000);
-        setPttDelay(6, 0x15); // as in linhpsdr
+        setHangLatency(pttHangTime, bufferLatency); // as in linhpsdr
         setDuplex(true);
-        setPower(255);
+        setSoftwarePower(255);
     }
 
     bool isADCOverload() {
@@ -156,11 +160,11 @@ struct HL2Device {
         secondControlIndex = 0xA;
     }
 
-    void setPttDelay(unsigned char delay, unsigned char buffersize) {
+    void setHangLatency(unsigned char pttHangTime, unsigned char bufferLatencyMS) {
         deviceControl[0x17].C1 = 0;
         deviceControl[0x17].C2 = 0;
-        deviceControl[0x17].C3 = delay;
-        deviceControl[0x17].C4 = buffersize;
+        deviceControl[0x17].C3 = pttHangTime;
+        deviceControl[0x17].C4 = bufferLatencyMS;
     }
 
     void setFrequency(long long frequency) {        // RX freq
@@ -177,10 +181,16 @@ struct HL2Device {
         deviceControl[0x01].C4 = txFrequency >> 0;
     }
 
-    void setPower(unsigned char power) {   // power = 0..255 (however only 4 upper bits (31..28) are used)
+    void setSoftwarePower(unsigned char power) {   // power = 0..255 (however only 4 upper bits (31..28) are used)
         // soft power is used. Hard is max.
-        deviceControl[0x09].C1 = 0xF0;
-        this->desiredPower = power;
+        deviceControl[0x09].C1 = hardwarePower & 0xF0;
+        this->softwarePower = power;
+    }
+
+    void setHardwarePower(unsigned char power) {   // power = 0..255 (however only 4 upper bits (31..28) are used)
+        // soft power is used. Hard is max.
+        deviceControl[0x09].C1 = power & 0xF0;
+        this->hardwarePower = power;
     }
 
 
@@ -301,7 +311,7 @@ struct HL2Device {
 
     void storeNextIQSamples(unsigned char *dest, const std::vector<dsp::complex_t> &samples) {
         if (samples.size() == 63) {
-            float scale = desiredPower/255.0;
+            float scale = softwarePower /255.0;
             for(int i = 0; i < 63; i++) {
                 auto comp = samples[i];
                 // input: -1, 1, output range -32768..32767

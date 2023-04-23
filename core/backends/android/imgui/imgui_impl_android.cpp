@@ -41,8 +41,15 @@ static char                                     g_LogTag[] = "ImGuiExample";
 
 static ImGuiKey ImGui_ImplAndroid_KeyCodeToImGuiKey(int32_t key_code)
 {
+    if (key_code == AKEYCODE_VOLUME_UP) {
+        return ImGuiKey_VolumeUp;
+    } else if (key_code == AKEYCODE_VOLUME_DOWN) {
+        return ImGuiKey_VolumeDown;
+    }
     switch (key_code)
     {
+        case AKEYCODE_VOLUME_UP:            return ImGuiKey_VolumeUp;
+        case AKEYCODE_VOLUME_DOWN:          return ImGuiKey_VolumeDown;
         case AKEYCODE_TAB:                  return ImGuiKey_Tab;
         case AKEYCODE_DPAD_LEFT:            return ImGuiKey_LeftArrow;
         case AKEYCODE_DPAD_RIGHT:           return ImGuiKey_RightArrow;
@@ -148,8 +155,6 @@ static ImGuiKey ImGui_ImplAndroid_KeyCodeToImGuiKey(int32_t key_code)
         case AKEYCODE_F10:                  return ImGuiKey_F10;
         case AKEYCODE_F11:                  return ImGuiKey_F11;
         case AKEYCODE_F12:                  return ImGuiKey_F12;
-        case AKEYCODE_VOLUME_UP:                  return ImGuiKey_VolumeUp;
-        case AKEYCODE_VOLUME_DOWN:                  return ImGuiKey_VolumeDown;
         default:                            return ImGuiKey_None;
     }
 }
@@ -185,6 +190,9 @@ int32_t ImGui_ImplAndroid_HandleInputEvent(AInputEvent* input_event)
             {
                 io.AddKeyEvent(key, event_action == AKEY_EVENT_ACTION_DOWN);
                 io.SetKeyEventNativeData(key, event_key_code, event_scan_code);
+            }
+            if (key == ImGuiKey_VolumeUp) {       // shameful hack.
+                return 1; // handled;
             }
 
             break;

@@ -37,11 +37,19 @@ namespace dsp::loop {
             _invAttack = 1.0f - _attack;
         }
 
+        bool getAttack() {
+            return _attack;
+        }
+
         void setDecay(double decay) {
             assert(base_type::_block_init);
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
             _decay = decay;
             _invDecay = 1.0f - _decay;
+        }
+
+        float getDecay() {
+            return _decay;
         }
 
         void setMaxGain(double maxGain) {
