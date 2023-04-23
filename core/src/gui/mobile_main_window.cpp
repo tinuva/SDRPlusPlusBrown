@@ -1816,8 +1816,12 @@ void MobileMainWindow::end() {
 void QSOPanel::startSoundPipeline() {
     if (!configPanel->afnr) {
         configPanel->afnr = std::make_shared<dsp::AFNR_OMLSA_MCRA>();
+<<<<<<< HEAD
         getConfig("trx_afnrAllowd", configPanel->afnr->allowed);
         getConfig("trx_afnrPreAmpGain", configPanel->afnr->preAmpGain);
+=======
+        configPanel->afnr->init(nullptr);
+>>>>>>> ba0cd8b8 (windows-aided fixes)
         configPanel->afnr->omlsa_mcra.setSampleRate(48000);
         configPanel->afnr->allowed = true;
     }

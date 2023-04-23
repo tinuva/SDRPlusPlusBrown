@@ -60,7 +60,10 @@ namespace dsp {
         }
 
         virtual void setInput(stream<I>* in) {
-            assert(_block_init);
+            if (!_block_init) {
+                fprintf(stderr, "!processor._block_init\n");
+                assert(_block_init);
+            }
             std::lock_guard<std::recursive_mutex> lck(ctrlMtx);
             tempStop();
             unregisterInput(_in);

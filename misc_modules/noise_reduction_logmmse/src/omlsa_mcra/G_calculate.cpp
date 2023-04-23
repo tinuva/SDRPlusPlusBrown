@@ -171,7 +171,17 @@ short G_calculate::Initialize(int wlen) {
 
 
 //	const char* FileexpG = "/home/san/Fun/OMLSA-MCRA/OM_LSA/Gvalue2.pcm";
-	m_G_value = file_read<int>((resDir + "/cty/oomlsa_gcra_gvalue2.pcm").c_str());
+    std::string full = resDir + "/cty/oomlsa_gcra_gvalue2.pcm";
+#ifdef _WIN32
+    std::replace(full.begin(), full.end(), '/', '\\');
+    std::string::size_type pos = 0;
+    while ((pos = full.find("\\\\", pos)) != std::string::npos) {
+        full.replace(pos, 2, "\\");
+        pos += 1; // Move to the next position after the replaced slash
+    }
+#endif
+
+	m_G_value = file_read<int>(full.c_str());
 	//cout << sizeof(m_G_value) << sizeof(m_G_value) / sizeof(m_G_value[0]);
 	return 0;
 }

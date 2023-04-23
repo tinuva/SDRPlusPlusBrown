@@ -86,6 +86,7 @@ private:
         afnrProcessors[instanceName] = afnrlogmmse;
         afnrlogmmse->init(nullptr);
         const std::shared_ptr<dsp::AFNR_OMLSA_MCRA> afnromlsa = std::make_shared<dsp::AFNR_OMLSA_MCRA>();
+        afnromlsa->init(nullptr);
         afnrProcessors2[instanceName] = afnromlsa;
         core::modComManager.callInterface(instanceName, RADIO_IFACE_CMD_ADD_TO_IFCHAIN, afnrlogmmse.get(), NULL);
         core::modComManager.callInterface(instanceName, RADIO_IFACE_CMD_ADD_TO_AFCHAIN, afnromlsa.get(), NULL);

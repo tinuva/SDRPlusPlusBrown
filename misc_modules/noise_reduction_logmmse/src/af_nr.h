@@ -118,7 +118,7 @@ namespace dsp {
                 if (buffer.size() >= blockSize) {
                     double max = 0;
                     std::vector<short> processIn(blockSize, 0);
-                    std::vector<short> processOut(blockSize, 0);
+                    std::vector<short> processOut(3 * blockSize, 0);
                     float scaled = 8191.0;
                     for(int q=0; q<blockSize; q++) {
                         if (fabs(buffer[q].l) > max) {

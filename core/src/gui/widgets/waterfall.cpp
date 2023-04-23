@@ -637,6 +637,9 @@ namespace ImGui {
 //        auto ctm1 = currentTimeNanos();
 //        auto kth0 = percentile::percentile(fftValues, 0.25);    // 25% most silent bins
 //        auto ctm2 = currentTimeNanos();
+        if (fftValues.empty()) {
+            return false;
+        }
         std::sort(fftValues.begin(), fftValues.end());      // sorting binds by volume
 //        auto ctm3 = currentTimeNanos();
         auto lowerPercentile = fftValues.size() / 4;
