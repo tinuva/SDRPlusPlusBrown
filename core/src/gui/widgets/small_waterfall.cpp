@@ -23,7 +23,7 @@ struct SubWaterfall::SubWaterfallPrivate {
     int fftSize;
     float waterfallRate = 10;
     int sampleRate;
-    std::string label;
+    std::string lbl;
 
     void flushDrawUpdates() {
         std::lock_guard<std::mutex> lock(inputBufferMutex);
@@ -94,10 +94,10 @@ struct SubWaterfall::SubWaterfallPrivate {
     }
 };
 
-SubWaterfall::SubWaterfall(int sampleRate, const std::string &label) {
+SubWaterfall::SubWaterfall(int sampleRate, const std::string & lbl) {
     pvt = std::make_shared<SubWaterfallPrivate>();
     pvt->sampleRate = sampleRate;
-    pvt->label = label;
+    pvt->lbl = lbl;
     pvt->waterfall.WATERFALL_NUMBER_OF_SECTIONS = 5;
     pvt->fftSize = pvt->hiFreq / pvt->waterfallRate;
     pvt->waterfall.setRawFFTSize(pvt->fftSize);
