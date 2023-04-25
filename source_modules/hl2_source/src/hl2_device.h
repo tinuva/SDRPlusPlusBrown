@@ -321,6 +321,14 @@ struct HL2Device {
                 if (amp > maxAmp) {
                     maxAmp = amp;
                 }
+                if (amp > 1.0) {
+                    float nscale = scale * (1.0 / amp);
+                    I = ((int32_t)((comp.re  * nscale) * 32767)) & 0xFFFF;
+                    Q = ((int32_t)((comp.im  * nscale) * 32767)) & 0xFFFF;
+                    flog::info("Clipping: re={} im={} amp={} nscale={} I={} Q={}", comp.re, comp.im, amp, nscale, I, Q);
+                }
+
+                // add low pass filter HERE.
 
                 // skip first 4 bytes
 

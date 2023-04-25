@@ -737,7 +737,7 @@ struct ConfigPanel {
     }
 
     void init() {
-        agc.init(NULL, 1.0, agcAttack / trxAudioSampleRate, agcDecay / trxAudioSampleRate, 10e6, 10.0, INFINITY);
+        agc.init(NULL, 1.0, agcAttack / trxAudioSampleRate, agcDecay / trxAudioSampleRate, 10e6, 1.0, INFINITY);
 
         getConfig("trx_highPass", highPass);
         getConfig("trx_doEqualize", doEqualize);

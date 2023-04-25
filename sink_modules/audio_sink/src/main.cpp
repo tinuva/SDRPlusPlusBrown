@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include <module.h>
 #include <gui/gui.h>
+#include <gui/style.h>
 #include <signal_path/signal_path.h>
 #include <signal_path/sink.h>
 #include <dsp/buffer/packer.h>
@@ -35,6 +36,8 @@ public:
     RtAudio::DeviceInfo inputDeviceInfo;
 
     std::vector<dsp::stereo_t> playBuffer; // hardware data is stored here before stream i/o
+
+    int underflow = 0;      // 1 = small underflow, 2 = full underflow
 
     AudioSink(SinkManager::Stream* stream, std::string streamName) {
         _stream = stream;
@@ -180,6 +183,12 @@ public:
     void menuHandler() {
         float menuWidth = ImGui::GetContentRegionAvail().x;
 
+        if (underflow == 1) {
+            menuWidth -= style::baseFont->FontSize;
+        }
+        if (underflow == 2) {
+            menuWidth -= style::baseFont->FontSize;
+        }
         ImGui::SetNextItemWidth(menuWidth);
         if (ImGui::Combo(("##_audio_sink_dev_" + _streamName).c_str(), &devId, txtDevList.c_str())) {
             selectById(devId);
@@ -359,9 +368,14 @@ private:
                 int oldSize = _this->playBuffer.size();
                 _this->playBuffer.resize(_this->playBuffer.size() + count);
                 memmove(_this->playBuffer.data() + oldSize, _this->stereoPacker.out.readBuf, count * sizeof(dsp::stereo_t));
+                _this->underflow = 1;
+            } else {
+                _this->underflow = 2;
             }
             _this->stereoPacker.out.flush();
 //            flog::info("_this->stereoPacker.out.flushed");
+        } else {
+            _this->underflow = 0;
         }
 
         if (_this->playBuffer.size() >= nBufferFrames) {
