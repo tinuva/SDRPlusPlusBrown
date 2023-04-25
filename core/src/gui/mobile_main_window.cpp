@@ -11,11 +11,13 @@
 #include <gui/widgets/waterfall.h>
 #include <gui/icons.h>
 #include <gui/widgets/bandplan.h>
+#include <gui/widgets/finger_button.h>
 #include <gui/style.h>
 #include <gui/menus/display.h>
 #include <gui/menus/theme.h>
 #include <filesystem>
 #include <gui/tuner.h>
+#include <gui/widgets/small_waterfall.h>
 #include "../../decoder_modules/radio/src/radio_module.h"
 #include "../../misc_modules/noise_reduction_logmmse/src/arrays.h"
 #include "../../misc_modules/noise_reduction_logmmse/src/af_nr.h"
@@ -28,6 +30,9 @@
 #include <utility>
 
 using namespace ::dsp::arrays;
+
+float trxAudioSampleRate = 48000.0;
+
 
 template<typename X>
 void setConfig(const std::string &key, X value) {
@@ -45,18 +50,6 @@ void getConfig(const std::string &key, X &value) {
     }
     core::configManager.release(false);
 }
-
-static bool doFingerButton(const std::string &title) {
-    const ImVec2& labelWidth = ImGui::CalcTextSize(title.c_str(), nullptr, true, -1);
-    if (title[0] == '>') {
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
-    }
-    auto rv = ImGui::Button(title.c_str(), ImVec2(labelWidth.x + style::baseFont->FontSize, style::baseFont->FontSize * 3));
-    if (title[0] == '>') {
-        ImGui::PopStyleColor();
-    }
-    return rv;
-};
 
 struct Decibelometer {
     float maxSignalPeak = -1000.0;
@@ -141,150 +134,6 @@ struct Decibelometer {
 };
 
 
-struct SubWaterfall {
-    ImGui::WaterFall waterfall;
-    fftwf_complex* fft_in;
-    fftwf_complex* fft_out;
-    fftwf_plan fftwPlan;
-    float *spectrumLine;
-    float hiFreq = 5000;
-    int fftSize;
-    float waterfallRate = 10;
-
-    SubWaterfall() {
-        waterfall.WATERFALL_NUMBER_OF_SECTIONS = 5;
-        fftSize = hiFreq / waterfallRate;
-        waterfall.setRawFFTSize(fftSize);
-        waterfall.setBandwidth(2 * hiFreq);
-        waterfall.setViewBandwidth(hiFreq);
-        waterfall.setViewOffset(hiFreq);
-        waterfall.setFFTMin(-150);
-        waterfall.setFFTMax(0);
-        waterfall.setWaterfallMin(-150);
-        waterfall.setWaterfallMax(0);
-        waterfall.setFullWaterfallUpdate(false);
-
-        fft_in = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
-        fft_out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
-        fftwPlan = fftwf_plan_dft_1d(fftSize, fft_in, fft_out, FFTW_FORWARD, FFTW_ESTIMATE);
-        spectrumLine = (float *)volk_malloc(fftSize * sizeof(float), 16);
-    }
-
-    ~SubWaterfall() {
-        fftwf_destroy_plan(fftwPlan);
-        fftwf_free(fft_in);
-        fftwf_free(fft_out);
-        volk_free(spectrumLine);
-    }
-
-    dsp::multirate::RationalResampler<dsp::stereo_t> res;
-
-    void init() {
-        waterfall.init();
-        res.init(nullptr, 48000, 2 * hiFreq);
-
-    }
-
-    void draw(ImVec2 loc, ImVec2 wfSize) {
-        ImGui::SetCursorPos(loc);
-        ImGui::BeginChild("audio_waterfall", wfSize, false,
-                          ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoDecoration
-                              | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_MenuBar);
-        waterfall.draw();
-        ImGui::EndChild();
-        flushDrawUpdates();
-    }
-
-    std::vector<dsp::stereo_t> inputBuffer;
-    std::mutex inputBufferMutex;
-    std::vector<dsp::stereo_t> resampledV;
-    std::vector<std::pair<float, float>> minMaxQueue;
-
-    void addAudioSamples(dsp::stereo_t * samples, int count, int sampleRate) {
-        int newSize = 1000 + (res.getOutSampleRate() * count / sampleRate);
-        if (resampledV.size() < newSize) {
-            resampledV.resize(newSize);
-        }
-        if (res.getInSampleRate() != sampleRate) {
-            res.setInSamplerate(sampleRate);
-        }
-        count = res.process(count, samples, resampledV.data());
-        samples = resampledV.data();
-
-        std::lock_guard<std::mutex> lock(inputBufferMutex);
-        int curr = inputBuffer.size();
-        inputBuffer.resize(curr + count);
-        memcpy(inputBuffer.data() + curr, samples, count * sizeof(dsp::stereo_t));
-    }
-
-    void flushDrawUpdates() {
-        std::lock_guard<std::mutex> lock(inputBufferMutex);
-        while (inputBuffer.size() > fftSize) {
-            for (int i = 0; i < fftSize; i++) {
-                fft_in[i][0] = inputBuffer[i].l;
-                fft_in[i][1] = 0;
-            }
-            fftwf_execute(fftwPlan);
-            volk_32fc_s32f_power_spectrum_32f(spectrumLine, (const lv_32fc_t*)fft_out, fftSize, fftSize);
-            float* dest = waterfall.getFFTBuffer();
-            memcpy(dest, spectrumLine, fftSize * sizeof(float));
-            for(int q=0; q<fftSize/2; q++) {
-                std::swap(dest[q], dest[q + fftSize / 2]);
-            }
-            // bins are located
-            // -hiFreq .. 0 ... hiFreq  // total fftSize
-            int startFreq = 50;
-            int stopFreq = 2300;
-            int startBin = fftSize / 2 + (startFreq / hiFreq * fftSize / 2);
-            int endBin = fftSize / 2 + (stopFreq / hiFreq * fftSize / 2);
-            float minn = dest[startBin];
-            float maxx = dest[startBin];
-            for(int q=startBin; q<endBin; q++) {
-                if (dest[q] < minn) {
-                    minn = dest[q];
-                }
-                if (dest[q] > maxx) {
-                    maxx = dest[q];
-                }
-            }
-            minMaxQueue.emplace_back(minn, maxx);
-
-            int AVERAGE_SECONDS = 5;
-            waterfall.pushFFT();
-            inputBuffer.erase(inputBuffer.begin(), inputBuffer.begin() + fftSize);
-            int start = (int)minMaxQueue.size() - waterfallRate * AVERAGE_SECONDS;
-            if (start < 0) {
-                start = 0;
-            }
-            float bmin = 0;
-            float bmax = 0;
-            for(int z = start; z < minMaxQueue.size(); z++) {
-                bmin += minMaxQueue[z].first;
-                bmax += minMaxQueue[z].second;
-            }
-            bmin /= (minMaxQueue.size() - start);
-            bmax /= (minMaxQueue.size() - start);
-            waterfall.setWaterfallMin(bmin);
-            waterfall.setWaterfallMax(bmax+30);
-            if (bmin < waterfall.getFFTMin()) {
-                waterfall.setFFTMin(bmin);
-            } else {
-                waterfall.setFFTMin(waterfall.getFFTMin()+1);
-            }
-            if (bmax > waterfall.getFFTMax()) {
-                waterfall.setFFTMax(bmax);
-            } else {
-                waterfall.setFFTMax(waterfall.getFFTMax()-1);
-            }
-            while(minMaxQueue.size() > waterfallRate * AVERAGE_SECONDS) {
-                minMaxQueue.erase(minMaxQueue.begin());
-            }
-        }
-    }
-
-
-};
-
 static bool withinRect(ImVec2 size, ImVec2 point) {
     if (isnan(point.x)) {
         return false;
@@ -329,14 +178,14 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
         flog::info("AudioInToTransmitter: Start");
         auto bandwidth = 4000.0;
         if (this->submode == "LSB") {
-            xlator1.init(nullptr, -bandwidth / 2, 48000);
-            xlator2.init(nullptr, bandwidth / 2, 48000);
+            xlator1.init(nullptr, -bandwidth / 2, trxAudioSampleRate);
+            xlator2.init(nullptr, bandwidth / 2, trxAudioSampleRate);
         }
         else {
-            xlator1.init(nullptr, bandwidth / 2, 48000);
-            xlator2.init(nullptr, -bandwidth / 2, 48000);
+            xlator1.init(nullptr, bandwidth / 2, trxAudioSampleRate);
+            xlator2.init(nullptr, -bandwidth / 2, trxAudioSampleRate);
         }
-        ftaps = dsp::taps::lowPass0<dsp::complex_t>(bandwidth / 2, bandwidth / 2 * 0.1, 48000);
+        ftaps = dsp::taps::lowPass0<dsp::complex_t>(bandwidth / 2, bandwidth / 2 * 0.1, trxAudioSampleRate);
         filter.init(nullptr, ftaps);
         dsp::Processor<dsp::stereo_t, dsp::complex_t>::start();
     }
@@ -353,7 +202,7 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
         }
         if (tuneFrequency != 0) {
             // generate sine wave for soft tune
-            int period = 48000 / tuneFrequency;
+            int period = trxAudioSampleRate / tuneFrequency;
             auto thisStart = sampleCount % period;
             for (auto q = 0; q < rd; q++) {
                 auto angle = (thisStart + q) / (double)period * 2 * M_PI;
@@ -399,7 +248,7 @@ struct AudioFFTForDisplay : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
 
 
     std::vector<dsp::stereo_t> inputData;
-    const int FREQUENCY = 48000;
+    float &FREQUENCY = trxAudioSampleRate;
     const int FRAMERATE = 60;
     Arg<fftwPlan> plan;
     const int windowSize = FREQUENCY / FRAMERATE;
@@ -695,7 +544,7 @@ struct SimpleRecorder {
                             blockEnd = data.size();
                         }
                         std::copy(data.data() + i, data.data() + blockEnd, recorderOut.writeBuf);
-                        waitTil += 1000 * (blockEnd - i) / 48000.0;
+                        waitTil += 1000 * (blockEnd - i) / trxAudioSampleRate;
 //                        flog::info("player Swapping to {}: {0} - {1} = {}, wait til {}", audioOut.origin, blockEnd, i, blockEnd - i, (int64_t)waitTil);
                         recorderOut.swap(blockEnd - i);
 //                        flog::info("player Swapped to {}: {} - {} = {}", audioOut.origin, blockEnd, i, blockEnd - i);
@@ -760,7 +609,7 @@ struct Equalizer : public dsp::Processor<dsp::complex_t, dsp::complex_t> {
         std::vector<dsp::complex_t> equalizer;
 
         for (size_t i = 0; i < center_freqs.size(); ++i) {
-            auto band_filter = design_bandpass_filter(center_freqs[i], bandwidths[i], 48000);
+            auto band_filter = design_bandpass_filter(center_freqs[i], bandwidths[i], trxAudioSampleRate);
             for(int q=0; q<band_filter.size(); ++q) {
                 band_filter[q] *= gains[i];
             }
@@ -881,13 +730,14 @@ struct ConfigPanel {
 
     SimpleRecorder recorder;
 
+
     explicit ConfigPanel(dsp::routing::Splitter<dsp::stereo_t>* inputAudio) : recorder(inputAudio) {
 //        afnr.setProcessingBandwidth(11000);
 //        agc2.init(NULL, 1.0, agcAttack / 48000.0, agcDecay / 48000.0, 10e6, 10.0, INFINITY);
     }
 
     void init() {
-        agc.init(NULL, 1.0, agcAttack / 48000.0, agcDecay / 48000.0, 10e6, 10.0, INFINITY);
+        agc.init(NULL, 1.0, agcAttack / trxAudioSampleRate, agcDecay / trxAudioSampleRate, 10e6, 10.0, INFINITY);
 
         getConfig("trx_highPass", highPass);
         getConfig("trx_doEqualize", doEqualize);
@@ -896,8 +746,8 @@ struct ConfigPanel {
         getConfig("trx_agcDecay", agcDecay);
         getConfig("trx_lowPass", lowPass);
 
-        agc.setAttack(agcAttack);
-        agc.setDecay(agcDecay);
+        agc.setAttack(agcAttack / trxAudioSampleRate);
+        agc.setDecay(agcDecay / trxAudioSampleRate);
 
     }
 
@@ -1797,7 +1647,7 @@ MobileMainWindow::MobileMainWindow() : MainWindow(),
     configPanel = std::make_shared<ConfigPanel>(&qsoPanel->audioInProcessed);
     qsoPanel->configPanel = configPanel;
     cwPanel = std::make_shared<CWPanel>();
-    audioWaterfall = std::make_shared<SubWaterfall>();
+    audioWaterfall = std::make_shared<SubWaterfall>(trxAudioSampleRate, "Audio Heard");
 }
 
 void MobileMainWindow::init() {
@@ -1843,7 +1693,7 @@ void QSOPanel::startSoundPipeline() {
         getConfig("trx_afnrAllowd", configPanel->afnr->allowed);
         getConfig("trx_afnrPreAmpGain", configPanel->afnr->preAmpGain);
         configPanel->afnr->init(nullptr);
-        configPanel->afnr->omlsa_mcra.setSampleRate(48000);
+        configPanel->afnr->omlsa_mcra.setSampleRate(trxAudioSampleRate);
     }
     audioIn.clearReadStop();
     sigpath::sinkManager.defaultInputAudio.bindStream(&audioIn);
@@ -1855,9 +1705,9 @@ void QSOPanel::startSoundPipeline() {
         dsp::filter::FIR<dsp::stereo_t, float> lopass;
         auto prevHighPass = configPanel->highPass;
         auto prevLowPass = configPanel->lowPass;
-        auto hipassTaps = dsp::taps::highPass0<float>(prevHighPass, 30, 48000);
+        auto hipassTaps = dsp::taps::highPass0<float>(prevHighPass, 30, trxAudioSampleRate);
         hipass.init(nullptr, hipassTaps);
-        auto lopassTaps = dsp::taps::lowPass0<float>(prevLowPass, 300, 48000);
+        auto lopassTaps = dsp::taps::lowPass0<float>(prevLowPass, 300, trxAudioSampleRate);
         lopass.init(nullptr, lopassTaps);
 
         while (true) {
@@ -1870,13 +1720,13 @@ void QSOPanel::startSoundPipeline() {
             configPanel->rawInDecibels.addSamples(audioIn.readBuf, rd);
             if (configPanel->lowPass != prevLowPass) {
                 dsp::taps::free(lopassTaps);
-                lopassTaps = dsp::taps::lowPass0<float>(configPanel->lowPass/2, 200, 48000);
+                lopassTaps = dsp::taps::lowPass0<float>(configPanel->lowPass/2, 200, trxAudioSampleRate);
                 lopass.setTaps(lopassTaps);
                 prevLowPass = configPanel->lowPass;
             }
             if (configPanel->highPass != prevHighPass) {
                 dsp::taps::free(hipassTaps);
-                hipassTaps = dsp::taps::highPass0<float>(configPanel->highPass/2, 3000, 48000);
+                hipassTaps = dsp::taps::highPass0<float>(configPanel->highPass/2, 3000, trxAudioSampleRate);
                 hipass.setTaps(hipassTaps);
                 prevHighPass = configPanel->highPass;
             }
@@ -2230,13 +2080,13 @@ void ConfigPanel::draw() {
     ImGui::LeftLabel("AGC Attack");
     if (ImGui::SliderFloat("##attack-rec", &agcAttack, 1.0f, 200.0f)) {
         setConfig("trx_agcAttack", agcAttack);
-        agc.setAttack(agcAttack);
+        agc.setAttack(agcAttack / trxAudioSampleRate);
 //        agc2.setAttack(agcAttack);
     }
     ImGui::LeftLabel("AGC Decay");
-    if (ImGui::SliderFloat("##decay-rec", &agcDecay, 1.0f, 20.0f)) {
+    if (ImGui::SliderFloat("##decay-rec", &agcDecay, 0.1f, 20.0f)) {
         setConfig("trx_agcDecay", agcDecay);
-        agc.setDecay(agcDecay);
+        agc.setDecay(agcDecay / trxAudioSampleRate);
 //        agc2.setDecay(agcDecay);
     }
     draw_db_gauge(space.x, agcDecibels.getMax(3), agcDecibels.getPeak(), -80, +20);

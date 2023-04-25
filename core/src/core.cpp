@@ -405,6 +405,9 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["menuElements"][7]["name"] = "Display";
     defConfig["menuElements"][7]["open"] = true;
 
+    defConfig["menuElements"][8]["name"] = "WebSDR View";
+    defConfig["menuElements"][8]["open"] = false;
+
 
 #ifdef __ANDROID__
     defConfig["menuWidth"] = 700;
@@ -461,6 +464,7 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["moduleInstances"]["Radio"] = "radio";
 
     defConfig["moduleInstances"]["Frequency Manager"] = "frequency_manager";
+    defConfig["moduleInstances"]["WebSDR View"] = "websdr_view";
     defConfig["moduleInstances"]["Recorder"] = "recorder";
     defConfig["moduleInstances"]["Rigctl Server"] = "rigctl_server";
     defConfig["moduleInstances"]["Noise Reduction logmmse"]["module"] = "noise_reduction_logmmse";
@@ -558,6 +562,7 @@ int sdrpp_main(int argc, char* argv[]) {
     core::configManager.conf["modules"][modCount++] = "radio.so";
 
     core::configManager.conf["modules"][modCount++] = "frequency_manager.so";
+    core::configManager.conf["modules"][modCount++] = "websdr_view.so";
     core::configManager.conf["modules"][modCount++] = "recorder.so";
     core::configManager.conf["modules"][modCount++] = "rigctl_server.so";
     core::configManager.conf["modules"][modCount++] = "scanner.so";

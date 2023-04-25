@@ -5,6 +5,7 @@
 #include <core.h>
 #include <utils/wstr.h>
 #include <utils/flog.h>
+#include <gui/widgets/finger_button.h>
 #include <filesystem>
 #include <sstream>
 #include <iomanip>
@@ -13,34 +14,8 @@
 
 namespace geomap {
 
-    constexpr double pi = 3.14159265358979323846;
-    constexpr double earthRadius = 6371.0; // Earth radius in kilometers
 
     // Converts degrees to radians
-    inline double degToRad(double deg) {
-        return deg * pi / 180.0;
-    }
-
-    struct GeoCoordinates {
-        double latitude;
-        double longitude;
-    };
-
-    struct CartesianCoordinates {
-        double x;
-        double y;
-    };
-
-
-    CartesianCoordinates geoToCartesian(const GeoCoordinates& geo) {
-        double latRad = degToRad(geo.latitude);
-        double lngRad = degToRad(geo.longitude);
-
-        double x = lngRad / pi;
-        double y = latRad / (pi / 2.0);
-
-        return { x, y };
-    }
 
     nlohmann::json geoJSON;
     std::vector<std::vector<std::vector<CartesianCoordinates>>> countriesGeo;
@@ -67,7 +42,7 @@ namespace geomap {
 
 
             for (const auto& feature : geoJSON["features"]) {
-                std::string countryID = feature["properties"]["NAME"];
+                //                std::string countryID = feature["properties"]["NAME"];
                 countriesGeo.emplace_back();
 
                 for (const auto& coordinates : feature["geometry"]["coordinates"]) {
@@ -75,7 +50,7 @@ namespace geomap {
                     countriesGeo.back().emplace_back();
                     for (const auto& coord0 : coordinates) {
 
-                        auto &dest = countriesGeo.back().back();
+                        auto& dest = countriesGeo.back().back();
                         if (coord0.is_array() && !coord0.empty() && coord0[0].is_array()) {
                             // multy poligon
                             for (const auto& coord1 : coord0) {
@@ -84,9 +59,9 @@ namespace geomap {
                                 CartesianCoordinates cartesian = geoToCartesian({ latitude, longitude });
 
                                 dest.emplace_back(cartesian);
-
                             }
-                        } else if (coord0.is_array() && !coord0.empty() && !coord0[0].is_array() && coord0.size() == 2) {
+                        }
+                        else if (coord0.is_array() && !coord0.empty() && !coord0[0].is_array() && coord0.size() == 2) {
 
                             for (const auto& coord1 : coordinates) {
                                 double longitude = coord1[0].get<double>();
@@ -96,13 +71,13 @@ namespace geomap {
                                 dest.emplace_back(cartesian);
                             }
                             break;
-                        } else {
+                        }
+                        else {
                             break;
                         }
                     }
                 }
             }
-
         }
     }
 
@@ -118,14 +93,13 @@ namespace geomap {
     }
 
     std::vector<ImVec4> colors = {
-        ImVec4(1.0f, 0.0f, 0.0f, 1.0f), // Colors.red
-        ImVec4(0.0f, 1.0f, 0.0f, 1.0f), // Colors.green
+        ImVec4(1.0f, 0.0f, 0.0f, 1.0f),   // Colors.red
+        ImVec4(0.0f, 1.0f, 0.0f, 1.0f),   // Colors.green
         ImVec4(1.0f, 0.08f, 0.58f, 1.0f), // Colors.pink
         ImVec4(1.0f, 0.76f, 0.03f, 1.0f), // Colors.amber
-        ImVec4(0.0f, 0.0f, 0.0f, 1.0f), // Colors.black
-        ImVec4(0.5f, 0.5f, 0.5f, 1.0f), // Colors.grey
+        ImVec4(0.5f, 0.5f, 0.5f, 1.0f),   // Colors.grey
         ImVec4(0.6f, 0.32f, 0.17f, 1.0f), // Colors.brown
-        ImVec4(1.0f, 0.65f, 0.0f, 1.0f), // Colors.orange
+        ImVec4(1.0f, 0.65f, 0.0f, 1.0f),  // Colors.orange
         ImVec4(0.56f, 0.93f, 0.56f, 1.0f) // Colors.lightGreen
     };
 
@@ -134,32 +108,92 @@ namespace geomap {
 
         maybeInit();
 
+        const ImVec2 curpos = ImGui::GetCursorPos();
+
+
         ImDrawList* drawList = ImGui::GetWindowDrawList();
-        ImVec2 canvasPos = ImGui::GetCursorScreenPos();
+        recentCanvasPos = ImGui::GetCursorScreenPos();
         auto windowWidth = ImGui::GetContentRegionAvail().x;
         auto windowHeight = ImGui::GetContentRegionAvail().y;
+        ImVec2 w2 = ImVec2(windowWidth / 2, windowHeight / 2);
+        auto toView = [=](ImVec2 c) {
+            c *= scale;
+            auto x1 = static_cast<float>(c.x * w2.x + w2.x);
+            auto y1 = static_cast<float>(windowHeight - (c.y * w2.y + w2.y));
+            return ImVec2(x1, y1) + translate * w2 * scale;
+        };
+        recentMapToScreen = toView;
+
         if (windowWidth == 0) {
             return;
         }
         int count = 0;
-        int ix = 0;
 
-        for(auto &country : countriesGeo) {
+        drawList->AddRectFilled(recentCanvasPos + ImVec2(0, 0), recentCanvasPos + ImGui::GetContentRegionAvail(), ImColor(0, 0, 0));
+
+        for (auto& country : countriesGeo) {
             const ImColor& thisColor = ImColor(colors[(++count) % colors.size()]);
-            for(auto &polygon : country) {
+            for (auto& polygon : country) {
                 if (polygon.size() > 1) {
                     for (int i = 0; i < polygon.size() - 1; i++) {
                         auto& cartesian = polygon[i];
                         auto& cartesian2 = polygon[i + 1];
-                        auto x1 = static_cast<float>(cartesian.x * windowWidth / 2 + windowWidth / 2);
-                        auto y1 = static_cast<float>(windowHeight - (cartesian.y * windowHeight / 2 + windowHeight / 2));
-                        auto x2 = static_cast<float>(cartesian2.x * windowWidth / 2 + windowWidth / 2);
-                        auto y2 = static_cast<float>(windowHeight - (cartesian2.y * windowHeight / 2 + windowHeight / 2));
-                        drawList->AddLine(canvasPos + ImVec2(x1, y1), canvasPos + ImVec2(x2, y2), thisColor, 1.0f);
+                        drawList->AddLine(recentCanvasPos + toView(cartesian.toImVec2()), recentCanvasPos + toView(cartesian2.toImVec2()), thisColor, 1.0f);
                     }
                 }
             }
-
         }
+
+        if (ImGui::IsMouseDown(0)) {
+            if (!initialTouchPos) {
+                initialTouchPos = std::make_shared<ImVec2>(ImGui::GetMousePos());
+                initialTranslate = translate;
+            }
+            translate = initialTranslate + (ImGui::GetMousePos() - *initialTouchPos) / w2 / scale;
+            scaleTranslateDirty = true;
+            flog::info("Translate: {} {}", translate.x, translate.y);
+        }
+        else {
+            initialTouchPos.reset();
+        }
+
+        ImGui::SetCursorPos(curpos);
+        if (doFingerButton("Zoom In##geomap-zoom-in")) {
+            scale = scale * 2;
+            scaleTranslateDirty = true;
+        }
+        ImGui::SameLine();
+        if (doFingerButton("Zoom Out##geomap-zoom-out")) {
+            scale = scale / 2;
+            scaleTranslateDirty = true;
+        }
+        ImGui::SameLine();
+        if (doFingerButton("Reset Map##reset-map")) {
+            scale = ImVec2(1.0, 1.0);
+            translate = ImVec2(0.0, 0.0);
+            scaleTranslateDirty = true;
+        }
+
+    }
+    void GeoMap::saveTo(ConfigManager& manager, const char* prefix){
+        auto pref = std::string(prefix);
+        manager.acquire();
+        core::configManager.conf[pref+"_scale_x"] = scale.x;
+        core::configManager.conf[pref+"_scale_y"] = scale.y;
+        core::configManager.conf[pref+"_translate_x"] = translate.x;
+        core::configManager.conf[pref+"_translate_y"] = translate.y;
+        manager.release(true);
+    };
+
+    void GeoMap::loadFrom(ConfigManager& manager, const char* prefix) {
+        auto pref = std::string(prefix);
+        manager.acquire();
+        if (core::configManager.conf.contains(pref+"_scale_x")) {
+            scale.x = core::configManager.conf[pref + "_scale_x"];
+            scale.y = core::configManager.conf[pref + "_scale_y"];
+            translate.x = core::configManager.conf[pref + "_translate_x"];
+            translate.y = core::configManager.conf[pref + "_translate_y"];
+        }
+        manager.release(false);
     };
 };

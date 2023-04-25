@@ -78,6 +78,7 @@ namespace net::websock {
             int len = makeFrame(TEXT_FRAME, (unsigned char*)str.c_str(), str.length(), (unsigned char *)buffer.data(), buffer.size());
             buffer.resize(len);
             socket->sendstr(buffer);
+            flog::info("SENDING: {}", str);
             //
         }
 
