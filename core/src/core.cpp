@@ -166,13 +166,13 @@ namespace core {
             setproctitle("sdrpp (sdr++) fork server (spawning decoders)");
 
 #ifdef __linux__
-            int priority = 19; // background, the least priority
-            int which = PRIO_PROCESS; // set priority for the current process
-            pid_t pid = 0; // use the current process ID
-            int ret = setpriority(which, pid, priority);
-            if (ret != 0) {
-                // error handling
-            }
+//            int priority = 19; // background, the least priority
+//            int which = PRIO_PROCESS; // set priority for the current process
+//            pid_t pid = 0; // use the current process ID
+//            int ret = setpriority(which, pid, priority);
+//            if (ret != 0) {
+//                // error handling
+//            }
 #endif
 
             flog::info("FORKSERVER: fork server runs");

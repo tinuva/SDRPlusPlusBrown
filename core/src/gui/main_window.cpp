@@ -371,7 +371,7 @@ void MainWindow::drawUpperLine(ImGui::WaterfallVFO* vfo) {
     ImGui::SameLine();
     float origY = ImGui::GetCursorPosY();
 
-    sigpath::sinkManager.showVolumeSlider(gui::waterfall.selectedVFO, "##_sdrpp_main_volume_", (displaymenu::smallScreen ? 248 / 3 : 248) * style::uiScale, btnSize.x, 5, true);
+    sigpath::sinkManager.showVolumeSlider(gui::waterfall.selectedVFO, "##_sdrpp_main_volume_", 248 * style::uiScale, btnSize.x, 5, true);
 
     ImGui::SameLine();
 

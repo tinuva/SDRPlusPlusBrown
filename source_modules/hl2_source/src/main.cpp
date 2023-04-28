@@ -13,6 +13,7 @@
 #include <config.h>
 
 #include "hl2_device.h"
+#include "utils/stream_tracker.h"
 
 #define CONCAT(a, b) ((std::string(a) + (b)).c_str())
 
@@ -41,7 +42,7 @@ class HermesLite2SourceModule : public ModuleManager::Instance, public Transmitt
 
 public:
 
-    explicit HermesLite2SourceModule(const std::string &name) {
+    explicit HermesLite2SourceModule(const std::string &name) : hermesSamples("hermes samples") {
 
         this->name = name;
         memset(sevenRelays, 0, sizeof(sevenRelays));
@@ -198,12 +199,16 @@ private:
 
     std::vector<dsp::complex_t> incomingBuffer;
 
+    StreamTracker hermesSamples;
+
     void incomingSample(double i, double q) {
         incomingBuffer.emplace_back(dsp::complex_t{(float)q, (float)i});
-        if (incomingBuffer.size() >= 2048) {
+        if (incomingBuffer.size() >= 512-8) {
+//            hermesSamples.add(incomingBuffer.size());
             memcpy(stream.writeBuf, incomingBuffer.data(), incomingBuffer.size() * sizeof(dsp::complex_t));
             stream.swap((int)incomingBuffer.size());
             incomingBuffer.clear();
+
         }
 
     }

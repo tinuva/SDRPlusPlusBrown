@@ -9,7 +9,7 @@ namespace dsp {
     }
 
     int omlsa_mcra::blockSize() {
-        return dtr->m_wlen15;
+        return 3*dtr->m_wlen15;
     }
 
     bool omlsa_mcra::process(short *in, int incount, short *out, int &outcount) {

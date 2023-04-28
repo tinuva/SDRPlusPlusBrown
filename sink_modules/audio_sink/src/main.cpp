@@ -12,6 +12,7 @@
 #include <RtAudio.h>
 #include <config.h>
 #include <core.h>
+#include <utils/stream_tracker.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -33,17 +34,19 @@ static void rtaudioCallback(RtAudioError::Type type, const std::string& errorTex
 
 class AudioSink : SinkManager::Sink {
 public:
+    StreamTracker spackerTracker;
+
     RtAudio::DeviceInfo inputDeviceInfo;
 
     std::vector<dsp::stereo_t> playBuffer; // hardware data is stored here before stream i/o
 
-    int underflow = 0;      // 1 = small underflow, 2 = full underflow
+    int underflow = 0; // 1 = small underflow, 2 = full underflow
 
-    AudioSink(SinkManager::Stream* stream, std::string streamName) {
+    AudioSink(SinkManager::Stream* stream, std::string streamName) : spackerTracker("output stereo packer") {
         _stream = stream;
         _streamName = streamName;
-//        s2m.init(_stream->sinkOut);
-//        monoPacker.init(&s2m.out, 512);
+        //        s2m.init(_stream->sinkOut);
+        //        monoPacker.init(&s2m.out, 512);
         stereoPacker.init(_stream->sinkOut, 512);
 
         bool created = false;
@@ -72,13 +75,14 @@ public:
                 parameters.nChannels = 2;
                 unsigned int bufferFrames = sampleRate / 60;
                 RtAudio::StreamOptions opts;
-//                opts.flags = RTAUDIO_MINIMIZE_LATENCY;
+                //                opts.flags = RTAUDIO_MINIMIZE_LATENCY;
                 opts.streamName = _streamName;
                 info.probed = true;
                 rtaudioCallbackError = false;
                 try {
                     audio.openStream(&parameters, NULL, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback, this, &opts, rtaudioCallback);
-                } catch (RtAudioError &err) {
+                }
+                catch (RtAudioError& err) {
                     rtaudioCallbackError = true;
                 }
                 if (rtaudioCallbackError) {
@@ -105,7 +109,6 @@ public:
             deviceIds.push_back(i);
             deviceIds.push_back(i);
             deviceIds.push_back(i);
-
         }
 
         selectByName(device);
@@ -236,14 +239,14 @@ private:
             flog::info("Starting RtAudio stream {}  parameters.deviceId={}  it is default input? {}", _streamName, outputParameters.deviceId, defaultInputDeviceId == outputParameters.deviceId);
 
             try {
-                unsigned int microBuffer = bufferFrames/microFrames;
+                unsigned int microBuffer = bufferFrames / microFrames;
                 audio.openStream(&outputParameters, defaultInputDeviceId == outputParameters.deviceId ? &inputParameters : nullptr, RTAUDIO_FLOAT32, sampleRate, &microBuffer, &callback, this, &opts);
                 stereoPacker.setSampleCount((int)bufferFrames);
                 audio.startStream();
                 stereoPacker.start();
             }
             catch (RtAudioError& e) {
-                flog::error("Could not open audio device: {}",  e.getMessage());
+                flog::error("Could not open audio device: {}", e.getMessage());
                 return false;
             }
 
@@ -272,8 +275,8 @@ private:
             flog::info("sigpath::sinkManager.defaultInputAudio.init(microphone)");
             sigpath::sinkManager.defaultInputAudio.setInput(&microphone);
             sigpath::sinkManager.defaultInputAudio.start();
-//            microphone.setBufferSize(sampleRate / 60);
-//            flog::info("_this->microphone.writeBuf={} after setsize", (void*)microphone.writeBuf);
+            //            microphone.setBufferSize(sampleRate / 60);
+            //            flog::info("_this->microphone.writeBuf={} after setsize", (void*)microphone.writeBuf);
         }
         return true;
     }
@@ -288,10 +291,10 @@ private:
         flog::info("sigpath::sinkManager.defaultInputAudio.setInput(nullptr)");
         sigpath::sinkManager.defaultInputAudio.setInput(nullptr);
 
-//        s2m.stop();
-//        monoPacker.stop();
+        //        s2m.stop();
+        //        monoPacker.stop();
         stereoPacker.stop();
-//        monoPacker.out.stopReader();
+        //        monoPacker.out.stopReader();
         stereoPacker.out.stopReader();
 
         if (audio2.isStreamRunning()) {
@@ -314,71 +317,78 @@ private:
             audio.closeStream();
             flog::info("Stopped RtAudio stream p.2");
         }
-//        monoPacker.out.clearReadStop();
+        //        monoPacker.out.clearReadStop();
         stereoPacker.out.clearReadStop();
     }
 
-    static int microphoneCallback(void* , void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData) {
+    static int microphoneCallback(void*, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData) {
         AudioSink* _this = (AudioSink*)userData;
         if (inputBuffer != nullptr) {
             // single channel cometh,
-//            static int counter = 0;
-//            if (counter++ % 30 == 0) {
-//                float* ib = (float*)inputBuffer;
-//                printf("ok here input buffer2 %d: %f %f %f %f %f %f %f %f\n", nBufferFrames, ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
-//            }
-            auto outptr = (dsp::stereo_t *)_this->microphone.writeBuf;
+            //            static int counter = 0;
+            //            if (counter++ % 30 == 0) {
+            //                float* ib = (float*)inputBuffer;
+            //                printf("ok here input buffer2 %d: %f %f %f %f %f %f %f %f\n", nBufferFrames, ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
+            //            }
+            auto outptr = (dsp::stereo_t*)_this->microphone.writeBuf;
             if (!outptr) {
                 abort();
             }
-            auto inptr = (float *)inputBuffer;
-            for(int q=0; q<nBufferFrames; q++) {
+            auto inptr = (float*)inputBuffer;
+            for (int q = 0; q < nBufferFrames; q++) {
                 outptr[q].l = inptr[q];
                 outptr[q].r = inptr[q];
             }
             _this->microphone.swap(nBufferFrames);
-//            char buf[10000];
-//            buf[0] = 0;
-//            for(int i=0; i<30; i++) {
-//                sprintf(buf + strlen(buf), "%1.8f ", inptr[i]);
-//            }
-//            flog::info("Got from microphone: {}", buf);
+            //            char buf[10000];
+            //            buf[0] = 0;
+            //            for(int i=0; i<30; i++) {
+            //                sprintf(buf + strlen(buf), "%1.8f ", inptr[i]);
+            //            }
+            //            flog::info("Got from microphone: {}", buf);
         }
         return 0;
     }
+
+    std::vector<dsp::stereo_t> lastPlayedAudio;
 
     static int callback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData) {
 
         if (inputBuffer != nullptr) {
             static int counter = 0;
             if (counter++ % 30 == 0) {
-//                float* ib = (float*)inputBuffer;
-//                printf("ok here input buffer: %f %f %f %f %f %f %f %f\n", ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
+                //                float* ib = (float*)inputBuffer;
+                //                printf("ok here input buffer: %f %f %f %f %f %f %f %f\n", ib[0], ib[1], ib[2], ib[3], ib[4], ib[5], ib[6], ib[7]);
             }
             microphoneCallback(outputBuffer, inputBuffer, nBufferFrames, streamTime, status, userData);
         }
 
-//        flog::info("audio callback: nBufferFrames={}", nBufferFrames);
+        //        flog::info("audio callback: nBufferFrames={}", nBufferFrames);
         AudioSink* _this = (AudioSink*)userData;
+        auto ctm = currentTimeMillis();
+
+        int receivedFromPacker = 0;
         if (_this->playBuffer.size() < nBufferFrames && _this->stereoPacker.out.isDataReady()) {
-//            flog::info("_this->stereoPacker.out.read()....");
+            //            flog::info("_this->stereoPacker.out.read()....");
             int count = _this->stereoPacker.out.read(); // something has to be here
-//            flog::info("_this->stereoPacker.out.read() count={}", count);
+                                                        //            flog::info("_this->stereoPacker.out.read() count={}", count);
+//            _this->spackerTracker.add(count);
+            receivedFromPacker += count;
             if (count > 0) {
                 int oldSize = _this->playBuffer.size();
                 _this->playBuffer.resize(_this->playBuffer.size() + count);
                 memmove(_this->playBuffer.data() + oldSize, _this->stereoPacker.out.readBuf, count * sizeof(dsp::stereo_t));
-                _this->underflow = 1;
-            } else {
-                _this->underflow = 2;
+            }
+            else {
             }
             _this->stereoPacker.out.flush();
 //            flog::info("_this->stereoPacker.out.flushed");
-        } else {
-            _this->underflow = 0;
+        }
+        else {
         }
 
         if (_this->playBuffer.size() >= nBufferFrames) {
+            _this->underflow = 0;
 
             // For debug purposes only...
             // if (nBufferFrames != count) { flog::warn("Buffer size mismatch, wanted {0}, was asked for {1}", count, nBufferFrames); }
@@ -390,6 +400,9 @@ private:
 
 
             memcpy(outputBuffer, _this->playBuffer.data(), nBufferFrames * sizeof(dsp::stereo_t));
+            _this->lastPlayedAudio.resize(nBufferFrames);
+            memcpy(_this->lastPlayedAudio.data(), _this->playBuffer.data(), nBufferFrames * sizeof(dsp::stereo_t));
+//            flog::info("ctm={} PLAYS. Added from stereo: {}, current buffer size: {} audio wants: {} => plays.",(int64_t)ctm, receivedFromPacker, (int)_this->playBuffer.size(), (int)nBufferFrames);
             _this->playBuffer.erase(_this->playBuffer.begin(), _this->playBuffer.begin() + nBufferFrames);
 
             static float lastPhase = 0;
@@ -399,7 +412,7 @@ private:
                 float hz = 800;
                 int period = (int)(_this->sampleRate / hz);
                 float tick = M_PI * 2 / period;
-                for(int q=0; q<nBufferFrames; q++) {
+                for (int q = 0; q < nBufferFrames; q++) {
                     stereoOut[q].r = stereoOut[q].l = sin(lastPhase);
                     lastPhase += tick;
                 }
@@ -419,9 +432,18 @@ private:
                 }
                 break;
             }
-        } else {
-            memset(outputBuffer, 0, nBufferFrames * sizeof(dsp::stereo_t));
         }
+        else {
+//            flog::info("ctm={} ZEROS. Added from stereo: {}, current buffer size: {} audio wants: {} => wrote zeros.",(int64_t)ctm, receivedFromPacker,(int) _this->playBuffer.size(), (int)nBufferFrames);
+//            if (nBufferFrames == _this->lastPlayedAudio.size()) {
+//                memcpy(outputBuffer, _this->lastPlayedAudio.data(), nBufferFrames * sizeof(dsp::stereo_t));
+//            }
+//            else {
+            _this->underflow = 1;
+            memset(outputBuffer, 0, nBufferFrames * sizeof(dsp::stereo_t));
+//            }
+        }
+
         return 0;
     }
 
@@ -437,8 +459,8 @@ private:
     int devId = 0;
     bool running = false;
 
-    unsigned int defaultOutputDevId = 0;         // dev == index in our reduced list
-    unsigned int defaultInputDeviceId = -1;       // device = index in the rtaudio devices
+    unsigned int defaultOutputDevId = 0;    // dev == index in our reduced list
+    unsigned int defaultInputDeviceId = -1; // device = index in the rtaudio devices
 
     std::vector<RtAudio::DeviceInfo> devList;
     std::vector<unsigned int> deviceIds;
@@ -490,6 +512,7 @@ private:
     bool enabled = true;
     SinkManager::SinkProvider provider;
 };
+
 
 MOD_EXPORT void _INIT_() {
     json def = json({});

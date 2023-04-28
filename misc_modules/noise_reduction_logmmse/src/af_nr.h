@@ -12,6 +12,7 @@
 #include "arrays.h"
 #include "logmmse.h"
 #include "omlsa_mcra.h"
+#include "utils/stream_tracker.h"
 
 namespace dsp {
 
@@ -72,6 +73,18 @@ namespace dsp {
         bool allowed = false;
         bool allowed2 = true;       // just convenient for various conditions
         float preAmpGain = 0.0f;
+        int instanceCount = 0;
+//        FILE *dumpIn = nullptr;
+
+        AFNR_OMLSA_MCRA() : nrIn("OMLSA_IN"), nrOut("OMLSA_OUT") {
+            static int _cnt = 0;
+            instanceCount = _cnt++;
+#ifdef __linux__
+            char fname[256];
+            sprintf(fname, "/tmp/omlsa_in_%d.raw", instanceCount);
+//            dumpIn = fopen(fname, "wb");
+#endif
+        }
 
         void init(stream<stereo_t>* in) override {
             base_type::init(in);
@@ -100,6 +113,9 @@ namespace dsp {
             sigpath::txState.unbindHandler(&txHandler);
         }
 
+        StreamTracker nrIn, nrOut;
+        float scaled = 32767.0;      // amplitude shaper
+
         void process(stereo_t *readBuf, int count, stereo_t *writeBuf, int &wrote) {
             auto mult = pow(10, preAmpGain/20);
             for(int q=0; q<count; q++) {
@@ -119,7 +135,9 @@ namespace dsp {
                     double max = 0;
                     std::vector<short> processIn(blockSize, 0);
                     std::vector<short> processOut(3 * blockSize, 0);
-                    float scaled = 8191.0;
+                    if (scaled < 32757) {
+                        scaled += 10;
+                    }
                     for(int q=0; q<blockSize; q++) {
                         if (fabs(buffer[q].l) > max) {
                             max = fabs(buffer[q].l);
@@ -127,18 +145,23 @@ namespace dsp {
                         processIn[q] = buffer[q].l * scaled;
                     }
                     bool processedOk = true;
-                    if (max > 32767/scaled) { // overflow, rare, mostly due to agc did not kick in
-                        float newScaled = 8191 / max;
-//                        flog::info("fabs = {}, scaled={}, newScaled(once)={}", max, scaled, newScaled);
+                    if (max > 32767/scaled) {
+                        float newScaled = 32767 / max;
                         for (int q = 0; q < blockSize; q++) {
                             processIn[q] = buffer[q].l * newScaled;
                         }
+                        scaled = newScaled;
                     }
-                    auto ctm = currentTimeNanos();
+//                    auto ctm = currentTimeNanos();
+//                    if (dumpIn) {
+//                        fwrite((short*)processIn.data(), 1, blockSize * sizeof(short), dumpIn);
+//                    }
                     processedOk = omlsa_mcra.process((short*)processIn.data(), blockSize, (short*)processOut.data(), wrote);
-                    ctm = currentTimeNanos() - ctm;
-//                    flog::info("processed: nanos {} size={} wrote={}", (int64_t)ctm, blockSize, wrote);
+//                    ctm = currentTimeNanos() - ctm;
+//                    nrIn.add(blockSize);
+//                    nrOut.add(wrote);
                     if (!processedOk) {
+                        flog::warn("OMLSA !processedOk");
                         omlsa_mcra.reset();
                         std::copy(buffer.begin(), buffer.end(), writeBuf);
                         wrote = buffer.size();

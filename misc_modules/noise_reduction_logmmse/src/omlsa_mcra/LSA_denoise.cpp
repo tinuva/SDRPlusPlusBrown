@@ -50,10 +50,12 @@ short  LSA_denoise::Denoise_process( short* data_in, short* data_out , int block
 	if (m_lerr_code < 0) return m_lerr_code;
 
 	m_lerr_code=Gc.G_calculate_process(m_winData, blockInd);  //19--49
+    if (m_lerr_code <0) return m_lerr_code;
 	m_lerr_code=Gc.G_calculate_process(m_winData + m_linc23, blockInd+1);
 	if (m_lerr_code <0) return m_lerr_code;
 
 	m_lerr_code=MyN_fft.base4_fft(m_winData, -1);
+    if (m_lerr_code <0) return m_lerr_code;
 	m_lerr_code = MyN_fft.base4_fft(m_winData + m_linc23, -1);
 	if (m_lerr_code < 0) return m_lerr_code;
 

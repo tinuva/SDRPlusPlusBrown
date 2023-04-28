@@ -1212,8 +1212,8 @@ namespace ImGui {
         min = max-45;   // based on default palette
         setFFTMin(min-5);
         setFFTMax(max+5);
-        this->setWaterfallMin(min);
-        this->setWaterfallMax(max+30);
+        this->setWaterfallMin(min-5);
+        this->setWaterfallMax(max+20);
         return std::make_pair(min, max);
     }
 
