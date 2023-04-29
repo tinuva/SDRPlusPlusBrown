@@ -634,12 +634,14 @@ struct HL2Device {
     void stop() {
         running = false;
         receiveThread->join();
+        sendThread->join();
         metis_start_stop(0);
 #ifdef WIN32
         closesocket(data_socket);
 #else
         close(data_socket);
 #endif
+        fill_level = 0;
     }
 
     int secondControlIndex = 1;
@@ -692,12 +694,17 @@ struct HL2Device {
 
     std::string sndLogg;
     long long psnd;
+    long long lastSendTime = 0;
+    long long lastReceiveTime = 0;
 
     void maybeSendNextPacket() {
 
         static int sent = 0;
         static int returned = 0;
+        const int firstBurst = 8;
+        auto ctm = currentTimeMillis();
 
+        /*
         if (sendStartTime == 0) {
             sendStartTime = currentTimeMillis();
             sendStartSequence = send_sequence;
@@ -706,11 +713,23 @@ struct HL2Device {
         } else {
             auto timeNow = currentTimeMillis();
             auto sequenceNow = send_sequence-sendStartSequence; // 1 and above
-            auto scheduledTime = sendStartTime + (int)((double)sequenceNow * 1000.0 / ((48000.0 / 126.0)));        // 126 samples per second, 48khz sending freq
+            long long scheduledTime;
+            if (sequenceNow < firstBurst) {
+                scheduledTime = sendStartTime;
+            } else {
+                scheduledTime = sendStartTime + (int)((double)(sequenceNow - firstBurst) * 1000.0 / ((48000.0 / 126.0))); // 126 samples per second, 48khz sending freq
+            }
             if (timeNow < scheduledTime) {
                 returned++;
                 return; // too early
             }
+        }
+         */
+
+        auto lastRecvAgo = ctm - lastReceiveTime;
+        if (fill_level > 12 || ctm - lastSendTime > 7 && lastRecvAgo > 3) {   // 1000/126 = 7.9, receive must be less than msec always, >3 means its hiccup
+            returned++;
+            return; // too early
         }
 /*
         static int counter = 0;
@@ -724,13 +743,16 @@ struct HL2Device {
             secondControlIndex = 1;
         }
 
+        lastSendTime = currentTimeMillis();
+/*
         auto snd = currentTimeNanos();
         sndLogg += std::to_string((snd-psnd)/1000)+" ";
         psnd = snd;
         if (sndLogg.size() > 100) {
-            flog::info("hl2 send timings: {0}", sndLogg);
+//            flog::info("hl2 send timings: {0}", sndLogg);
             sndLogg = "";
         }
+*/
 
         sendToEndpoint(0x2, output_buffer);
 //        if (sent % 1000 == 0) {
@@ -776,9 +798,20 @@ struct HL2Device {
         data_addr_length = discovered->info.network.address_length;
         data_addr.sin_port = htons(DATA_PORT);
         sendStartTime = 0;
+        send_sequence = 0;
         ua = (unsigned char *)&data_addr.sin_addr;
         flog::info("HL2: Target address: {}.{}.{}.{}", ua[0], ua[1], ua[2], ua[3]);
 
+        running = true;
+        sendThread = std::make_shared<std::thread>([&] {
+            SetThreadName("hl2_send_thread");
+            while (running) {
+                // we assume the receiving happens with same or higher frequency than the sending
+                // sending happens at 48000 samples per second.
+                this->maybeSendNextPacket();
+                usleep(1000);
+            }
+        });
         receiveThread = std::make_shared<std::thread>([&] {
             struct sockaddr_in addr;
             socklen_t length;
@@ -790,7 +823,6 @@ struct HL2Device {
             SetThreadName("hl2_receive_thread");
 
             fprintf(stderr, "hl2: protocol1: receive_thread started\n");
-            running = true;
 
             length = sizeof(addr);
             auto ctm = currentTimeNanos();
@@ -802,10 +834,11 @@ struct HL2Device {
                 }
                 bytes_read = recvfrom(data_socket, (char *)buffer, sizeof(buffer), 0, (struct sockaddr *) &addr, &length);
                 auto rcv = currentTimeNanos();
+                lastReceiveTime = currentTimeMillis();
                 logg += std::to_string((rcv-pctm)/1000)+" ";
                 ctm = rcv;
                 if (logg.size() > 100) {
-                    flog::info("hl2 recv timings: {0}", logg);
+//                    flog::info("hl2 recv timings: {0}", logg);
                     logg = "";
                 }
                 if (bytes_read < 0) {
@@ -826,11 +859,6 @@ struct HL2Device {
                     //running=FALSE;
                     continue;
                 }
-
-                // we assume the receiving happens with same or higher frequency than the sending
-                // sending happens at 48000 samples per second.
-
-                this->maybeSendNextPacket();
 
 
 
@@ -876,6 +904,7 @@ struct HL2Device {
 
 
     std::shared_ptr<std::thread> receiveThread;
+    std::shared_ptr<std::thread> sendThread;
     long long int txFrequency = 0;
 };
 
