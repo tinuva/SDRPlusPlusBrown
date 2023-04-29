@@ -254,7 +254,8 @@ private:
                 config.conf["AF_NR2_"+k] = v->allowed;
                 config.release(true);
             }
-
+            ImGui::SameLine();
+            ImGui::Text("%0.01f", 32767.0/v->scaled);
         }
         if (ImGui::Checkbox(("SNR Chart##_radio_logmmse_nr_" + name).c_str(), &snrChartWidget)) {
             config.acquire();

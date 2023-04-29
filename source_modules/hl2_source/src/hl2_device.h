@@ -690,6 +690,9 @@ struct HL2Device {
     std::mutex samplesToSendLock;
     std::vector<std::shared_ptr<std::vector<dsp::complex_t>>> samplesToSend;    // each element is N-samples.
 
+    std::string sndLogg;
+    long long psnd;
+
     void maybeSendNextPacket() {
 
         static int sent = 0;
@@ -720,6 +723,15 @@ struct HL2Device {
         if (secondControlIndex > 10) {
             secondControlIndex = 1;
         }
+
+        auto snd = currentTimeNanos();
+        sndLogg += std::to_string((snd-psnd)/1000)+" ";
+        psnd = snd;
+        if (sndLogg.size() > 100) {
+            flog::info("hl2 send timings: {0}", sndLogg);
+            sndLogg = "";
+        }
+
         sendToEndpoint(0x2, output_buffer);
 //        if (sent % 1000 == 0) {
 //            flog::info("Sent {} packets, of total {} calls", sent, returned+sent);
@@ -781,10 +793,21 @@ struct HL2Device {
             running = true;
 
             length = sizeof(addr);
-
+            auto ctm = currentTimeNanos();
+            std::string logg;
             while (running) {
-
+                auto pctm = currentTimeNanos();
+                if ((pctm - ctm)/1000 > 500) {
+                    logg += "?" + std::to_string((pctm - ctm)/1000)+" ";
+                }
                 bytes_read = recvfrom(data_socket, (char *)buffer, sizeof(buffer), 0, (struct sockaddr *) &addr, &length);
+                auto rcv = currentTimeNanos();
+                logg += std::to_string((rcv-pctm)/1000)+" ";
+                ctm = rcv;
+                if (logg.size() > 100) {
+                    flog::info("hl2 recv timings: {0}", logg);
+                    logg = "";
+                }
                 if (bytes_read < 0) {
                     bool timeout = false;
 #ifdef WIN32

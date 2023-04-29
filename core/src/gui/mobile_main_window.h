@@ -67,6 +67,7 @@ public:
     MobileButton exitConfig;
     MobileButton txButton;
     MobileButton softTune;
+    MobileButton lockFrequency;
     std::shared_ptr<ConfigPanel> configPanel;
     std::shared_ptr<QSOPanel> qsoPanel;
     std::shared_ptr<CWPanel> cwPanel;
@@ -81,7 +82,7 @@ public:
         VIEW_DEFAULT = 1,
         VIEW_QSO = 2,
         VIEW_CONFIG = 3
-    } qsoMode = VIEW_DEFAULT;       // different ui
+    } qsoMode = VIEW_DEFAULT, prevMode = VIEW_CONFIG;       // different ui
     bool shouldInitialize = true;
     std::vector<std::string> modes = { "SSB", "CW", "FM", "AM", "DIGI" };
     std::map<std::string, std::vector<std::string>> subModes = { { "SSB", { "LSB", "USB" } }, { "FM", { "WFM", "NFM" } }, { "AM", { "AM" } }, { "CW", { "CW" /*, "CWU", "CWL"*/ } }, { "DIGI", { "FT8", "FT4", "OLIVIA", "PSK31", "SSTV" } } };
