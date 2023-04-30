@@ -371,6 +371,7 @@ struct HL2Device {
 
         if (samplesToSend.size() > 1) {
             this->storeNextIQSamples(output_buffer + 8, *samplesToSend[0]);
+            samplesToSend.erase(samplesToSend.begin(), samplesToSend.begin() + 1);
         }
         // 512-8 = 504 bytes here, 63 elements (8 bytes per iq sample (of those 4 bytes are obsolete/unused), and 2 bytes per re, im)
         output_buffer[512+SYNC0] = SYNC;
@@ -382,8 +383,12 @@ struct HL2Device {
         output_buffer[512+C3] = deviceControl[sendRegister].C3;
         output_buffer[512+C4] = deviceControl[sendRegister].C4;
         if (samplesToSend.size() > 1) {
-            this->storeNextIQSamples(output_buffer + 8 + 512, *samplesToSend[1]);
-            samplesToSend.erase(samplesToSend.begin(), samplesToSend.begin() + 2);
+            this->storeNextIQSamples(output_buffer + 8 + 512, *samplesToSend[0]);
+            samplesToSend.erase(samplesToSend.begin(), samplesToSend.begin() + 1);
+        } else {
+            if (transmitMode) {
+                flog::info("Underflow in samplesToSend");
+            }
         }
         samplesToSendLock.unlock();
         // 512-8 = 504 bytes here, 63 elements (8 bytes per iq sample (of those 4 bytes are obsolete/unused), and 2 bytes per re, im)
@@ -727,7 +732,7 @@ struct HL2Device {
          */
 
         auto lastRecvAgo = ctm - lastReceiveTime;
-        if (fill_level > 12 || ctm - lastSendTime > 7 && lastRecvAgo > 3) {   // 1000/126 = 7.9, receive must be less than msec always, >3 means its hiccup
+        if (fill_level > 12) {   // 1000/126 = 7.9, receive must be less than msec always, >3 means its hiccup
             returned++;
             return; // too early
         }

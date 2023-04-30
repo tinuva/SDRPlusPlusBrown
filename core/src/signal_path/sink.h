@@ -208,13 +208,14 @@ public:
     void setAllMuted(bool muted);
     dsp::routing::Merger<dsp::stereo_t>* getMerger(std::string name);
 
+    std::map<std::string, Stream*> streams;
+
 private:
     void loadStreamConfig(std::string name);
     void saveStreamConfig(std::string name);
     void refreshProviders();
 
     std::map<std::string, SinkProvider> providers;
-    std::map<std::string, Stream*> streams;
     std::vector<std::string> providerNames;
     std::string providerNamesTxt;
     std::vector<std::string> streamNames;

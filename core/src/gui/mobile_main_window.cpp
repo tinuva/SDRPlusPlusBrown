@@ -32,6 +32,20 @@ using namespace ::dsp::arrays;
 
 float trxAudioSampleRate = 48000.0;
 
+const int nSmallWheelFunctions = 3;
+
+const char* smallWheelFunctionName(int n) {
+    switch (n % nSmallWheelFunctions) {
+    case 0:
+        return "Zoom/";
+    case 1:
+        return "Brightness/";
+    case 2:
+        return "Volume/";
+    default:
+        return "WTF";
+    }
+}
 
 template <typename X>
 void setConfig(const std::string& key, X value) {
@@ -156,6 +170,8 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
     int micGain = 0;
     int sampleCount = 0;
     int tuneFrequency = 0;
+    float bandwidth = 4000.0;
+
 
     AudioInToTransmitter(dsp::stream<dsp::stereo_t>* in) {
         init(in);
@@ -176,17 +192,17 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
 
     void start() override {
         flog::info("AudioInToTransmitter: Start");
-        auto bandwidth = 4000.0;
         if (this->submode == "LSB") {
-            xlator1.init(nullptr, -bandwidth / 2, trxAudioSampleRate);
+            xlator1.init(nullptr, -(bandwidth) / 2, trxAudioSampleRate);
             xlator2.init(nullptr, bandwidth / 2, trxAudioSampleRate);
         }
         else {
-            xlator1.init(nullptr, bandwidth / 2, trxAudioSampleRate);
+            xlator1.init(nullptr, (bandwidth) / 2, trxAudioSampleRate);
             xlator2.init(nullptr, -bandwidth / 2, trxAudioSampleRate);
         }
         ftaps = dsp::taps::lowPass0<dsp::complex_t>(bandwidth / 2, bandwidth / 2 * 0.1, trxAudioSampleRate);
         filter.init(nullptr, ftaps);
+
         dsp::Processor<dsp::stereo_t, dsp::complex_t>::start();
     }
 
@@ -219,8 +235,7 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
                 filter.process(rd, xlator1.out.writeBuf, filter.out.writeBuf);
                 xlator2.process(rd, filter.out.writeBuf, out.writeBuf);
                 for (int q = 0; q < rd; q++) {
-                    out.writeBuf[q].re *= gain;
-                    out.writeBuf[q].im *= gain;
+                    out.writeBuf[q] *= gain;
                 }
             }
             else {
@@ -728,6 +743,18 @@ struct ConfigPanel {
 
     SimpleRecorder recorder;
 
+    float hissCut = 5000;
+    float hissSize = 500;
+    bool hissAdd = false;
+
+
+    // hiss
+    dsp::tap<dsp::complex_t> highPassForSTaps;
+    dsp::filter::FIR<dsp::complex_t, dsp::complex_t> highPassForS;
+    dsp::tap<dsp::complex_t> lowPassForSTaps;
+    dsp::filter::FIR<dsp::complex_t, dsp::complex_t> lowPassForS;
+    dsp::channel::FrequencyXlator xlatorForS;
+
 
     explicit ConfigPanel(dsp::routing::Splitter<dsp::stereo_t>* inputAudio) : recorder(inputAudio) {
         //        afnr.setProcessingBandwidth(11000);
@@ -746,12 +773,17 @@ struct ConfigPanel {
 
         agc.setAttack(agcAttack / trxAudioSampleRate);
         agc.setDecay(agcDecay / trxAudioSampleRate);
+
+        highPassForSTaps = dsp::taps::highPass0<dsp::complex_t>(hissCut, hissCut * 0.1, trxAudioSampleRate);
+        highPassForS.init(nullptr, highPassForSTaps);
+        xlatorForS.init(nullptr, hissCut - (2700.0 / 2 - hissSize), trxAudioSampleRate);
     }
 
-    void draw();
+    void draw(ImGui::WaterfallVFO* vfo);
 };
 
 struct QSOPanel {
+
     QSOPanel() : audioInProcessedIn(), audioInProcessed(&audioInProcessedIn) {
         audioIn.origin = "qsopanel.audioin";
         audioTowardsTransmitter.origin = "qsopanel.audioInToTransmitter";
@@ -759,9 +791,9 @@ struct QSOPanel {
         audioInProcessed.origin = "QSOPanel.audioInProcessed";
     }
     virtual ~QSOPanel();
-    void startSoundPipeline();
+    void startAudioPipeline();
     void init();
-    void stopSoundPipeline();
+    void stopAudioPipeline();
     void draw(float currentFreq, ImGui::WaterfallVFO* pVfo);
     dsp::stream<dsp::stereo_t> audioIn;
     dsp::stream<dsp::stereo_t> audioInProcessedIn;
@@ -777,9 +809,10 @@ struct QSOPanel {
     std::shared_ptr<std::thread> receiveBuffers;
     dsp::arrays::FloatArray currentFFTBuffer;
     std::mutex currentFFTBufferMutex;
-    void handleTxButton(bool tx, bool tune);
+    void handleTxButton(ImGui::WaterfallVFO* vfo, bool tx, bool tune);
     float currentFreq;
     int txGain = 0;
+
     float micGain = 0; // in db
     bool enablePA = false;
     bool transmitting = false;
@@ -882,7 +915,13 @@ bool MobileButton::draw() {
     return retval;
 }
 
-double TheEncoder::draw(ImGui::WaterfallVFO* vfo) {
+double TheEncoder::draw(float currentValue) {
+    static int idSeq = 0;
+    static int currentEncoderTouch = -1;
+
+    if (encoderId < 0) {
+        encoderId = idSeq++;
+    }
     auto avail = ImGui::GetContentRegionAvail();
     int MARKS_PER_ENCODER = 20;
     float retval = 0;
@@ -907,8 +946,13 @@ double TheEncoder::draw(ImGui::WaterfallVFO* vfo) {
 
     if (enabled) {
         if (ImGui::IsAnyMouseDown()) {
+            if (currentEncoderTouch != -1 && currentEncoderTouch != encoderId) {
+                return 0;
+            }
+            flog::info("currentEncoderTouch={} encoderId={}", currentEncoderTouch, encoderId);
             auto mouseX = ImGui::GetMousePos().x - widgetPos.x;
-            bool mouseInside = mouseX >= 0 && mouseX < avail.x;
+            auto mouseY = ImGui::GetMousePos().y - widgetPos.y;
+            bool mouseInside = mouseX >= 0 && mouseX < avail.x && mouseY >= 0 && mouseY < avail.y;
             if (!mouseInside && isnan(lastMouseAngle)) {
                 // clicked outside
             }
@@ -921,8 +965,8 @@ double TheEncoder::draw(ImGui::WaterfallVFO* vfo) {
                 }
                 else {
                     // first click!
-                    auto currentFreq = vfo ? (vfo->generalOffset + gui::waterfall.getCenterFrequency()) : gui::waterfall.getCenterFrequency();
-                    this->currentFrequency = (float)currentFreq;
+                    this->currentValue = (float)currentValue;
+                    currentEncoderTouch = encoderId;
                 }
                 lastMouseAngle = mouseAngle;
                 this->speed = 0;
@@ -930,13 +974,19 @@ double TheEncoder::draw(ImGui::WaterfallVFO* vfo) {
             }
         }
         else {
-            auto sz = this->fingerMovement.size();
-            if (sz >= 2) {
-                this->speed = (this->fingerMovement[sz - 1] - this->fingerMovement[sz - 2]) / 2;
+            // finger up
+            if (currentEncoderTouch == encoderId) {
+                currentEncoderTouch = -1;
+                auto sz = this->fingerMovement.size();
+                if (sz >= 2) {
+                    this->speed = (this->fingerMovement[sz - 1] - this->fingerMovement[sz - 2]) / 2;
+                }
+                this->fingerMovement.clear();
+                lastMouseAngle = nan("");
             }
-            this->fingerMovement.clear();
-            lastMouseAngle = nan("");
         }
+
+        // inertia
         if (fabs(speed) < 0.001) {
             if (speed != 0) {
                 speed = 0;
@@ -1173,12 +1223,75 @@ void MobileMainWindow::draw() {
     }
 
     ImGui::SetCursorPos(cornerPos + ImVec2{ waterfallRegion.x + buttonsWidth, 0 });
-    const ImVec2 encoderRegion = ImVec2(encoderWidth, ImGui::GetContentRegionAvail().y);
-    ImGui::BeginChildEx("Encoder", ImGui::GetID("sdrpp_encoder"), encoderRegion, false, 0);
-    double offsetDelta = encoder.draw(vfo);
+    float encodersHeight = ImGui::GetContentRegionAvail().y;
+    ImGui::BeginChildEx("Small Encoder", ImGui::GetID("sdrpp_small_encoder"), ImVec2(encoderWidth, encodersHeight / 3), false, 0);
+
+    double smallChangeSpeed = smallEncoder.draw(2000); // random value
+    ImGui::EndChild();
+    switch (smallWheelFunctionN) {
+    case 0: { // zoom
+        auto nbw = bw + smallChangeSpeed / 5;
+        if (nbw < 0) {
+            nbw = 0;
+        }
+        if (nbw > 1) {
+            nbw = 1;
+        }
+        if (bw != nbw) {
+            bw = nbw;
+            core::configManager.acquire();
+            core::configManager.conf["zoomBw"] = bw;
+            core::configManager.release(true);
+            updateWaterfallZoomBandwidth(bw);
+        }
+        break;
+    }
+    case 1: { // brightness
+        auto nfftMin = fftMin + smallChangeSpeed * 10;
+        if (nfftMin < -200) {
+            nfftMin = -200;
+        }
+        if (nfftMin > 0) {
+            nfftMin = 0;
+        }
+        nfftMin = std::min<float>(fftMax - 10, nfftMin);
+        if (nfftMin != fftMin) {
+            fftMin = nfftMin;
+            core::configManager.acquire();
+            core::configManager.conf["min"] = fftMin;
+            core::configManager.release(true);
+            gui::waterfall.setWaterfallMin(fftMin);
+        }
+        break;
+    }
+    case 2: { // volume
+
+        auto vfoName = gui::waterfall.selectedVFO;
+        if (vfoName == "" || sigpath::sinkManager.streams.find(vfoName) == sigpath::sinkManager.streams.end()) {
+            break;
+        }
+        auto stream = sigpath::sinkManager.streams[vfoName];
+        auto nvol = stream->getVolume() - smallChangeSpeed / 5;
+        if (nvol < 0) {
+            nvol = 0;
+        }
+        if (nvol > 1) {
+            nvol = 1;
+        }
+        if (nvol != stream->getVolume()) {
+            stream->setVolume(nvol);
+        }
+        break;
+    }
+    }
+//    flog::info("small encoder speed: {}", smallChangeSpeed);
+    ImGui::SetCursorPos(cornerPos + ImVec2{ waterfallRegion.x + buttonsWidth, +encodersHeight / 3 });
+    ImGui::BeginChildEx("Encoder", ImGui::GetID("sdrpp_encoder"), ImVec2(encoderWidth, encodersHeight * 2 / 3), false, 0);
+    auto currentFreq = vfo ? (vfo->generalOffset + gui::waterfall.getCenterFrequency()) : gui::waterfall.getCenterFrequency();
+    double offsetDelta = encoder.draw(currentFreq);
     if (offsetDelta != 0) {
         auto externalFreq = vfo ? (vfo->generalOffset + gui::waterfall.getCenterFrequency()) : gui::waterfall.getCenterFrequency();
-        if (fabs(externalFreq - encoder.currentFrequency) > 10000) {
+        if (fabs(externalFreq - encoder.currentValue) > 10000) {
             // something changed! e.g. changed band when encoder was rotating
             encoder.speed = 0;
         }
@@ -1193,13 +1306,13 @@ void MobileMainWindow::draw() {
                 od = pow(od, 1.4) * sign;
                 //                od *= 5;
             }
-            flog::info("od={} encoder.currentFrequency={}", od, encoder.currentFrequency);
-            encoder.currentFrequency -= od;
-            auto cf = ((int)(encoder.currentFrequency / 10)) * 10.0;
+            flog::info("od={} encoder.currentFrequency={}", od, encoder.currentValue);
+            encoder.currentValue -= od;
+            auto cf = ((int)(encoder.currentValue / 10)) * 10.0;
             tuner::tune(tuningMode, gui::waterfall.selectedVFO, cf);
         }
     }
-    auto currentFreq = vfo ? (vfo->generalOffset + gui::waterfall.getCenterFrequency()) : gui::waterfall.getCenterFrequency();
+    //    auto currentFreq = vfo ? (vfo->generalOffset + gui::waterfall.getCenterFrequency()) : gui::waterfall.getCenterFrequency();
     this->autoDetectBand((int)currentFreq);
     ImGui::EndChild(); // encoder
 
@@ -1208,8 +1321,8 @@ void MobileMainWindow::draw() {
     auto vertPadding = ImGui::GetStyle().WindowPadding.y;
 
 
-    MobileButton* buttonsDefault[] = { &this->qsoButton, &this->zoomToggle, &this->modeToggle, &this->autoWaterfall, &this->configToggle /*&this->bandUp, &this->bandDown, &this->submodeToggle,*/ };
-    MobileButton* buttonsQso[] = { &this->endQsoButton, &this->txButton, &this->softTune, &this->configToggle, &this->lockFrequency };
+    MobileButton* buttonsDefault[] = { &this->qsoButton, &this->zoomToggle, &this->modeToggle, &this->autoWaterfall, &this->audioConfigToggle, &this->smallWheelFunction /*&this->bandUp, &this->bandDown, &this->submodeToggle,*/ };
+    MobileButton* buttonsQso[] = { &this->endQsoButton, &this->txButton, &this->softTune, &this->audioConfigToggle, &this->smallWheelFunction, &this->lockFrequency };
     MobileButton* buttonsConfig[] = { &this->exitConfig };
     auto nButtonsQso = (int)((sizeof(buttonsQso) / sizeof(buttonsQso[0])));
     auto nButtonsDefault = (int)((sizeof(buttonsDefault) / sizeof(buttonsDefault[0])));
@@ -1229,7 +1342,7 @@ void MobileMainWindow::draw() {
     auto beforePanel = ImGui::GetCursorPos();
     if (this->qsoMode == VIEW_CONFIG) {
         ImGui::BeginChildEx("Config", ImGui::GetID("sdrpp_mobconffig"), ImVec2(buttonsWidth, ImGui::GetContentRegionAvail().y), false, 0);
-        configPanel->draw();
+        configPanel->draw(vfo);
         ImGui::EndChild(); // buttons
     }
     if (this->qsoMode == VIEW_QSO) {
@@ -1334,9 +1447,13 @@ void MobileMainWindow::draw() {
         this->lockFrequency.buttonText = "Lock";
     }
     //
-    if (pressedButton == &this->configToggle) {
+    if (pressedButton == &this->smallWheelFunction) {
+        this->smallWheelFunctionN = (this->smallWheelFunctionN + 1) % nSmallWheelFunctions;
+        this->smallWheelFunction.buttonText = smallWheelFunctionName(this->smallWheelFunctionN);
+    }
+    if (pressedButton == &this->audioConfigToggle) {
         if (!this->qsoPanel->audioInToFFT) {
-            this->qsoPanel->startSoundPipeline();
+            this->qsoPanel->startAudioPipeline();
         }
         this->prevMode = this->qsoMode;
         this->qsoMode = VIEW_CONFIG;
@@ -1344,7 +1461,7 @@ void MobileMainWindow::draw() {
     if (pressedButton == &this->exitConfig) {
         this->qsoMode = this->prevMode;
         if (this->qsoMode == VIEW_DEFAULT) {
-            this->qsoPanel->stopSoundPipeline();
+            this->qsoPanel->stopAudioPipeline();
         }
     }
     if (pressedButton == &this->zoomToggle) {
@@ -1395,11 +1512,11 @@ void MobileMainWindow::draw() {
     }
     if (pressedButton == &this->qsoButton) {
         this->qsoMode = VIEW_QSO;
-        qsoPanel->startSoundPipeline();
+        qsoPanel->startAudioPipeline();
     }
     if (pressedButton == &this->endQsoButton) {
         this->qsoMode = VIEW_DEFAULT;
-        qsoPanel->stopSoundPipeline();
+        qsoPanel->stopAudioPipeline();
     }
     if (pressedButton == &this->submodeToggle) {
         std::vector<std::string>& submos = subModes[getCurrentMode()];
@@ -1417,20 +1534,20 @@ void MobileMainWindow::draw() {
         if (pressedButton == &this->softTune) {
             if (qsoPanel->audioInToTransmitter) {
                 // tuning, need to stop
-                qsoPanel->handleTxButton(false, true);
+                qsoPanel->handleTxButton(vfo, false, true);
 #define SOFT_TUNE_LABEL "SoftTune"
                 pressedButton->buttonText = SOFT_TUNE_LABEL;
             }
             else {
                 // need to start
-                qsoPanel->handleTxButton(true, true);
+                qsoPanel->handleTxButton(vfo, true, true);
                 pressedButton->buttonText = "Tuning..";
             }
         }
         bool txPressed = txButton.currentlyPressed || ImGui::IsKeyDown(ImGuiKey_VolumeUp);
         if (txPressed && !qsoPanel->audioInToTransmitter || !txPressed && qsoPanel->audioInToTransmitter && qsoPanel->audioInToTransmitter->tuneFrequency == 0) {
             // button is pressed ok to send, or button is released and audioInToTransmitter running and it is not in tune mode
-            qsoPanel->handleTxButton(txPressed, false);
+            qsoPanel->handleTxButton(vfo, txPressed, false);
             //
         }
     }
@@ -1648,7 +1765,8 @@ MobileMainWindow::MobileMainWindow() : MainWindow(),
                                        bandUp("14 Mhz", "+"),
                                        bandDown("", "-"),
                                        zoomToggle("custom", "Zoom"),
-                                       configToggle("", "Audio Cfg"),
+                                       smallWheelFunction("", smallWheelFunctionName(0)),
+                                       audioConfigToggle("", "Audio Cfg"),
                                        autoWaterfall("", "Waterfall!"),
                                        modeToggle("SSB", "Mode"),
                                        submodeToggle("LSB", "Submode"),
@@ -1698,7 +1816,7 @@ void MobileMainWindow::end() {
 }
 
 
-void QSOPanel::startSoundPipeline() {
+void QSOPanel::startAudioPipeline() {
     if (!configPanel->afnr) {
         configPanel->afnr = std::make_shared<dsp::AFNR_OMLSA_MCRA>();
         configPanel->afnr->allowed = true;
@@ -1713,11 +1831,11 @@ void QSOPanel::startSoundPipeline() {
         int64_t start = currentTimeMillis();
         int64_t count = 0;
 
-        dsp::filter::FIR<float, float> hipass;
+        dsp::filter::FIR<dsp::complex_t, dsp::complex_t> hipass;
         dsp::filter::FIR<dsp::stereo_t, float> lopass;
         auto prevHighPass = configPanel->highPass;
         auto prevLowPass = configPanel->lowPass;
-        auto hipassTaps = dsp::taps::highPass0<float>(prevHighPass, 30, trxAudioSampleRate);
+        auto hipassTaps = dsp::taps::highPass0<dsp::complex_t>(prevHighPass, 30, trxAudioSampleRate);
         hipass.init(nullptr, hipassTaps);
         auto lopassTaps = dsp::taps::lowPass0<float>(prevLowPass, 300, trxAudioSampleRate);
         lopass.init(nullptr, lopassTaps);
@@ -1732,13 +1850,13 @@ void QSOPanel::startSoundPipeline() {
             configPanel->rawInDecibels.addSamples(audioIn.readBuf, rd);
             if (configPanel->lowPass != prevLowPass) {
                 dsp::taps::free(lopassTaps);
-                lopassTaps = dsp::taps::lowPass0<float>(configPanel->lowPass / 2, 200, trxAudioSampleRate);
+                lopassTaps = dsp::taps::lowPass0<float>(configPanel->lowPass, 200, trxAudioSampleRate);
                 lopass.setTaps(lopassTaps);
                 prevLowPass = configPanel->lowPass;
             }
             if (configPanel->highPass != prevHighPass) {
                 dsp::taps::free(hipassTaps);
-                hipassTaps = dsp::taps::highPass0<float>(configPanel->highPass / 2, 3000, trxAudioSampleRate);
+                hipassTaps = dsp::taps::highPass0<dsp::complex_t>(configPanel->highPass, 300, trxAudioSampleRate);
                 hipass.setTaps(hipassTaps);
                 prevHighPass = configPanel->highPass;
             }
@@ -1746,18 +1864,30 @@ void QSOPanel::startSoundPipeline() {
 
             audioIn.flush();
 
-            hipass.process(rd, configPanel->s2m.out.writeBuf, hipass.out.writeBuf);
+            configPanel->r2c.process(rd, configPanel->s2m.out.writeBuf, configPanel->r2c.out.writeBuf);
+
+            if (configPanel->hissAdd) {
+                configPanel->highPassForS.process(rd, configPanel->r2c.out.writeBuf, configPanel->highPassForS.out.writeBuf);
+                configPanel->xlatorForS.process(rd, configPanel->highPassForS.out.writeBuf, configPanel->xlatorForS.out.writeBuf);
+                for (int q = 0; q < rd; q++) {
+                    //                    r2c.out.writeBuf[q] = xlatorForS.out.writeBuf[q];
+                    configPanel->r2c.out.writeBuf[q] = configPanel->r2c.out.writeBuf[q] * 0.5 + (configPanel->xlatorForS.out.writeBuf[q] * 2.5);
+                }
+            }
+
+
+            hipass.process(rd, configPanel->r2c.out.writeBuf, hipass.out.writeBuf);
             configPanel->highPassDecibels.addSamples(hipass.out.writeBuf, rd);
-            configPanel->r2c.process(rd, hipass.out.writeBuf, configPanel->r2c.out.writeBuf);
+
             if (configPanel->doEqualize) {
-                configPanel->equalizer.process(rd, configPanel->r2c.out.writeBuf, configPanel->equalizer.out.writeBuf);
+                configPanel->equalizer.process(rd, hipass.out.writeBuf, configPanel->equalizer.out.writeBuf);
                 auto mult = pow(10, configPanel->compAmp / 20);
                 for (int i = 0; i < rd; i++) {
                     configPanel->equalizer.out.writeBuf[i] *= mult;
                 }
             }
             else {
-                memcpy(configPanel->equalizer.out.writeBuf, configPanel->r2c.out.writeBuf, rd * sizeof(dsp::complex_t));
+                memcpy(configPanel->equalizer.out.writeBuf, hipass.out.writeBuf, rd * sizeof(dsp::complex_t));
             }
             configPanel->equalizerDecibels.addSamples(configPanel->equalizer.out.writeBuf, rd);
             if (configPanel->doFreqMaim) {
@@ -1840,7 +1970,7 @@ void QSOPanel::setModeSubmode(const std::string& _mode, const std::string& _subm
     }
 }
 
-void QSOPanel::handleTxButton(bool tx, bool tune) {
+void QSOPanel::handleTxButton(ImGui::WaterfallVFO* vfo, bool tx, bool tune) {
     if (tx) {
         if (!this->transmitting) {
             sigpath::txState.emit(tx);
@@ -1848,6 +1978,12 @@ void QSOPanel::handleTxButton(bool tx, bool tune) {
             if (sigpath::transmitter) {
                 audioInProcessed.bindStream(&audioTowardsTransmitter);
                 audioInToTransmitter = std::make_shared<AudioInToTransmitter>(&audioTowardsTransmitter);
+                if (vfo) {
+                    audioInToTransmitter->bandwidth = std::min<double>(12000.0, vfo->bandwidth);
+                }
+                else {
+                    audioInToTransmitter->bandwidth = 2700;
+                }
                 audioInToTransmitter->setSubmode(submode);
                 audioInToTransmitter->setMicGain(micGain);
                 audioInToTransmitter->postprocess = postprocess;
@@ -1877,7 +2013,7 @@ void QSOPanel::handleTxButton(bool tx, bool tune) {
     configPanel->afnr->allowed2 = !this->transmitting;
 }
 
-void QSOPanel::stopSoundPipeline() {
+void QSOPanel::stopAudioPipeline() {
     if (audioInToFFT) {
         sigpath::sinkManager.defaultInputAudio.unbindStream(&audioIn);
         flog::info("QSOPanel::stop. Calling audioInToFFT->stop()");
@@ -1954,7 +2090,7 @@ void draw_db_gauge(float gauge_width, float level, float peak, float min_level =
     ImGui::ItemSize(gauge_max - gauge_min, 0.0f);
     ImGui::ItemAdd(bb, 0);
 
-//    ImGui::SetCursorScreenPos(ImVec2(pos.x, pos.y + gauge_height));
+    //    ImGui::SetCursorScreenPos(ImVec2(pos.x, pos.y + gauge_height));
 }
 
 
@@ -1980,9 +2116,9 @@ void QSOPanel::drawHistogram() {
             //                //
             //            }
             //            ImGui::SameLine();
-//            float db = configPanel->rawInDecibels.getMax(10);
-//            draw_db_gauge(ImGui::GetContentRegionAvail().x, db, 0, -60, +20, 0);
-//            ImGui::Text("Mic:%.3f", configPanel->rawInDecibels.getAvg(1));
+            //            float db = configPanel->rawInDecibels.getMax(10);
+            //            draw_db_gauge(ImGui::GetContentRegionAvail().x, db, 0, -60, +20, 0);
+            //            ImGui::Text("Mic:%.3f", configPanel->rawInDecibels.getAvg(1));
         }
         if (submode == "CWU" || submode == "CWL" || submode == "CW") {
             ImGui::Text("CW Mode - use paddle");
@@ -2011,17 +2147,32 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
     ImGui::SameLine();
     draw_db_gauge(ImGui::GetContentRegionAvail().x, mx, maxTxSignalPeak, -60, +20, 0);
     if (sigpath::transmitter) {
-//        if (ImGui::Checkbox("PostPro(SSB)", &this->postprocess)) {
-//        }
-        int fillLevel = (int)sigpath::transmitter->getFillLevel();
-        if (fillLevel <= 1 && sigpath::transmitter->getTXStatus()) {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
+
+        static int configRead = 0;
+        if (!configRead) {
+            int hwGain = -1;
+            getConfig("trx_txHardwareGain", hwGain);
+            if (hwGain != -1) {
+                if (sigpath::transmitter) {
+                    sigpath::transmitter->setTransmitHardwareGain(hwGain);
+                }
+            }
+            configRead = 1;
         }
-        ImGui::Text("TX Queue Size: %d", fillLevel);
-        if (fillLevel <= 1 && sigpath::transmitter->getTXStatus()) {
-            ImGui::PopStyleColor();
+
+        //        if (ImGui::Checkbox("PostPro(SSB)", &this->postprocess)) {
+        //        }
+        if (false) {
+            int fillLevel = (int)sigpath::transmitter->getFillLevel();
+            if (fillLevel <= 1 && sigpath::transmitter->getTXStatus()) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
+            }
+            ImGui::Text("TX Queue Size: %d", fillLevel);
+            if (fillLevel <= 1 && sigpath::transmitter->getTXStatus()) {
+                ImGui::PopStyleColor();
+            }
         }
-        ImGui::Checkbox("PA", &this->enablePA);
+        ImGui::Checkbox("PA enable |", &this->enablePA);
         sigpath::transmitter->setPAEnabled(this->enablePA);
         float swr = sigpath::transmitter->getTransmitSWR();
         if (swr >= 9.9) swr = 9.9; // just not to jump much
@@ -2037,7 +2188,6 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
         ImGui::SameLine();
         draw_db_gauge(ImGui::GetContentRegionAvail().x, rtmax(lastForward), 0, 0, 10, 5, 1);
 
-
         ImGui::Text("TX Soft PA:");
         ImGui::SameLine();
         if (ImGui::SliderInt("##_radio_tx_gain_", &this->txGain, 0, 255)) {
@@ -2051,17 +2201,17 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
             sigpath::transmitter->setTransmitHardwareGain(hwgain);
             setConfig("trx_txHardwareGain", hwgain);
         }
-//        ImGui::LeftLabel("Buffer Latency:");
-//        int latency = sigpath::transmitter->getTransmittedBufferLatency();
-//        if (ImGui::SliderInt("##_tx_buf_latency_", &latency, 0, 96)) {
-//            sigpath::transmitter->setTransmittedBufferLatency(latency);
-//            setConfig("trx_txBufferLatency", latency);
-//        }
-//        int ptthang = sigpath::transmitter->getTransmittedPttDelay();
-//        if (ImGui::SliderInt("##_tx_ptthang_", &ptthang, 0, 96)) {
-//            sigpath::transmitter->setTransmittedPttDelay(ptthang);
-//            setConfig("trx_txPTTHangTime", ptthang);
-//        }
+        //        ImGui::LeftLabel("Buffer Latency:");
+        //        int latency = sigpath::transmitter->getTransmittedBufferLatency();
+        //        if (ImGui::SliderInt("##_tx_buf_latency_", &latency, 0, 96)) {
+        //            sigpath::transmitter->setTransmittedBufferLatency(latency);
+        //            setConfig("trx_txBufferLatency", latency);
+        //        }
+        //        int ptthang = sigpath::transmitter->getTransmittedPttDelay();
+        //        if (ImGui::SliderInt("##_tx_ptthang_", &ptthang, 0, 96)) {
+        //            sigpath::transmitter->setTransmittedPttDelay(ptthang);
+        //            setConfig("trx_txPTTHangTime", ptthang);
+        //        }
     }
     else {
         ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "Transmitter not playng");
@@ -2077,14 +2227,14 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
     }
 }
 QSOPanel::~QSOPanel() {
-    stopSoundPipeline();
+    stopAudioPipeline();
 }
 void QSOPanel::init() {
     getConfig("trx_txGain", this->txGain);
 }
 
 
-void ConfigPanel::draw() {
+void ConfigPanel::draw(ImGui::WaterfallVFO* vfo) {
     gui::mainWindow.qsoPanel->currentFFTBufferMutex.lock();
     gui::mainWindow.qsoPanel->drawHistogram();
     gui::mainWindow.qsoPanel->currentFFTBufferMutex.unlock();
@@ -2112,6 +2262,10 @@ void ConfigPanel::draw() {
     //    if (ImGui::Checkbox("##freqmaim", &doFreqMaim)) {
     //    }
     draw_db_gauge(space.x, equalizerDecibels.getMax(3), equalizerDecibels.getPeak(), -80, +20);
+
+    if (ImGui::Checkbox("Hiss add##_his_add_", &hissAdd)) {
+    }
+
 
     ImGui::LeftLabel("AGC Attack");
     if (ImGui::SliderFloat("##attack-rec", &agcAttack, 1.0f, 200.0f)) {
@@ -2144,10 +2298,16 @@ void ConfigPanel::draw() {
         }
     }
     draw_db_gauge(space.x, nrDecibels.getMax(3), nrDecibels.getPeak(), -80, +20);
-    ImGui::LeftLabel("Audio hi cutoff frequency");
-    if (ImGui::SliderInt("##highcutoff", &lowPass, highPass, 4200, "%d Hz")) {
-        setConfig("trx_lowPass", lowPass);
+    if (vfo) {
+        lowPass = vfo->bandwidth;
     }
+    else {
+        lowPass = 2700;
+    }
+    ImGui::Text("Audio bandwidth (high cut-off): %d", lowPass);
+    //    if (ImGui::SliderInt("##highcutoff", &lowPass, highPass, 12000, "%d Hz")) {
+    //        setConfig("trx_lowPass", lowPass);
+    //    }
     //    ImGui::SameLine();
     //    if (ImGui::Button("Reset NR")) {
     //        afnr.reset();

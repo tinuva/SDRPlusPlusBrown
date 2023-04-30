@@ -16,15 +16,16 @@ struct TheEncoder {
 
     double somePosition = 0; // angle in radians
     double speed = 0;
-    double currentFrequency = 0;
+    double currentValue = 0;
     double delayFactor = 0.96;
 
     double lastMouseAngle = nan("");
     bool enabled = true;
+    int encoderId = -1;
 
     std::vector<double> fingerMovement;
 
-    double draw(ImGui::WaterfallVFO* pVfo);
+    double draw(float currentValue);
 };
 
 struct QSOPanel;
@@ -55,11 +56,13 @@ struct SubWaterfall;
 class MobileMainWindow : public MainWindow {
 public:
     TheEncoder encoder;
+    TheEncoder smallEncoder;
     MobileButton bandUp;
     MobileButton bandDown;
     MobileButton zoomToggle;
     MobileButton autoWaterfall;
-    MobileButton configToggle;
+    MobileButton audioConfigToggle;
+    MobileButton smallWheelFunction;
     MobileButton modeToggle;
     MobileButton submodeToggle;
     MobileButton qsoButton;
@@ -71,6 +74,7 @@ public:
     std::shared_ptr<ConfigPanel> configPanel;
     std::shared_ptr<QSOPanel> qsoPanel;
     std::shared_ptr<CWPanel> cwPanel;
+    int smallWheelFunctionN = 0;
 
     std::shared_ptr<SubWaterfall> audioWaterfall;
     dsp::stream<dsp::stereo_t> *currentAudioStream = nullptr;
