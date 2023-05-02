@@ -68,6 +68,9 @@ By default, sdr++brown comes with TRX layout disabled. You can enable it in the 
 Press "SSB trx" to switch to the TRX layout. Select "Phone layout" if you prefer some tweaks on Android,
 such as wider scrolling sliders and shorter frequency range selector (the artifact of vertical layout ages).
 
+Please not there's experimental audio waterfall. You can enable it in "Show Audio Waterfall" in the very bottom
+of the "Display" section (below color map chooser). 
+
 Android smartphone users: You must select smaller scaling factor in the "Display section" so all controls could fit the small 
 screen of your phone.
 
