@@ -755,7 +755,7 @@ struct HL2Device {
         }
 
         int send_buf_size = (1024 + 8) * 10 + 512;
-        if (setsockopt(data_socket, SOL_SOCKET, SO_SNDBUF, &send_buf_size, sizeof(send_buf_size)) < 0) {
+        if (setsockopt(data_socket, SOL_SOCKET, SO_SNDBUF, (const char*)&send_buf_size, sizeof(send_buf_size)) < 0) {
             throw std::runtime_error("data_socket: SO_SNDBUF");
         }
 #ifndef WIN32
@@ -805,14 +805,14 @@ struct HL2Device {
                 if (udpStream.isDataReady(1024 + 8)) {
                     unsigned char buf[1024 * 8];
                     udpStream.consume(buf, 1024 * 8);
-                    long b1 = currentTimeMillis();
+                    auto b1 = currentTimeMillis();
                     _cnt++;
                     if (sendto(data_socket, (const char*)buf, 1024 + 8, 0, (struct sockaddr*)&data_addr, data_addr_length) != 1024 + 8) {
                         perror("sendto socket failed for metis_send_data\n");
                     }
-                    long b2 = currentTimeMillis();
+                    auto b2 = currentTimeMillis();
                     if (b2 - b1 > 3) {
-                        flog::warn("({}) sendto took {} ms", _cnt, b2 - b1);
+                        flog::warn("({}) sendto took {} ms", _cnt, (int64_t)(b2 - b1));
                     }
                     continue;
                 }
