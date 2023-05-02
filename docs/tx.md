@@ -24,12 +24,13 @@ including small logbook etc. Jokes aside, portable use is intended in a first pl
 
 * When you use WiFi, you'll have some packet loss, in best conditions it's quite bearable. 
   It may cause the relay clicks, because it causes IQ stream interruption, and transciever responds this way.
-* On Android, SSB audio as played on the phone speaker, sucks compared to the headphones. 
+* On Android, SSB audio as played on the phone speaker that sucks when comparing it to the headphones, on most phone models. However, 
+  in portable conditions, this is acceptable. 
 
 ### Recommendations
 
 * Use headphones on Android.
-* Use wired connection if possible. Some androids support ethernet over USB, and it works well.
+* Use wired connection if possible. Some androids support ethernet over USB, and it works well. Buy USB-C dock with ethernet port. It can also charge your phone while you use it.
 * If using WiFi, use 5GHz band, because 2.4GHz could be close to useless, depending on the environment.
 * Try narrow band (48 khz) if you have packet loss. It may help.
 
@@ -46,14 +47,17 @@ Select it from dropdown, type name in the empty text field, and press (+)
 ![](tx_modmanager.jpg)
 
 Select the Hermes Lite 2 in the Source drop down. Press "Refresh" button if fields are empty. The network
-`broadcast is sent and device is discovered. 
+broadcast is sent and device is discovered. If your device is discoverable by other software, it will be
+discovered by sdr++. If you have your TRX active in other software, stop it there first.
 
 ![](tx_source.jpg)
 
-If your device is discovered by other software, it will be
-discovered by sdr++. If you have device connecting receiving in other software, stop it there first.
+Select bandwidth (start with 48khz). Press play button on the top. You must see the waterfall and hear the noise.
+The ADC gain includes both amplification and attenuation in one control. If there's ADC overflow, it
+will be drawn in red. There's no automatic maximum gain now. 
 
-Select bandwidth (start with 48khz). Press play button on the top. You must see waterfall and hear noise.
+The filters selection below works. On stock HL2, it controls low-pass transmit filters. On my other
+model pass-band receive filters. The checkboxes here are not synchronized with the current frequency yet.
 
 ### Switching to TRX view
 
@@ -63,6 +67,9 @@ By default, sdr++ brown fork comes with TRX view disabled. You can enable it in 
 
 Press "SSB trx" to switch to the TRX layout. Select "Phone layout" if you prefer some tweaks on Android,
 such as wider sliders and shorter frequency range selector (the artifact of vertical layout ages).
+
+Android smartphone users: You must select smaller font in the "Display section" for all controls to fit the screen of your 
+phone.
 
 TRX layout differs from receiving layout: 
 
@@ -84,7 +91,9 @@ Before you talk, you can search in the band, change bands and do some sound setu
 * "Zoom/", "Volums/", "Brightness/" toggles the function of the upper encoder / knob.
 * "Audio Cfg" opens audio settings
 * "Waterfall" tries to auto-adjust waterfall brightness. Nobody loves it. Use small knob.
-* "Mode" allows quick access to bands and modulations.
+* "Mode" allows quick access to bands and modulations. There are some useful defaults like automatic USB/LSB
+  selection depending on the frequency. Last frequency is saved per band and modulation using tricky algorithm
+  which is not yet perfect and can annoy. You are warned.
 * "Zoom" toggles between various predefined zoom modes. Long press shows the full receiving bandwidth.
 * "QSO" toggles next mode where you can find TX button
 
@@ -131,10 +140,10 @@ above.
 ![](tx_audio.jpg)
 
 * "Audio lo cutoff frequency" is parameter for high-pass filter that removes bass from the microphone input.
-* gauge below it represent the signal after that stage.
+* gauge below represents the signal after that stage.
 * "DX equalizer/compressor" is (as of now) the fixed equalizer that boosts the high frequencies and further
   attenuates low frequencies. There's a checkbox. Also, Post-amplifier compensates the compressor results.
-* gauge below it represent the signal after that stage.
+* gauge below represents the signal after that stage.
 * "Hiss add" - attempts to bring "s" sound in the word "six" from the 5khz into the 1.5khz range of signal. 
   Experimental, may not work in your build.
 * "AGC Attack", "AGC Decay" - the signal automatic gain control. Routines are same as on receiving pipeline. 
@@ -146,7 +155,7 @@ above.
   menu. Also note that there's still work in progress, NR2 needs its own AGC that scales from complex to 
   short samples because it's implemented in shorts, and back.
 * There's preamp for Mic NR
-* gauge below the "Mic NR" represent the signal after that stage.
+* gauge below the "Mic NR" represents the signal after that stage.
 * "Mic SQL" enables squelch on the microphone. You know when person uses SDR on PC, their signal contains
   a lot of noises in the pauses. In addition to the Mic NR, Mic SQL works very well in producing
   deep silence in the pauses, reflected in emitted radio signal. Pleasure for eyes and ears.
@@ -156,13 +165,15 @@ above.
   slider to control the scale, and observe the TX IQ.
 * Clipping occurs in the TX driver and is not shown here. Complex IQ data is translated to 16-bit samples. When
   there's next batch of data to send, if any signal has amplitude more than 1, whole batch is attenuated so 
-  that conversion does not overflow during float->short conversion. This produces quite nice results, eliminates
+  that conversion does not overflow during float-to-short conversion. This produces quite nice results, eliminates
   lot of out-of-band emissions and I left it that way.
 
 ## Work in progress
 
-This is work in progress. Because this is a new field for me, my solutions to the problems may be naive, so
-advises are welcome. Please join telegram group [Telegram channel](https://t.me/sdrpp_hermes_fork) with 
+This is work in progress. I'm releasing it because it's more useful than not at this stage. 
+
+Also, because this is a new field for me (digital signal processing), my solutions to the problems may be naive, so
+advises are welcome. Please join [Telegram group](https://t.me/sdrpp_hermes_fork) with 
 questions, bug reports and propositions.
 
 

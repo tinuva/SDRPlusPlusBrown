@@ -5,7 +5,7 @@
 * [Changelog](https://github.com/sannysanoff/SDRPlusPlusBrown/blob/master/changelog.md)
 * [Source code](https://github.com/sannysanoff/SDRPlusPlusBrown/)
 * [Читать описание по-русски](https://sdrpp--brown-san-systems.translate.goog/?_x_tr_sch=http&_x_tr_sl=en&_x_tr_tl=ru&_x_tr_hl=en&_x_tr_pto=wapp) через гугл-переводчик, норм переводит, я подстраивался.
-* [Telegram channel](https://t.me/sdrpp_hermes_fork) for feedback.
+* [Telegram group](https://t.me/sdrpp_hermes_fork) for feedback.
 
 ## What is SDR++ (and its fork)
 
