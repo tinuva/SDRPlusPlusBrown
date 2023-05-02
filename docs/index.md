@@ -32,7 +32,7 @@ read on below.
 * [Bundled FT8 decoder](#bundled-ft8-decoder) - extracted from MSHV code, slightly tweaked.
 * [Noise Reduction](#noise-reduction) - both for audio frequency and baseband (visual noise reduction!)
 * [Hermes Lite 2 support](#hermes-lite-2-support) - hl2_source plugin (don't confuse with hermes_source).
-* [Transmit mode](#transmit-mode) for Hermes Lite 2 - at the time of the writing, basic SSB transmit is implemented. 
+* [Transmit mode](#transmit-mode) for Hermes Lite 2 - at the time of the writing, basic SSB transmit is implemented. See the [MANUAL](tx.md) 
 * [SNR Chart](#snr-chart) to compare SNR while tweaking antennas, de-noising etc.
 * Saving of zoom parameters between sessions
 * Mouse wheel support on the sliders
@@ -103,13 +103,11 @@ that is slightly less expensive, and has alternative PA and filters schematics, 
 ## Transmit mode
 
 Transmit mode is currently minimalistic. It supports microphone on desktop OS and built-in microphone on android. 
-It has tuning knob with physics/inertia, all what we love.
-It has UI (functional enough) which is ugly to the degree it cannot be shown here at the moment in its full glory. 
-It currently lacks AGC on TRX and audio level. However, I already made QSO with it in the portable mode.
-Currently, it's in "use on your own risk" mode, because it will be changed a lot.
-There's a picture from video of that historical moment (perspective corrected, fingers are distorted):
+There's an old picture from video of that historical moment (perspective corrected, fingers are distorted):
 
 ![](trx-mode.jpg)
+
+Since 2 May 2023 there's a [TX documentation](tx.md), you're welcome. 
 
 ## SNR Chart
 
