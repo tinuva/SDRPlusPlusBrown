@@ -168,6 +168,10 @@ above.
   that conversion does not overflow during float-to-short conversion. This produces quite nice results, eliminates
   lot of out-of-band emissions and I left it that way.
 
+
+Buttons "Record" and "Play": ou can record your own voice and replay it back and observe how it sounds after processing. This is only 
+for self control. You cannot transmit the recorded voice (yet).  
+
 ## Work in progress
 
 This is work in progress. I'm releasing it because it's more useful than not at this stage. 
