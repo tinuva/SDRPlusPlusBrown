@@ -85,7 +85,7 @@ jobs:
           run: gh release upload rolling ${{runner.workspace}}/sdrpp_windows_x64.zip -R ${{github.repository}} --clobber 
 
         - name: Update Stable
-          if: github.ref_name == 'stable'
+          if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_windows_x64.zip -R ${{github.repository}} --clobber 
 
 
@@ -144,7 +144,7 @@ jobs:
           run: gh release upload rolling ${{runner.workspace}}/sdrpp_macos_intel.zip -R ${{github.repository}} --clobber
         
         - name: Update Stable
-          if: github.ref_name == 'stable'
+          if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_windows_x64.zip -R ${{github.repository}} --clobber 
 
 
@@ -168,7 +168,7 @@ jobs:
           run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_buster_amd64.deb -R ${{github.repository}} --clobber
 
         - name: Update Stable
-          if: github.ref_name == 'stable'
+          if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_debian_buster_amd64.deb -R ${{github.repository}} --clobber
 
     build_debian_bullseye:
@@ -190,7 +190,7 @@ jobs:
         - name: Update Nightly
           run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_bullseye_amd64.deb -R ${{github.repository}} --clobber
         - name: Update Stable
-          if: github.ref_name == 'stable'
+          if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_debian_bullseye_amd64.deb -R ${{github.repository}} --clobber
 
     build_debian_sid:
@@ -213,12 +213,12 @@ jobs:
           uses: actions/upload-artifact@v3
           with:
               name: sdrpp_debian_sid_amd64
-              path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+              path: ${{runner.workspace}}/sdrpp_debian_sid_amd64.deb
 
         - name: Update Nightly
           run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_sid_amd64.deb -R ${{github.repository}} --clobber
         - name: Update Stable
-          if: github.ref_name == 'stable'
+          if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_debian_sid_amd64.deb -R ${{github.repository}} --clobber
 
     # build_ubuntu_bionic:
@@ -268,7 +268,7 @@ jobs:
         - name: Update Nightly
           run: gh release upload rolling ${{runner.workspace}}/sdrpp_ubuntu_focal_amd64.deb -R ${{github.repository}} --clobber
         - name: Update Stable
-          if: github.ref_name == 'stable'
+          if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_ubuntu_focal_amd64.deb -R ${{github.repository}} --clobber
 
 
@@ -298,7 +298,7 @@ jobs:
         - name: Update Nightly
           run: gh release upload rolling ${{runner.workspace}}/sdrpp_ubuntu_jammy_amd64.deb -R ${{github.repository}} --clobber
         - name: Update Stable
-          if: github.ref_name == 'stable'
+          if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_ubuntu_jammy_amd64.deb -R ${{github.repository}} --clobber
 
 
@@ -359,8 +359,9 @@ jobs:
         - name: Update Nightly
           run: gh release upload rolling ${{runner.workspace}}/sdrpp.apk -R ${{github.repository}} --clobber
         - name: Update Stable
-          if: github.ref_name == 'stable'
+          if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp.apk -R ${{github.repository}} --clobber
+
 
 #    create_full_archive:
 ##        needs: ['build_windows', 'build_macos', 'build_debian_buster', 'build_debian_bullseye', 'build_debian_sid', 'build_ubuntu_focal', 'build_ubuntu_jammy', 'build_raspios_bullseye_armhf', 'build_android']
