@@ -20,9 +20,9 @@ Android phone while laying on the sofa and use microphone of your smartphone, an
 Sofa was the primary driving factor for this software development, and I will add everything to make it work better, 
 including small logbook for QSO logging etc. Jokes aside, portable use was primary goal.
 
-See example QSO video https://www.youtube.com/watch?v=CGCXxUXLwr4
+See example QSO video [https://www.youtube.com/watch?v=CGCXxUXLwr4](https://www.youtube.com/watch?v=CGCXxUXLwr4)
 
-Audio pipeline test https://studio.youtube.com/video/HNrYdeMvFGE/edit
+Audio pipeline test [https://www.youtube.com/watch?v=HNrYdeMvFGE](https://www.youtube.com/watch?v=HNrYdeMvFGE)
 
 ### What works poorly
 
