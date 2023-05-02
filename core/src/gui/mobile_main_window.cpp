@@ -1546,7 +1546,7 @@ void MobileMainWindow::draw() {
                 pressedButton->buttonText = "Tuning..";
             }
         }
-        bool txPressed = txButton.currentlyPressed || ImGui::IsKeyDown(ImGuiKey_VolumeUp);
+        bool txPressed = txButton.currentlyPressed || ((ImGui::IsKeyDown(ImGuiKey_VolumeUp) || ImGui::IsKeyDown(ImGuiKey_Insert)) && qsoMode == VIEW_QSO);
         if (txPressed && !qsoPanel->audioInToTransmitter || !txPressed && qsoPanel->audioInToTransmitter && qsoPanel->audioInToTransmitter->tuneFrequency == 0) {
             // button is pressed ok to send, or button is released and audioInToTransmitter running and it is not in tune mode
             qsoPanel->handleTxButton(vfo, txPressed, false);

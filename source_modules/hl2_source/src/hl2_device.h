@@ -594,27 +594,38 @@ struct HL2Device {
 
 
     void start() {
-        try {
-            start_protocol1_thread();
-            metis_restart();
-        }
-        catch (std::exception& ex) {
-            flog::error(ex.what());
+        if (!running) {
+            try {
+                start_protocol1_thread();
+                metis_restart();
+            }
+            catch (std::exception& ex) {
+                flog::error(ex.what());
+            }
+            running = true;
         }
     }
 
     void stop() {
-        running = false;
-        receiveThread->join();
-        sendThread->join();
-        sendThread2->join();
-        metis_start_stop(0);
+        if (running) {
+            running = false;
+            if (receiveThread) {
+                receiveThread->join();
+            }
+            if (sendThread) {
+                sendThread->join();
+            }
+            if (sendThread2) {
+                sendThread2->join();
+            }
+            metis_start_stop(0);
 #ifdef WIN32
-        closesocket(data_socket);
+            closesocket(data_socket);
 #else
-        close(data_socket);
+            close(data_socket);
 #endif
-        fill_level = 0;
+            fill_level = 0;
+        }
     }
 
     int secondControlIndex = 1;

@@ -18,7 +18,9 @@ If you want your hardware to be added, contact me or make code pull request.
 You can receive/transmit SSB (USB/LSB). You can use your microphone of your desktop/notebook computer. You can run sdr++ on the 
 Android phone while laying on the sofa and use microphone of your smartphone, and use wireless connection to the transciever.
 Sofa was the primary driving factor for this software development, and I will add everything to make it work better, 
-including small logbook for QSO logging etc. Jokes aside, portable use was primary goal. 
+including small logbook for QSO logging etc. Jokes aside, portable use was primary goal.
+
+See example video https://www.youtube.com/watch?v=CGCXxUXLwr4 
 
 ### What works poorly
 
