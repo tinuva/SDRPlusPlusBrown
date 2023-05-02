@@ -8,31 +8,31 @@
 
 Supported hardware:
 
-* SDRs with Hermes Lite 2 protocol. I have two models of this radio, they slightly differ, 
-but nothing special. Probably, older models and various modifications will work, too. However, there's nothing to control older hermes builtin microphone/speaker. 
+* SDRs with Hermes Lite 2 protocol. I have two different models of this transcievers, 
+nothing special. Probably, older models and various modifications will work, too. However, there's nothing to control older model's built-in microphone/speaker. 
 
-If you want your hardware to be added, contact me or make pull request.
+If you want your hardware to be added, contact me or make code pull request.
 
 ### What works
 
-You can receive/transmit SSB (USB/LSB). You can use your desktop microphone. You can run sdr++ on the 
-Android phone while laying on the sofa and use microphone of your smartphone, wireless.
-Sofa was the intended use, and I will add everything to make it work better, 
-including small logbook etc. Jokes aside, portable use is intended in a first place. 
+You can receive/transmit SSB (USB/LSB). You can use your microphone of your desktop/notebook computer. You can run sdr++ on the 
+Android phone while laying on the sofa and use microphone of your smartphone, and use wireless connection to the transciever.
+Sofa was the primary driving factor for this software development, and I will add everything to make it work better, 
+including small logbook for QSO logging etc. Jokes aside, portable use was primary goal. 
 
-### What sucks
+### What works poorly
 
 * When you use WiFi, you'll have some packet loss, in best conditions it's quite bearable. 
   It may cause the relay clicks, because it causes IQ stream interruption, and transciever responds this way.
-* On Android, SSB audio as played on the phone speaker that sucks when comparing it to the headphones, on most phone models. However, 
+* On Android, SSB audio as played on the phone speaker that sucks on most phone models when comparing it to any headphones inserted. However, 
   in portable conditions, this is acceptable. 
 
 ### Recommendations
 
 * Use headphones on Android.
-* Use wired connection if possible. Some androids support ethernet over USB, and it works well. Buy USB-C dock with ethernet port. It can also charge your phone while you use it.
-* If using WiFi, use 5GHz band, because 2.4GHz could be close to useless, depending on the environment.
-* Try narrow band (48 khz) if you have packet loss. It may help.
+* Use wired connection if possible. Some androids support ethernet over USB, and it works well. Buy USB-C dock with ethernet port. It can also charge your phone while you use it. My third option for the phones that do not support usb ethernet, would be RNDIS(over USB) with an addition of intermediate single board computer (idea is reaping).
+* If using WiFi, use 5GHz band, because 2.4GHz could be close to useless, depending on the environment. Portable router with 5GHz band is a good idea.
+* Try narrow band for receiving (48 khz) if you have packet loss. It may help.
 
 ## How to use
 
@@ -54,41 +54,41 @@ discovered by sdr++. If you have your TRX active in other software, stop it ther
 
 Select bandwidth (start with 48khz). Press play button on the top. You must see the waterfall and hear the noise.
 The ADC gain includes both amplification and attenuation in one control. If there's ADC overflow, it
-will be drawn in red. There's no automatic maximum gain now. 
+will be drawn in red. As of present, there's no automatic maximum gain now. 
 
 The filters selection below works. On stock HL2, it controls low-pass transmit filters. On my other
 model pass-band receive filters. The checkboxes here are not synchronized with the current frequency yet.
 
-### Switching to TRX view
+### Switching to TRX layout
 
-By default, sdr++ brown fork comes with TRX view disabled. You can enable it in the settings:
+By default, sdr++brown comes with TRX layout disabled. You can enable it in the settings:
 
 ![](tx_layout.jpg)
 
 Press "SSB trx" to switch to the TRX layout. Select "Phone layout" if you prefer some tweaks on Android,
-such as wider sliders and shorter frequency range selector (the artifact of vertical layout ages).
+such as wider scrolling sliders and shorter frequency range selector (the artifact of vertical layout ages).
 
-Android smartphone users: You must select smaller font in the "Display section" for all controls to fit the screen of your 
-phone.
+Android smartphone users: You must select smaller scaling factor in the "Display section" so all controls could fit the small 
+screen of your phone.
 
 TRX layout differs from receiving layout: 
 
-* Left menu overlays the waterfall. It means, when left menu is active, layout is not resized, and while 
-  menu is active, waterfall touch events are disabled. To navigate waterfall, close menu first.
+* Left menu overlays the waterfall. It means, when left menu is active, waterfall is not resized, and while 
+  menu is active, touch events are disabled in waterfall. To navigate waterfall, close menu first.
 * On the right side there's area with buttons. Buttons control the transmitter.
-* Rightmost, two inertial encoders. Larger one is TUNE knob, at the bottom. Smaller one on top
-  is the VOLUME/ZOOM/BRIGHTNESS knob. You are expected to scroll knobs with your fingers. 
+* On the far right, there are two inertial encoders. Larger one is TUNE knob, at the bottom. Smaller one on top
+  is the VOLUME / ZOOM / BRIGHTNESS knob. You are expected to scroll knobs with your fingers. 
 
 ![](tx_knobs.jpg)
 
   
 ### Search mode
 
-Before you talk, you can search in the band, change bands and do some sound setup. 
+Before you talk, you can search in the frequency band, change bands and do some sound setup. 
 
 ![](tx_search_buttons.jpg)
 
-* "Zoom/", "Volums/", "Brightness/" toggles the function of the upper encoder / knob.
+* "Zoom/", "Volume/", "Brightness/" toggles the function of the upper encoder / knob.
 * "Audio Cfg" opens audio settings
 * "Waterfall" tries to auto-adjust waterfall brightness. Nobody loves it. Use small knob.
 * "Mode" allows quick access to bands and modulations. There are some useful defaults like automatic USB/LSB
@@ -108,10 +108,10 @@ Buttons are:
 
 * "Lock" - locks the trequency knob. Because you use your fingers while talking, you sometimes want to
   stay on the frequency.
-* "Zoom/", "Volums/", "Brightness/" toggles the function of the upper encoder / knob.
+* "Zoom/", "Volume/", "Brightness/" toggles the function of the upper encoder / knob.
 * "Audio Cfg" opens audio settings
-* "Soft tune" - generates sine wave. Press again to stop.
-* "TX" - transmit button. TX is on while it's pressed. Microphone sounds are transmitted to the air.
+* "Soft tune" - generates sine wave. Press again to stop. The hardware tone generation of HL2 is not used. The amplitude of sine wave is controlled by "TX Soft PA". 
+* "TX" - transmit button. TX is on while finger is pressing. Microphone sounds are transmitted to the air. Note the hardware "Volume Up" button on Android also works as TX.
 * "End QSO" - go back to the Search mode.
 
 On the top you see the oscilloscope of your audio input, as processed.
@@ -119,17 +119,17 @@ On the top you see the oscilloscope of your audio input, as processed.
 * "TX IQ" shows the range of IQ stream sent to the radio. Main intention is to control the clipping. 
   Red zone is clipping.  See the [pipeline section](#the-pipeline) for the details.
 * "PA enable" to enable 5W power amplifier on the hermes lite 2 board. This is not saved in settings. You 
-  must toggle it on manually when you're sober.
+  must toggle it on manually when you're sober, to not burn up your power transistors.
 * SWR, REF PWR show the SWR and reflected power. The forward power is displayed below on the gauge.
 * "TX Soft PA" - multiplier for IQ samples sent to the TRX.
 * "TX Hard PA" - the 5W power amplifier control provided by the TRX, intended to control the power transistor. 
 
 When you are transmitting the sine wave or the voice, the waterfall will display the spectrum of your voice.
-It slightly differs to what can be received, but it mostly reflects the reality. When transmitting without
+It slightly differs from what can be received over the air, but it mostly reflects the reality. When transmitting without
 PA enabled, the signal will be very weak but still visible.
 
-During the transmission, all sounds are muted. The Baseband NR threshold and receiver AGC state 
-are frozen to avoid their re-adaptation after TX is turned off. Audio NR2 is not frozen 
+During the transmission, all sounds are muted. The Baseband NR threshold (software) and demodulator AGC state 
+are frozen to avoid their unneeded re-adaptation after reception is turned back on. Audio NR2 is not frozen 
 (work in progress). 
 
 ### The pipeline
@@ -149,14 +149,14 @@ above.
 * "AGC Attack", "AGC Decay" - the signal automatic gain control. Routines are same as on receiving pipeline. 
   I found that setting very low AGC Decay (0.1) helps keeping the signal power pressure mostly constant at 
   maximum, which is good for transmission.
-* "Mic NR" - enables the microphone noise reduction (algorithm same as Audio NR2, i.e. OMLSA-MCRA). Very useful on desktop. 
+* "Mic NR" - enables the microphone noise reduction (algorithm same as Audio NR2, i.e. OMLSA-MCRA). Very useful on desktop os with simple mic. 
   Not needed for the Android, because Android has its own noise reduction, already used by default.
   Note: the use of processed/raw input in Android pipeline, there's toggle in the Sink section of the main 
-  menu. Also note that there's still work in progress, NR2 needs its own AGC that scales from complex to 
-  short samples because it's implemented in shorts, and back.
+  menu. Also note that there's still work in progress, NR2 needs its own AGC that scales from complex numbers to 
+  16-bit integers samples because it's implemented in 16-bit integers, and back.
 * There's preamp for Mic NR
 * gauge below the "Mic NR" represents the signal after that stage.
-* "Mic SQL" enables squelch on the microphone. You know when person uses SDR on PC, their signal contains
+* "Mic SQL" enables squelch (silence detection) on the microphone. You know when person uses SDR on PC, their signal contains
   a lot of noises in the pauses. In addition to the Mic NR, Mic SQL works very well in producing
   deep silence in the pauses, reflected in emitted radio signal. Pleasure for eyes and ears.
 * "High cut-off" - low-pass filter, that coincides with selected mode width (e.g. 2.7 Khz for SSB). You 
