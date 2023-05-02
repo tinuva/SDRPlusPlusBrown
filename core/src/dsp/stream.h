@@ -1,6 +1,7 @@
 #pragma once
 #include <string.h>
 #include <mutex>
+#include <atomic>
 #include <condition_variable>
 #include <volk/volk.h>
 #include "buffer/buffer.h"
@@ -208,4 +209,64 @@ namespace dsp {
 
         int dataSize = 0;
     };
+
+    template <class T>
+    struct queue {
+
+        std::mutex lock;
+        std::vector<T> data;
+        std::atomic_int dataSize;
+
+        void fillFrom(const T*ptr, int size) {
+            std::lock_guard lck(lock);
+            int pos = data.size();
+            data.resize(size + pos);
+            memcpy(&data[pos], ptr, size * sizeof(T));
+            dataSize = data.size();
+        }
+
+        int maybeFillFrom(const dsp::stream<T> &str) {
+            if (str.isDataReady()) {
+                return fillFrom(str);
+            }
+            return 0;
+        }
+
+        // waits
+        int fillFrom(const dsp::stream<T> &str) {
+            int size = str.read();
+            std::lock_guard lck(lock);
+            if (size >= 0) {
+                int pos = data.size();
+                data.resize(size + pos);
+                memcpy(&data[pos], str.readBuf, size * sizeof(T));
+                str.flush();
+                dataSize = data.size();
+            }
+            return size;
+        }
+
+        bool isDataReady(int size) {
+            return dataSize >= size;
+        }
+
+        bool consume(T *dest, int size) {
+            if (!isDataReady(size)) {
+                return false;
+            }
+            std::lock_guard lck(lock);
+            return consume_(dest, size);
+        }
+
+        bool consume_(T *dest, int size) {
+            if (dest) {
+                memcpy(dest, &data[0], size * sizeof(T));
+            }
+            data.erase(data.begin(), data.begin() + size);
+            dataSize = data.size();
+            return true;
+        }
+
+    };
+
 }

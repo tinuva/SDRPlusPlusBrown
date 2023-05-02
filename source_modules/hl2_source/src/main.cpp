@@ -428,11 +428,9 @@ private:
                     if (buffer.size() == 63) {
                         addedBlocks++;
                         if (addedBlocks % 1000 == 0) {
-                            flog::info("Added {} blocks to tx buffer, rd samples {}  ndreads {}", addedBlocks, readSamples, nreads);
+//                            flog::info("Added {} blocks to tx buffer, rd samples {}  ndreads {}", addedBlocks, readSamples, nreads);
                         }
-                        device->samplesToSendLock.lock();
-                        device->samplesToSend.emplace_back(std::make_shared<std::vector<dsp::complex_t>>(buffer));
-                        device->samplesToSendLock.unlock();
+                        device->samplesToSend.fillFrom(buffer.data(), 63);
                         buffer.clear();
                     }
                 }

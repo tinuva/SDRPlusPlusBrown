@@ -145,6 +145,7 @@ namespace flog {
         auto now = std::chrono::system_clock::now();
         auto nowt = std::chrono::system_clock::to_time_t(now);
         auto nowc = std::localtime(&nowt); // TODO: This is not threadsafe
+        long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(now).time_since_epoch().count();
 
         // Write to output
         {
@@ -175,7 +176,7 @@ namespace flog {
 #else
             // Print format string
             fprintf(outStream, COLOR_WHITE "[%02d/%02d/%02d %02d:%02d:%02d.%03d] [%s%s" COLOR_WHITE "] %s\n",
-                    nowc->tm_mday, nowc->tm_mon + 1, nowc->tm_year + 1900, nowc->tm_hour, nowc->tm_min, nowc->tm_sec, 0, TYPE_COLORS[type], TYPE_STR[type], out.c_str());
+                    nowc->tm_mday, nowc->tm_mon + 1, nowc->tm_year + 1900, nowc->tm_hour, nowc->tm_min, nowc->tm_sec, (int)(msec % 1000), TYPE_COLORS[type], TYPE_STR[type], out.c_str());
 #endif
         }
     }

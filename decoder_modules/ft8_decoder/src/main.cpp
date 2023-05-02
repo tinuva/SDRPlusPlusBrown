@@ -1152,13 +1152,13 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
     std::thread processor([=]() {
         SetThreadName(getModeString()+"_startBlockProcessing");
         std::time_t bst = (std::time_t)(blockNumber * getBlockDuration());
-        flog::info("Start processing block ({}), size={}, block time: {}", this->getModeString(), (int64_t)block->size(), std::asctime(std::gmtime(&bst)));
+//        flog::info("Start processing block ({}), size={}, block time: {}", this->getModeString(), (int64_t)block->size(), std::asctime(std::gmtime(&bst)));
         blockProcessorsRunning.fetch_add(1);
         auto started = currentTimeMillis();
         std::unique_ptr<int, std::function<void(int*)>> myPtr(new int, [&](int* p) {
             delete p;
             auto prev = blockProcessorsRunning.fetch_add(-1);
-            flog::info("blockProcessorsRunning ({}) released after {} msec, prev={}", getModeString(), (int64_t)(currentTimeMillis() - started), prev);
+//            flog::info("blockProcessorsRunning ({}) released after {} msec, prev={}", getModeString(), (int64_t)(currentTimeMillis() - started), prev);
         });
         int count = 0;
         long long time0 = 0;
@@ -1198,7 +1198,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
                         callHashCacheMutex.lock();
                         auto ncallsign = callHashCache.findCall(callsign, bst * 1000);
                         progress = "pipe8";
-                        flog::info("Found call: {} -> {}", callsign, ncallsign);
+//                        flog::info("Found call: {} -> {}", callsign, ncallsign);
                         callsign = ncallsign;
                         callHashCacheMutex.unlock();
                         progress = "pipe9";
@@ -1296,14 +1296,14 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
         int count0=0;
         while(true) {
             if (future.wait_for(std::chrono::seconds(1)) == std::future_status::timeout) {
-                flog::info("outside progress({}: decoding ({}) : {}", count0, this->getModeString(), progress.load());
+//                flog::info("outside progress({}: decoding ({}) : {}", count0, this->getModeString(), progress.load());
                 count0++;
             } else {
                 break;
             }
         }
 
-        flog::info("blockProcessorsRunning ({}) gracefully completed {}", getModeString(), blockNumber);
+//        flog::info("blockProcessorsRunning ({}) gracefully completed {}", getModeString(), blockNumber);
 
     });
     processor.detach();
@@ -1314,7 +1314,7 @@ void SingleDecoder::init(const std::string &name) {
     sigpath::iqFrontEnd.onEffectiveSampleRateChange.bindHandler(&iqSampleRateListener);
     iqSampleRateListener.ctx = this;
     iqSampleRateListener.handler = [](double newSampleRate, void* ctx) {
-        flog::info("FT8 decoder: effective sample rate changed to {}", newSampleRate);
+//        flog::info("FT8 decoder: effective sample rate changed to {}", newSampleRate);
         ((SingleDecoder*)ctx)->vfo->setInSamplerate(newSampleRate);
     };
 
@@ -1328,7 +1328,7 @@ void SingleDecoder::init(const std::string &name) {
     //        usbDemod->setFrozen(true);
     ifChain.setInput(&vfo->out, [&](auto ifchainOut) {
         usbDemod->setInput(ifchainOut);
-        flog::info("ifchain change out");
+//        flog::info("ifchain change out");
         // next
     });
 

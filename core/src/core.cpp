@@ -136,17 +136,17 @@ namespace core {
 
     void cldHandler(int i) {
 #ifndef _WIN32
-        write(1, "cldHandler\n", strlen("cldHandler\n"));
-        flog::info("SIGCLD, waiting i={}", i);
+//        write(1, "cldHandler\n", strlen("cldHandler\n"));
+//        flog::info("SIGCLD, waiting i={}", i);
         int wstatus;
         auto q = wait(&wstatus);
-        flog::info("SIGCLD, waited = {}, status={}", q, wstatus);
+//        flog::info("SIGCLD, waited = {}, status={}", q, wstatus);
         ForkServerResults res;
         res.seq = -1;
         res.pid = q;
         res.terminated = true;
         res.wstatus = wstatus;
-        flog::info("FORKSERVER, sending pid death: {}", q);
+//        flog::info("FORKSERVER, sending pid death: {}", q);
         write(forkResult[1], &res, sizeof(res));
 #endif
     }
@@ -175,7 +175,7 @@ namespace core {
 //            }
 #endif
 
-            flog::info("FORKSERVER: fork server runs");
+//            flog::info("FORKSERVER: fork server runs");
             int myPid = getpid();
             std::thread checkParentAlive([=]() {
                 while (true) {
@@ -201,7 +201,7 @@ namespace core {
 
                 auto newPid = fork();
                 if (0 == newPid) {
-                    flog::info("FORKSERVER {}, forked ok", cmd.info);
+//                    flog::info("FORKSERVER {}, forked ok", cmd.info);
                     auto& args = cmd;
                     std::string execDir = args.executable;
                     auto pos = execDir.rfind('/');
@@ -209,10 +209,10 @@ namespace core {
                         execDir = execDir.substr(0, pos);
                         execDir = "LD_LIBRARY_PATH=" + execDir;
                         putenv((char*)execDir.c_str());
-                        flog::info("FORKSERVER, in child, before exec putenv {}", execDir);
+//                        flog::info("FORKSERVER, in child, before exec putenv {}", execDir);
                     }
-                    flog::info("decoderPath={}", args.executable);
-                    flog::info("FT8 Decoder({}): executing: {}", cmd.info, args.executable);
+//                    flog::info("decoderPath={}", args.executable);
+//                    flog::info("FT8 Decoder({}): executing: {}", cmd.info, args.executable);
 
                     if (true) {
                         close(0);
@@ -245,7 +245,7 @@ namespace core {
                     ForkServerResults res;
                     res.seq = cmd.seq;
                     res.pid = newPid;
-                    flog::info("FORKSERVER ({}), sending pid: {}", cmd.info, newPid);
+//                    flog::info("FORKSERVER ({}), sending pid: {}", cmd.info, newPid);
                     write(forkResult[1], &res, sizeof(res));
                 }
             }
@@ -253,7 +253,7 @@ namespace core {
         else {
             std::thread resultReader([]() {
                 SetThreadName("forkserver_resultread");
-                flog::info("FORKSERVER: resultreader started");
+//                flog::info("FORKSERVER: resultreader started");
                 while (true) {
                     ForkServerResults res;
                     if (0 != read(forkResult[0], &res, sizeof(res))) {
@@ -272,13 +272,13 @@ namespace core {
                                 found->second->pid = res.pid;
                             }
                             if (res.terminated != 0) {
-                                flog::info("FORKSERVER: marking terminated: pid={}, res={}", res.pid, (void*)&res);
+//                                flog::info("FORKSERVER: marking terminated: pid={}, res={}", res.pid, (void*)&res);
                                 found->second->completeStatus = res.wstatus;
                                 found->second->completed = true;
                             }
                         }
                         else {
-                            flog::info("FORKSERVER: not found mark status: pid={} seq={}", res.pid, res.seq);
+//                            flog::info("FORKSERVER: not found mark status: pid={} seq={}", res.pid, res.seq);
                         }
                         forkInProgressLock.unlock();
                     }

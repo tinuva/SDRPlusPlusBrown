@@ -717,6 +717,8 @@ struct ConfigPanel {
     float agcDecay = 0.1f;
     //    bool doNR = true;
     bool doEqualize = true;
+    bool micSql = false;
+    float micSqlLevel = -35;
     float compAmp = 1.0f;
     bool doFreqMaim = false;
 
@@ -949,7 +951,7 @@ double TheEncoder::draw(float currentValue) {
             if (currentEncoderTouch != -1 && currentEncoderTouch != encoderId) {
                 return 0;
             }
-            flog::info("currentEncoderTouch={} encoderId={}", currentEncoderTouch, encoderId);
+//            flog::info("currentEncoderTouch={} encoderId={}", currentEncoderTouch, encoderId);
             auto mouseX = ImGui::GetMousePos().x - widgetPos.x;
             auto mouseY = ImGui::GetMousePos().y - widgetPos.y;
             bool mouseInside = mouseX >= 0 && mouseX < avail.x && mouseY >= 0 && mouseY < avail.y;
@@ -1821,7 +1823,8 @@ void QSOPanel::startAudioPipeline() {
         configPanel->afnr = std::make_shared<dsp::AFNR_OMLSA_MCRA>();
         configPanel->afnr->allowed = true;
         getConfig("trx_afnrAllowd", configPanel->afnr->allowed);
-        getConfig("trx_afnrPreAmpGain", configPanel->afnr->preAmpGain);
+        getConfig("trx_SqlAllowd", configPanel->micSql);
+        getConfig("trx_SqlLevel", configPanel->micSqlLevel);
         configPanel->afnr->init(nullptr);
         configPanel->afnr->omlsa_mcra.setSampleRate(trxAudioSampleRate);
     }
@@ -1839,6 +1842,8 @@ void QSOPanel::startAudioPipeline() {
         hipass.init(nullptr, hipassTaps);
         auto lopassTaps = dsp::taps::lowPass0<float>(prevLowPass, 300, trxAudioSampleRate);
         lopass.init(nullptr, lopassTaps);
+        dsp::noise_reduction::Squelch squelch;
+        squelch.init(nullptr, -40);
 
         while (true) {
             int rd = audioIn.read();
@@ -1902,6 +1907,10 @@ void QSOPanel::startAudioPipeline() {
             configPanel->m2s.process(rd, configPanel->agc.out.writeBuf, configPanel->m2s.out.writeBuf);
             configPanel->afnr->process(configPanel->m2s.out.writeBuf, rd, configPanel->afnr->out.writeBuf, rd);
             configPanel->nrDecibels.addSamples(configPanel->afnr->out.writeBuf, rd);
+            if (configPanel->micSql){
+                squelch.setLevel(configPanel->micSqlLevel);
+                squelch.process(rd, configPanel->afnr->out.writeBuf, configPanel->afnr->out.writeBuf);
+            }
             lopass.process(rd, configPanel->afnr->out.writeBuf, audioInProcessedIn.writeBuf);
             if (rd > 0) {
                 configPanel->outDecibels.addSamples(audioInProcessedIn.writeBuf, rd);
@@ -2247,8 +2256,7 @@ void ConfigPanel::draw(ImGui::WaterfallVFO* vfo) {
     draw_db_gauge(space.x, highPassDecibels.getMax(3), highPassDecibels.getPeak(), -80, +20);
 
 
-    ImGui::LeftLabel("DX Equalizer / Compressor");
-    if (ImGui::Checkbox("##equalizeit", &doEqualize)) {
+    if (ImGui::Checkbox("DX Equalizer / Compressor##equalizeit", &doEqualize)) {
         setConfig("trx_doEqualize", doEqualize);
     }
 
@@ -2287,8 +2295,7 @@ void ConfigPanel::draw(ImGui::WaterfallVFO* vfo) {
     //    }
 
     if (afnr) {
-        ImGui::LeftLabel("Mic Noise Reduction");
-        if (ImGui::Checkbox("##donr", &afnr->allowed)) {
+        if (ImGui::Checkbox("Mic NR##donr", &afnr->allowed)) {
             setConfig("trx_afnrAllowd", afnr->allowed);
         }
         ImGui::SameLine();
@@ -2298,6 +2305,13 @@ void ConfigPanel::draw(ImGui::WaterfallVFO* vfo) {
         }
     }
     draw_db_gauge(space.x, nrDecibels.getMax(3), nrDecibels.getPeak(), -80, +20);
+    if (ImGui::Checkbox("Mic SQL##donrsql", &micSql)) {
+        setConfig("trx_SqlAllowd", micSql);
+    }
+    ImGui::SameLine();
+    if (ImGui::SliderFloat("##mic-sql", &micSqlLevel, -60.0f, 0.0f, "%.3f dB")) {
+        setConfig("trx_SqlLevel", micSqlLevel);
+    }
     if (vfo) {
         lowPass = vfo->bandwidth;
     }

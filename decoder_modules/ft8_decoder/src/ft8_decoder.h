@@ -197,7 +197,7 @@ namespace dsp {
             int nwaiting = 0;
             int STEP_USEC = 1000000;
             int MAXWAITING_STEPS = 20000000 / STEP_USEC;  // 20 second max decode
-            flog::info("Forked, waiting outside {} steps for {} for files", MAXWAITING_STEPS, mode);
+//            flog::info("Forked, waiting outside {} steps for {} for files", MAXWAITING_STEPS, mode);
 
             while (true) {
                 progress = "usleeping";
@@ -210,10 +210,10 @@ namespace dsp {
                     callback(DMS_FT8, selected, progress);
                     progress = "post-err-callback";
                 }
-                flog::info("Usleep {} begin for {}", nwaiting, mode);
+//                flog::info("Usleep {} begin for {}", nwaiting, mode);
                 usleep(STEP_USEC);
                 nwaiting++;
-                flog::info("Usleep {} finished for {}, outpath={}", nwaiting-1, mode, outPath.c_str());
+//                flog::info("Usleep {} finished for {}, outpath={}", nwaiting-1, mode, outPath.c_str());
                 if (nwaiting > MAXWAITING_STEPS) {
                     progress = "break_maxwait";
                     flog::warn("MAXWAITING_STEPS elapsed for {} -> will abort",mode);
@@ -280,7 +280,7 @@ namespace dsp {
                 }
                 if (finished) {
                     progress = "finishing..";
-                    flog::info("Breaking the loop for {}", mode);
+//                    flog::info("Breaking the loop for {}", mode);
                     break;
                 }
             }

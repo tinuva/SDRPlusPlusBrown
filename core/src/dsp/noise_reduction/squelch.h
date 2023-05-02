@@ -30,6 +30,28 @@ namespace dsp::noise_reduction {
             _level = level;
         }
 
+        inline int process(int count, const stereo_t* in, stereo_t* out) {
+            if (count == 0) {
+                return 0;
+            }
+            float sum = 0;
+            for(int i=0; i<count; i++) {
+                sum += in[i].l * in[i].l;
+                sum += in[i].r * in[i].r;
+            }
+            float power = 20.0 * log10f(sqrt(sum / (count*2)));
+
+            flog::info("db = {}", power);
+            if (power >= _level) {
+                memcpy(out, in, count * sizeof(stereo_t));
+            }
+            else {
+                memset(out, 0, count * sizeof(stereo_t));
+            }
+
+            return count;
+        }
+
         inline int process(int count, const complex_t* in, complex_t* out) {
             float sum;
             volk_32fc_magnitude_32f(normBuffer, (lv_32fc_t*)in, count);
