@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <thread>
 #include <algorithm>
+#include <utils/cty.h>
 #include <gui/widgets/waterfall.h>
 #include <gui/icons.h>
 #include <gui/widgets/bandplan.h>
@@ -25,6 +26,7 @@
 #include "dsp/convert/complex_to_real.h"
 #include "dsp/channel/frequency_xlator.h"
 #include "ctm.h"
+#include "utils/strings.h"
 #include <cmath>
 #include <utility>
 
@@ -33,6 +35,137 @@ using namespace ::dsp::arrays;
 float trxAudioSampleRate = 48000.0;
 
 const int nSmallWheelFunctions = 3;
+
+const char* TxModePopup = "TX/RX Mode Select";
+const char* LogBookEntryPopup = "Logbook Entry";
+
+struct QSORecord {
+    std::string dxcall;     // eg W1WWW
+    std::string name;     // eg alex
+    std::string qth;     // eg marsala
+    std::string receivedRST; // e.g. 59
+    std::string sentRST;        // eg 59
+    std::string datetime;       // e.g. 2023-12-01 14:44
+    std::string fulltext;       // whatever user entered
+    int frequency;              // e.g. 14215
+};
+
+// e.g: W1WWW R59 alex marsala S59
+QSORecord parseQsoRecord(const std::vector<std::string> &f) {
+    QSORecord r;
+    int wordScan = 0;
+    for(int q=0; q<f.size(); q++) {
+        if (wordScan > 0) {
+            if (f[q].empty()) {
+                continue;
+            }
+            if (f[q].size() > 1 && f[q][0] == 'R' && std::isdigit(f[q][1])) {
+                // R59
+                r.receivedRST = f[q].substr(1);
+                continue;
+            }
+            if (f[q].size() > 1 && f[q][0] == 'S' && std::isdigit(f[q][1])) {
+                // S59
+                r.sentRST = f[q].substr(1);
+                continue;
+            }
+            if (f[q].size() >= 2 && std::isdigit(f[q][0]) && std::isdigit(f[q][1])) {
+                // just 59 => receive rst, sent rst
+                if (r.receivedRST != "") {
+                    r.sentRST = f[q];
+                } else {
+                    r.receivedRST = f[q];
+                }
+                continue ;
+            }
+        }
+        switch(wordScan) {
+        case 0:
+            r.dxcall = f[q];
+            wordScan++;
+            break;
+        case 1:
+            r.name = f[q];
+            wordScan++;
+            break;
+        case 2:
+            r.qth = f[q];
+            wordScan++;
+            break;
+        }
+    }
+    return r;
+}
+
+QSORecord parseAddQsoRecord(const std::string &s, int frequency) {
+    std::vector<std::string> f;
+    splitStringV(s, " ", f);
+    auto r = parseQsoRecord(f);
+    long long int cst = currentTimeMillis();
+    std::time_t t = cst /1000;
+    auto tmm = std::gmtime(&t);
+    char streamTime[64];
+    strftime(streamTime, sizeof(streamTime), "%Y-%m-%d %H:%M", tmm);
+
+    r.datetime = streamTime;
+    r.frequency = frequency / 1000;
+    r.fulltext = s;
+    return r;
+}
+
+
+std::vector<QSORecord> qsoRecords;
+
+void addQsoRecord(const QSORecord& r) {
+    qsoRecords.emplace_back(r);
+    auto root = (std::string)core::args["root"];
+    FILE *f = fopen((root + "/qso.txt").c_str(), "at");
+    if (f) {
+        fprintf(f, "%s %d %s\n", r.datetime.c_str(), r.frequency, r.fulltext.c_str());
+        fclose(f);
+    }
+}
+
+void readQSOList() {
+    auto root = (std::string)core::args["root"];
+    FILE *f = fopen((root + "/qso.txt").c_str(), "rt");
+    qsoRecords.clear();
+    if (f) {
+        while(true) {
+            char lineBuffer[1000];
+            char *l = std::fgets(lineBuffer, sizeof(lineBuffer), f);
+            if (!l) {
+                break;
+            }
+            if (strlen(l) == 0) {
+                continue;
+            }
+            if (l[strlen(l)-1] == '\n') {
+                l[strlen(l)-1] = 0;
+            }
+            if (l[strlen(l)-1] == '\r') {
+                l[strlen(l)-1] = 0;
+            }
+            std::vector<std::string> f;
+            splitStringV(std::string(l), " ", f);
+            if (f.size() < 4) {
+                continue;
+            }
+            auto timestamp = f[0] + " " + f[1];
+            auto frequency = std::strtol(f[2].c_str(), nullptr, 10);
+            f.erase(f.begin()); // first part of time
+            f.erase(f.begin()); // second part of time
+            f.erase(f.begin()); // frequency
+            auto qso = parseQsoRecord(f);
+            qso.datetime = timestamp;
+            qso.frequency = frequency;
+            qso.fulltext = std::string(l);
+            qsoRecords.emplace_back(qso);
+        }
+//        fprintf(f, "%s %d %s\n", r.datetime.c_str(), r.frequency, r.fulltext.c_str());
+        fclose(f);
+    }
+}
 
 const char* smallWheelFunctionName(int n) {
     switch (n % nSmallWheelFunctions) {
@@ -245,16 +378,16 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
                     r2c.out.writeBuf[q] *= gain;
                     float amp = r2c.out.writeBuf[q].amplitude();
                     if (amp > 1) {
-                        r2c.out.writeBuf[q] = r2c.out.writeBuf[q] / amp;        // trim
+                        r2c.out.writeBuf[q] = r2c.out.writeBuf[q] / amp; // trim
                     }
                 }
-                xlator1.process(rd, r2c.out.writeBuf, xlator1.out.writeBuf);        // this also removes first trimming artifacts
+                xlator1.process(rd, r2c.out.writeBuf, xlator1.out.writeBuf); // this also removes first trimming artifacts
                 halfBandPassFilter.process(rd, xlator1.out.writeBuf, halfBandPassFilter.out.writeBuf);
                 xlator2.process(rd, halfBandPassFilter.out.writeBuf, xlator2.out.writeBuf);
                 for (int q = 0; q < rd; q++) {
                     float amp = xlator2.out.writeBuf[q].amplitude();
                     if (amp > 1) {
-                        xlator2.out.writeBuf[q] = xlator2.out.writeBuf[q] / amp;        // trim
+                        xlator2.out.writeBuf[q] = xlator2.out.writeBuf[q] / amp; // trim
                     }
                 }
                 fullBandPassFilter.process(rd, xlator2.out.writeBuf, out.writeBuf); // remove trimming artifacts
@@ -795,6 +928,7 @@ struct ConfigPanel {
         getConfig("trx_agcDecay", agcDecay);
         getConfig("trx_lowPass", lowPass);
 
+
         agc.setAttack(agcAttack / trxAudioSampleRate);
         agc.setDecay(agcDecay / trxAudioSampleRate);
 
@@ -891,7 +1025,7 @@ bool MobileButton::draw() {
                 this->pressPoint = mouseCoord;
                 if (withinRect(avail, this->pressPoint)) {
                     this->currentlyPressed = true; // not cleared whe   n finger away of button
-                    this->currentlyPressedTime = currentTimeMillis();
+                    this->firstPressedTime = this->currentlyPressedTime = currentTimeMillis();
                 }
             }
         }
@@ -973,7 +1107,7 @@ double TheEncoder::draw(float currentValue) {
             if (currentEncoderTouch != -1 && currentEncoderTouch != encoderId) {
                 return 0;
             }
-//            flog::info("currentEncoderTouch={} encoderId={}", currentEncoderTouch, encoderId);
+            //            flog::info("currentEncoderTouch={} encoderId={}", currentEncoderTouch, encoderId);
             auto mouseX = ImGui::GetMousePos().x - widgetPos.x;
             auto mouseY = ImGui::GetMousePos().y - widgetPos.y;
             bool mouseInside = mouseX >= 0 && mouseX < avail.x && mouseY >= 0 && mouseY < avail.y;
@@ -1128,6 +1262,7 @@ void MobileMainWindow::draw() {
 
 
     gui::waterfall.alwaysDrawLine = false;
+    ImGuiIO& io = ImGui::GetIO();
     if (displaymenu::transcieverLayout == 0) {
         shouldInitialize = true;
         MainWindow::draw();
@@ -1184,10 +1319,12 @@ void MobileMainWindow::draw() {
 
     const ImVec2 waterfallRegion = ImVec2(ImGui::GetContentRegionAvail().x - encoderWidth - buttonsWidth, ImGui::GetContentRegionAvail().y - statusHeight);
 
-    lockWaterfallControls = showMenu || (qsoMode != VIEW_DEFAULT && modeToggle.upperText == "CW");
+    lockWaterfallControls = showMenu || (qsoMode != VIEW_DEFAULT && modeToggle.upperText == "CW") || !encoder.enabled;
     ImGui::BeginChildEx("Waterfall", ImGui::GetID("sdrpp_waterfall"), waterfallRegion, false, 0);
     auto waterfallStart = ImGui::GetCursorPos();
     gui::waterfall.draw();
+
+
     ImGui::SetCursorPos(waterfallStart + ImVec2(gui::waterfall.fftAreaMin.x + 5 * style::uiScale, 0));
     ImGui::PushFont(style::mediumFont);
     ImGui::Text("BAND: %s", this->bandUp.upperText.c_str());
@@ -1198,12 +1335,16 @@ void MobileMainWindow::draw() {
 
     this->handleWaterfallInput(vfo);
 
-    ImGui::SetCursorPos(cornerPos + ImVec2(gui::waterfall.fftAreaMin.x + 5 * style::uiScale, waterfallRegion.y));
+    float addx = gui::waterfall.fftAreaMin.x + 5 * style::uiScale;
+    ImGui::SetCursorPos(cornerPos + ImVec2(addx, waterfallRegion.y));
     ImGui::PushFont(style::mediumFont);
     ImGui::Text("%s -> %s    zoom: %s",
                 this->modeToggle.upperText.c_str(),
                 this->submodeToggle.upperText.c_str(),
                 this->zoomToggle.upperText.c_str());
+    ImGui::Dummy(ImVec2(addx, 0));
+    ImGui::SameLine();
+    ImGui::Text("%s", currentDXInfo.c_str());
     ImGui::PopFont();
 
     ImGui::SetCursorPos(cornerPos);
@@ -1308,7 +1449,7 @@ void MobileMainWindow::draw() {
         break;
     }
     }
-//    flog::info("small encoder speed: {}", smallChangeSpeed);
+    //    flog::info("small encoder speed: {}", smallChangeSpeed);
     ImGui::SetCursorPos(cornerPos + ImVec2{ waterfallRegion.x + buttonsWidth, +encodersHeight / 3 });
     ImGui::BeginChildEx("Encoder", ImGui::GetID("sdrpp_encoder"), ImVec2(encoderWidth, encodersHeight * 2 / 3), false, 0);
     auto currentFreq = vfo ? (vfo->generalOffset + gui::waterfall.getCenterFrequency()) : gui::waterfall.getCenterFrequency();
@@ -1400,10 +1541,10 @@ void MobileMainWindow::draw() {
     MobileButton* pressedButton = nullptr;
     auto buttonsStart = ImGui::GetCursorPos();
     auto intButtonHeight = style::baseFont->FontSize * 3.3;
+    const ImVec2 childRegion = ImVec2(defaultButtonsWidth, intButtonHeight - vertPadding);
     for (auto b = 0; b < NBUTTONS; b++) {
         char chi[100];
         sprintf(chi, "mob_button_%d", b);
-        const ImVec2 childRegion = ImVec2(defaultButtonsWidth, intButtonHeight - vertPadding);
         if (this->qsoMode == VIEW_DEFAULT && false) {
             // align from top
             ImGui::SetCursorPos(buttonsStart + ImVec2{ 0, buttonsSpaceY - float(nButtonsDefault - b) * (childRegion.y + vertPadding) });
@@ -1413,13 +1554,53 @@ void MobileMainWindow::draw() {
             ImGui::SetCursorPos(buttonsStart + ImVec2{ buttonsWidth - defaultButtonsWidth, buttonsSpaceY - float(b + 1) * (childRegion.y + vertPadding) });
         }
         ImGui::BeginChildEx(chi, ImGui::GetID(chi), childRegion, false, 0);
+        if (buttons[b] == &txButton && txStateByButton) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0, 1.0f));
+        }
         auto pressed = buttons[b]->draw();
+        if (buttons[b] == &txButton && txStateByButton) {
+            ImGui::PopStyleColor();
+        }
         ImGui::EndChild();
         if (pressed) {
             pressedButton = buttons[b];
         }
     }
+
+    if (qsoMode == VIEW_QSO) {
+        ImGui::SetCursorPos(buttonsStart + ImVec2{ 0, buttonsSpaceY - float(nButtonsQso + 1) * (childRegion.y + vertPadding) });
+        if (ImGui::BeginTable("qsolist-table", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(buttonsWidth - defaultButtonsWidth, float(nButtonsQso + 1) * (childRegion.y + vertPadding)))) {
+            ImGui::TableSetupColumn("QSO List");
+            ImGui::TableSetupScrollFreeze(1, 1);
+            ImGui::TableHeadersRow();
+
+            if (qsoRecords.size() == 0) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextUnformatted("press Lock");
+                ImGui::TextUnformatted("while QSO");
+                ImGui::TextUnformatted("and record it!");
+            } else {
+                for (int q = qsoRecords.size()-1; q >= 0; q--) {
+                    ImGui::TableNextRow();
+                    auto &qso = qsoRecords[q];
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::TextUnformatted((qso.datetime+" UTC").c_str());
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0, 1.0f));
+                    ImGui::TextUnformatted(qso.dxcall.c_str());
+                    ImGui::PopStyleColor();
+                    ImGui::TextUnformatted((std::to_string(qso.frequency)+" SSB R"+qso.receivedRST+" S"+qso.sentRST).c_str());
+                }
+            }
+
+            ImGui::EndTable();
+        }
+    }
+
+
     ImGui::EndChild(); // buttons
+
+
 
     if (qsoMode == VIEW_QSO && modeToggle.upperText == "CW") {
         ImGui::SetCursorPos(cornerPos + ImVec2(waterfallRegion.x / 4, waterfallRegion.y / 2));
@@ -1429,7 +1610,6 @@ void MobileMainWindow::draw() {
         ImGui::EndChild(); // buttons
     }
 
-    ImGuiIO& io = ImGui::GetIO();
     if (drawAudioWaterfall) {
         ImVec2 sz(io.DisplaySize.x / 6, io.DisplaySize.y / 4);
         audioWaterfall->draw(ImVec2(io.DisplaySize.x / 2 - sz.x / 2, io.DisplaySize.y - sz.y - 20), sz);
@@ -1461,8 +1641,12 @@ void MobileMainWindow::draw() {
         gui::waterfall.autoRange();
     }
     //
-    if (pressedButton == &this->lockFrequency) {
+    if (pressedButton == &this->lockFrequency || ImGui::IsKeyPressed(ImGuiKey_ScrollLock)) {
         encoder.enabled = !encoder.enabled;
+        if (encoder.enabled) {
+            currentDX = "";
+            updateDXInfo();
+        }
     }
     if (!encoder.enabled && this->lockFrequency.buttonText != "Unlock") {
         this->lockFrequency.buttonText = "Unlock";
@@ -1486,6 +1670,7 @@ void MobileMainWindow::draw() {
         this->qsoMode = this->prevMode;
         if (this->qsoMode == VIEW_DEFAULT) {
             this->qsoPanel->stopAudioPipeline();
+            this->encoder.enabled = true;
         }
     }
     if (pressedButton == &this->zoomToggle) {
@@ -1519,24 +1704,18 @@ void MobileMainWindow::draw() {
             updateFrequencyAfterChange();
         }
     }
-    const char* TxModePopup = "TX/RX Mode Select";
+
+
     if (pressedButton == &this->modeToggle) {
         ImGui::OpenPopup(TxModePopup);
-
-        //        auto curr = std::find(this->modes.begin(), this->modes.end(), getCurrentMode());
-        //        if (curr != this->modes.end()) {
-        //            auto currIndex = curr - this->modes.begin();
-        //            currIndex = int(currIndex + 1) % this->modes.size();
-        //            auto newMode = this->modes[currIndex];
-        //            this->leaveBandOrMode((int)currentFreq);
-        //            setCurrentMode(newMode);
-        //            pressedButton->upperText = newMode;
-        //            updateSubmodeAfterChange();
-        //        }
     }
     if (pressedButton == &this->qsoButton) {
         this->qsoMode = VIEW_QSO;
+        this->encoder.enabled = true;
         qsoPanel->startAudioPipeline();
+    }
+    if (pressedButton == &this->txButton && currentTimeMillis() < this->txButton.firstPressedTime + 500) {
+        txStateByButton = !txStateByButton;
     }
     if (pressedButton == &this->endQsoButton) {
         this->qsoMode = VIEW_DEFAULT;
@@ -1568,13 +1747,39 @@ void MobileMainWindow::draw() {
                 pressedButton->buttonText = "Tuning..";
             }
         }
-        bool txPressed = txButton.currentlyPressed || ((ImGui::IsKeyDown(ImGuiKey_VolumeUp) || ImGui::IsKeyDown(ImGuiKey_Insert)) && qsoMode == VIEW_QSO);
+        bool txPressed = txStateByButton || txButton.currentlyPressed || ((ImGui::IsKeyDown(ImGuiKey_VolumeUp) || ImGui::IsKeyDown(ImGuiKey_Insert)) && qsoMode == VIEW_QSO);
+        if (txStateByButton && txButton.buttonText != "TX ON") {
+            txButton.buttonText = "TX ON";
+        }
+        if (!txStateByButton && txButton.buttonText != "TX") {
+            txButton.buttonText = "TX";
+        }
         if (txPressed && !qsoPanel->audioInToTransmitter || !txPressed && qsoPanel->audioInToTransmitter && qsoPanel->audioInToTransmitter->tuneFrequency == 0) {
             // button is pressed ok to send, or button is released and audioInToTransmitter running and it is not in tune mode
             qsoPanel->handleTxButton(vfo, txPressed, false);
             //
         }
     }
+    else if (!sigpath::transmitter) {
+        if (txButton.currentlyPressed) {
+            sigpath::sinkManager.toneGenerator.store(1);
+        }
+        else {
+            sigpath::sinkManager.toneGenerator.store(0);
+        }
+    }
+
+    if (!encoder.enabled && qsoMode == VIEW_QSO) {
+        if (!ImGui::IsPopupOpen(LogBookEntryPopup)) {
+            flog::info("Call open popup");
+            ImGui::OpenPopup(LogBookEntryPopup);
+            ImGui::SetNextWindowPos(logbookPopupPosition);
+        }
+    }
+
+    this->logbookEntryPopup(currentFreq);
+
+
     if (ImGui::BeginPopupModal(TxModePopup, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImVec2 screenSize = io.DisplaySize;
         screenSize.x *= 0.8;
@@ -1672,16 +1877,8 @@ void MobileMainWindow::draw() {
         }
         ImGui::EndPopup();
     }
-
-    else if (!sigpath::transmitter) {
-        if (txButton.currentlyPressed) {
-            sigpath::sinkManager.toneGenerator.store(1);
-        }
-        else {
-            sigpath::sinkManager.toneGenerator.store(0);
-        }
-    }
 }
+
 std::string MobileMainWindow::getCurrentBand() {
     std::string retval;
     core::configManager.acquire();
@@ -1812,20 +2009,22 @@ void MobileMainWindow::init() {
     configPanel->init();
     audioWaterfall->init();
     qsoPanel->init();
+
+    readQSOList();
+
+
     omlsa_setResDir(core::configManager.conf["resourcesDirectory"]);
-    core::configManager.acquire();
-    if (core::configManager.conf.contains("showAudioWaterfall")) {
-        drawAudioWaterfall = core::configManager.conf["showAudioWaterfall"];
-    }
-    core::configManager.release(true);
+
+    getConfig("showAudioWaterfall", drawAudioWaterfall);
+    getConfig("logbookPopupPosition_x", logbookPopupPosition.x);
+    getConfig("logbookPopupPosition_y", logbookPopupPosition.y);
+
 
     displaymenu::onDisplayDraw.bindHandler(&displayDrawHandler);
     displayDrawHandler.handler = [](ImGuiContext* ctx, void* data) {
         MobileMainWindow* _this = (MobileMainWindow*)data;
         if (ImGui::Checkbox("Show Audio Waterfall##_sdrpp", &_this->drawAudioWaterfall)) {
-            core::configManager.acquire();
-            core::configManager.conf["showAudioWaterfall"] = _this->drawAudioWaterfall;
-            core::configManager.release(true);
+            setConfig("showAudioWaterfall", _this->drawAudioWaterfall);
         }
     };
     displayDrawHandler.ctx = this;
@@ -1837,6 +2036,175 @@ void MobileMainWindow::end() {
     qsoPanel.reset();
     cwPanel.reset();
     configPanel.reset();
+}
+
+#ifdef __ANDROID__
+namespace backend {
+    extern void androidHapticFeedback();
+}
+#endif
+
+void hapticFeedback() {
+#ifdef __ANDROID__
+    backend::androidHapticFeedback();
+#endif
+}
+
+static bool doKeyboardButton(const std::string &title) {
+    const ImVec2& labelWidth = ImGui::CalcTextSize(title.c_str(), nullptr, true, -1);
+    auto rv = ImGui::Button(title.c_str(), ImVec2(labelWidth.x + 2*style::baseFont->FontSize, style::bigFont->FontSize * 1.2));
+    if (rv) {
+        hapticFeedback();
+    }
+    return rv;
+};
+
+
+
+
+void MobileMainWindow::updateDXInfo() {
+    if (currentDX == "") {
+        currentDXInfo = "";
+    } else {
+        auto pos = currentDX.find(" ");
+        auto dx = currentDX;
+        if (pos != std::string::npos) {
+            dx = dx.substr(0, pos);
+        }
+        const utils::CTY::Callsign callsign = utils::globalCty.findCallsign(dx);
+        if (!callsign.ll.isValid()) {
+            currentDXInfo = "DX: invalid";
+        } else {
+            currentDXInfo = "DX: " + dx + "   | QTH: "+ callsign.dxccname + ", " + callsign.continent + " ";
+            auto ll = utils::gridToLatLng(sigpath::iqFrontEnd.operatorLocation);
+            if (ll.isValid()) {
+                auto bd = bearingDistance(ll, callsign.ll);
+                currentDXInfo += "  | Bearing: " + std::to_string((int)((180.0 / M_PI) * bd.bearing)) + "   | Dist: " + std::to_string((int)bd.distance)+" Km";
+            }
+        }
+    }
+}
+
+void MobileMainWindow::logbookEntryPopup(int currentFreq) {
+    if (ImGui::BeginPopup(LogBookEntryPopup, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+        if (!(ImGui::GetWindowPos().x == logbookPopupPosition.x && ImGui::GetWindowPos().y == logbookPopupPosition.y)) {
+            logbookPopupPosition = ImGui::GetWindowPos();
+            setConfig("logbookPopupPosition_x", logbookPopupPosition.x);
+            setConfig("logbookPopupPosition_y", logbookPopupPosition.y);
+        }
+
+        ImGuiIO& io = ImGui::GetIO();
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+            addQsoRecord(parseAddQsoRecord(this->currentDX, currentFreq));
+            currentDX = ""; // record qso
+            updateDXInfo();
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_Space)) {
+            currentDX += ' ';
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_Slash)) {
+            currentDX += '/';
+            updateDXInfo();
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_Backspace)) {
+            if (currentDX.size() > 0) {
+                currentDX.resize(currentDX.size() - 1);
+                updateDXInfo();
+            }
+        }
+        if (io.InputQueueCharacters.Size > 0) {
+            bool changed = false;
+            for (int n = 0; n < io.InputQueueCharacters.Size; n++) {
+                unsigned int c = (unsigned int)io.InputQueueCharacters[n];
+                if (c >= 'a' && c <= 'z') {
+                    c = std::toupper(c);
+                }
+                if (c >= 'A' && c <= 'Z' || c >= '0' && c <= '9') {
+                    currentDX += (char)c;
+                    changed = true;
+                    updateDXInfo();
+                }
+            }
+            if (changed) {
+                io.InputQueueCharacters.resize(0);
+            }
+        }
+
+
+        //        ImGui::SetCursorPos(gui::waterfall.widgetPos + ImVec2(gui::waterfall.fftAreaMin.x + 5 * style::uiScale, 0.5 * style::mediumFont->FontSize));
+        ImGui::PushFont(style::bigFont);
+
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0, 1.0f));
+        ImGui::Text("%s_", currentDX.c_str());
+        ImGui::PopStyleColor();
+
+        //        ImGui::SetCursorPos(gui::waterfall.widgetPos + ImVec2(gui::waterfall.fftAreaMin.x + 5 * style::uiScale, 2.5*style::mediumFont->FontSize));
+        //        auto current = ImGui::GetCursorPos();
+        //        auto width = gui::waterfall.fftAreaMax.x - gui::waterfall.fftAreaMin.x - 10 * style::uiScale;
+        auto addButton = [&](const char c) {
+            if (doKeyboardButton(std::string() + c)) {
+                currentDX += c;
+                updateDXInfo();
+            }
+            ImGui::SameLine();
+        };
+        for (int q = '1'; q <= '9'; q++) {
+            addButton(q);
+        }
+        addButton('0');
+        ImGui::Dummy(ImVec2(2 * style::baseFont->FontSize, 0));
+        ImGui::SameLine();
+        if (doKeyboardButton("<--")) {
+            if (this->currentDX.size() > 0) {
+                this->currentDX.resize(this->currentDX.size() - 1);
+            }
+            updateDXInfo();
+        }
+        const char* qwerty = "QWERTYUIOP";
+        const char* asdf = "ASDFGHJKL";
+        const char* zxcv = "ZXCVBNM";
+        ImGui::Dummy(ImVec2(style::baseFont->FontSize, 0));
+        ImGui::SameLine();
+        for (int q = 0; q < strlen(qwerty); q++) addButton(qwerty[q]);
+        ImGui::NewLine();
+        ImGui::Dummy(ImVec2(2 * style::baseFont->FontSize, 0));
+        ImGui::SameLine();
+        for (int q = 0; q < strlen(asdf); q++) addButton(asdf[q]);
+        ImGui::Dummy(ImVec2(2 * style::baseFont->FontSize, 0));
+        ImGui::SameLine();
+        if (doKeyboardButton("save")) {
+            addQsoRecord(parseAddQsoRecord(this->currentDX, currentFreq));
+            this->currentDX = "";
+        }
+        addButton('/');
+        ImGui::Dummy(ImVec2(1 * style::baseFont->FontSize, 0));
+        ImGui::SameLine();
+        for (int q = 0; q < strlen(zxcv); q++) addButton(zxcv[q]);
+        ImGui::Dummy(ImVec2(2 * style::baseFont->FontSize, 0));
+        ImGui::SameLine();
+
+        if (doKeyboardButton("___")) {
+            this->currentDX += " ";
+        }
+        ImGui::SameLine();
+        ImGui::Dummy(ImVec2(2 * style::baseFont->FontSize, 0));
+        ImGui::SameLine();
+        if (doKeyboardButton("clr")) {
+            this->currentDX = "";
+            updateDXInfo();
+        }
+        ImGui::PopFont();
+
+
+        if (encoder.enabled) {
+            flog::info("Call close popup");
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
 }
 
 
@@ -1929,7 +2297,7 @@ void QSOPanel::startAudioPipeline() {
             configPanel->m2s.process(rd, configPanel->agc.out.writeBuf, configPanel->m2s.out.writeBuf);
             configPanel->afnr->process(configPanel->m2s.out.writeBuf, rd, configPanel->afnr->out.writeBuf, rd);
             configPanel->nrDecibels.addSamples(configPanel->afnr->out.writeBuf, rd);
-            if (configPanel->micSql){
+            if (configPanel->micSql) {
                 squelch.setLevel(configPanel->micSqlLevel);
                 squelch.process(rd, configPanel->afnr->out.writeBuf, configPanel->afnr->out.writeBuf);
             }

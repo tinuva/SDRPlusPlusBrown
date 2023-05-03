@@ -4,6 +4,10 @@
 #include <string>
 #include <gui/style.h>
 
+inline bool getFingerButtonHeight() {
+    return style::baseFont->FontSize * 3;
+}
+
 inline bool doFingerButton(const std::string &title) {
     const ImVec2& labelWidth = ImGui::CalcTextSize(title.c_str(), nullptr, true, -1);
     if (title[0] == '>') {

@@ -2,9 +2,13 @@
 
 Newest entries are at the top.
 
+2023.05.03
+
+* Improved TX pipeline (lowpass/compression part). Fixed issue with random non-start of hermes lite 2 driver. 
+
 2023.05.01
 
-* Various TX issues fixed. Added Microphone squelch, so it does not transmit noise between words. When working over wifi, it still occasionally underflows the transciever, but I made everything from my side. 
+* Various TX issues fixed. Added Microphone squelch, so it does not transmit noise between words. When working over wifi, it still occasionally underflows the transciever, but I made everything from my side.
 
 2023.04.22
 

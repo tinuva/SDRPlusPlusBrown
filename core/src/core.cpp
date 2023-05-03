@@ -492,6 +492,8 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["decimationPower"] = 0;
     defConfig["iqCorrection"] = false;
     defConfig["invertIQ"] = false;
+    defConfig["operatorCallsign"] = "";
+    defConfig["operatorLocation"] = "KO80";
 
     defConfig["streams"]["Radio"]["muted"] = false;
     defConfig["streams"]["Radio"]["sink"] = "Audio";

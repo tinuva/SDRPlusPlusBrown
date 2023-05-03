@@ -2,6 +2,7 @@
 #include <gui/gui.h>
 #include "imgui.h"
 #include "utils/usleep.h"
+#include "utils/cty.h"
 #include <stdio.h>
 #include <thread>
 #include <complex>
@@ -214,6 +215,7 @@ void MainWindow::init() {
 
     core::configManager.release();
 
+
     // Correct the offset of all VFOs so that they fit on the screen
     float finalBwHalf = gui::waterfall.getBandwidth() / 2.0;
     for (auto& [_name, _vfo] : gui::waterfall.vfos) {
@@ -232,7 +234,12 @@ void MainWindow::init() {
     autostart = core::args["autostart"].b();
     initComplete = true;
 
+    LoadingScreen::show("Loading cty data");
+    utils::loadAllCty();
+
     core::moduleManager.doPostInitAll();
+
+
 
 
 }

@@ -5,6 +5,7 @@
 #include <gui/main_window.h>
 #include <gui/style.h>
 #include <signal_path/signal_path.h>
+#include <utils/cty.h>
 
 namespace sourcemenu {
     int offsetMode = 0;
@@ -14,6 +15,8 @@ namespace sourcemenu {
     int decimationPower = 0;
     bool iqCorrection = false;
     bool invertIQ = false;
+    utils::LatLng operatorLatLng = utils::LatLng::invalid();
+
 
     EventHandler<std::string> sourceRegisteredHandler;
     EventHandler<std::string> sourceUnregisterHandler;
@@ -138,6 +141,9 @@ namespace sourcemenu {
     }
 
     void init() {
+
+        sigpath::iqFrontEnd.operatorCallsign.reserve(30);
+        sigpath::iqFrontEnd.operatorLocation.reserve(30);
         core::configManager.acquire();
         std::string selected = core::configManager.conf["source"];
         customOffset = core::configManager.conf["offset"];
@@ -145,6 +151,14 @@ namespace sourcemenu {
         decimationPower = core::configManager.conf["decimationPower"];
         iqCorrection = core::configManager.conf["iqCorrection"];
         invertIQ = core::configManager.conf["invertIQ"];
+        sigpath::iqFrontEnd.operatorCallsign = core::configManager.conf["operatorCallsign"]; sigpath::iqFrontEnd.operatorCallsign.reserve(30);
+        sigpath::iqFrontEnd.operatorLocation = core::configManager.conf["operatorLocation"]; sigpath::iqFrontEnd.operatorLocation.reserve(30);
+
+        auto ll = utils::gridToLatLng(sigpath::iqFrontEnd.operatorLocation);
+        if (ll.isValid()) {
+            operatorLatLng = ll;
+        }
+
         sigpath::iqFrontEnd.setDCBlocking(iqCorrection);
         sigpath::iqFrontEnd.setInvertIQ(invertIQ);
         updateOffset();
@@ -230,5 +244,36 @@ namespace sourcemenu {
             core::configManager.release(true);
         }
         if (running) { style::endDisabled(); }
+
+        ImGui::Text("Operator Callsign");
+        ImGui::SameLine();
+        ImGui::FillWidth();
+        if (ImGui::InputText("##_my_callsign", sigpath::iqFrontEnd.operatorCallsign.data(), 12)) {
+            sigpath::iqFrontEnd.operatorCallsign.resize(strlen(sigpath::iqFrontEnd.operatorCallsign.data()));
+            core::configManager.acquire();
+            core::configManager.conf["operatorCallsign"] = sigpath::iqFrontEnd.operatorCallsign;
+            core::configManager.release(true);
+        }
+
+        ImGui::LeftLabel("My Grid");
+        ImGui::SetNextItemWidth(100 * style::uiScale);
+        if (ImGui::InputText("##_my_grid", sigpath::iqFrontEnd.operatorLocation.data(), 8)) {
+            sigpath::iqFrontEnd.operatorLocation.resize(strlen(sigpath::iqFrontEnd.operatorLocation.data()));
+            core::configManager.acquire();
+            core::configManager.conf["operatorLocation"] = sigpath::iqFrontEnd.operatorLocation;
+            core::configManager.release(true);
+
+            operatorLatLng = utils::gridToLatLng(sigpath::iqFrontEnd.operatorLocation);
+
+        }
+        ImGui::SameLine();
+        ImGui::Text("My Loc: ");
+        ImGui::SameLine();
+        if (operatorLatLng.isValid()) {
+            ImGui::Text("%+02.5f %+02.5f", operatorLatLng.lat, operatorLatLng.lon);
+        } else {
+            ImGui::Text("Invalid");
+        }
+
     }
 }

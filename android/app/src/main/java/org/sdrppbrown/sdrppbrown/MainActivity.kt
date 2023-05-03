@@ -14,8 +14,11 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.provider.Settings
 import android.util.Log
 import android.view.KeyEvent
@@ -25,8 +28,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.PermissionChecker
 import java.io.File
 import java.io.FileOutputStream
-import java.util.*
+import java.util.Locale
 import java.util.concurrent.LinkedBlockingQueue
+
 
 private const val ACTION_USB_PERMISSION = "org.sdrppbrown.sdrppbrown.USB_PERMISSION";
 
@@ -289,5 +293,23 @@ class MainActivity : NativeActivity() {
         createIfDoesntExist(fdir + "/modules");
 
         return fdir;
+    }
+
+
+    fun performHapticFeedback() {
+        val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
+        if (vibrator != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(
+                    VibrationEffect.createOneShot(
+                        100,
+                        VibrationEffect.DEFAULT_AMPLITUDE
+                    )
+                )
+            } else {
+                // Deprecated in API 26
+                vibrator.vibrate(100)
+            }
+        }
     }
 }

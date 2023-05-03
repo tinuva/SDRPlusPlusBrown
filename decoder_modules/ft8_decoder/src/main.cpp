@@ -21,7 +21,9 @@
 #include "ft8_decoder.h"
 #include "../../radio/src/demodulators/usb.h"
 #include <utils/kmeans.h>
+#include <utils/cty.h>
 
+using namespace utils;
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -34,7 +36,6 @@ SDRPP_MOD_INFO{
 };
 
 ConfigManager config;
-CTY cty;
 
 #define INPUT_SAMPLE_RATE 14400
 
@@ -648,7 +649,7 @@ public:
                 if (!insideGroup.empty()) {
                     auto freqq = (double)(*insideGroup.begin())->frequency;
                     auto label = "<= " + std::to_string((int)maxDistance) + " KM";
-                    if (!myPos.isValid()) {
+                    if (!getMyPos().isValid()) {
                         label = "=> setup your GRID SQUARE";
                     }
                     auto fdr2 = std::make_shared<FT8DrawableDecodedDistRange>(label, freqq);
@@ -725,19 +726,6 @@ public:
 
         // Load config
         config.acquire();
-        if (config.conf[name].find("myGrid") != config.conf[name].end()) {
-            auto qq = config.conf[name]["myGrid"].get<std::string>();
-            strcpy(myGrid, qq.data());
-            calculateMyLoc();
-        } else {
-            myGrid[0] = 0;
-        }
-        if (config.conf[name].find("myCallsign") != config.conf[name].end()) {
-            auto qq = config.conf[name]["myCallsign"].get<std::string>();
-            strcpy(myCallsign, qq.data());
-        } else {
-            myCallsign[0] = 0;
-        }
         if (config.conf[name].find("allTxtPath") != config.conf[name].end()) {
             auto qq = config.conf[name]["allTxtPath"].get<std::string>();
             strcpy(allTxtPath, qq.data());
@@ -829,19 +817,11 @@ public:
 
     static void menuHandler(void* ctx) {
         FT8DecoderModule* _this = (FT8DecoderModule*)ctx;
-        ImGui::LeftLabel("My Grid");
-        ImGui::SetNextItemWidth(100 * style::uiScale);
-        if (ImGui::InputText(CONCAT("##_my_grid_", _this->name), _this->myGrid, 8)) {
-            config.acquire();
-            config.conf[_this->name]["myGrid"] = _this->myGrid;
-            config.release(true);
-            _this->calculateMyLoc();
-        }
-        ImGui::SameLine();
         ImGui::Text("My Loc: ");
         ImGui::SameLine();
-        if (_this->myPos.isValid()) {
-            ImGui::Text("%+02.5f %+02.5f", _this->myPos.lat, _this->myPos.lon);
+        auto poss = _this->getMyPos();
+        if (poss.isValid()) {
+            ImGui::Text("%+02.5f %+02.5f", poss.lat, poss.lon);
         } else {
             ImGui::Text("Invalid");
         }
@@ -920,10 +900,10 @@ public:
         ImGui::Text("using callsign:");
         ImGui::SameLine();
         ImGui::FillWidth();
-        if (ImGui::InputText(CONCAT("##_my_callsign_", _this->name), _this->myCallsign, 12)) {
-            config.acquire();
-            config.conf[_this->name]["myCallsign"] = _this->myCallsign;
-            config.release(true);
+        if (sigpath::iqFrontEnd.operatorCallsign == "") {
+            ImGui::Text("[set up in source menu]");
+        } else {
+            ImGui::Text("%s", sigpath::iqFrontEnd.operatorCallsign.c_str());
         }
         ImGui::LeftLabel("ALL.TXT log");
         if (ImGui::Checkbox(CONCAT("##_enable_alltxt_", _this->name), &_this->enableAllTXT)) {
@@ -948,23 +928,27 @@ public:
 
     }
 
-    void calculateMyLoc() {
-        auto ll = gridToLatLng(myGrid);
-        if (ll.isValid()) {
-            myPos = ll;
-        }
-    }
-
     std::string name;
     bool enabled = false;
     char myGrid[10];
     char myCallsign[13];
-    LatLng myPos = LatLng::invalid();
     bool enablePSKReporter = true;
     bool enableAllTXT = false;
     char allTxtPath[1024];
     std::string allTxtPathError;
     int secondsToKeepResults = 120;
+
+    std::string  lastLocation;
+    LatLng _myPos = LatLng::invalid();
+
+    LatLng getMyPos() {
+        if (sigpath::iqFrontEnd.operatorLocation != lastLocation) {
+            lastLocation = sigpath::iqFrontEnd.operatorLocation;
+            _myPos = utils::gridToLatLng(lastLocation);
+        }
+        return _myPos;
+    }
+
 
 
     //    dsp::buffer::Reshaper<float> reshape;
@@ -1162,6 +1146,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
         });
         int count = 0;
         long long time0 = 0;
+        auto poss = mod->getMyPos();
         auto handler = [&](int mode, std::vector<std::string> result, std::atomic<const char *> &progress) {
             progress ="in-handler";
             if (result.size() == 2 && result[0] == "ERROR") {
@@ -1220,10 +1205,10 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
                 }
                 else {
                     progress = "pre-find";
-                    cs = cty.findCallsign(callsign);
+                    cs = globalCty.findCallsign(callsign);
                     progress = "post-find";
-                    if (mod->myPos.isValid()) {
-                        auto bd = bearingDistance(mod->myPos, cs.ll);
+                    if (poss.isValid()) {
+                        auto bd = bearingDistance(poss, cs.ll);
                         distance = bd.distance;
                     }
                 }
@@ -1377,15 +1362,6 @@ MOD_EXPORT void _INIT_() {
     config.setPath(core::args["root"].s() + "/ft8_decoder_config.json");
     config.load(def);
     config.enableAutoSave();
-    std::string resDir = core::configManager.conf["resourcesDirectory"];
-    loadCTY(resDir + "/cty/cty.dat", "", cty);
-    loadCTY(resDir + "/cty/AF_cty.dat", ", AF", cty);
-    loadCTY(resDir + "/cty/BY_cty.dat", ", CN", cty);
-    loadCTY(resDir + "/cty/EU_cty.dat", ", EU", cty);
-    loadCTY(resDir + "/cty/NA_cty.dat", ", NA", cty);
-    loadCTY(resDir + "/cty/SA_cty.dat", ", SA", cty);
-    loadCTY(resDir + "/cty/VK_cty.dat", ", VK", cty);
-    loadCTY(resDir + "/cty/cty_rus.dat", ", RUS", cty);
 
 
 }

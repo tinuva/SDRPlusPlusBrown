@@ -46,6 +46,7 @@ struct MobileButton {
     bool draw();
     bool currentlyPressed;
     long long currentlyPressedTime;
+    long long firstPressedTime;
 
     bool isLongPress();
 };
@@ -76,6 +77,9 @@ public:
     std::shared_ptr<CWPanel> cwPanel;
     int smallWheelFunctionN = 0;
 
+    std::string currentDXInfo = "";
+
+
     std::shared_ptr<SubWaterfall> audioWaterfall;
     dsp::stream<dsp::stereo_t> *currentAudioStream = nullptr;
     int currentAudioStreamSampleRate = 0;
@@ -88,6 +92,8 @@ public:
         VIEW_CONFIG = 3
     } qsoMode = VIEW_DEFAULT, prevMode = VIEW_CONFIG;       // different ui
     bool shouldInitialize = true;
+    bool txStateByButton = false; // true on short press of tx
+    std::string currentDX; // callsign of current dx
     std::vector<std::string> modes = { "SSB", "CW", "FM", "AM", "DIGI" };
     std::map<std::string, std::vector<std::string>> subModes = { { "SSB", { "LSB", "USB" } }, { "FM", { "WFM", "NFM" } }, { "AM", { "AM" } }, { "CW", { "CW" /*, "CWU", "CWL"*/ } }, { "DIGI", { "FT8", "FT4", "OLIVIA", "PSK31", "SSTV" } } };
     std::vector<std::string> bands = { "MW", "LW", "160M", "80M", "60M", "40M", "30M", "20M", "17M", "15M", "12M", "10M", "2M" };
@@ -214,4 +220,8 @@ public:
     void leaveBandOrMode(int leavingFrequency);
     void selectSSBModeForBand(const std::string& band);
     void updateAudioWaterfallPipeline();
+    void updateDXInfo();
+
+    ImVec2 logbookPopupPosition = ImVec2(0, 0);
+    void logbookEntryPopup(int frequency);
 };

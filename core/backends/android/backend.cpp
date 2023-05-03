@@ -45,6 +45,31 @@ namespace backend {
         gui::mainWindow.setFirstMenuRender();
     }
 
+    void androidHapticFeedback() {
+        JavaVM* java_vm = app->activity->vm;
+        JNIEnv* java_env = NULL;
+        jint jni_return = java_vm->GetEnv((void**)&java_env, JNI_VERSION_1_6);
+        if (jni_return == JNI_ERR)
+            return;
+
+        jni_return = java_vm->AttachCurrentThread(&java_env, NULL);
+        if (jni_return != JNI_OK)
+            return;
+
+        jclass native_activity_clazz = java_env->GetObjectClass(app->activity->clazz);
+
+        jmethodID methodId = java_env->GetMethodID(native_activity_clazz, "performHapticFeedback", "()V");
+        if (methodId == nullptr) {
+            return;
+        }
+
+        java_env->CallVoidMethod(app->activity->clazz, methodId);
+
+        java_vm->DetachCurrentThread();
+
+    }
+
+
     void handleAppCmd(struct android_app* app, int32_t appCmd) {
         switch (appCmd) {
         case APP_CMD_SAVE_STATE:
@@ -513,4 +538,6 @@ extern "C" {
         char* dummy[] = { "", "-r", rootpath, "-x", cacheDirPath };
         sdrpp_main(5, dummy);
     }
+
+
 }

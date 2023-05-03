@@ -34,6 +34,7 @@ public:
     void setInvertIQ(bool enabled);
     void setDCBlocking(bool enabled);
 
+
     void addPreprocessor(dsp::Processor<dsp::complex_t, dsp::complex_t>* processor, bool enabled);
     void removePreprocessor(dsp::Processor<dsp::complex_t, dsp::complex_t>* processor);
     void togglePreprocessor(dsp::Processor<dsp::complex_t, dsp::complex_t>* processor, bool enabled);
@@ -64,6 +65,9 @@ public:
     }
 
     Event<double> onEffectiveSampleRateChange;
+
+    std::string operatorCallsign; // callsign assigned to radio.
+    std::string operatorLocation; // maidenhead
 
 
 protected:

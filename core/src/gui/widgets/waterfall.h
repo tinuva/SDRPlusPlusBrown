@@ -243,6 +243,8 @@ namespace ImGui {
 
         bool containsFrequency(double d);
         void updateWaterfallFb(const std::string &where = ""); // called from android, from outside
+        ImVec2 widgetPos;
+        ImVec2 widgetEndPos;
 
     private:
         void drawWaterfall();
@@ -274,8 +276,6 @@ namespace ImGui {
 
         uint32_t waterfallPallet[WATERFALL_RESOLUTION];
 
-        ImVec2 widgetPos;
-        ImVec2 widgetEndPos;
         ImVec2 widgetSize;
 
         ImVec2 lastWidgetPos;
