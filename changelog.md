@@ -4,7 +4,9 @@ Newest entries are at the top.
 
 2023.05.03
 
-* Improved TX pipeline (lowpass/compression part). Fixed issue with random non-start of hermes lite 2 driver. 
+* Improved TX pipeline (lowpass/compression part). Fixed issue with random non-start of hermes lite 2 driver.
+* Added QSO logging
+* Modified TX button to have both PTT and on/off functionality.
 
 2023.05.01
 
