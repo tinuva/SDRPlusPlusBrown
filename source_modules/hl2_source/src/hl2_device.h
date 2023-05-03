@@ -81,7 +81,7 @@ struct HL2Device {
     SOCKET data_socket;
     struct sockaddr_in data_addr;
     int data_addr_length;
-    bool running;
+    bool running = false;
     //
     long long sendStartTime = 0;     // millis of first send packet
     long long sendStartSequence = 0; // send_sequence at a time of a start
@@ -376,7 +376,7 @@ struct HL2Device {
             samplesToSend.consume_(nullptr, 63);
         }
         samplesToSend.lock.unlock();
-        sendTracker.add(63);
+//        sendTracker.add(63);
         // 512-8 = 504 bytes here, 63 elements (8 bytes per iq sample (of those 4 bytes are obsolete/unused), and 2 bytes per re, im)
         output_buffer[512 + SYNC0] = SYNC;
         output_buffer[512 + SYNC1] = SYNC;
@@ -393,7 +393,7 @@ struct HL2Device {
             samplesToSend.consume_(nullptr, 63);
             samplesToSend.lock.unlock();
         }
-        sendTracker.add(63);
+//        sendTracker.add(63);
 
         // 512-8 = 504 bytes here, 63 elements (8 bytes per iq sample (of those 4 bytes are obsolete/unused), and 2 bytes per re, im)
 
@@ -615,9 +615,9 @@ struct HL2Device {
             if (sendThread) {
                 sendThread->join();
             }
-            if (sendThread2) {
-                sendThread2->join();
-            }
+//            if (sendThread2) {
+//                sendThread2->join();
+//            }
             metis_start_stop(0);
 #ifdef WIN32
             closesocket(data_socket);
@@ -809,27 +809,27 @@ struct HL2Device {
                 usleep(1000);
             }
         });
-        sendThread2 = std::make_shared<std::thread>([&] {
-            SetThreadName("hl2_send_udp");
-            static int _cnt = 0;
-            while (running) {
-                if (udpStream.isDataReady(1024 + 8)) {
-                    unsigned char buf[1024 * 8];
-                    udpStream.consume(buf, 1024 * 8);
-                    auto b1 = currentTimeMillis();
-                    _cnt++;
-                    if (sendto(data_socket, (const char*)buf, 1024 + 8, 0, (struct sockaddr*)&data_addr, data_addr_length) != 1024 + 8) {
-                        perror("sendto socket failed for metis_send_data\n");
-                    }
-                    auto b2 = currentTimeMillis();
-                    if (b2 - b1 > 3) {
-                        flog::warn("({}) sendto took {} ms", _cnt, (int64_t)(b2 - b1));
-                    }
-                    continue;
-                }
-                usleep(1000);
-            }
-        });
+//        sendThread2 = std::make_shared<std::thread>([&] {
+//            SetThreadName("hl2_send_udp");
+//            static int _cnt = 0;
+//            while (running) {
+//                if (udpStream.isDataReady(1024 + 8)) {
+//                    unsigned char buf[1024 * 8];
+//                    udpStream.consume(buf, 1024 * 8);
+//                    auto b1 = currentTimeMillis();
+//                    _cnt++;
+//                    if (sendto(data_socket, (const char*)buf, 1024 + 8, 0, (struct sockaddr*)&data_addr, data_addr_length) != 1024 + 8) {
+//                        perror("sendto socket failed for metis_send_data\n");
+//                    }
+//                    auto b2 = currentTimeMillis();
+//                    if (b2 - b1 > 3) {
+//                        flog::warn("({}) sendto took {} ms", _cnt, (int64_t)(b2 - b1));
+//                    }
+//                    continue;
+//                }
+//                usleep(1000);
+//            }
+//        });
         receiveThread = std::make_shared<std::thread>([&] {
             struct sockaddr_in addr;
             socklen_t length;
@@ -922,7 +922,7 @@ struct HL2Device {
 
     std::shared_ptr<std::thread> receiveThread;
     std::shared_ptr<std::thread> sendThread;
-    std::shared_ptr<std::thread> sendThread2;
+//    std::shared_ptr<std::thread> sendThread2;
     dsp::queue<unsigned char> udpStream;
     long long int txFrequency = 0;
 };

@@ -160,13 +160,17 @@ static bool withinRect(ImVec2 size, ImVec2 point) {
 
 struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
 
+    // this one takes ready signal and produces modulated signal
+    // additional low pass and compression is performed
     std::string submode;
     dsp::convert::StereoToMono s2m;
     dsp::convert::RealToComplex r2c;
     dsp::channel::FrequencyXlator xlator1;
+    dsp::tap<dsp::complex_t> halfBandPassTaps;
+    dsp::filter::FIR<dsp::complex_t, dsp::complex_t> halfBandPassFilter;
     dsp::channel::FrequencyXlator xlator2;
-    dsp::tap<dsp::complex_t> ftaps;
-    dsp::filter::FIR<dsp::complex_t, dsp::complex_t> filter;
+    dsp::tap<dsp::complex_t> fullBandPassTaps;
+    dsp::filter::FIR<dsp::complex_t, dsp::complex_t> fullBandPassFilter;
     int micGain = 0;
     int sampleCount = 0;
     int tuneFrequency = 0;
@@ -200,15 +204,18 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
             xlator1.init(nullptr, (bandwidth) / 2, trxAudioSampleRate);
             xlator2.init(nullptr, -bandwidth / 2, trxAudioSampleRate);
         }
-        ftaps = dsp::taps::lowPass0<dsp::complex_t>(bandwidth / 2, bandwidth / 2 * 0.1, trxAudioSampleRate);
-        filter.init(nullptr, ftaps);
+        halfBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(bandwidth / 2, bandwidth / 2 * 0.1, trxAudioSampleRate);
+        halfBandPassFilter.init(nullptr, halfBandPassTaps);
+        fullBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(bandwidth, bandwidth * 0.1, trxAudioSampleRate);
+        fullBandPassFilter.init(nullptr, fullBandPassTaps);
 
         dsp::Processor<dsp::stereo_t, dsp::complex_t>::start();
     }
 
     void stop() override {
         dsp::Processor<dsp::stereo_t, dsp::complex_t>::stop();
-        dsp::taps::free(ftaps);
+        dsp::taps::free(halfBandPassTaps);
+        dsp::taps::free(fullBandPassTaps);
     }
 
     int run() override {
@@ -228,17 +235,32 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
         }
         else {
             dsp::convert::StereoToMono::process(rd, this->_in->readBuf, s2m.out.writeBuf);
-            int gain = 4;
-            if (this->postprocess) {
+            if (this->postprocess) { // modulate
                 dsp::convert::RealToComplex::process(rd, s2m.out.writeBuf, r2c.out.writeBuf);
-                xlator1.process(rd, r2c.out.writeBuf, xlator1.out.writeBuf);
-                filter.process(rd, xlator1.out.writeBuf, filter.out.writeBuf);
-                xlator2.process(rd, filter.out.writeBuf, out.writeBuf);
+                // process in complex
+
+                // compress
+                auto gain = 4;
                 for (int q = 0; q < rd; q++) {
-                    out.writeBuf[q] *= gain;
+                    r2c.out.writeBuf[q] *= gain;
+                    float amp = r2c.out.writeBuf[q].amplitude();
+                    if (amp > 1) {
+                        r2c.out.writeBuf[q] = r2c.out.writeBuf[q] / amp;        // trim
+                    }
                 }
+                xlator1.process(rd, r2c.out.writeBuf, xlator1.out.writeBuf);        // this also removes first trimming artifacts
+                halfBandPassFilter.process(rd, xlator1.out.writeBuf, halfBandPassFilter.out.writeBuf);
+                xlator2.process(rd, halfBandPassFilter.out.writeBuf, xlator2.out.writeBuf);
+                for (int q = 0; q < rd; q++) {
+                    float amp = xlator2.out.writeBuf[q].amplitude();
+                    if (amp > 1) {
+                        xlator2.out.writeBuf[q] = xlator2.out.writeBuf[q] / amp;        // trim
+                    }
+                }
+                fullBandPassFilter.process(rd, xlator2.out.writeBuf, out.writeBuf); // remove trimming artifacts
             }
             else {
+                // sort of AM but without carrier.
                 dsp::convert::RealToComplex::process(rd, s2m.out.writeBuf, out.writeBuf);
             }
         }

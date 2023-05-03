@@ -41,7 +41,7 @@ namespace dsp::noise_reduction {
             }
             float power = 20.0 * log10f(sqrt(sum / (count*2)));
 
-            flog::info("db = {}", power);
+//            flog::info("db = {}", power);
             if (power >= _level) {
                 memcpy(out, in, count * sizeof(stereo_t));
             }
