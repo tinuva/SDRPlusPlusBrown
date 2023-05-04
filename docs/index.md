@@ -104,12 +104,12 @@ that is slightly less expensive, and has alternative PA and filters schematics, 
 
 ## Transmit mode
 
-Transmit mode is currently minimalistic. It supports microphone on desktop OS and built-in microphone on android. 
-There's an old picture from video of that historical moment (perspective corrected, fingers are distorted):
+Transmit mode is currently SSB-oriented. It supports microphone on desktop OS and built-in microphone on android. 
+There's an old picture from video of that first historical moment (perspective corrected, fingers are distorted):
+
+Since 2 May 2023 there's a [TX documentation](tx.md), you're welcome.
 
 ![](trx-mode.jpg)
-
-Since 2 May 2023 there's a [TX documentation](tx.md), you're welcome. 
 
 ## QSO Logging
 
