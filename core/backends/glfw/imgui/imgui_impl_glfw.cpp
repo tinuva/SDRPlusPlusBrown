@@ -319,8 +319,8 @@ void ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int keycode, int scancode, i
 
     ImGui_ImplGlfw_UpdateKeyModifiers(mods);
 
-    keycode = ImGui_ImplGlfw_TranslateUntranslatedKey(keycode, scancode);
-
+    auto nkeycode = ImGui_ImplGlfw_TranslateUntranslatedKey(keycode, scancode);
+    if (nkeycode >= 0) keycode = nkeycode;      // bug in glfw
     ImGuiIO& io = ImGui::GetIO();
     ImGuiKey imgui_key = ImGui_ImplGlfw_KeyToImGuiKey(keycode);
     io.AddKeyEvent(imgui_key, (action == GLFW_PRESS));

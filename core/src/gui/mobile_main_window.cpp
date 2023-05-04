@@ -1643,6 +1643,7 @@ void MobileMainWindow::draw() {
     //
     if (pressedButton == &this->lockFrequency || ImGui::IsKeyPressed(ImGuiKey_ScrollLock)) {
         encoder.enabled = !encoder.enabled;
+        showMenu = false;
         if (encoder.enabled) {
             currentDX = "";
             updateDXInfo();

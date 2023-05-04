@@ -215,7 +215,7 @@ namespace dsp {
 
         std::mutex lock;
         std::vector<T> data;
-        std::atomic_int dataSize;
+        std::atomic_int dataSize = 0;
 
         void fillFrom(const T*ptr, int size) {
             std::lock_guard lck(lock);

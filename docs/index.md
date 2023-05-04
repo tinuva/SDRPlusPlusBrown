@@ -34,6 +34,7 @@ read on below.
 * [Noise Reduction](#noise-reduction) - both for audio frequency and baseband (visual noise reduction!)
 * [Hermes Lite 2 support](#hermes-lite-2-support) - hl2_source plugin (don't confuse with hermes_source).
 * [Transmit mode](#transmit-mode) for Hermes Lite 2 - at the time of the writing, basic SSB transmit is implemented. See the [MANUAL](tx.md) 
+* [QSO / SWL Logging](#qso-logging) allows to add log records with date/time/frequency/callsign/rst etc. Optimized for mobile. 
 * [SNR Chart](#snr-chart) to compare SNR while tweaking antennas, de-noising etc.
 * Saving of zoom parameters between sessions
 * Mouse wheel support on the sliders
@@ -109,6 +110,13 @@ There's an old picture from video of that historical moment (perspective correct
 ![](trx-mode.jpg)
 
 Since 2 May 2023 there's a [TX documentation](tx.md), you're welcome. 
+
+## QSO Logging
+
+Logging is optimized for mobile devices, so it is possible to add a log record with a few taps, also 
+important because you don't want to spend extra hand for pencil & notebook.
+
+![](logging.jpg)
 
 ## SNR Chart
 
