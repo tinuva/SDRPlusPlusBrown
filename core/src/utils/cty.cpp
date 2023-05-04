@@ -161,11 +161,11 @@ namespace utils {
     }
 
 
-    void loadCTY(const std::string& filename, const std::string &region, CTY& cty) {
-        bool excludeWeirdThings = !region.empty();
+    void loadCTY(const char * filename, const char *region, CTY& cty) {
+        bool excludeWeirdThings = strlen(region);
         std::ifstream file(filename);
         if (!file.is_open()) {
-            throw std::runtime_error("Unable to open CTY file: "+filename);
+            throw std::runtime_error(std::string("Unable to open CTY file: ")+filename);
         }
         std::string line;
         std::vector<std::string> lineSplit;
@@ -246,14 +246,14 @@ namespace utils {
 
     void loadAllCty() {
         std::string resDir = core::configManager.conf["resourcesDirectory"];
-        loadCTY(resDir + "/cty/cty.dat", "", globalCty);
-        loadCTY(resDir + "/cty/AF_cty.dat", ", AF", globalCty);
-        loadCTY(resDir + "/cty/BY_cty.dat", ", CN", globalCty);
-        loadCTY(resDir + "/cty/EU_cty.dat", ", EU", globalCty);
-        loadCTY(resDir + "/cty/NA_cty.dat", ", NA", globalCty);
-        loadCTY(resDir + "/cty/SA_cty.dat", ", SA", globalCty);
-        loadCTY(resDir + "/cty/VK_cty.dat", ", VK", globalCty);
-        loadCTY(resDir + "/cty/cty_rus.dat", ", RUS", globalCty);
+        loadCTY((resDir + "/cty/cty.dat").c_str(), "", globalCty);
+        loadCTY((resDir + "/cty/AF_cty.dat").c_str(), ", AF", globalCty);
+        loadCTY((resDir + "/cty/BY_cty.dat").c_str(), ", CN", globalCty);
+        loadCTY((resDir + "/cty/EU_cty.dat").c_str(), ", EU", globalCty);
+        loadCTY((resDir + "/cty/NA_cty.dat").c_str(), ", NA", globalCty);
+        loadCTY((resDir + "/cty/SA_cty.dat").c_str(), ", SA", globalCty);
+        loadCTY((resDir + "/cty/VK_cty.dat").c_str(), ", VK", globalCty);
+        loadCTY((resDir + "/cty/cty_rus.dat").c_str(), ", RUS", globalCty);
 
     }
 

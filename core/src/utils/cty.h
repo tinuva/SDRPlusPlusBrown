@@ -49,7 +49,6 @@ namespace utils {
         Callsign findCallsign(const std::string& callsign) const;
     };
 
-    [[maybe_unused]] SDRPP_EXPORT void loadCTY(const std::string &filename, const std::string &region, CTY &cty);
     SDRPP_EXPORT LatLng gridToLatLng(std::string locatorString);
     SDRPP_EXPORT BearingDistance bearingDistance(LatLng fromCoords, LatLng toCoords);
     SDRPP_EXPORT CTY globalCty;
