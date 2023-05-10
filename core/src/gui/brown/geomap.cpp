@@ -1,14 +1,12 @@
 
 #define IMGUI_DEFINE_MATH_OPERATORS
-#include <gui/widgets/geomap.h>
+#include <gui/brown/geomap.h>
 #include <fstream>
 #include <core.h>
 #include <utils/wstr.h>
 #include <utils/flog.h>
 #include <gui/widgets/finger_button.h>
 #include <filesystem>
-#include <sstream>
-#include <iomanip>
 #include <random>
 #include <imgui/imgui_internal.h>
 

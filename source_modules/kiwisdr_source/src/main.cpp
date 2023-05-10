@@ -15,8 +15,7 @@ inline void usleep(int micros) {
 #include <gui/widgets/finger_button.h>
 #include <signal_path/signal_path.h>
 #include <core.h>
-#include <gui/widgets/geomap.h>
-#include <gui/gui.h>
+#include <gui/brown/geomap.h>
 #include <config.h>
 #include <utils/optionlist.h>
 #include "utils/proto/websock.h"

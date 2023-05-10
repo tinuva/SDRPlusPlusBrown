@@ -114,7 +114,11 @@ Since 2 May 2023 there's a [TX documentation](tx.md), you're welcome.
 ## QSO Logging
 
 Logging is optimized for mobile devices, so it is possible to add a log record with a few taps, also 
-important because you don't want to spend extra hand for pencil & notebook.
+important because you don't want to spend extra hand for pencil & notebook. Logging is available in QSO mode,
+you must press "Lock" (shortcut: Scroll-Lock). Enter key adds a QSO record. Scroll lock again will close and forget.
+Inside the text, 1st word is DX callsign, then op name, then qth. If Rnn, Snn, nn is encountered
+it is parsed as received/sent RST. Remainder of text is comment. UI is minimal. Text file "qso.log" is written.
+Haptic feedback on Android.
 
 ![](logging.jpg)
 

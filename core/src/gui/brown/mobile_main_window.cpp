@@ -1,9 +1,9 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #define _USE_MATH_DEFINES // NOLINT(bugprone-reserved-identifier)
-#include <gui/mobile_main_window.h>
+#include "mobile_main_window.h"
 #include <gui/gui.h>
-#include "imgui_internal.h"
-#include "imgui.h"
+#include <imgui_internal.h>
+#include <imgui.h>
 #include <cstdio>
 #include <thread>
 #include <algorithm>
@@ -17,18 +17,17 @@
 #include <gui/menus/theme.h>
 #include <filesystem>
 #include <gui/tuner.h>
-#include <gui/widgets/small_waterfall.h>
-#include "../../decoder_modules/radio/src/radio_module.h"
-#include "../../misc_modules/noise_reduction_logmmse/src/arrays.h"
-#include "../../misc_modules/noise_reduction_logmmse/src/af_nr.h"
-#include "dsp/convert/stereo_to_mono.h"
-#include "dsp/convert/real_to_complex.h"
-#include "dsp/convert/complex_to_real.h"
-#include "dsp/channel/frequency_xlator.h"
-#include "ctm.h"
-#include "utils/strings.h"
+#include <gui/brown/small_waterfall.h>
+#include "../../../decoder_modules/radio/src/radio_module.h"
+#include "../../../misc_modules/noise_reduction_logmmse/src/arrays.h"
+#include "../../../misc_modules/noise_reduction_logmmse/src/af_nr.h"
+#include "../dsp/convert/stereo_to_mono.h"
+#include "../dsp/convert/real_to_complex.h"
+#include "../dsp/convert/complex_to_real.h"
+#include "../dsp/channel/frequency_xlator.h"
+#include <ctm.h>
+#include <utils/strings.h>
 #include <cmath>
-#include <utility>
 
 using namespace ::dsp::arrays;
 

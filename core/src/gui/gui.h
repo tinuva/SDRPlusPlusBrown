@@ -4,7 +4,7 @@
 #include <gui/widgets/menu.h>
 #include <gui/dialogs/loading_screen.h>
 #include <module.h>
-#include <gui/mobile_main_window.h>
+#include <gui/brown/mobile_main_window.h>
 #include <gui/theme_manager.h>
 
 namespace gui {

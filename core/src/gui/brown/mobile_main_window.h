@@ -8,8 +8,8 @@
 #include <utils/event.h>
 #include <mutex>
 #include <gui/tuner.h>
-#include "main_window.h"
-#include "signal_path/sink.h"
+#include "../main_window.h"
+#include <signal_path/sink.h>
 
 
 struct TheEncoder {
