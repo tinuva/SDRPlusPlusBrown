@@ -3,7 +3,7 @@ $root_dir=$args[1]
 
 mkdir sdrpp_windows_x64
 
-set RELDIR=RelWithDebInfo
+$RELDIR=RelWithDebInfo
 
 # Copy root
 cp -Recurse $root_dir/* sdrpp_windows_x64/
