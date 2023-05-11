@@ -91,7 +91,7 @@ FM modulated signal etc.
 
 ## Hermes Lite 2 support
 
-This small device, produced by [Hermes Project](http://www.hermeslite.com/) is an interesting good SDR receiver. 
+This small device, produced by [Hermes Project](http://www.hermeslite.com/) is an interesting good SDR transciever. 
 Made of cheap parts, it has 12bit ADC, 5W Power amplifier, pass-band filters and 48KHz transmit stream bandwidth. 
 It is connected via Ethernet, so it does not require any drivers.
 
