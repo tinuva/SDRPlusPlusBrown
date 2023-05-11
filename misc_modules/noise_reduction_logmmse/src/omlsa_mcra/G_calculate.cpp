@@ -6,12 +6,8 @@
 
 using namespace std;
 
+extern const char *sdrppResourcesDirectory;
 
-void omlsa_setResDir(std::string dir) {
-    G_calculate::resDir = dir;
-}
-
-std::string G_calculate::resDir;
 G_calculate::G_calculate()
 {
 }
@@ -171,7 +167,7 @@ short G_calculate::Initialize(int wlen) {
 
 
 //	const char* FileexpG = "/home/san/Fun/OMLSA-MCRA/OM_LSA/Gvalue2.pcm";
-    std::string full = resDir + "/cty/oomlsa_gcra_gvalue2.pcm";
+    std::string full = std::string(sdrppResourcesDirectory) + "/cty/oomlsa_gcra_gvalue2.pcm";
 #ifdef _WIN32
     std::replace(full.begin(), full.end(), '/', '\\');
     std::string::size_type pos = 0;

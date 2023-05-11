@@ -9,8 +9,6 @@
 
 class Datablock_Read;
 
-extern void omlsa_setResDir(std::string dir);
-
 namespace dsp {
     struct omlsa_mcra {
 

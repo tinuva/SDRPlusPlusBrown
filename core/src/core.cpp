@@ -43,6 +43,8 @@ void setproctitle(const char* fmt, ...) {
     memcpy(core::args.systemArgv, new_argv, sizeof(new_argv));
 }
 
+const char *sdrppResourcesDirectory; // to reference from C files.
+
 #else
 void setproctitle(const char* fmt, ...) {
 }
@@ -617,6 +619,7 @@ int sdrpp_main(int argc, char* argv[]) {
 
     core::configManager.acquire();
     std::string resDir = core::configManager.conf["resourcesDirectory"];
+    sdrppResourcesDirectory = strdup(resDir.c_str());
     json bandColors = core::configManager.conf["bandColors"];
     core::configManager.release();
 

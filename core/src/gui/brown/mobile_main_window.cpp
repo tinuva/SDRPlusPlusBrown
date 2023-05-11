@@ -2013,8 +2013,6 @@ void MobileMainWindow::init() {
     readQSOList();
 
 
-    omlsa_setResDir(core::configManager.conf["resourcesDirectory"]);
-
     getConfig("showAudioWaterfall", drawAudioWaterfall);
     getConfig("logbookPopupPosition_x", logbookPopupPosition.x);
     getConfig("logbookPopupPosition_y", logbookPopupPosition.y);

@@ -5,6 +5,7 @@
 #include "command_args.h"
 #include <atomic>
 
+
 namespace core {
     SDRPP_EXPORT ConfigManager configManager;
     SDRPP_EXPORT ModuleManager moduleManager;
@@ -49,6 +50,8 @@ inline std::string GetThreadName( ) {
 #endif
     return "??";
 }
+
+SDRPP_EXPORT const char *sdrppResourcesDirectory; // to reference from C files.
 
 
 int sdrpp_main(int argc, char* argv[]);

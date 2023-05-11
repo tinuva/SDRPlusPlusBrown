@@ -101,7 +101,6 @@ namespace dsp {
 //                _this->params.hold = txActive;
             };
 
-            omlsa_setResDir(core::configManager.conf["resourcesDirectory"]);
 
             omlsa_mcra.setSampleRate(48000);
             sigpath::txState.bindHandler(&txHandler);

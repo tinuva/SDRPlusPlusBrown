@@ -7,8 +7,7 @@ class G_calculate
 {
 public:
 	G_calculate();
-    static std::string resDir;
-	short G_calculate_process(Complex_num* m_winData, int blockInd);
+ 	short G_calculate_process(Complex_num* m_winData, int blockInd);
 	short Initialize(int wlen);
 	~G_calculate();
 	double abc[frame_max]; double bcd[frame_max]; double cde[frame_max]; double aa[frame_max];
