@@ -777,6 +777,7 @@ public:
 
 
     ~FT8DecoderModule() {
+        disable();
         gui::waterfall.afterWaterfallDraw.unbindHandler(&afterWaterfallDrawListener);
         std::for_each(allDecoders.begin(), allDecoders.end(), [&](SingleDecoder* d) {
             d->destroy();
@@ -796,13 +797,6 @@ public:
     }
 
     void disable() {
-        // Stop DSP here
-        //        decoder.stop();
-        //        resamp.stop();
-        //        reshape.stop();
-        //        diagHandler.stop();
-        //
-        //        sigpath::vfoManager.deleteVFO(vfo);
 
         if (enabled) {
             std::for_each(allDecoders.begin(), allDecoders.end(), [](auto& d) { d->unbind(); });

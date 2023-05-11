@@ -6,7 +6,7 @@
 * [Source code](https://github.com/sannysanoff/SDRPlusPlusBrown/)
 * [Читать описание по-русски](https://sdrpp--brown-san-systems.translate.goog/?_x_tr_sch=http&_x_tr_sl=en&_x_tr_tl=ru&_x_tr_hl=en&_x_tr_pto=wapp) через гугл-переводчик, норм переводит, я подстраивался.
 * [Telegram group](https://t.me/sdrpp_hermes_fork) for feedback.
-* [Transmitting HOWTO](tx.md)  how to transmit SSB using Hermes Lite 2
+* [Transmitting HOWTO](tx.md)  how to transmit SSB using Hermes Lite 2 and SDR++Brown.
 
 ## What is SDR++ (and its fork)
 
