@@ -2,6 +2,12 @@
 
 Newest entries are at the top.
 
+2023.06.05
+
+* Added QSO audio recording. Click on the recorded QSO, and in the dialog it is possible to change text, to listen to the record.
+* Added "Call CQ" recorders/player. It is possible to record "CQ 20 meters, CQ 20 meters, ..." and replay many times on the air.
+* Added the Kiwisdr dialog to select the KiwiSDR server. No two finger zoom, alas. Only buttons. 
+
 2023.05.03
 
 * Improved TX pipeline (lowpass/compression part). Fixed issue with random non-start of hermes lite 2 driver.
