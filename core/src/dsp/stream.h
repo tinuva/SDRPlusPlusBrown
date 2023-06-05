@@ -32,24 +32,16 @@ namespace dsp {
 
         const char *origin;
         const char originBuf[100] = "stream without origin";
+        bool debugTraffic = false;
 
         stream() {
             static int streamCount = 0;
             int sc = streamCount++;
             sprintf((char*)originBuf, "stream %d", sc);
-            if (sc == 27 || sc == 28 || sc > 1000000) {
-                switch(sc) {
-                case 27:
-                    logDebugMessage("stream 27");
-                    break;
-                case 28:
-                    logDebugMessage("stream 28");
-                    break;
-                default:
-                    abort();
-                }
-            }
             this->origin = &originBuf[0];
+            if (sc == 51) {
+                printf("Here stream 51\n");
+            }
             initBuffers();
         }
         stream(const char *origin) : stream() {
@@ -128,6 +120,10 @@ namespace dsp {
 //            if (this->origin == "merger.out") {
 //                flog::info("stream::read:: has been read from merger.out: {}", rv);
 //            }
+            if (debugTraffic) {
+                flog::info("reading stream {}: return {} samples", origin, rv);
+            }
+
             return (rv);
         }
 

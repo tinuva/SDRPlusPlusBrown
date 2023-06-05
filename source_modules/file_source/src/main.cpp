@@ -3,15 +3,15 @@
 #include <module.h>
 #include <gui/gui.h>
 #include <signal_path/signal_path.h>
-#include <wavreader.h>
+#include <utils/wav.h>
 #include <core.h>
 #include <gui/widgets/file_select.h>
 #include <filesystem>
 #include <regex>
 #include <gui/tuner.h>
-#include <iostream>
 #include <time.h>
-#include <ctime>
+#include "gui/smgui.h"
+#include "utils/usleep.h"
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -30,7 +30,7 @@ public:
     FileSourceModule(std::string name) : fileSelect("", { "Wav IQ Files (*.wav)", "*.wav", "All Files", "*" }) {
         this->name = name;
 
-        if (core::args["server"].b()) { return; }
+//        if (core::args["server"].b()) { return; }
 
         config.acquire();
         fileSelect.setPath(config.conf["path"], true);
@@ -117,6 +117,16 @@ private:
 
     static void menuHandler(void* ctx) {
         FileSourceModule* _this = (FileSourceModule*)ctx;
+        if (core::args["server"].b()) {
+            if (!_this->reader) {
+                _this->openPathFromFileSelect();
+            }
+            SmGui::FillWidth();
+            SmGui::ForceSync();
+            SmGui::Text("Remote file source");
+            SmGui::Text("cannot be configured");
+            return;
+        }
 
         if (_this->fileSelect.render("##file_source_" + _this->name)) {
             if (_this->fileSelect.pathIsValid()) {
@@ -124,29 +134,7 @@ private:
                     _this->reader->close();
                     delete _this->reader;
                 }
-                try {
-                    _this->reader = new WavReader(_this->fileSelect.path);
-                    _this->sampleRate = _this->reader->getSampleRate();
-                    core::setInputSampleRate(_this->sampleRate);
-                    std::string filename = std::filesystem::path(_this->fileSelect.path).filename().string();
-                    double newFrequency = _this->getFrequency(filename);
-                    _this->streamStartTime = _this->getStartTime(filename);
-                    bool fineTune = gui::waterfall.containsFrequency(newFrequency);
-//                    auto prevFrequency = sigpath::vfoManager.getName();
-                    _this->centerFreq = newFrequency;
-                    _this->centerFreqSet = true;
-                    tuner::tune(tuner::TUNER_MODE_IQ_ONLY, "", _this->centerFreq);
-                    if (fineTune) {
-                        // restore the fine tune. When working with file source and restarting the app, the fine tune is lost
-//                        tuner::tune(tuner::TUNER_MODE_NORMAL, "_current", prevFrequency);
-                    }
-                    //gui::freqSelect.minFreq = _this->centerFreq - (_this->sampleRate/2);
-                    //gui::freqSelect.maxFreq = _this->centerFreq + (_this->sampleRate/2);
-                    //gui::freqSelect.limitFreq = true;
-                }
-                catch (std::exception e) {
-                    flog::error("Error: {0}", e.what());
-                }
+                _this->openPathFromFileSelect();
                 config.acquire();
                 config.conf["path"] = _this->fileSelect.path;
                 config.release(true);
@@ -162,6 +150,32 @@ private:
         ImGui::Checkbox("Float32 Mode##_file_source", &_this->float32Mode);
     }
 
+    void openPathFromFileSelect() {
+        try {
+            reader = new wav::Reader(fileSelect.path);
+            sampleRate = reader->getSampleRate();
+            core::setInputSampleRate(sampleRate);
+            std::string filename = std::filesystem::__cxx11::path(fileSelect.path).filename().string();
+            double newFrequency = getFrequency(filename);
+            streamStartTime = getStartTime(filename);
+            bool fineTune = gui::waterfall.containsFrequency(newFrequency);
+//                    auto prevFrequency = sigpath::vfoManager.getName();
+            centerFreq = newFrequency;
+            centerFreqSet = true;
+            tuner::tune(tuner::TUNER_MODE_IQ_ONLY, "", centerFreq);
+            if (fineTune) {
+                // restore the fine tune. When working with file source and restarting the app, the fine tune is lost
+//                        tuner::tune(tuner::TUNER_MODE_NORMAL, "_current", prevFrequency);
+            }
+            //gui::freqSelect.minFreq = _this->centerFreq - (_this->sampleRate/2);
+            //gui::freqSelect.maxFreq = _this->centerFreq + (_this->sampleRate/2);
+            //gui::freqSelect.limitFreq = true;
+        }
+        catch (std::exception e) {
+            flog::error("Error: {0}", e.what());
+        }
+    }
+
     long long streamStartTime = 0;
 
     static void worker(void* ctx) {
@@ -172,7 +186,9 @@ private:
 
         long long samplesRead = 0;
         sigpath::iqFrontEnd.setCurrentStreamTime(_this->streamStartTime);
+        auto serverMode = core::args["server"].b();
 
+        auto ctm = currentTimeMillis();
         while (true) {
             _this->reader->readSamples(inBuf, blockSize * 2 * sizeof(int16_t));
             volk_16i_s32f_convert_32f((float*)_this->stream.writeBuf, inBuf, 32768.0f, blockSize * 2);
@@ -182,6 +198,15 @@ private:
             if (_this->streamStartTime != 0) {
                 long long currentTime = _this->streamStartTime + samplesRead * 1000 / sampleRate;
                 sigpath::iqFrontEnd.setCurrentStreamTime(currentTime);
+            }
+            if (serverMode) {
+                auto blockLength = (1000 * blockSize) / sampleRate;
+                ctm += blockLength;
+                auto now = currentTimeMillis();
+                auto delay = ctm - now;
+                if (delay > 0) {
+                    usleep(delay * 1000);
+                }
             }
         }
 
@@ -260,7 +285,7 @@ private:
     std::string name;
     dsp::stream<dsp::complex_t> stream;
     SourceManager::SourceHandler handler;
-    WavReader* reader = NULL;
+    wav::Reader* reader = NULL;
     bool running = false;
     bool enabled = true;
     float sampleRate = 1000000;

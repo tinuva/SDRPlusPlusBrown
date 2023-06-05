@@ -2660,6 +2660,7 @@ void DecoderFt8::PrintMsg(QString tmm,int nsnr,double xdt,double f1,QString mess
 void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqso,bool &have_dec,
                             int id3dec,double w_f00,double w_f01)//,int /*npts no need*/)
 {
+    outCount = 0;
     have_dec = false;
     int cont_type = 0;
     int cont_id   = 0;

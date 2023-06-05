@@ -382,33 +382,26 @@ int sdrpp_main(int argc, char* argv[]) {
 
     // Menu
     defConfig["menuElements"] = json::array();
-
-    defConfig["menuElements"][0]["name"] = "Source";
-    defConfig["menuElements"][0]["open"] = true;
-
-    defConfig["menuElements"][1]["name"] = "Radio";
-    defConfig["menuElements"][1]["open"] = true;
-
-    defConfig["menuElements"][2]["name"] = "Recorder";
-    defConfig["menuElements"][2]["open"] = true;
-
-    defConfig["menuElements"][3]["name"] = "Sinks";
-    defConfig["menuElements"][3]["open"] = true;
-
-    defConfig["menuElements"][3]["name"] = "Frequency Manager";
-    defConfig["menuElements"][3]["open"] = true;
-
-    defConfig["menuElements"][4]["name"] = "VFO Color";
-    defConfig["menuElements"][4]["open"] = true;
-
-    defConfig["menuElements"][6]["name"] = "Band Plan";
-    defConfig["menuElements"][6]["open"] = true;
-
-    defConfig["menuElements"][7]["name"] = "Display";
-    defConfig["menuElements"][7]["open"] = true;
-
-    defConfig["menuElements"][8]["name"] = "WebSDR View";
-    defConfig["menuElements"][8]["open"] = false;
+    auto &menuElements  = defConfig["menuElements"];
+    std::vector<std::pair<const char *, bool>> openState = {
+        {"Source", true},
+        {"Radio", true},
+        {"Recorder", false},
+        {"Sinks", false},
+        {"Frequency Manager", false},
+        {"VFO Color", false},
+        {"Band Plan", false},
+        {"Display", true},
+        {"WebSDR View", false},
+        {"Noise Reduction logmmse", false},
+        {"FT8/FT4 Decoder", false},
+        {"Rigctl Server", false},
+        {"Module Manager", false},
+    };
+    for(auto &p: openState) {
+        menuElements[menuElements.size() - 0]["name"] = p.first;
+        menuElements[menuElements.size() - 1]["open"] = p.second;
+    }
 
 
 #ifdef __ANDROID__
@@ -471,6 +464,8 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["moduleInstances"]["Rigctl Server"] = "rigctl_server";
     defConfig["moduleInstances"]["Noise Reduction logmmse"]["module"] = "noise_reduction_logmmse";
     defConfig["moduleInstances"]["Noise Reduction logmmse"]["enabled"] = true;
+    defConfig["moduleInstances"]["FT8/FT4 Decoder"]["module"] = "ft8_decoder";
+    defConfig["moduleInstances"]["FT8/FT4 Decoder"]["enabled"] = true;
     // defConfig["moduleInstances"]["Rigctl Client"] = "rigctl_client";
     // TODO: Enable rigctl_client when ready
     // defConfig["moduleInstances"]["Scanner"] = "scanner";

@@ -5,6 +5,7 @@
 #include <filesystem>
 #include "utils/wstr.h"
 #include "utils/usleep.h"
+#include "core.h"
 
 ConfigManager::ConfigManager() {
 }
@@ -96,6 +97,7 @@ void ConfigManager::autoSaveWorker() {
         }
         mtx.unlock();
 
+        SetThreadName("autosave");
         // Sleep but listen for wakeup call
         {
             std::unique_lock<std::mutex> lock(termMtx);

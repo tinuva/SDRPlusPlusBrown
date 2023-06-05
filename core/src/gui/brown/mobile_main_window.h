@@ -53,6 +53,8 @@ struct MobileButton {
 
 struct SubWaterfall;
 
+struct MobileMainWindowPrivate;
+
 
 class MobileMainWindow : public MainWindow {
 public:
@@ -72,15 +74,19 @@ public:
     MobileButton txButton;
     MobileButton softTune;
     MobileButton lockFrequency;
+    MobileButton dummy;
+    MobileButton callCQ;
     std::shared_ptr<ConfigPanel> configPanel;
     std::shared_ptr<QSOPanel> qsoPanel;
     std::shared_ptr<CWPanel> cwPanel;
     int smallWheelFunctionN = 0;
 
     std::string currentDXInfo = "";
+    bool doQSOAudioRecording = true;
 
 
     std::shared_ptr<SubWaterfall> audioWaterfall;
+    std::shared_ptr<MobileMainWindowPrivate> pvt;
     dsp::stream<dsp::stereo_t> *currentAudioStream = nullptr;
     int currentAudioStreamSampleRate = 0;
     std::string currentAudioStreamName = "";
@@ -224,4 +230,5 @@ public:
 
     ImVec2 logbookPopupPosition = ImVec2(0, 0);
     void logbookEntryPopup(int frequency);
+    void logbookDetailsPopup();
 };

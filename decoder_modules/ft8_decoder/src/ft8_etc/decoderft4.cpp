@@ -930,6 +930,7 @@ void DecoderFt4::SetNewP(bool f)
 void DecoderFt4::ft4_decode(double *dd,double f0a,double f0b,double f0a1,double f0b1,double fqso,bool &have_dec)//,int /*npts no need*/)
 {
     have_dec = false;
+    outCount = 0;
     const int NDOWN=18;                 //!Downsample factor
     const int NSPS=576;
     const int NSS=NSPS/NDOWN;//=32

@@ -496,8 +496,6 @@ namespace backend {
     };
 }
 
-//extern void doDecode(const char *path, std::function<void(int mode, std::vector<std::string> result)> callback);
-
 extern "C" {
     void android_main(struct android_app* app) {
         // Save app instance

@@ -16,7 +16,7 @@
 #include <utils/wstr.h>
 #include <utils/strings.h>
 
-extern void doDecode(const char *mode, const char *path, std::function<void(int mode, std::vector<std::string> result)> callback);
+extern void doDecode(const char *mode, const char *path, int threads, std::function<void(int mode, std::vector<std::string> result)> callback);
 
 
 static void help(const char *cmd) {
@@ -41,6 +41,7 @@ int main(int argc, char* argv[]) {
 #endif
     std::string decodeFile;
     std::string mode = "ft8";
+    int threads = 1;
     for(int i=1; i<argc; i++) {
         if (!strcmp(argv[i],"--decode")) {
             i++;
@@ -52,6 +53,15 @@ int main(int argc, char* argv[]) {
             i++;
             if (i < argc) {
                 mode = argv[i];
+            }
+        }
+        if (!strcmp(argv[i],"--threads")) {
+            i++;
+            if (i < argc) {
+                threads = atoi(argv[i]);
+                if (threads < 1 || threads > 8) {
+                    threads = 1;
+                }
             }
         }
     }
@@ -67,7 +77,7 @@ int main(int argc, char* argv[]) {
     if (mode == "ft8" || mode == "ft4") {
         fprintf(stdout, "Using mode: %s\n", mode.c_str());
         fprintf(stdout, "Using file: %s\n", decodeFile.c_str());
-        doDecode(mode.c_str(), decodeFile.c_str(), [](int mode, std::vector<std::string> result) {
+        doDecode(mode.c_str(), decodeFile.c_str(), threads, [](int mode, std::vector<std::string> result) {
         });
         exit(0);
     } else {

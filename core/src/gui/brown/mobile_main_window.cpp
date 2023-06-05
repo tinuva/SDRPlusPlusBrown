@@ -22,12 +22,11 @@
 #include "../../../misc_modules/noise_reduction_logmmse/src/arrays.h"
 #include "../../../misc_modules/noise_reduction_logmmse/src/af_nr.h"
 #include "../dsp/convert/stereo_to_mono.h"
-#include "../dsp/convert/real_to_complex.h"
-#include "../dsp/convert/complex_to_real.h"
-#include "../dsp/channel/frequency_xlator.h"
+#include "utils/wav.h"
 #include <ctm.h>
 #include <utils/strings.h>
 #include <cmath>
+#include "audio_player.h"
 
 using namespace ::dsp::arrays;
 
@@ -35,8 +34,10 @@ float trxAudioSampleRate = 48000.0;
 
 const int nSmallWheelFunctions = 3;
 
+const char* RecordCallCQPopup = "Record CallCQ";
 const char* TxModePopup = "TX/RX Mode Select";
 const char* LogBookEntryPopup = "Logbook Entry";
+const char* LogBookDetailsPopup = "Logbook Details";
 
 struct QSORecord {
     std::string dxcall;     // eg W1WWW
@@ -46,12 +47,63 @@ struct QSORecord {
     std::string sentRST;        // eg 59
     std::string datetime;       // e.g. 2023-12-01 14:44
     std::string fulltext;       // whatever user entered
+    std::string recordedQSO;
     int frequency;              // e.g. 14215
+    std::string toJson() {
+        auto rv = json({});
+        rv["dxcall"] = dxcall;
+        if (name != "") {
+            rv["name"] = name;
+        }
+        if (qth != "") {
+            rv["qth"] = qth;
+        }
+        if (receivedRST != "") {
+            rv["receivedRST"] = receivedRST;
+        }
+        if (sentRST != "") {
+            rv["sentRST"] = sentRST;
+        }
+        rv["datetime"] = datetime;
+        rv["frequency"] = frequency;
+        rv["fulltext"] = fulltext;
+        if (recordedQSO != "") {
+            rv["recordedQSO"] = recordedQSO;
+        }
+        return rv.dump();
+    }
+
+    bool initFrom(const json &j) {
+        if (j.contains("dxcall") && j.contains("datetime") && j.contains("frequency") && j.contains("fulltext")) {
+            dxcall = j["dxcall"];
+            datetime = j["datetime"];
+            frequency = j["frequency"];
+            fulltext = j["fulltext"];
+        } else {
+            return false;
+        }
+        if (j.contains("name")) {
+            name = j["name"];
+        }
+        if (j.contains("qth")) {
+            qth = j["qth"];
+        }
+        if (j.contains("receivedRST")) {
+            receivedRST = j["receivedRST"];
+        }
+        if (j.contains("sentRST")) {
+            sentRST = j["sentRST"];
+        }
+        if (j.contains("recordedQSO")) {
+            recordedQSO = j["recordedQSO"];
+        }
+        return true;
+    }
 };
 
 // e.g: W1WWW R59 alex marsala S59
-QSORecord parseQsoRecord(const std::vector<std::string> &f) {
-    QSORecord r;
+QSORecord parseQsoRecord(QSORecord input, const std::vector<std::string> &f) {
+    QSORecord r = input;
     int wordScan = 0;
     for(int q=0; q<f.size(); q++) {
         if (wordScan > 0) {
@@ -99,7 +151,7 @@ QSORecord parseQsoRecord(const std::vector<std::string> &f) {
 QSORecord parseAddQsoRecord(const std::string &s, int frequency) {
     std::vector<std::string> f;
     splitStringV(s, " ", f);
-    auto r = parseQsoRecord(f);
+    auto r = parseQsoRecord(QSORecord{}, f);
     long long int cst = currentTimeMillis();
     std::time_t t = cst /1000;
     auto tmm = std::gmtime(&t);
@@ -115,15 +167,17 @@ QSORecord parseAddQsoRecord(const std::string &s, int frequency) {
 
 std::vector<QSORecord> qsoRecords;
 
-void addQsoRecord(const QSORecord& r) {
-    qsoRecords.emplace_back(r);
+void writeQSOList() {
     auto root = (std::string)core::args["root"];
-    FILE *f = fopen((root + "/qso.txt").c_str(), "at");
-    if (f) {
-        fprintf(f, "%s %d %s\n", r.datetime.c_str(), r.frequency, r.fulltext.c_str());
-        fclose(f);
+    FILE* f = fopen((root + "/qso.txt.new").c_str(), "wt");
+    for(auto &q: qsoRecords) {
+        fprintf(f, "%s\n", q.toJson().c_str());
     }
+    fclose(f);
+    remove((root + "/qso.txt").c_str());
+    rename((root + "/qso.txt.new").c_str(), (root + "/qso.txt").c_str());
 }
+
 
 void readQSOList() {
     auto root = (std::string)core::args["root"];
@@ -145,21 +199,36 @@ void readQSOList() {
             if (l[strlen(l)-1] == '\r') {
                 l[strlen(l)-1] = 0;
             }
+            
             std::vector<std::string> f;
-            splitStringV(std::string(l), " ", f);
-            if (f.size() < 4) {
+            auto line = std::string(l);
+            if (line.size() == 0) {
                 continue;
             }
-            auto timestamp = f[0] + " " + f[1];
-            auto frequency = std::strtol(f[2].c_str(), nullptr, 10);
-            f.erase(f.begin()); // first part of time
-            f.erase(f.begin()); // second part of time
-            f.erase(f.begin()); // frequency
-            auto qso = parseQsoRecord(f);
-            qso.datetime = timestamp;
-            qso.frequency = frequency;
-            qso.fulltext = std::string(l);
-            qsoRecords.emplace_back(qso);
+            if (line[0] == '{') {
+                json j;
+                std::stringstream ss(line);
+                ss >> j;
+                auto r = QSORecord();
+                if (r.initFrom(j)) {
+                    qsoRecords.emplace_back(r);
+                }
+            } else {
+                splitStringV(line, " ", f);
+                if (f.size() < 4) {
+                    continue;
+                }
+                auto timestamp = f[0] + " " + f[1];
+                auto frequency = std::strtol(f[2].c_str(), nullptr, 10);
+                f.erase(f.begin()); // first part of time
+                f.erase(f.begin()); // second part of time
+                f.erase(f.begin()); // frequency
+                auto qso = parseQsoRecord(QSORecord{}, f);
+                qso.datetime = timestamp;
+                qso.frequency = frequency;
+                qso.fulltext = line;
+                qsoRecords.emplace_back(qso);
+            }
         }
 //        fprintf(f, "%s %d %s\n", r.datetime.c_str(), r.frequency, r.fulltext.c_str());
         fclose(f);
@@ -941,11 +1010,13 @@ struct ConfigPanel {
 
 struct QSOPanel {
 
-    QSOPanel() : audioInProcessedIn(), audioInProcessed(&audioInProcessedIn) {
+    QSOPanel() : audioInProcessedMerger(), audioInProcessed() {
+        audioInProcessed.init(audioInProcessedMerger.getOutput());
         audioIn.origin = "qsopanel.audioin";
         audioTowardsTransmitter.origin = "qsopanel.audioInToTransmitter";
-        audioInProcessedIn.origin = "qsopanel.audioInProcessedIn";
         audioInProcessed.origin = "QSOPanel.audioInProcessed";
+        audioInProcessedMerger.bindStream(100, &audioProcessedOut);
+        audioInProcessedMerger.start();
     }
     virtual ~QSOPanel();
     void startAudioPipeline();
@@ -953,8 +1024,9 @@ struct QSOPanel {
     void stopAudioPipeline();
     void draw(float currentFreq, ImGui::WaterfallVFO* pVfo);
     dsp::stream<dsp::stereo_t> audioIn;
-    dsp::stream<dsp::stereo_t> audioInProcessedIn;
+    dsp::stream<dsp::stereo_t> audioProcessedOut;
     dsp::routing::Splitter<dsp::stereo_t> audioInProcessed;
+    dsp::routing::Merger<dsp::stereo_t> audioInProcessedMerger;
     dsp::stream<dsp::stereo_t> audioTowardsTransmitter;
     std::shared_ptr<ConfigPanel> configPanel;
 
@@ -986,6 +1058,189 @@ struct QSOPanel {
     float maxTxSignalPeak = 0.0;
     int64_t maxTxSignalPeakTime = 0;
 };
+
+struct QSOAudioRecorder {
+
+    const int SECONDS_ADVANCE = 10;
+    const int MAX_SECONDS_SIZE = 60 * 3;    // 180 seconds loop
+    std::mutex qsoAudioRecordingBufferMutex;
+    std::vector<dsp::stereo_t> qsoAudioRecordingBuffer;
+    dsp::stream<dsp::stereo_t> *radioStream;
+    dsp::stream<dsp::stereo_t> micStream;
+    bool running = false;
+    std::string boundStream;
+    bool prevQsoInProcess = false;
+    bool recordRadio = true;            // recording source; false = record mic
+    dsp::routing::Splitter<dsp::stereo_t> *audioInProcessed;
+
+    void init(dsp::routing::Splitter<dsp::stereo_t> *audioInProcessed) {
+        this->audioInProcessed = audioInProcessed;
+        auto names = sigpath::sinkManager.getStreamNames();
+        if (!names.empty()) {
+            // Select the stream
+            radioStream = sigpath::sinkManager.bindStream(boundStream = names[0]);
+            if (!radioStream) {
+                return;
+            }
+            running = true;
+            std::thread([this]() {
+                this->runReadRadioStream();
+            }).detach();
+            std::thread([this]() {
+                this->runReadMicStream();
+            }).detach();
+        }
+        audioInProcessed->bindStream(&micStream);
+    }
+
+    void runReadRadioStream() {
+        while(running) {
+            int rd = radioStream->read();
+            if (rd < 0) {
+                break;
+            }
+            incomingRadio(radioStream->readBuf, rd);
+            radioStream->flush();
+        }
+        running = false;
+    }
+
+    void runReadMicStream() {
+        while(running) {
+            int rd = micStream.read();
+            if (rd < 0) {
+                break;
+            }
+            incomingMic(micStream.readBuf, rd);
+            micStream.flush();
+        }
+        running = false;
+    }
+
+    void updateControlState(bool qsoInProcess, bool txButton) {
+        std::lock_guard g(qsoAudioRecordingBufferMutex);
+        if (prevQsoInProcess != qsoInProcess) {
+            // qso started / ended
+            if (qsoAudioRecordingBuffer.size() > SECONDS_ADVANCE * trxAudioSampleRate) {
+                // leave only SECONDS_ADVANCE seconds on qso start
+                qsoAudioRecordingBuffer.erase(qsoAudioRecordingBuffer.begin(), qsoAudioRecordingBuffer.begin() + qsoAudioRecordingBuffer.size() - (SECONDS_ADVANCE * trxAudioSampleRate));
+            }
+        }
+        recordRadio = !txButton;
+        prevQsoInProcess = qsoInProcess;
+    }
+
+    void incomingRadio(dsp::stereo_t* pStereo, int i) {
+        if (recordRadio) {
+            std::lock_guard g(qsoAudioRecordingBufferMutex);
+            qsoAudioRecordingBuffer.insert(qsoAudioRecordingBuffer.end(), pStereo, pStereo + i);
+            if (qsoAudioRecordingBuffer.size() > MAX_SECONDS_SIZE * trxAudioSampleRate) {
+                // remove 5 seconds
+                qsoAudioRecordingBuffer.erase(qsoAudioRecordingBuffer.begin(), qsoAudioRecordingBuffer.begin() + (5 * trxAudioSampleRate));
+            }
+        }
+    }
+    void incomingMic(dsp::stereo_t* pStereo, int i) {
+        if (!recordRadio) {
+            std::lock_guard g(qsoAudioRecordingBufferMutex);
+            qsoAudioRecordingBuffer.insert(qsoAudioRecordingBuffer.end(), pStereo, pStereo + i);
+            if (qsoAudioRecordingBuffer.size() > MAX_SECONDS_SIZE * trxAudioSampleRate) {
+                // remove 5 seconds
+                qsoAudioRecordingBuffer.erase(qsoAudioRecordingBuffer.begin(), qsoAudioRecordingBuffer.begin() + (5 * trxAudioSampleRate));
+            }
+        }
+    }
+
+    void end() {
+        running = false;
+        radioStream->stopReader();
+        radioStream->stopWriter();
+        sigpath::sinkManager.unbindStream(boundStream, radioStream);
+        audioInProcessed->unbindStream(&micStream);
+    }
+
+    void flushToFile(const std::string &where) {
+        wav::Writer w;
+        w.setChannels(2);
+        w.setFormat(wav::FORMAT_WAV);
+        w.setSampleType(wav::SAMP_TYPE_FLOAT32);
+        w.setSamplerate(trxAudioSampleRate);
+        if (!w.open(where)) {
+            return;
+        }
+        std::lock_guard g(qsoAudioRecordingBufferMutex);
+        w.write((float *)qsoAudioRecordingBuffer.data(), qsoAudioRecordingBuffer.size());
+        w.close();
+        qsoAudioRecordingBuffer.clear();
+    }
+};
+
+struct MobileMainWindowPrivate {
+    MobileMainWindow *pub;
+
+    QSOAudioRecorder audioRecorder;
+    AudioPlayer player;
+    AudioPlayer callCQPreviewPlayer;
+    int logbookDetailsEditIndex = -1;
+    QSORecord editableRecord;
+    std::vector<dsp::stereo_t> callCq;
+
+    MobileMainWindowPrivate() : player("main_window_qso_record_player"), callCQPreviewPlayer("call_cq_preview"){
+    }
+
+    void init() {
+        audioRecorder.init(&pub->qsoPanel->audioInProcessed);
+        auto root = (std::string)core::args["root"];
+        callCQPreviewPlayer.loadFile(root + "/call_cq.wav");
+        if (callCQPreviewPlayer.error == "") {
+            callCq = callCQPreviewPlayer.dataOwn;
+            callCQPreviewPlayer.dataOwn.clear();
+            callCQPreviewPlayer.setData(&callCq, callCQPreviewPlayer.sampleRate);
+        }
+    }
+
+    void end() {
+        audioRecorder.end();
+    }
+
+    void addQsoRecord(QSORecord r) {
+        auto root = (std::string)core::args["root"];
+        if (r.dxcall == "") {
+            return;
+        }
+        if (pub->doQSOAudioRecording) {
+            std::string fname = "qso_";
+            for (auto q: r.datetime) {
+                if (isdigit(q)) {
+                    fname += q;
+                }
+            }
+            // adding seconds, because only HH:MM is there
+            auto seconds = (currentTimeMillis() / 1000) % 60;
+            if (seconds < 10) {
+                fname += "0";
+            }
+            fname += std::to_string(seconds);
+            fname += "_";
+            fname += std::to_string(r.frequency)+"000";
+            fname += "_";
+            fname += r.dxcall;
+            fname += ".wav";
+            audioRecorder.flushToFile(root + "/" + fname);
+            r.recordedQSO = (root + "/" + fname);
+        }
+        qsoRecords.emplace_back(r);
+        FILE *f = fopen((root + "/qso.txt").c_str(), "at");
+        if (f) {
+            fprintf(f, "%s\n", r.toJson().c_str());
+            fclose(f);
+        }
+    }
+
+
+    void recordCallCQPopup();
+};
+
 
 
 bool MobileButton::isLongPress() {
@@ -1258,6 +1513,7 @@ void MobileMainWindow::updateAudioWaterfallPipeline() {
 void MobileMainWindow::draw() {
 
     updateAudioWaterfallPipeline();
+    pvt->audioRecorder.updateControlState(!encoder.enabled, this->qsoPanel->transmitting);
 
 
     gui::waterfall.alwaysDrawLine = false;
@@ -1337,10 +1593,12 @@ void MobileMainWindow::draw() {
     float addx = gui::waterfall.fftAreaMin.x + 5 * style::uiScale;
     ImGui::SetCursorPos(cornerPos + ImVec2(addx, waterfallRegion.y));
     ImGui::PushFont(style::mediumFont);
-    ImGui::Text("%s -> %s    zoom: %s",
+    ImGui::Text("%s -> %s    zoom: %s   qsorec: %d sec",
                 this->modeToggle.upperText.c_str(),
                 this->submodeToggle.upperText.c_str(),
-                this->zoomToggle.upperText.c_str());
+                this->zoomToggle.upperText.c_str(),
+                (int)(this->pvt->audioRecorder.qsoAudioRecordingBuffer.size() / trxAudioSampleRate)
+                );
     ImGui::Dummy(ImVec2(addx, 0));
     ImGui::SameLine();
     ImGui::Text("%s", currentDXInfo.c_str());
@@ -1486,7 +1744,16 @@ void MobileMainWindow::draw() {
 
 
     MobileButton* buttonsDefault[] = { &this->qsoButton, &this->zoomToggle, &this->modeToggle, &this->autoWaterfall, &this->audioConfigToggle, &this->smallWheelFunction /*&this->bandUp, &this->bandDown, &this->submodeToggle,*/ };
-    MobileButton* buttonsQso[] = { &this->endQsoButton, &this->txButton, &this->softTune, &this->audioConfigToggle, &this->smallWheelFunction, &this->lockFrequency };
+    MobileButton* buttonsQso[] = { &this->endQsoButton,
+#ifndef __ANDROID__
+                                   &this->txButton, // on android, volume button works as PTT
+#endif
+                                   &this->softTune, &this->smallWheelFunction, &this->lockFrequency,
+#ifdef __ANDROID__
+                                   &this->dummy,    // spacer
+#endif
+                                   &this->callCQ,
+    };
     MobileButton* buttonsConfig[] = { &this->exitConfig };
     auto nButtonsQso = (int)((sizeof(buttonsQso) / sizeof(buttonsQso[0])));
     auto nButtonsDefault = (int)((sizeof(buttonsDefault) / sizeof(buttonsDefault[0])));
@@ -1566,6 +1833,8 @@ void MobileMainWindow::draw() {
         }
     }
 
+    int openEditDialog = -1;
+
     if (qsoMode == VIEW_QSO) {
         ImGui::SetCursorPos(buttonsStart + ImVec2{ 0, buttonsSpaceY - float(nButtonsQso + 1) * (childRegion.y + vertPadding) });
         if (ImGui::BeginTable("qsolist-table", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(buttonsWidth - defaultButtonsWidth, float(nButtonsQso + 1) * (childRegion.y + vertPadding)))) {
@@ -1586,19 +1855,29 @@ void MobileMainWindow::draw() {
                     ImGui::TableSetColumnIndex(0);
                     ImGui::TextUnformatted((qso.datetime+" UTC").c_str());
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0, 1.0f));
-                    ImGui::TextUnformatted(qso.dxcall.c_str());
+
+                    if (ImGui::Selectable(qso.dxcall.c_str(), false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap))
+                    {
+                        openEditDialog = q;
+                    }
+
                     ImGui::PopStyleColor();
+                    if (qso.recordedQSO != "") {
+                        ImGui::SameLine();
+                        ImGui::TextUnformatted("(rec)");
+                                                // Create a selectable area for the cell and check if it was clicked.
+                    }
                     ImGui::TextUnformatted((std::to_string(qso.frequency)+" SSB R"+qso.receivedRST+" S"+qso.sentRST).c_str());
                 }
             }
 
             ImGui::EndTable();
+
         }
     }
 
 
     ImGui::EndChild(); // buttons
-
 
 
     if (qsoMode == VIEW_QSO && modeToggle.upperText == "CW") {
@@ -1636,8 +1915,18 @@ void MobileMainWindow::draw() {
     if (this->zoomToggle.isLongPress()) {
         makeZoom(0);
     }
+    if (this->callCQ.isLongPress()) {
+        if (!ImGui::IsPopupOpen(RecordCallCQPopup)) {
+            ImGui::OpenPopup(RecordCallCQPopup);
+        }
+    }
     if (pressedButton == &this->autoWaterfall) {
         gui::waterfall.autoRange();
+    }
+    if (pressedButton == &this->callCQ) {
+        if (sigpath::transmitter && !qsoPanel->transmitting) {
+            qsoPanel->handleTxButton(vfo, true, false);
+        }
     }
     //
     if (pressedButton == &this->lockFrequency || ImGui::IsKeyPressed(ImGuiKey_ScrollLock)) {
@@ -1769,15 +2058,32 @@ void MobileMainWindow::draw() {
         }
     }
 
+    this->pvt->recordCallCQPopup();
+
     if (!encoder.enabled && qsoMode == VIEW_QSO) {
         if (!ImGui::IsPopupOpen(LogBookEntryPopup)) {
-            flog::info("Call open popup");
             ImGui::OpenPopup(LogBookEntryPopup);
             ImGui::SetNextWindowPos(logbookPopupPosition);
         }
     }
 
     this->logbookEntryPopup(currentFreq);
+
+    if (openEditDialog != -1) {
+        if (!ImGui::IsPopupOpen(LogBookDetailsPopup)) {
+            flog::info("Call open popup");
+            ImGui::OpenPopup(LogBookDetailsPopup);
+            ImGui::SetNextWindowPos(logbookPopupPosition);
+            pvt->logbookDetailsEditIndex = openEditDialog;
+
+            pvt->editableRecord = qsoRecords[pvt->logbookDetailsEditIndex];
+            pvt->editableRecord.fulltext.reserve(200);
+            pvt->editableRecord.fulltext.data()[pvt->editableRecord.fulltext.length()] = 0;
+            pvt->player.loadFile(pvt->editableRecord.recordedQSO);
+        }
+    }
+
+    this->logbookDetailsPopup();
 
 
     if (ImGui::BeginPopupModal(TxModePopup, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -1982,6 +2288,7 @@ const std::string& MobileMainWindow::getBand(int frequency) {
     return empty;
 }
 
+
 MobileMainWindow::MobileMainWindow() : MainWindow(),
                                        bandUp("14 Mhz", "+"),
                                        bandDown("", "-"),
@@ -1996,7 +2303,11 @@ MobileMainWindow::MobileMainWindow() : MainWindow(),
                                        txButton("", "TX"),
                                        exitConfig("", "OK"),
                                        lockFrequency("", "Lock"),
+                                       callCQ("", "Call CQ"),
+                                       dummy("", ""),
+                                       pvt(std::make_shared<MobileMainWindowPrivate>()),
                                        softTune("", SOFT_TUNE_LABEL) {
+    pvt->pub = this;
     qsoPanel = std::make_shared<QSOPanel>();
     configPanel = std::make_shared<ConfigPanel>(&qsoPanel->audioInProcessed);
     qsoPanel->configPanel = configPanel;
@@ -2026,9 +2337,11 @@ void MobileMainWindow::init() {
         }
     };
     displayDrawHandler.ctx = this;
+    pvt->init();
 }
 
 void MobileMainWindow::end() {
+    pvt->end();
     displaymenu::onDisplayDraw.unbindHandler(&displayDrawHandler);
     MainWindow::end();
     qsoPanel.reset();
@@ -2083,8 +2396,119 @@ void MobileMainWindow::updateDXInfo() {
     }
 }
 
+void MobileMainWindow::logbookDetailsPopup() {
+    bool renderPopup = ImGui::BeginPopupModal(LogBookDetailsPopup, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    if (renderPopup) {
+        if (!(ImGui::GetWindowPos().x == logbookPopupPosition.x && ImGui::GetWindowPos().y == logbookPopupPosition.y)) {
+            logbookPopupPosition = ImGui::GetWindowPos();
+            setConfig("logbookPopupPosition_x", logbookPopupPosition.x);
+            setConfig("logbookPopupPosition_y", logbookPopupPosition.y);
+        }
+
+        ImGuiIO& io = ImGui::GetIO();
+
+        ImGui::Text("QSO data entered:");
+        QSORecord& record = qsoRecords[pvt->logbookDetailsEditIndex];
+        if (ImGui::InputText("##_qso_data_entered", record.fulltext.data(), 100)) {
+            record.fulltext.resize(strlen(record.fulltext.data()));
+        }
+
+        if (record.recordedQSO.data()) {
+            ImGui::Text("QSO recording:");
+            pvt->player.draw();
+        }
+
+        if (doFingerButton("Cancel")) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (doFingerButton("Save & Close")) {
+            std::vector<std::string> dest;
+            splitStringV(record.fulltext, " ", dest);
+            QSORecord newRec = parseQsoRecord(pvt->editableRecord, dest);
+            newRec.fulltext = record.fulltext;
+            qsoRecords[pvt->logbookDetailsEditIndex] = newRec;
+            writeQSOList();
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+
+void MobileMainWindowPrivate::recordCallCQPopup() {
+    bool renderPopup = ImGui::BeginPopupModal(RecordCallCQPopup, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    if (renderPopup) {
+
+        switch (pub->configPanel->recorder.mode) {
+        case SimpleRecorder::PLAYING_STARTED:
+            // nothing here.
+            break;
+        case SimpleRecorder::RECORDING_IDLE:
+            if (doFingerButton("Record new")) {
+                pub->configPanel->recorder.startRecording();
+            }
+            if (callCq.size() > 0) {
+                ImGui::TextUnformatted("Current Call CQ recording:");
+                callCQPreviewPlayer.draw();
+            }
+            break;
+        case SimpleRecorder::RECORDING_STARTED:
+            if (doFingerButton("Stop Rec")) {
+                pub->configPanel->recorder.stop();
+                {
+                    auto root = (std::string)core::args["root"];
+                    auto fname = root + "/call_cq_preview.wav";
+                    wav::Writer w;
+                    w.setChannels(2);
+                    w.setFormat(wav::FORMAT_WAV);
+                    w.setSampleType(wav::SAMP_TYPE_FLOAT32);
+                    w.setSamplerate(trxAudioSampleRate);
+                    if (!w.open(fname)) {
+                        return;
+                    }
+                    w.write((float *)pub->configPanel->recorder.data.data(), pub->configPanel->recorder.data.size() * sizeof(dsp::stereo_t));
+                    w.close();
+                    pub->configPanel->recorder.data.clear();
+                    callCQPreviewPlayer.loadFile(fname);
+                    callCq = callCQPreviewPlayer.dataOwn;
+                    callCQPreviewPlayer.setData(&callCq, callCQPreviewPlayer.sampleRate);
+                }
+            }
+            break;
+        }
+
+        if (doFingerButton("Cancel")) {
+            auto root = (std::string)core::args["root"];
+            auto fnamePreview = root + "/call_cq_preview.wav";
+            remove(fnamePreview.c_str()); // remove preview file
+            pub->configPanel->recorder.stop();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (doFingerButton("Save & Close")) {
+            if (pub->configPanel->recorder.mode == SimpleRecorder::RECORDING_STARTED) {
+                pub->configPanel->recorder.stop();
+            } else {
+                auto root = (std::string)core::args["root"];
+                auto fnamePreview = root + "/call_cq_preview.wav";
+                auto fname = root + "/call_cq.wav";
+                FILE *f = fopen(fnamePreview.c_str(), "rb");
+                if (f) { // preview exists => rename it to main file.
+                    fclose(f);
+                    remove(fname.c_str());
+                    rename(fnamePreview.c_str(), fname.c_str());
+                }
+                ImGui::CloseCurrentPopup();
+            }
+        }
+    }
+}
+
 void MobileMainWindow::logbookEntryPopup(int currentFreq) {
-    if (ImGui::BeginPopup(LogBookEntryPopup, ImGuiWindowFlags_AlwaysAutoResize)) {
+    bool renderPopup = ImGui::BeginPopup(LogBookEntryPopup, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoBackground);
+    if (renderPopup) {
 
         if (!(ImGui::GetWindowPos().x == logbookPopupPosition.x && ImGui::GetWindowPos().y == logbookPopupPosition.y)) {
             logbookPopupPosition = ImGui::GetWindowPos();
@@ -2094,9 +2518,17 @@ void MobileMainWindow::logbookEntryPopup(int currentFreq) {
 
         ImGuiIO& io = ImGui::GetIO();
 
+        if (doKeyboardButton(doQSOAudioRecording ? "REC is: ON (-10sec)" : "REC is: OFF")) {
+            doQSOAudioRecording = !doQSOAudioRecording;
+        }
         if (ImGui::IsKeyPressed(ImGuiKey_Enter)) {
-            addQsoRecord(parseAddQsoRecord(this->currentDX, currentFreq));
+            pvt->addQsoRecord(parseAddQsoRecord(this->currentDX, currentFreq));
             currentDX = ""; // record qso
+            updateDXInfo();
+        }
+        ImGui::SameLine();
+        if (doKeyboardButton("Clear")) {
+            this->currentDX = "";
             updateDXInfo();
         }
         if (ImGui::IsKeyPressed(ImGuiKey_Space)) {
@@ -2173,7 +2605,7 @@ void MobileMainWindow::logbookEntryPopup(int currentFreq) {
         ImGui::Dummy(ImVec2(2 * style::baseFont->FontSize, 0));
         ImGui::SameLine();
         if (doKeyboardButton("save")) {
-            addQsoRecord(parseAddQsoRecord(this->currentDX, currentFreq));
+            pvt->addQsoRecord(parseAddQsoRecord(this->currentDX, currentFreq));
             this->currentDX = "";
         }
         addButton('/');
@@ -2189,10 +2621,6 @@ void MobileMainWindow::logbookEntryPopup(int currentFreq) {
         ImGui::SameLine();
         ImGui::Dummy(ImVec2(2 * style::baseFont->FontSize, 0));
         ImGui::SameLine();
-        if (doKeyboardButton("clr")) {
-            this->currentDX = "";
-            updateDXInfo();
-        }
         ImGui::PopFont();
 
 
@@ -2299,9 +2727,9 @@ void QSOPanel::startAudioPipeline() {
                 squelch.setLevel(configPanel->micSqlLevel);
                 squelch.process(rd, configPanel->afnr->out.writeBuf, configPanel->afnr->out.writeBuf);
             }
-            lopass.process(rd, configPanel->afnr->out.writeBuf, audioInProcessedIn.writeBuf);
+            lopass.process(rd, configPanel->afnr->out.writeBuf, audioProcessedOut.writeBuf);
             if (rd > 0) {
-                configPanel->outDecibels.addSamples(audioInProcessedIn.writeBuf, rd);
+                configPanel->outDecibels.addSamples(audioProcessedOut.writeBuf, rd);
             }
             if (rd != 0) {
                 count += rd;
@@ -2310,7 +2738,7 @@ void QSOPanel::startAudioPipeline() {
                     since = 1;
                 }
                 //                flog::info("audioInProcessedIn.swap({}), samples/sec {}, count {} since {}", rd, count * 1000/since, count, since);
-                if (!audioInProcessedIn.swap(rd)) {
+                if (!audioProcessedOut.swap(rd)) {
                     break;
                 }
             }
@@ -2622,6 +3050,8 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
         audioInToTransmitter.reset();
         sigpath::txState.emit(false);
     }
+
+
 }
 QSOPanel::~QSOPanel() {
     stopAudioPipeline();

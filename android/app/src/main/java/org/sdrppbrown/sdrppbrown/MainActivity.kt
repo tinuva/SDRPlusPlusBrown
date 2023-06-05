@@ -10,9 +10,15 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.content.res.AssetManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -34,7 +40,8 @@ import java.util.concurrent.LinkedBlockingQueue
 
 private const val ACTION_USB_PERMISSION = "org.sdrppbrown.sdrppbrown.USB_PERMISSION";
 
-class MainActivity : NativeActivity() {
+class MainActivity : NativeActivity(), SensorEventListener {
+    private lateinit var toneG: ToneGenerator
     private lateinit var thisCacheDir: String
     private val TAG: String = "SDR++Brown";
     public var usbManager: UsbManager? = null;
@@ -102,9 +109,100 @@ class MainActivity : NativeActivity() {
         decorView.setSystemUiVisibility(uiOptions);
     }
 
+    var playStarted = 0L
+
+    var recentz = ArrayList<Float>();
+
+    var compx : Float = 0.0f
+    var compy : Float = 0.0f
+    var compz : Float = 0.0f
+    var accx : Float = 0.0f
+    var accy : Float = 0.0f
+    var accz : Float = 0.0f
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event?.sensor?.type == Sensor.TYPE_MAGNETIC_FIELD) {
+            compx = event.values[0]
+            compy = event.values[1]
+            compz = event.values[2]
+            Log.w("SDR++", "Sensors: $accx $accy $accz $compx $compy $compz")
+        }
+        if (event?.sensor?.type == Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED) {
+            compx = event.values[0]
+            compy = event.values[1]
+            compz = event.values[2]
+            Log.w("SDR++", "Sensors: $accx $accy $accz $compx $compy $compz")
+        }
+        if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
+            accx = event.values[0]
+            accy = event.values[1]
+            accz = event.values[2]
+            if (recentz.size > 0) {
+                val prev = recentz[recentz.size-1]
+                if (Math.abs(prev) < 0.5 ) {
+                    if (accz - prev > 0.5) {
+                        if (System.currentTimeMillis() > playStarted + 70) {
+                            playStarted = System.currentTimeMillis()
+                            toneG.startTone(ToneGenerator.TONE_DTMF_1, 50)
+                        }
+                    }
+                    if (accz - prev < -0.5) {
+                        if (System.currentTimeMillis() > playStarted + 170) {
+                            playStarted = System.currentTimeMillis()
+                            toneG.startTone(ToneGenerator.TONE_DTMF_2, 150)
+                        }
+                    }
+                }
+            }
+            recentz.add(accz);
+            if (recentz.size > 50) {
+                recentz.removeAt(0);
+            }
+
+            Log.w("SDR++", "Sensors: $accx $accy $accz $compx $compy $compz")
+
+
+            // handle accelerometer values
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+    }
+
+    private lateinit var sensorManager: SensorManager
+    private var accelerometer: Sensor? = null
+    private var compass: Sensor? = null
+
+    override fun onDestroy() {
+        super.onDestroy()
+        sensorManager.unregisterListener(this)
+    }
+
     public override fun onCreate(savedInstanceState: Bundle?) {
         // Hide bars
         hideSystemBars();
+
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        accelerometer?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST) }
+
+        compass = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED)
+        if (compass != null) {
+            sensorManager.registerListener(this, compass, SensorManager.SENSOR_DELAY_FASTEST)
+        } else {
+            compass = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+            if (compass != null) {
+                sensorManager.registerListener(this, compass, SensorManager.SENSOR_DELAY_FASTEST)
+            }
+        }
+        compass?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST) }
+        compass = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED)
+        compass?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST) }
+
+        toneG = ToneGenerator(AudioManager.STREAM_ACCESSIBILITY, 100)
+
+
+
 
         val dm = resources.displayMetrics
         density = dm.density;

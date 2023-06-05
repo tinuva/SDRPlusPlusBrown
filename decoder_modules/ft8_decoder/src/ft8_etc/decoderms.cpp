@@ -20,6 +20,8 @@
 using namespace std; // zaradi max(
 static const double DEC_SAMPLE_RATE_11025 = 11025.0;
 static const double DEC_SAMPLE_RATE_12000 = 12000.0;
+
+std::atomic_int outCount = 0;
 //#include <QtGui>
 
 #define MAXDUPMSGTHR 120 //2.63 from 100 to 120

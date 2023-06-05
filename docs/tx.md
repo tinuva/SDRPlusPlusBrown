@@ -24,7 +24,9 @@ See example QSO video [https://www.youtube.com/watch?v=CGCXxUXLwr4](https://www.
 
 Audio pipeline test [https://www.youtube.com/watch?v=HNrYdeMvFGE](https://www.youtube.com/watch?v=HNrYdeMvFGE)
 
-Video of portable operation here: [https://www.youtube.com/watch?v=wPCf6JJpYos](https://www.youtube.com/watch?v=wPCf6JJpYos) this one is with the phone wired to the transciever via USB-C Ethernet, without WiFi, hence lack of operator mobility. 
+Video of portable operation here: [https://www.youtube.com/watch?v=wPCf6JJpYos](https://www.youtube.com/watch?v=wPCf6JJpYos) this one is with the phone wired to the transciever via USB-C Ethernet, without WiFi, hence lack of operator mobility.
+
+Sofa-style video here: [https://youtu.be/URkedh_fJyc](https://youtu.be/URkedh_fJyc) this one more recent, with WIFI connection and more complex hardware config. 
 
 ### What works poorly
 

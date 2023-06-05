@@ -42,7 +42,7 @@ namespace ft8 {
 
 
     // input stereo samples, nsamples (number of pairs of float)
-    inline void decodeFT8(const char *mode, int sampleRate, dsp::stereo_t* samples, long long nsamples, std::function<void(int mode, QStringList result)> callback) {
+    inline void decodeFT8(int threads, const char *mode, int sampleRate, dsp::stereo_t* samples, long long nsamples, std::function<void(int mode, QStringList result)> callback) {
         //
         //
         //
@@ -98,6 +98,7 @@ namespace ft8 {
         }
         dms->SetResultsCallback(callback);
         dms->SetDecoderDeep(3);
+        dms->SetThrLevel(threads);
 
         dms->SetDecode(converted.data(), converted.size(), "120000", 0, 4, false, true, false);
         while (dms->IsWorking()) {
@@ -109,7 +110,7 @@ namespace ft8 {
 }
 
 
-void doDecode(const char *mode, const char *path, std::function<void(int mode, std::vector<std::string> result)> callback) {
+void doDecode(const char *mode, const char *path, int threads, std::function<void(int mode, std::vector<std::string> result)> callback) {
     mshv_init();
     FILE *f = fopen(path,"rb");
     if (!f) {
@@ -166,10 +167,11 @@ void doDecode(const char *mode, const char *path, std::function<void(int mode, s
         for(int q=0; q<1; q++) {
             auto ctm = currentTimeMillis();
 //            spdlog::info("=================================");
-            ft8::decodeFT8(mode, hdr->sampleRate, (dsp::stereo_t*)data, nSamples, [](int mode, QStringList result) {
+            ft8::decodeFT8(threads, mode, hdr->sampleRate, (dsp::stereo_t*)data, nSamples, [](int mode, QStringList result) {
 
             });
             std::cout << "Time taken: " << currentTimeMillis() - ctm << " ms" << std::endl;
+            std::cout << "DECODE_EOF" << std::endl;
             fflush(stdout);
         }
     } catch (std::runtime_error &e) {

@@ -16,6 +16,19 @@
 #include <iostream>
 #include <chrono>
 #include <functional>
+#include "mshv_support.h"
+
+#include "decoderpom.h"
+#include "gen_ft4.h"
+#include "gen_ft8.h"
+#include "ctm.h"
+
+#include <iostream>
+#include <chrono>
+#include <functional>
+#include <atomic>
+
+extern std::atomic_int outCount;
 
 // #include "../HvMsPlayer/libsound/HvGenFt8/gen_ft8.h"
 //#include <QObject> //2.53
@@ -23,7 +36,6 @@
 #define MAXDEC 120
 class DecoderFt8
 {
-    int outCount = 0;
 public:
     explicit DecoderFt8(int id);
     ~DecoderFt8();
@@ -143,7 +155,6 @@ private:
 class DecoderFt4
 {
 
-    int outCount = 0;
 public:
     explicit DecoderFt4(int id);
     ~DecoderFt4();

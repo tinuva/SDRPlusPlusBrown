@@ -26,10 +26,6 @@
 #include <io.h>
 #endif
 
-// extern int four2a_d2c_cnt;
-extern void
-doDecode(const char *path, std::function<void(int mode, std::vector<std::string> result)> callback);
-
 namespace dsp {
 
     struct FT8Decoder {
@@ -117,7 +113,7 @@ namespace dsp {
             DMS_FT8 = 11
         } DecoderMSMode;
 
-        void invokeDecoder(const std::string &mode, const std::string &wavPath, const std::string &outPath,
+        void invokeDecoder(int nthreads, const std::string &mode, const std::string &wavPath, const std::string &outPath,
                            const std::string &errPath, std::function<void(int mode,
                                                                           std::vector<std::string> result, std::atomic<const char *> &progress)> callback, std::atomic<const char *> &progress) {
 
@@ -134,7 +130,7 @@ namespace dsp {
             auto decoderPath = modules+"/../../sdrpp_ft8_mshv";
 #ifdef _WIN32
             decoderPath = modules + "/../sdrpp_ft8_mshv.exe";
-            auto cmd = decoderPath + " --decode " + wavPath + " --mode " + mode;
+            auto cmd = decoderPath + " --decode " + wavPath + " --mode " + mode+" --threads "+std::to_string(nthreads);
             std::replace(cmd.begin(), cmd.end(), '/', '\\');
             flog::info("FT8decoder: spawn: {}", cmd);
             FILE* data = popen_gpt4(cmd.c_str(), "r");
@@ -142,7 +138,12 @@ namespace dsp {
             if (data) {
                 char line[4096];
                 while (fgets(line, sizeof(line), data)) {
-                    if (strncmp(line, "FT8_OUT", 7) != 0 || strncmp(line, "FT5_OUT", 7) != 0) {
+                    if (strstr(line, "DECODE_EOF") != 0 ) {
+                        std::vector<std::string> selected;
+                        selected.emplace_back("DECODE_EOF");
+                        callback(DMS_FT8, selected, progress);
+                    }
+                    if (strncmp(line, "FT8_OUT", 7) != 0 || strncmp(line, "FT4_OUT", 7) != 0) {
                         std::vector<std::string> singleBroken;
                         splitStringV(std::string(line), "\t", singleBroken);
                         std::vector<std::string> selected;
@@ -186,7 +187,9 @@ namespace dsp {
             strcpy(mydta->args[3], wavPath.c_str());
             strcpy(mydta->args[4], "--mode");
             strcpy(mydta->args[5], mode.c_str());
-            mydta->nargs = 6;
+            strcpy(mydta->args[6], "--threads");
+            sprintf(mydta->args[7], "%d", nthreads);
+            mydta->nargs = 8;
             strcpy(mydta->errPath, errPath.c_str());
             strcpy(mydta->outPath, outPath.c_str());
             strcpy(mydta->info, mode.c_str());
@@ -195,7 +198,7 @@ namespace dsp {
             int nsent = 0;
             int count = 0;
             int nwaiting = 0;
-            int STEP_USEC = 1000000;
+            int STEP_USEC = 100000;
             int MAXWAITING_STEPS = 20000000 / STEP_USEC;  // 20 second max decode
 //            flog::info("Forked, waiting outside {} steps for {} for files", MAXWAITING_STEPS, mode);
 
@@ -233,7 +236,7 @@ namespace dsp {
                             std::vector<std::string> thisResult;
                             progress = "split...";
                             splitString(rdbuf, "\n", [&](const std::string& p) {
-                                if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT") == 0 || p.find("ERROR") == 0) {
+                                if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT") == 0 || p.find("ERROR") == 0 || p.find("DECODE_EOF")) {
                                     thisResult.emplace_back(p);
                                 }
                             });
@@ -265,6 +268,12 @@ namespace dsp {
                                     callback(DMS_FT8, selected, progress);
                                     progress = "post-err-callback";
                                 }
+                                if (singleBroken.size() >= 1 && singleBroken[0] == "DECODE_EOF") {
+                                    selected.emplace_back("DECODE_EOF");
+                                    progress = "pre-eof-callback";
+                                    callback(DMS_FT8, selected, progress);
+                                    progress = "post-eof-callback";
+                                }
                                 count++;
                             }
                             nsent = thisResult.size();
@@ -290,7 +299,7 @@ namespace dsp {
 #endif // !win32
         }
 
-        inline void decodeFT8(const std::string &mode, int sampleRate, dsp::stereo_t *samples, long long nsamples,
+        inline void decodeFT8(int nthreads, const std::string &mode, int sampleRate, dsp::stereo_t *samples, long long nsamples,
                               std::function<void(int mode,
                                                  std::vector<std::string> result, std::atomic<const char *> &progress)> callback,
                               std::atomic<const char *> &progress,
@@ -369,7 +378,7 @@ namespace dsp {
             auto outPath = tempPath + "/sdrpp_ft8_mshv.out." + seqS;
             auto errPath = tempPath + "/sdrpp_ft8_mshv.err." + seqS;
 
-            invokeDecoder(mode, wavPath, outPath, errPath, callback, progress);
+            invokeDecoder(nthreads, mode, wavPath, outPath, errPath, callback, progress);
 
             if (removeFiles) {
                 std::filesystem::remove(wavPath);

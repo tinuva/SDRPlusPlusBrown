@@ -1,5 +1,6 @@
 #pragma once
 #include "../sink.h"
+#include "core.h"
 #include <atomic>
 #include <utils/flog.h>
 #include <ctm.h>
@@ -19,6 +20,7 @@ namespace dsp::routing {
         Merger() {
             this->registerOutput(&out);
             out.origin = "merger.out";
+            running = true;
         }
 
         dsp::stream<T>* getOutput() {
@@ -48,6 +50,7 @@ namespace dsp::routing {
 //            this->registerInput(stream);
 
             std::thread x([ns, newStream, this]() {
+                SetThreadName("merger.rd");
                 while(true) {
                     int rd = newStream->astream->read();
                     if (rd < 0) {
@@ -72,6 +75,13 @@ namespace dsp::routing {
         void doStop() override {
             for(auto s : secondaryStreams) {
                 s->astream->stopWriter();
+                s->astream->stopReader();
+            }
+            running = false;
+            proceedWithoutWait = true;
+            {
+                std::unique_lock<std::mutex> lk(dataReadyMutex);
+                dataReady.notify_all();
             }
             base_type::doStop();
             for(auto s : secondaryStreams) {
@@ -100,12 +110,21 @@ namespace dsp::routing {
         int SWITCH_DELAY = 100; // 100 msec
         int lastSeenBestPriority = 0;
         long long lastSeenBestTime = 0;
+        bool running;
 
         int run() override {
+            SetThreadName("merger.run");
+            if (!running) {
+                return -1;
+            }
             if (!proceedWithoutWait) {
 //                flog::info("Merger waits..");
                 std::unique_lock<std::mutex> lk(dataReadyMutex);
                 dataReady.wait(lk);
+                if (!running) {
+                    flog::info("Merger: terminating");
+                    return -1;
+                }
             } else {
 //                flog::info("Merger does not wait.");
             }

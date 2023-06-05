@@ -735,6 +735,9 @@ public:
         if (config.conf[name].find("secondsToKeepResults") != config.conf[name].end()) {
             secondsToKeepResults = config.conf[name]["secondsToKeepResults"];
         }
+        if (config.conf[name].find("nthreads") != config.conf[name].end()) {
+            nthreads = config.conf[name]["nthreads"];
+        }
         if (config.conf[name].find("processingEnabledFT8") != config.conf[name].end()) {
             ft8decoder.processingEnabled = config.conf[name]["processingEnabledFT8"].get<bool>();
         }
@@ -829,6 +832,13 @@ public:
         //
         // FT8
         //
+        ImGui::FillWidth();
+        if (ImGui::SliderInt("##ft8_threads", &_this->nthreads, 1, 6, "%d threads decode", 0)) {
+            config.acquire();
+            config.conf[_this->name]["nthreads"] = _this->nthreads;
+            config.release(true);
+        }
+
         auto ft8processing = _this->ft8decoder.blockProcessorsRunning.load();
         if (ft8processing) {
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0, 1.0f));
@@ -846,7 +856,13 @@ public:
             }
         }
         ImGui::SameLine();
-        ImGui::Text("Count: %d(%d) in %d..%d msec", _this->ft8decoder.lastDecodeCount.load(), _this->ft8decoder.totalCallsignsDisplayed.load(), _this->ft8decoder.lastDecodeTime0.load(), _this->ft8decoder.lastDecodeTime.load());
+        std::string stat;
+        if (_this->ft8decoder.onTheFrequency) {
+            stat += "[+]";
+        } else {
+            stat += "[-]";
+        }
+        ImGui::Text("%s Count: %d(%d) in %d..%d msec", stat.c_str(), _this->ft8decoder.lastDecodeCount.load(), _this->ft8decoder.totalCallsignsDisplayed.load(), _this->ft8decoder.lastDecodeTime0.load(), _this->ft8decoder.lastDecodeTime.load());
         if (_this->ft4decoder.decodeError[0]) {
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
             ImGui::Text("Error: %s", _this->ft4decoder.decodeError);
@@ -873,7 +889,13 @@ public:
             }
         }
         ImGui::SameLine();
-        ImGui::Text("Count: %d(%d) in %d..%d msec", _this->ft4decoder.lastDecodeCount.load(), _this->ft4decoder.totalCallsignsDisplayed.load(), _this->ft4decoder.lastDecodeTime0.load(), _this->ft4decoder.lastDecodeTime.load());
+        stat = "";
+        if (_this->ft8decoder.onTheFrequency) {
+            stat += "[+]";
+        } else {
+            stat += "[-]";
+        }
+        ImGui::Text("%s Count: %d(%d) in %d..%d msec", stat.c_str(), _this->ft4decoder.lastDecodeCount.load(), _this->ft4decoder.totalCallsignsDisplayed.load(), _this->ft4decoder.lastDecodeTime0.load(), _this->ft4decoder.lastDecodeTime.load());
         if (_this->ft4decoder.decodeError[0]) {
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
             ImGui::Text("Error: %s", _this->ft4decoder.decodeError);
@@ -931,6 +953,7 @@ public:
     char allTxtPath[1024];
     std::string allTxtPathError;
     int secondsToKeepResults = 120;
+    int nthreads = 1;
 
     std::string  lastLocation;
     LatLng _myPos = LatLng::invalid();
@@ -1145,6 +1168,8 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
             progress ="in-handler";
             if (result.size() == 2 && result[0] == "ERROR") {
                 strcpy(decodeError, result[1].c_str());
+            } else if (result.size() == 1 && result[0] == "DECODE_EOF") {
+                //
             } else {
                 strcpy(decodeError , "");
                 if (time0 == 0) {
@@ -1259,7 +1284,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
         std::thread t0([&]() {
             SetThreadName(getModeString()+"_callDecode");
             auto start = currentTimeMillis();
-            dsp::ft8::decodeFT8(getModeString(), VFO_SAMPLE_RATE, block->data(), block->size(), handler, progress, removeFiles);
+            dsp::ft8::decodeFT8(mod->nthreads, getModeString(), VFO_SAMPLE_RATE, block->data(), block->size(), handler, progress, removeFiles);
             auto end = currentTimeMillis();
             flog::info("FT8 decoding ({}) took {} ms", this->getModeString(), (int64_t)(end - start));
             lastDecodeCount = (int)count;
@@ -1287,6 +1312,7 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
     });
     processor.detach();
 }
+
 void SingleDecoder::init(const std::string &name) {
     vfo = new dsp::channel::RxVFO(&iqdata, sigpath::iqFrontEnd.getEffectiveSamplerate(), VFO_SAMPLE_RATE, USB_BANDWIDTH, vfoOffset);
 
