@@ -105,7 +105,7 @@ void AudioPlayer::loadFile(const std::string& path) {
     this->data = &this->dataOwn;
     wav::Reader reader(path);
     if (!reader.isValid()) {
-        error = "WAV read error";
+        error = "WAV read error: "+reader.error;
     } else {
         this->sampleRate = reader.getSampleRate();
         std::vector<dsp::stereo_t> buffer;
@@ -125,6 +125,7 @@ void AudioPlayer::loadFile(const std::string& path) {
 
 }
 void AudioPlayer::setData(std::vector<dsp::stereo_t>* data, uint32_t sampleRate) {
+    this->error = "";
     this->data = data;
     this->sampleRate = sampleRate;
 }

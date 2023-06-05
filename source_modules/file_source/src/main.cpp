@@ -155,7 +155,7 @@ private:
             reader = new wav::Reader(fileSelect.path);
             sampleRate = reader->getSampleRate();
             core::setInputSampleRate(sampleRate);
-            std::string filename = std::filesystem::__cxx11::path(fileSelect.path).filename().string();
+            std::string filename = std::filesystem::path(fileSelect.path).filename().string();
             double newFrequency = getFrequency(filename);
             streamStartTime = getStartTime(filename);
             bool fineTune = gui::waterfall.containsFrequency(newFrequency);

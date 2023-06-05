@@ -7,13 +7,15 @@ Please see [upstream project page](https://github.com/AlexandreRouma/SDRPlusPlus
 
 Please see [brown fork page](https://sdrpp-brown.san.systems) for list of fork features.
 
-## Thanks
+## Thanks / Credits
 
-Thanks and due respect to original author, Alexandre Rouma, for his great work. 
-
-Thanks and due respect to the MSHV author, LZ2HV, for his great work.
-
-Thanks and due respect to logmmse/python authors for their great work.
+Thanks and due respect to:
+ 
+* original author, Alexandre Rouma, for his great [work](https://github.com/AlexandreRouma/SDRPlusPlus). 
+* MSHV author, LZ2HV, for his great [work](http://lz2hv.org/mshv).
+* logmmse/python authors for their great [work](https://github.com/wilsonchingg/logmmse).
+* OMLSA authors for their great [idea](https://github.com/yuzhouhe2000/OMLSA-IMCRA) and [implementation](https://github.com/xiaochunxin/OMLSA-MCRA).
+* imgui-notify author for his great [work](https://github.com/patrickcjk/imgui-notify)
 
 ## Feedback
 

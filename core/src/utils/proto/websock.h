@@ -237,7 +237,8 @@ namespace net::websock {
         void connectAndReceiveLoop(const std::string& host, int port, const std::string& path) {
             flog::info("WSClient connectAndReceiveLoop: inst={}", (void*)this);
             stopped = false;
-            socket = net::connect(Address(host, port));
+            auto z = net::connect(Address(host, port));
+            socket = z;
             if (stopped) {
                 if (socket) {
                     socket->close();

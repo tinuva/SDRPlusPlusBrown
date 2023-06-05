@@ -72,12 +72,21 @@ namespace wav {
 
     class Reader {
     public:
+
+        std::string error;
+
         Reader(std::string path) {
+            error = "";
             file = std::ifstream(path.c_str(), std::ios::binary);
+            if (!file.is_open()) {
+                error = "cannot open file";
+            }
             file.read((char*)&hdr, sizeof(WavHeader_t));
             valid = false;
+            error = "signature mismatch";
             if (memcmp(hdr.signature, "RIFF", 4) != 0) { return; }
             if (memcmp(hdr.fileType, "WAVE", 4) != 0) { return; }
+            error = "";
             valid = true;
         }
 

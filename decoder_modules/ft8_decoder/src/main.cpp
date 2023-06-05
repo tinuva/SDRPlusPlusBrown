@@ -738,7 +738,7 @@ public:
         if (config.conf[name].find("nthreads") != config.conf[name].end()) {
             nthreads = config.conf[name]["nthreads"];
         }
-        if (config.conf[name].find("processingEnabledFT8") != config.conf[name].end()) {
+        if (config.conf[name].contains("processingEnabledFT8")) {
             ft8decoder.processingEnabled = config.conf[name]["processingEnabledFT8"].get<bool>();
         }
         if (config.conf[name].find("processingEnabledFT4") != config.conf[name].end()) {

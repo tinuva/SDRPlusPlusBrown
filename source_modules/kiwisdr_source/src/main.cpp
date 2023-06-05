@@ -51,6 +51,13 @@ struct KiwiSDRClient {
     static constexpr int NETWORK_BUFFER_SIZE = NETWORK_BUFFER_SECONDS * IQDATA_FREQUENCY;
 
 
+    virtual ~KiwiSDRClient() {
+        running = false;
+        flog::info("KiwiSDRClient: destructor");
+        running = false;
+    }
+
+
 
     void init(const std::string &hostport, int lastTuneFrequency) {
 
@@ -59,6 +66,7 @@ struct KiwiSDRClient {
 
         wsClient.onDisconnected = [&]() {
             connected = false;
+            this->onDisconnected();
         };
 
         wsClient.onConnected = [&]() {
@@ -179,11 +187,16 @@ struct KiwiSDRClient {
     void stop() {
         strcpy(connectionStatus, "Disconnecting..");
         wsClient.stopSocket();
+        while(running) {
+            usleep(100000);
+        }
     }
 
     void start() {
         strcpy(connectionStatus, "Connecting..");
-        std::thread looper([=]() {
+        running = true;
+        std::thread looper([&]() {
+            SetThreadName("kiwisdr.wscli");
             flog::info("calling x.connectAndReceiveLoop..");
             try {
                 std::string hostName;
@@ -199,6 +212,7 @@ struct KiwiSDRClient {
                 wsClient.connectAndReceiveLoop(hostName, port, "/kiwi/" + std::to_string(currentTimeMillis()) + "/SND");
                 flog::info("x.connectAndReceiveLoop exited.");
                 strcpy(connectionStatus, "Disconnected");
+                running = false;
             }
             catch (const std::runtime_error& e) {
                 flog::error("KiwiSDRSourceModule: Exception: {}", e.what());
@@ -218,9 +232,17 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
     std::string kiwisdrSite = "sk6ag1.ddns.net:8071";
     //    std::string kiwisdrSite = "kiwi-iva.aprs.fi";
     KiwiSDRClient kiwiSdrClient;
+    std::string root;
 
-    KiwiSDRSourceModule(std::string name) : kiwiSdrClient() {
+    KiwiSDRSourceModule(std::string name, const std::string &root) : kiwiSdrClient() {
         this->name = name;
+        this->root = root;
+
+        config.acquire();
+        if (config.conf.contains("kiwisdr_site")) {
+            kiwisdrSite = config.conf["kiwisdr_site"];
+        }
+        config.release(false);
 
 
         kiwiSdrClient.init(kiwisdrSite, lastTuneFrequency);
@@ -415,7 +437,7 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
         // http://rx.linkfanel.net/kiwisdr_com.js
         try {
 
-            std::string jsoncache = core::args["root"].s() + "/kiwisdr_source.receiverlist.json";
+            std::string jsoncache = root + "/kiwisdr_source.receiverlist.json";
 
             auto status = std::filesystem::status(jsoncache);
             if (exists(status)) {
@@ -441,14 +463,14 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
             controlHttp.recvResponseHeader(rshdr, 5000);
 
             flog::debug("Response from {}: {}", host, rshdr.getStatusString());
-            uint8_t data[2000000];
+            std::vector<uint8_t> data(2000000, 0);
             std::string response;
             while (true) {
-                auto len = controlSock->recv(data, sizeof(data));
+                auto len = controlSock->recv(data.data(), data.size());
                 if (len < 1) {
                     break;
                 }
-                response += std::string((char*)data, len);
+                response += std::string((char*)data.data(), len);
                 usleep(100);
             }
             controlSock->close();
@@ -491,17 +513,19 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
     };
 
     std::vector<ServerEntry> servers;
+    std::string lastTestedServer;
+    std::mutex lastTestedServerMutex;
 
     static void menuHandler(void* ctx) {
         KiwiSDRSourceModule* _this = (KiwiSDRSourceModule*)ctx;
 
         if (doFingerButton("Choose on map")) {
-            ImGui::OpenPopup("My KiwiSDR Map");
+            ImGui::OpenPopup("The KiwiSDR Map");
         }
 
 
         ImGui::SetNextWindowPos(ImGui::GetIO().DisplaySize * 0.125f);
-        if (ImGui::BeginPopupModal("My KiwiSDR Map", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        if (ImGui::BeginPopupModal("The KiwiSDR Map", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             // Set the modal dialog's width and height
             const ImVec2 ws = ImGui::GetIO().DisplaySize * 0.75f;
             ImGui::SetWindowSize(ws);
@@ -521,7 +545,7 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
                     ImGui::Text("Loading KiwiSDR servers list..");
                     if (!_this->loadingList) {
                         _this->loadingList = true;
-                        std::thread t([=]() {
+                        std::thread t([_this]() {
                             _this->serversList = _this->loadServersList();
 
                             for (const auto& entry : *_this->serversList) {
@@ -614,6 +638,9 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
                             ImGui::Text("USR: %d/%d", s.users, s.usersmax);
                         }
                         if (doFingerButton("Test server")) {
+                            _this->lastTestedServerMutex.lock();
+                            _this->lastTestedServer = "";
+                            _this->lastTestedServerMutex.unlock();
                             if (_this->serverTestStatus.empty()) {
                                 _this->serverTestStatus = "Testing server " + s.url+" ...";
                                 std::thread tester([=]() {
@@ -627,30 +654,53 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
                                         }
                                         _this->serverTestStatus = "Testing server " + hostPort+"...";
                                         testClient.init(hostPort, 14074000);
-                                        testClient.start();
+                                        bool connected = 0;
+                                        bool disconnected = 0;
+                                        auto start = currentTimeMillis();
                                         testClient.onConnected = [&]() {
-                                            _this->serverTestStatus = "Connected to server " + hostPort;
+                                            connected = true;
+                                            _this->serverTestStatus = "Connected to server " + hostPort+" ...";
+                                            start = currentTimeMillis();
                                             testClient.tune(14074000);
                                         };
                                         testClient.onDisconnected = [&]() {
+                                            disconnected = true;
                                             if (plannedDisconnect) {
                                                 _this->serverTestStatus = "Got some data. Server OK: "+s.url;
+                                                _this->lastTestedServerMutex.lock();
+                                                _this->lastTestedServer = hostPort;
+                                                _this->lastTestedServerMutex.unlock();
                                             } else {
-                                                _this->serverTestStatus = "Preliminary disconnect. Server NOT OK: "+s.url;
+                                                _this->serverTestStatus = "Disconnect, no data. Server NOT OK: "+s.url;
                                             }
                                         };
+                                        testClient.start();
+                                        start = currentTimeMillis();
                                         while(true) {
+                                            if (disconnected) {
+                                                break;
+                                            }
                                             testClient.iqDataLock.lock();
                                             auto bufsize = testClient.iqData.size();
-//                                            flog::info("checked bufsize: {}", bufsize);
                                             testClient.iqDataLock.unlock();
                                             usleep(100000);
                                             if (bufsize > 0) {
                                                 plannedDisconnect = true;
                                                 break;
                                             }
+                                            if (connected && currentTimeMillis() > start + 5000) {
+                                                break;
+                                            }
                                         }
                                         testClient.stop();
+                                        if (connected) {
+                                            while (!disconnected) {
+                                                usleep(100000);
+                                            }
+                                            flog::info("Disconnected ok");
+                                        } else {
+                                            usleep(1000000);
+                                        }
                                     } else {
                                         _this->serverTestStatus = "Non-http url " + s.url;
                                     }
@@ -671,12 +721,24 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
 
             ImGui::EndChild();
             // Display some text in the modal dialog
-            ImGui::Text("This is a modal dialog box with specified width and height.");
+//            ImGui::Text("This is a modal dialog box with specified width and height.");
 
             // Close button
-            if (ImGui::Button("Close")) {
+            if (doFingerButton("Cancel")) {
                 ImGui::CloseCurrentPopup();
             }
+            _this->lastTestedServerMutex.lock();
+            if (_this->lastTestedServer != "") {
+                ImGui::SameLine();
+                if (doFingerButton("Use tested server: " + _this->lastTestedServer)) {
+                    _this->kiwisdrSite = _this->lastTestedServer;
+                    config.acquire();
+                    config.conf["kiwisdr_site"] = _this->kiwisdrSite;
+                    config.release(true);
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            _this->lastTestedServerMutex.unlock();
 
             ImGui::EndPopup();
         }
@@ -752,7 +814,8 @@ MOD_EXPORT void _INIT_() {
 }
 
 MOD_EXPORT ModuleManager::Instance* _CREATE_INSTANCE_(std::string name) {
-    return new KiwiSDRSourceModule(name);
+    auto root = core::args["root"].s();
+    return new KiwiSDRSourceModule(name, root);
 }
 
 MOD_EXPORT void _DELETE_INSTANCE_(ModuleManager::Instance* instance) {

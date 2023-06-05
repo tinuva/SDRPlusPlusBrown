@@ -87,27 +87,27 @@ public:
         return sval;
     }
 
-    bool b() {
+    bool b() const {
         if (type != CLI_ARG_TYPE_BOOL && type != CLI_ARG_TYPE_VOID) { throw std::runtime_error("Not a bool"); }
         return bval;
     }
 
-    int i() {
+    int i() const {
         if (type != CLI_ARG_TYPE_INT) { throw std::runtime_error("Not an int"); }
         return ival;
     }
 
-    float f() {
+    float f() const {
         if (type != CLI_ARG_TYPE_FLOAT) { throw std::runtime_error("Not a float"); }
         return (float)fval;
     }
 
-    double d() {
+    double d() const {
         if (type != CLI_ARG_TYPE_FLOAT) { throw std::runtime_error("Not a float"); }
         return fval;
     }
 
-    const std::string& s() {
+    const std::string& s() const {
         if (type != CLI_ARG_TYPE_STRING) { throw std::runtime_error("Not a string"); }
         return sval;
     }

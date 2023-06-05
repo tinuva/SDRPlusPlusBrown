@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 project(sdrpp_core)
 
-
 if (USE_INTERNAL_LIBCORRECT)
     add_subdirectory("libcorrect/")
 endif (USE_INTERNAL_LIBCORRECT)

@@ -5,8 +5,11 @@
 #include <utils/flog.h>
 #include <filesystem>
 #include "utils/wstr.h"
+#include "brown/imgui-notify/tahoma.h"
+#include "gui/brown/imgui-notify/imgui_notify.h"
 
 namespace style {
+    ImFont* notificationFont;
     ImFont* tinyFont;
     ImFont* baseFont;
     ImFont* bigFont;
@@ -54,6 +57,20 @@ namespace style {
         bigFont = fonts->AddFontFromFileTTF(((std::string)(resDir + "/fonts/Roboto-Medium.ttf")).c_str(), 45.0f * uiScale, NULL, bigRanges.Data);
         hugeFont = fonts->AddFontFromFileTTF(((std::string)(resDir + "/fonts/Roboto-Medium.ttf")).c_str(), 128.0f * uiScale, NULL, hugeRanges.Data);
         tinyFont = fonts->AddFontFromFileTTF(((std::string)(resDir + "/fonts/Roboto-Medium.ttf")).c_str(), 12.0f * uiScale, NULL, baseRanges.Data);
+
+        ImGuiIO* io = &ImGui::GetIO();
+        // We must load a font before loading notify, because we cannot merge font-awesome with default font
+        // FontDataOwnedByAtlas = false is required (also in ImGui::MergeIconsWithLatestFont())
+        // because otherwise ImGui will call free() while freeing resources which will lead into a crash
+        // since tahoma is defined as readonly and wasn't allocated with malloc()
+        ImFontConfig font_cfg;
+        font_cfg.FontDataOwnedByAtlas = false;
+        notificationFont = io->Fonts->AddFontFromMemoryTTF((void*)tahoma, sizeof(tahoma), 20.f * uiScale, &font_cfg);
+
+        // Initialize notify
+        ImGui::MergeIconsWithLatestFont(16.f, false);
+
+
 
         return true;
     }

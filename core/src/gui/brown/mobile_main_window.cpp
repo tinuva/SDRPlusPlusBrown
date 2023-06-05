@@ -27,6 +27,7 @@
 #include <utils/strings.h>
 #include <cmath>
 #include "audio_player.h"
+#include "imgui-notify/imgui_notify.h"
 
 using namespace ::dsp::arrays;
 
@@ -1166,12 +1167,14 @@ struct QSOAudioRecorder {
         w.setSampleType(wav::SAMP_TYPE_FLOAT32);
         w.setSamplerate(trxAudioSampleRate);
         if (!w.open(where)) {
+            ImGui::InsertNotification({ ImGuiToastType_Error, 5000, ("Write err: " + std::string(strerror(errno))).c_str() });
             return;
         }
         std::lock_guard g(qsoAudioRecordingBufferMutex);
         w.write((float *)qsoAudioRecordingBuffer.data(), qsoAudioRecordingBuffer.size());
         w.close();
         qsoAudioRecordingBuffer.clear();
+        ImGui::InsertNotification({ ImGuiToastType_Info, 3000, "QSO audio recorded."});
     }
 };
 
@@ -1893,6 +1896,15 @@ void MobileMainWindow::draw() {
         audioWaterfall->draw(ImVec2(io.DisplaySize.x / 2 - sz.x / 2, io.DisplaySize.y - sz.y - 20), sz);
     }
 
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.f);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(43.f / 255.f, 43.f / 255.f, 43.f / 255.f, 100.f / 255.f));
+    ImGui::PushFont(style::notificationFont);
+    ImGui::RenderNotifications();
+    ImGui::PopFont();
+    ImGui::PopStyleVar(1); // Don't forget to Pop()
+    ImGui::PopStyleColor(1);
+
+
 
     ImGui::End();
 
@@ -1941,6 +1953,7 @@ void MobileMainWindow::draw() {
     }
     //
     if (pressedButton == &this->lockFrequency || ImGui::IsKeyPressed(ImGuiKey_ScrollLock)) {
+
         encoder.enabled = !encoder.enabled;
         showMenu = false;
         if (encoder.enabled) {
@@ -2194,6 +2207,7 @@ void MobileMainWindow::draw() {
         }
         ImGui::EndPopup();
     }
+
 }
 
 std::string MobileMainWindow::getCurrentBand() {
@@ -2327,6 +2341,8 @@ MobileMainWindow::MobileMainWindow() : MainWindow(),
 }
 
 void MobileMainWindow::init() {
+
+
     MainWindow::init();
     configPanel->init();
     audioWaterfall->init();
@@ -2477,6 +2493,7 @@ void MobileMainWindowPrivate::recordCallCQPopup() {
                     w.setSampleType(wav::SAMP_TYPE_FLOAT32);
                     w.setSamplerate(trxAudioSampleRate);
                     if (!w.open(fname)) {
+                        ImGui::InsertNotification({ ImGuiToastType_Error, 5000, ("Write err: " + std::string(strerror(errno))).c_str() });
                         return;
                     }
                     w.write((float *)pub->configPanel->recorder.data.data(), pub->configPanel->recorder.data.size());
@@ -2485,6 +2502,7 @@ void MobileMainWindowPrivate::recordCallCQPopup() {
                     callCQlayer.loadFile(fname);
                     callCq = callCQlayer.dataOwn;
                     callCQlayer.setData(&callCq, callCQlayer.sampleRate);
+                    ImGui::InsertNotification({ ImGuiToastType_Info, 5000, "File recorded." });
                 }
             }
             break;
@@ -2636,7 +2654,6 @@ void MobileMainWindow::logbookEntryPopup(int currentFreq) {
 
 
         if (encoder.enabled) {
-            flog::info("Call close popup");
             ImGui::CloseCurrentPopup();
         }
 

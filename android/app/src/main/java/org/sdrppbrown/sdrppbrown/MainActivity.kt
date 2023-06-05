@@ -125,13 +125,13 @@ class MainActivity : NativeActivity(), SensorEventListener {
             compx = event.values[0]
             compy = event.values[1]
             compz = event.values[2]
-            Log.w("SDR++", "Sensors: $accx $accy $accz $compx $compy $compz")
+//            Log.w("SDR++", "Sensors: $accx $accy $accz $compx $compy $compz")
         }
         if (event?.sensor?.type == Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED) {
             compx = event.values[0]
             compy = event.values[1]
             compz = event.values[2]
-            Log.w("SDR++", "Sensors: $accx $accy $accz $compx $compy $compz")
+//            Log.w("SDR++", "Sensors: $accx $accy $accz $compx $compy $compz")
         }
         if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
             accx = event.values[0]
@@ -143,13 +143,13 @@ class MainActivity : NativeActivity(), SensorEventListener {
                     if (accz - prev > 0.5) {
                         if (System.currentTimeMillis() > playStarted + 70) {
                             playStarted = System.currentTimeMillis()
-                            toneG.startTone(ToneGenerator.TONE_DTMF_1, 50)
+//                            toneG.startTone(ToneGenerator.TONE_DTMF_1, 50)
                         }
                     }
                     if (accz - prev < -0.5) {
                         if (System.currentTimeMillis() > playStarted + 170) {
                             playStarted = System.currentTimeMillis()
-                            toneG.startTone(ToneGenerator.TONE_DTMF_2, 150)
+//                            toneG.startTone(ToneGenerator.TONE_DTMF_2, 150)
                         }
                     }
                 }
@@ -159,7 +159,7 @@ class MainActivity : NativeActivity(), SensorEventListener {
                 recentz.removeAt(0);
             }
 
-            Log.w("SDR++", "Sensors: $accx $accy $accz $compx $compy $compz")
+//            Log.w("SDR++", "Sensors: $accx $accy $accz $compx $compy $compz")
 
 
             // handle accelerometer values
