@@ -43,7 +43,6 @@ void setproctitle(const char* fmt, ...) {
     memcpy(core::args.systemArgv, new_argv, sizeof(new_argv));
 }
 
-const char *sdrppResourcesDirectory; // to reference from C files.
 
 #else
 void setproctitle(const char* fmt, ...) {
@@ -72,6 +71,10 @@ void setproctitle(const char* fmt, ...) {
 #define INSTALL_PREFIX "/usr"
 #endif
 #endif
+
+extern "C" {
+char* sdrppResourcesDirectory; // to reference from C files.
+}
 
 namespace core {
     ConfigManager configManager;
