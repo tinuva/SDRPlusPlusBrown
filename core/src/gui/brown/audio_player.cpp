@@ -34,7 +34,7 @@ void AudioPlayer::draw() {
 
         if (playing) {
             if (doFingerButton("STOP")) {
-                playing = false;
+                stopPlaying();
             }
         } else {
             if (doFingerButton("PLAY")) {
@@ -48,16 +48,29 @@ void AudioPlayer::draw() {
 }
 
 
+void AudioPlayer::stopPlaying() {
+    playing = false;
+}
+
 void AudioPlayer::startPlaying() {
     if (!data->empty()) {
         auto radioName = gui::waterfall.selectedVFO;
         if (!radioName.empty()) {
             playing = true;
             std::thread x([this] {
-                dsp::routing::Merger<dsp::stereo_t>* merger = sigpath::sinkManager.getMerger(gui::waterfall.selectedVFO);
+                if (onPlayStart) {
+                    onPlayStart();
+                }
+                if (dataPosition >= data->size()) {
+                    dataPosition = 0;
+                }
                 outStream.clearReadStop();
                 outStream.clearWriteStop();
-                merger->bindStream(-10, &outStream);
+                splitterOut.clearReadStop();
+                splitterOut.clearWriteStop();
+                splitter.start();
+                dsp::routing::Merger<dsp::stereo_t>* merger = sigpath::sinkManager.getMerger(gui::waterfall.selectedVFO);
+                merger->bindStream(-10, &splitterOut);          // way to the audio speaker
                 auto waitTil = (double)currentTimeMillis();
                 for (dataPosition = 0; dataPosition < data->size() && playing; dataPosition += 1024) {
                     auto ctm = currentTimeMillis();
@@ -76,8 +89,12 @@ void AudioPlayer::startPlaying() {
                     //                        flog::info("player Swapped to {}: {} - {} = {}", audioOut.origin, blockEnd, i, blockEnd - i);
                 }
                 flog::info("startPlaying: stop");
-                merger->unbindStream(&outStream);
+                merger->unbindStream(&splitterOut);
+                splitter.stop();
                 playing = false;
+                if (onPlayEnd) {
+                    onPlayEnd();
+                }
             });
             x.detach();
         }

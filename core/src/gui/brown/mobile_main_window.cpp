@@ -748,9 +748,7 @@ struct SimpleRecorder {
                         flog::info("recorder.read() causes loop break, rd={0}", rd);
                         break;
                     }
-                    auto dest = data.size();
-                    data.resize(data.size() + rd);
-                    std::copy(recorderIn.readBuf, recorderIn.readBuf + rd, data.begin() + (long)dest);
+                    data.insert(data.end(), recorderIn.readBuf, recorderIn.readBuf + rd);
                     recorderIn.flush();
                     //                    flog::info("recorder.read() rd={0}, dest={1}, data.size()={2}", rd, dest, data.size());
                 }
@@ -1038,13 +1036,15 @@ struct QSOPanel {
     std::shared_ptr<std::thread> receiveBuffers;
     dsp::arrays::FloatArray currentFFTBuffer;
     std::mutex currentFFTBufferMutex;
-    void handleTxButton(ImGui::WaterfallVFO* vfo, bool tx, bool tune);
+    void handleTxButton(ImGui::WaterfallVFO* vfo, bool tx, bool tune, dsp::routing::Splitter<dsp::stereo_t>* what);
     float currentFreq;
     int txGain = 0;
 
     float micGain = 0; // in db
     bool enablePA = false;
     bool transmitting = false;
+    dsp::routing::Splitter<dsp::stereo_t> *currentTransmitSource = nullptr;      // either mic processed, or call cq playuer
+
     void setModeSubmode(const std::string& mode, const std::string& submode);
     std::string submode;
     std::string mode;
@@ -1180,22 +1180,22 @@ struct MobileMainWindowPrivate {
 
     QSOAudioRecorder audioRecorder;
     AudioPlayer player;
-    AudioPlayer callCQPreviewPlayer;
+    AudioPlayer callCQlayer;
     int logbookDetailsEditIndex = -1;
     QSORecord editableRecord;
     std::vector<dsp::stereo_t> callCq;
 
-    MobileMainWindowPrivate() : player("main_window_qso_record_player"), callCQPreviewPlayer("call_cq_preview"){
+    MobileMainWindowPrivate() : player("main_window_qso_record_player"), callCQlayer("call_cq_preview"){
     }
 
     void init() {
         audioRecorder.init(&pub->qsoPanel->audioInProcessed);
         auto root = (std::string)core::args["root"];
-        callCQPreviewPlayer.loadFile(root + "/call_cq.wav");
-        if (callCQPreviewPlayer.error == "") {
-            callCq = callCQPreviewPlayer.dataOwn;
-            callCQPreviewPlayer.dataOwn.clear();
-            callCQPreviewPlayer.setData(&callCq, callCQPreviewPlayer.sampleRate);
+        callCQlayer.loadFile(root + "/call_cq.wav");
+        if (callCQlayer.error == "") {
+            callCq = callCQlayer.dataOwn;
+            callCQlayer.dataOwn.clear();
+            callCQlayer.setData(&callCq, callCQlayer.sampleRate);
         }
     }
 
@@ -1925,7 +1925,18 @@ void MobileMainWindow::draw() {
     }
     if (pressedButton == &this->callCQ) {
         if (sigpath::transmitter && !qsoPanel->transmitting) {
-            qsoPanel->handleTxButton(vfo, true, false);
+            if (!pvt->callCQlayer.playing) {
+                pvt->callCQlayer.startPlaying();
+                pvt->callCQlayer.onPlayEnd = [&]() {
+                    pvt->callCQlayer.onPlayEnd = nullptr;
+                    pvt->callCQlayer.onPlayStart = nullptr;
+                    qsoPanel->handleTxButton(vfo, false, false, &pvt->callCQlayer.splitter);
+                };
+                qsoPanel->handleTxButton(vfo, true, false, &pvt->callCQlayer.splitter);
+                sigpath::sinkManager.setAllMuted(false);    // re-enable sound
+            } else {
+                pvt->callCQlayer.stopPlaying();
+            }
         }
     }
     //
@@ -2026,13 +2037,13 @@ void MobileMainWindow::draw() {
         if (pressedButton == &this->softTune) {
             if (qsoPanel->audioInToTransmitter) {
                 // tuning, need to stop
-                qsoPanel->handleTxButton(vfo, false, true);
+                qsoPanel->handleTxButton(vfo, false, true, &qsoPanel->audioInProcessed);
 #define SOFT_TUNE_LABEL "SoftTune"
                 pressedButton->buttonText = SOFT_TUNE_LABEL;
             }
             else {
                 // need to start
-                qsoPanel->handleTxButton(vfo, true, true);
+                qsoPanel->handleTxButton(vfo, true, true, &qsoPanel->audioInProcessed);
                 pressedButton->buttonText = "Tuning..";
             }
         }
@@ -2045,7 +2056,7 @@ void MobileMainWindow::draw() {
         }
         if (txPressed && !qsoPanel->audioInToTransmitter || !txPressed && qsoPanel->audioInToTransmitter && qsoPanel->audioInToTransmitter->tuneFrequency == 0) {
             // button is pressed ok to send, or button is released and audioInToTransmitter running and it is not in tune mode
-            qsoPanel->handleTxButton(vfo, txPressed, false);
+            qsoPanel->handleTxButton(vfo, txPressed, false, &qsoPanel->audioInProcessed);
             //
         }
     }
@@ -2451,7 +2462,7 @@ void MobileMainWindowPrivate::recordCallCQPopup() {
             }
             if (callCq.size() > 0) {
                 ImGui::TextUnformatted("Current Call CQ recording:");
-                callCQPreviewPlayer.draw();
+                callCQlayer.draw();
             }
             break;
         case SimpleRecorder::RECORDING_STARTED:
@@ -2468,12 +2479,12 @@ void MobileMainWindowPrivate::recordCallCQPopup() {
                     if (!w.open(fname)) {
                         return;
                     }
-                    w.write((float *)pub->configPanel->recorder.data.data(), pub->configPanel->recorder.data.size() * sizeof(dsp::stereo_t));
+                    w.write((float *)pub->configPanel->recorder.data.data(), pub->configPanel->recorder.data.size());
                     w.close();
                     pub->configPanel->recorder.data.clear();
-                    callCQPreviewPlayer.loadFile(fname);
-                    callCq = callCQPreviewPlayer.dataOwn;
-                    callCQPreviewPlayer.setData(&callCq, callCQPreviewPlayer.sampleRate);
+                    callCQlayer.loadFile(fname);
+                    callCq = callCQlayer.dataOwn;
+                    callCQlayer.setData(&callCq, callCQlayer.sampleRate);
                 }
             }
             break;
@@ -2795,13 +2806,18 @@ void QSOPanel::setModeSubmode(const std::string& _mode, const std::string& _subm
     }
 }
 
-void QSOPanel::handleTxButton(ImGui::WaterfallVFO* vfo, bool tx, bool tune) {
+void QSOPanel::handleTxButton(ImGui::WaterfallVFO* vfo, bool tx, bool tune, dsp::routing::Splitter<dsp::stereo_t> *what) {
+    if (currentTransmitSource != nullptr && currentTransmitSource != what) {
+        // do not interfere, other tx source is active
+        return;
+    }
     if (tx) {
         if (!this->transmitting) {
             sigpath::txState.emit(tx);
             this->transmitting = true;
             if (sigpath::transmitter) {
-                audioInProcessed.bindStream(&audioTowardsTransmitter);
+                currentTransmitSource = what;
+                currentTransmitSource->bindStream(&audioTowardsTransmitter);
                 audioInToTransmitter = std::make_shared<AudioInToTransmitter>(&audioTowardsTransmitter);
                 if (vfo) {
                     audioInToTransmitter->bandwidth = std::min<double>(12000.0, vfo->bandwidth);
@@ -2829,10 +2845,11 @@ void QSOPanel::handleTxButton(ImGui::WaterfallVFO* vfo, bool tx, bool tune) {
             triggerTXOffEvent = 14; // 60fps,
             if (sigpath::transmitter) {
                 sigpath::transmitter->setTransmitStatus(false);
-                audioInProcessed.unbindStream(&audioTowardsTransmitter);
+                currentTransmitSource->unbindStream(&audioTowardsTransmitter);
                 audioInToTransmitter->stop();
                 audioInToTransmitter->out.stopReader();
             }
+            currentTransmitSource = nullptr;
         }
     }
     configPanel->afnr->allowed2 = !this->transmitting;
