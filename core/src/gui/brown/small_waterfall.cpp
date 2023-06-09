@@ -129,11 +129,11 @@ void SubWaterfall::init() {
 }
 
 void SubWaterfall::draw(ImVec2 loc, ImVec2 wfSize) {
-    ImGui::SetCursorPos(loc);
-    ImGui::BeginChild("audio_waterfall", wfSize, false,
-                      ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_MenuBar);
+//    ImGui::SetCursorPos(loc);
+//    ImGui::BeginChild("audio_waterfall", wfSize, false,
+//                      ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_MenuBar);
     pvt->waterfall.draw();
-    ImGui::EndChild();
+//    ImGui::EndChild();
     pvt->flushDrawUpdates();
 }
 

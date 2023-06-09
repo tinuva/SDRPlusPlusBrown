@@ -532,34 +532,8 @@ void MainWindow::draw() {
             firstMenuRender = false;
         }
 
-        if (ImGui::CollapsingHeader("Debug")) {
-            ImGui::Text("Frame time: %.3f ms/frame", ImGui::GetIO().DeltaTime * 1000.0f);
-            ImGui::Text("Real draw time: %lld ms", (long long)lastDrawTime);
-            ImGui::Text("Framerate: %.1f FPS", ImGui::GetIO().Framerate);
-            ImGui::Text("Center Frequency: %.0f Hz", gui::waterfall.getCenterFrequency());
-            ImGui::Text("Source name: %s", sourceName.c_str());
-            ImGui::Checkbox("Show demo window", &demoWindow);
-            ImGui::Text("ImGui version: %s", ImGui::GetVersion());
 
-            // ImGui::Checkbox("Bypass buffering", &sigpath::iqFrontEnd.inputBuffer.bypass);
-
-            // ImGui::Text("Buffering: %d", (sigpath::iqFrontEnd.inputBuffer.writeCur - sigpath::iqFrontEnd.inputBuffer.readCur + 32) % 32);
-
-            if (ImGui::Button("Test Bug")) {
-                flog::error("Will this make the software crash?");
-            }
-
-            if (ImGui::Button("Testing something")) {
-                gui::menu.order[0].open = true;
-                firstMenuRender = true;
-            }
-
-            ImGui::Checkbox("WF Single Click", &gui::waterfall.VFOMoveSingleClick);
-            onDebugDraw.emit(GImGui);
-
-
-            ImGui::Spacing();
-        }
+        this->drawDebugMenu();
 
         ImGui::EndChild();
     }
@@ -676,6 +650,7 @@ void MainWindow::draw() {
 
     ImGui::EndChild();
 
+    this->drawBottomWindows();
 
     ImGui::End();
 
@@ -778,4 +753,109 @@ void MainWindow::handleWaterfallInput(ImGui::WaterfallVFO* vfo) {
         }
     }
 
+}
+
+void MainWindow::drawBottomWindows() {
+    if (!showMenu) {
+        if (bottomWindows.size() > 0) {
+            updateBottomWindowLayout();
+            for (int i = 0; i < bottomWindows.size(); i++) {
+                ImGui::Begin(("bottomwindow_" + bottomWindows[i].name).c_str(),
+                             NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+                ImGui::SetWindowPos(ImVec2(bottomWindows[i].loc.x, gui::waterfall.wfMax.y - bottomWindows[i].size.y));
+                ImGui::SetWindowSize(ImVec2(bottomWindows[i].size.x, bottomWindows[i].size.y));
+                bottomWindows[i].drawFunc();
+                ImGui::End();
+            }
+        }
+    }
+}
+void MainWindow::addBottomWindow(std::string name, std::function<void()> drawFunc) {
+    int foundIndex = -1;
+    for (int i = 0; i < bottomWindows.size(); i++) {
+        if (bottomWindows[i].name == name) {
+            foundIndex = i;
+        }
+    }
+    if (foundIndex != -1) {
+        bottomWindows[foundIndex].drawFunc = drawFunc;
+    } else {
+        bottomWindows.emplace_back(ButtomWindow{ name, drawFunc });
+    }
+    updateBottomWindowLayout();
+}
+
+void MainWindow::updateBottomWindowLayout() {
+    auto fullWidth = gui::waterfall.fftAreaMax.x - gui::waterfall.fftAreaMin.x;
+    auto fullHeight = gui::waterfall.wfMax.y - gui::waterfall.wfMin.y;
+    int nWindows = bottomWindows.size();
+    if (nWindows < 5) {
+        nWindows = 5;
+    }
+    auto size = fullWidth / nWindows;
+    auto scan = 0;
+    for(int i=0; i<bottomWindows.size(); i++) {
+        bottomWindows[i].loc.x = scan;
+        bottomWindows[i].loc.y = 0;
+        bottomWindows[i].size.x = size;
+        bottomWindows[i].size.y = fullHeight/5;
+        scan += size;
+    }
+}
+
+bool MainWindow::hasBottomWindow(std::string name) {
+    for (int i = 0; i < bottomWindows.size(); i++) {
+        if (bottomWindows[i].name == name) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void MainWindow::removeBottomWindow(std::string name) {
+    for (int i = 0; i < bottomWindows.size(); i++) {
+        if (bottomWindows[i].name == name) {
+            bottomWindows.erase(bottomWindows.begin() + i);
+            updateBottomWindowLayout();
+            return;
+        }
+    }
+}
+
+void MainWindow::drawDebugMenu() {
+    if (ImGui::CollapsingHeader("Debug")) {
+        ImGui::Text("Frame time: %.3f ms/frame", ImGui::GetIO().DeltaTime * 1000.0f);
+        ImGui::Text("Real draw time: %lld ms", (long long)lastDrawTime);
+        ImGui::Text("Framerate: %.1f FPS", ImGui::GetIO().Framerate);
+        ImGui::Text("Center Frequency: %.0f Hz", gui::waterfall.getCenterFrequency());
+        ImGui::Text("Source name: %s", sourceName.c_str());
+        ImGui::Checkbox("Show demo window", &demoWindow);
+        ImGui::Text("ImGui version: %s", ImGui::GetVersion());
+
+        // ImGui::Checkbox("Bypass buffering", &sigpath::iqFrontEnd.inputBuffer.bypass);
+
+        // ImGui::Text("Buffering: %d", (sigpath::iqFrontEnd.inputBuffer.writeCur - sigpath::iqFrontEnd.inputBuffer.readCur + 32) % 32);
+
+        if (ImGui::Button("Test Bug")) {
+            flog::error("Will this make the software crash?");
+        }
+
+        if (ImGui::Button("Testing something")) {
+            addBottomWindow("bw1", []() {
+                ImGui::Text("Hello world1");
+            });
+            addBottomWindow("bw2", []() {
+                ImGui::Text("Hello world2");
+            });
+            addBottomWindow("bw3", []() {
+                ImGui::Text("Hello world3");
+            });
+        }
+
+        ImGui::Checkbox("WF Single Click", &gui::waterfall.VFOMoveSingleClick);
+        onDebugDraw.emit(GImGui);
+
+
+        ImGui::Spacing();
+    }
 }

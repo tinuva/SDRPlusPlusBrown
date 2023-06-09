@@ -51,9 +51,7 @@ inline std::string GetThreadName( ) {
     return "??";
 }
 
-extern "C" {
 SDRPP_EXPORT char* sdrppResourcesDirectory; // to reference from C files.
-}
 
 
 int sdrpp_main(int argc, char* argv[]);

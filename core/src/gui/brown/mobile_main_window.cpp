@@ -1644,6 +1644,7 @@ void MobileMainWindow::draw() {
         else {
             firstMenuRender = false;
         }
+        this->drawDebugMenu();
         ImGui::EndChild();
     }
 
@@ -1891,10 +1892,7 @@ void MobileMainWindow::draw() {
         ImGui::EndChild(); // buttons
     }
 
-    if (drawAudioWaterfall) {
-        ImVec2 sz(io.DisplaySize.x / 6, io.DisplaySize.y / 4);
-        audioWaterfall->draw(ImVec2(io.DisplaySize.x / 2 - sz.x / 2, io.DisplaySize.y - sz.y - 20), sz);
-    }
+    this->drawBottomWindows();
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.f);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(43.f / 255.f, 43.f / 255.f, 43.f / 255.f, 100.f / 255.f));
@@ -2363,6 +2361,14 @@ void MobileMainWindow::init() {
             setConfig("showAudioWaterfall", _this->drawAudioWaterfall);
         }
     };
+    if (drawAudioWaterfall && !hasBottomWindow("audio_waterfall")) {
+        addBottomWindow("audio_waterfall", [&](){
+            const ImVec2& sz = ImGui::GetContentRegionAvail();
+            audioWaterfall->draw(ImVec2(0, 0), sz);
+        });
+    } else {
+        removeBottomWindow("audio_waterfall");
+    }
     displayDrawHandler.ctx = this;
     pvt->init();
 }

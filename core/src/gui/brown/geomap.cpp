@@ -176,21 +176,21 @@ namespace geomap {
     void GeoMap::saveTo(ConfigManager& manager, const char* prefix){
         auto pref = std::string(prefix);
         manager.acquire();
-        core::configManager.conf[pref+"_scale_x"] = scale.x;
-        core::configManager.conf[pref+"_scale_y"] = scale.y;
-        core::configManager.conf[pref+"_translate_x"] = translate.x;
-        core::configManager.conf[pref+"_translate_y"] = translate.y;
+        manager.conf[pref+"_scale_x"] = scale.x;
+        manager.conf[pref+"_scale_y"] = scale.y;
+        manager.conf[pref+"_translate_x"] = translate.x;
+        manager.conf[pref+"_translate_y"] = translate.y;
         manager.release(true);
     };
 
     void GeoMap::loadFrom(ConfigManager& manager, const char* prefix) {
         auto pref = std::string(prefix);
         manager.acquire();
-        if (core::configManager.conf.contains(pref+"_scale_x")) {
-            scale.x = core::configManager.conf[pref + "_scale_x"];
-            scale.y = core::configManager.conf[pref + "_scale_y"];
-            translate.x = core::configManager.conf[pref + "_translate_x"];
-            translate.y = core::configManager.conf[pref + "_translate_y"];
+        if (manager.conf.contains(pref+"_scale_x")) {
+            scale.x = manager.conf[pref + "_scale_x"];
+            scale.y = manager.conf[pref + "_scale_y"];
+            translate.x = manager.conf[pref + "_translate_x"];
+            translate.y = manager.conf[pref + "_translate_y"];
         }
         manager.release(false);
     };

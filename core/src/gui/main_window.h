@@ -80,4 +80,20 @@ protected:
 
     void updateWaterfallZoomBandwidth(float bw);
     void handleWaterfallInput(ImGui::WaterfallVFO* vfo);
+
+    struct ButtomWindow {
+        std::string name;
+        std::function<void()> drawFunc;
+        ImVec2 loc;
+        ImVec2 size;
+    };
+
+    std::vector<ButtomWindow> bottomWindows;
+
+    void addBottomWindow(std::string name, std::function<void()> drawFunc);
+    void removeBottomWindow(std::string name);
+    void updateBottomWindowLayout();
+    void drawBottomWindows();
+    void drawDebugMenu();
+    bool hasBottomWindow(std::string name);
 };

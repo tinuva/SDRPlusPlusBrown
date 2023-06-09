@@ -6,9 +6,7 @@
 
 using namespace std;
 
-extern "C" {
 extern char* sdrppResourcesDirectory;
-}
 
 G_calculate::G_calculate()
 {

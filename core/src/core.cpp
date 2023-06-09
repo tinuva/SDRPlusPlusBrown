@@ -72,9 +72,7 @@ void setproctitle(const char* fmt, ...) {
 #endif
 #endif
 
-extern "C" {
 char* sdrppResourcesDirectory; // to reference from C files.
-}
 
 namespace core {
     ConfigManager configManager;
