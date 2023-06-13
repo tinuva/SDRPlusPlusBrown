@@ -43,6 +43,14 @@ public:
         firstMenuRender = true;
     }
 
+    void addBottomWindow(std::string name, std::function<void()> drawFunc);
+    void removeBottomWindow(std::string name);
+    void updateBottomWindowLayout();
+    void drawBottomWindows(int dy);
+    bool hasBottomWindow(std::string name);
+
+    bool logWindow = false;
+
 protected:
     static void vfoAddedHandler(VFOManager::VFO* vfo, void* ctx);
 
@@ -90,10 +98,5 @@ protected:
 
     std::vector<ButtomWindow> bottomWindows;
 
-    void addBottomWindow(std::string name, std::function<void()> drawFunc);
-    void removeBottomWindow(std::string name);
-    void updateBottomWindowLayout();
-    void drawBottomWindows();
     void drawDebugMenu();
-    bool hasBottomWindow(std::string name);
 };

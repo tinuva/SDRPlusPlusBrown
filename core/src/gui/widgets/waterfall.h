@@ -1,4 +1,5 @@
 #pragma once
+#include <core.h>
 #include <vector>
 #include <mutex>
 #include <gui/widgets/bandplan.h>
@@ -88,6 +89,7 @@ namespace ImGui {
     class WaterFall {
     public:
         WaterFall();
+        virtual ~WaterFall();
 
         void init();
 
@@ -172,6 +174,7 @@ namespace ImGui {
         bool mouseInFreq = false;
         bool mouseInFFT = false;
         bool mouseInWaterfall = false;
+        bool horizontalScaleVisible = true;
 
         float selectedVFOSNR = NAN;
 
@@ -245,6 +248,7 @@ namespace ImGui {
         void updateWaterfallFb(const std::string &where = ""); // called from android, from outside
         ImVec2 widgetPos;
         ImVec2 widgetEndPos;
+
 
     private:
         void drawWaterfall();
@@ -370,7 +374,7 @@ namespace ImGui {
 
         const int rawFFTIndex(double frequency) const;
         void testAlloc(const std::string& where);
-
-
     };
+
+
 };

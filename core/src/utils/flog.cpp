@@ -20,7 +20,9 @@
 #define ESCAPE_CHAR     '\\'
 
 namespace flog {
+
     std::mutex outMtx;
+    std::vector<LogRec> logRecords;
 
     const char* TYPE_STR[_TYPE_COUNT] = {
         "DEBUG",
@@ -28,6 +30,7 @@ namespace flog {
         "WARN",
         "ERROR"
     };
+
 
 #ifdef _WIN32
 #define COLOR_WHITE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
@@ -178,6 +181,7 @@ namespace flog {
             fprintf(outStream, COLOR_WHITE "[%02d/%02d/%02d %02d:%02d:%02d.%03d] [%s%s" COLOR_WHITE "] %s\n",
                     nowc->tm_mday, nowc->tm_mon + 1, nowc->tm_year + 1900, nowc->tm_hour, nowc->tm_min, nowc->tm_sec, (int)(msec % 1000), TYPE_COLORS[type], TYPE_STR[type], out.c_str());
 #endif
+            logRecords.emplace_back(LogRec{msec, type, out});
         }
     }
 

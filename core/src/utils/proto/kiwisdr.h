@@ -6,6 +6,7 @@
 #include <ctm.h>
 #include <thread>
 #include <core.h>
+#include <stdatomic.h>
 
 struct KiwiSDRClient {
     net::websock::WSClient wsClient;
@@ -13,16 +14,13 @@ struct KiwiSDRClient {
     bool connected;
     char connectionStatus[100];
     int64_t lastPing;
-    bool running;
+    std::atomic<bool> running;
     std::vector<int64_t> times;
 
-    std::function<void()> onConnected = [](){};
-    std::function<void()> onDisconnected = [](){};
+    std::function<void()> onConnected = []() {};
+    std::function<void()> onDisconnected = []() {};
     std::vector<std::complex<float>> iqData;
     std::mutex iqDataLock;
-    static constexpr int IQDATA_FREQUENCY = 12000;
-    static constexpr int NETWORK_BUFFER_SECONDS = 2;
-    static constexpr int NETWORK_BUFFER_SIZE = NETWORK_BUFFER_SECONDS * IQDATA_FREQUENCY;
 
 
     virtual ~KiwiSDRClient() {
@@ -31,22 +29,28 @@ struct KiwiSDRClient {
         running = false;
     }
 
+    int IQDATA_FREQUENCY = 12000;
+    int NETWORK_BUFFER_SECONDS = 2;
+    int NETWORK_BUFFER_SIZE = NETWORK_BUFFER_SECONDS * IQDATA_FREQUENCY;
 
-
-    void init(const std::string &hostport, int lastTuneFrequency) {
+    void init(const std::string& hostport) {
 
         this->hostPort = hostport;
         strcpy(connectionStatus, "Not connected");
+        static atomic_int outCount;
+
+        outCount = 0;
 
         wsClient.onDisconnected = [&]() {
             connected = false;
             this->onDisconnected();
+            sprintf(connectionStatus, "Disconnected");
         };
 
         wsClient.onConnected = [&]() {
             // x.sendString("SET mod=usb low_cut=300 high_cut=2700 freq=14100.000");
             wsClient.sendString("SET auth t=kiwi p=#");
-            wsClient.sendString("SET AR OK in=12000 out=48000");
+            wsClient.sendString("SET AR OK in=" + std::to_string(IQDATA_FREQUENCY) + " out=48000");
             //            x.sendString("SET mod=am low_cut=-4900 high_cut=4900 freq=119604.33");
             wsClient.sendString("SERVER DE CLIENT sdr++brown SND");
             wsClient.sendString("SET compression=0");
@@ -68,9 +72,12 @@ struct KiwiSDRClient {
                 start = msg.substr(0, 3);
             }
             if (start == "MSG") {
-                flog::info("BIN/MSG: {} text: {}", (int64_t)msg.size(), msg);
+                flog::info("=> BIN/MSG: {} text: {}", (int64_t)msg.size(), msg);
             }
             else if (start == "SND") {
+                if ((outCount++) % 50 == 0) {
+                    flog::info("=> SND (each 50 packets)");
+                }
                 //                flog::info("{} Got sound: bytes={} )", (int64_t)currentTimeMillis(), (int64_t)msg.size());
                 long long int ctm = currentTimeMillis();
                 times.emplace_back(ctm);
@@ -85,8 +92,32 @@ struct KiwiSDRClient {
                     times.erase(times.begin());
                 }
                 sprintf(connectionStatus, "Receiving. %d KB/sec (%d)", (lastSecondCount * ((int)msg.size())) / 1024, lastSecondCount);
-                int HEADER_SIZE = 20;
-                if (msg[3] == 0x08 && msg.size() == 2048 + HEADER_SIZE) { // IQ data
+                int IQ_HEADER_SIZE = 20;
+                int REAL_HEADER_SIZE = 10;
+                if (currentModulation == TUNE_REAL && msg.size() == 1024 + REAL_HEADER_SIZE) { // REAL data
+                    auto scan = msg.data();
+                    scan += REAL_HEADER_SIZE;
+
+                    if (scan != msg.data() + REAL_HEADER_SIZE) {
+                        abort(); // homegrown assert.
+                    }
+
+                    int16_t* ptr = (int16_t*)scan;
+                    sprintf(connectionStatus, "Storing real..");
+                    iqDataLock.lock();
+                    for (int z = 0; z < 512; z++) {
+                        int16_t* iqsample = &ptr[z];
+                        char* fourbytes = (char*)iqsample;
+                        std::swap(fourbytes[0], fourbytes[1]);
+                        iqData.emplace_back(iqsample[0] / 32767.0, 0);
+                    }
+                    while (iqData.size() > NETWORK_BUFFER_SIZE * 1.5) {
+                        iqData.erase(iqData.begin(), iqData.begin() + 200);
+                    }
+                    iqDataLock.unlock();
+                    sprintf(connectionStatus, "Cont Recv. %d KB/sec (%d)", (lastSecondCount * ((int)msg.size())) / 1024, lastSecondCount);
+                }
+                if (currentModulation == TUNE_IQ && msg[3] == 0x08 && msg.size() == 2048 + IQ_HEADER_SIZE) { // IQ data
                     auto scan = msg.data();
                     scan += 4;
                     auto sequence = *(int32_t*)scan;
@@ -102,12 +133,11 @@ struct KiwiSDRClient {
                     auto* arg2 = (int32_t*)scan;
                     scan += 4;
 
-                    if (scan != msg.data() + 20) {
+                    if (scan != msg.data() + IQ_HEADER_SIZE) {
                         abort(); // homegrown assert.
                     }
 
                     int16_t* ptr = (int16_t*)scan;
-                    int buflen = 0;
                     iqDataLock.lock();
                     for (int z = 0; z < 512; z++) {
                         int16_t* iqsample = &ptr[2 * z];
@@ -116,12 +146,9 @@ struct KiwiSDRClient {
                         std::swap(fourbytes[2], fourbytes[3]);
                         iqData.emplace_back(iqsample[0] / 32767.0, iqsample[1] / 32767.0);
                     }
-                    int erased = 0;
                     while (iqData.size() > NETWORK_BUFFER_SIZE * 1.5) {
                         iqData.erase(iqData.begin(), iqData.begin() + 200);
-                        erased += 200;
                     }
-                    buflen = iqData.size();
                     iqDataLock.unlock();
                     //                    flog::info("{} Got sound: bytes={} sequence={} info1={} timestamp={} , {} samples, buflen now = {} (erased {})", (int64_t)currentTimeMillis(), msg.size(), sequence, info1, timestamp, (msg.size() - HEADER_SIZE) / 4, buflen, erased);
                 }
@@ -139,7 +166,7 @@ struct KiwiSDRClient {
                         start += buf;
                     }
                 }
-                flog::info("BIN: {} bytes: {}", (int64_t)msg.size(), start);
+//                flog::info("=> BIN: {} bytes: {}", (int64_t)msg.size(), start);
             }
         };
         lastPing = currentTimeMillis();
@@ -149,21 +176,39 @@ struct KiwiSDRClient {
                 lastPing = currentTimeMillis();
             }
         };
-
-
     }
-    void tune(double freq) {
+
+
+    enum Modulation {
+        TUNE_IQ = 1,
+        TUNE_REAL = 2,           // only real data, -3 .. +3 kHz
+    };
+
+    Modulation currentModulation;
+
+    void tune(double freq, Modulation mod) {
         char buf[1024];
-        sprintf(buf, "SET mod=iq low_cut=-7000 high_cut=7000 freq=%0.3f", freq / 1000.0);
+        switch (mod) {
+        case Modulation::TUNE_IQ:
+            currentModulation = mod;
+            sprintf(buf, "SET mod=iq low_cut=-7000 high_cut=7000 freq=%0.3f", freq / 1000.0);
+            break;
+        case Modulation::TUNE_REAL:
+            currentModulation = mod;
+            sprintf(buf, "SET mod=usb low_cut=0 high_cut=8000 freq=%0.3f", (freq - 3000) / 1000.0);
+            break;
+        }
         wsClient.sendString(buf);
     }
 
     void stop() {
         strcpy(connectionStatus, "Disconnecting..");
         wsClient.stopSocket();
-        while(running) {
+        strcpy(connectionStatus, "Disconnecting2..");
+        while (running) {
             usleep(100000);
         }
+        strcpy(connectionStatus, "Disconnected.");
     }
 
     void start() {
@@ -179,7 +224,8 @@ struct KiwiSDRClient {
                 if (colonPosition != std::string::npos) {
                     hostName = hostPort.substr(0, colonPosition);
                     port = std::stoi(hostPort.substr(colonPosition + 1));
-                } else {
+                }
+                else {
                     hostName = hostPort;
                     port = 0;
                 }

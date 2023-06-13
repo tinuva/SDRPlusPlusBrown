@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 #include <stdint.h>
+#include <mutex>
+#include "sdrpp_export.h"
 
 namespace flog {
     enum Type {
@@ -11,6 +13,16 @@ namespace flog {
         TYPE_ERROR,
         _TYPE_COUNT
     };
+
+    struct LogRec {
+        int64_t ts;
+        Type typ;
+        std::string message;
+    };
+
+    extern std::mutex outMtx;
+    extern std::vector<LogRec> logRecords;
+
 
     // IO functions
     void __log__(Type type, const char* fmt, const std::vector<std::string>& args);

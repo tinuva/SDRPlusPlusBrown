@@ -11,7 +11,7 @@
 #include <gui/widgets/waterfall.h>
 #include <gui/icons.h>
 #include <gui/widgets/bandplan.h>
-#include <gui/widgets/finger_button.h>
+#include <gui/widgets/simple_widgets.h>
 #include <gui/style.h>
 #include <gui/menus/display.h>
 #include <gui/menus/theme.h>
@@ -1518,6 +1518,14 @@ void MobileMainWindow::draw() {
     updateAudioWaterfallPipeline();
     pvt->audioRecorder.updateControlState(!encoder.enabled, this->qsoPanel->transmitting);
 
+    if (drawAudioWaterfall && !hasBottomWindow("audio_waterfall")) {
+        addBottomWindow("audio_waterfall", [&]() {
+            audioWaterfall->draw();
+        });
+    }
+    if (!drawAudioWaterfall && hasBottomWindow("audio_waterfall")) {
+        removeBottomWindow("audio_waterfall");
+    }
 
     gui::waterfall.alwaysDrawLine = false;
     ImGuiIO& io = ImGui::GetIO();
@@ -1575,9 +1583,12 @@ void MobileMainWindow::draw() {
         break;
     }
 
-    const ImVec2 waterfallRegion = ImVec2(ImGui::GetContentRegionAvail().x - encoderWidth - buttonsWidth, ImGui::GetContentRegionAvail().y - statusHeight);
+    ImVec2 waterfallRegion = ImVec2(ImGui::GetContentRegionAvail().x - encoderWidth - buttonsWidth, ImGui::GetContentRegionAvail().y - statusHeight);
 
     lockWaterfallControls = showMenu || (qsoMode != VIEW_DEFAULT && modeToggle.upperText == "CW") || !encoder.enabled;
+    if (!bottomWindows.empty()) {
+        waterfallRegion.y -= bottomWindows[0].size.y;
+    }
     ImGui::BeginChildEx("Waterfall", ImGui::GetID("sdrpp_waterfall"), waterfallRegion, false, 0);
     auto waterfallStart = ImGui::GetCursorPos();
     gui::waterfall.draw();
@@ -1595,6 +1606,7 @@ void MobileMainWindow::draw() {
 
     float addx = gui::waterfall.fftAreaMin.x + 5 * style::uiScale;
     ImGui::SetCursorPos(cornerPos + ImVec2(addx, waterfallRegion.y));
+    int statusLineDY = ImGui::GetCursorPosY();
     ImGui::PushFont(style::mediumFont);
     ImGui::Text("%s -> %s    zoom: %s   qsorec: %d sec",
                 this->modeToggle.upperText.c_str(),
@@ -1605,6 +1617,7 @@ void MobileMainWindow::draw() {
     ImGui::Dummy(ImVec2(addx, 0));
     ImGui::SameLine();
     ImGui::Text("%s", currentDXInfo.c_str());
+    statusLineDY = ImGui::GetCursorPosY() - statusLineDY;
     ImGui::PopFont();
 
     ImGui::SetCursorPos(cornerPos);
@@ -1892,7 +1905,7 @@ void MobileMainWindow::draw() {
         ImGui::EndChild(); // buttons
     }
 
-    this->drawBottomWindows();
+    this->drawBottomWindows(statusLineDY);
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.f);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(43.f / 255.f, 43.f / 255.f, 43.f / 255.f, 100.f / 255.f));
@@ -2335,7 +2348,7 @@ MobileMainWindow::MobileMainWindow() : MainWindow(),
     configPanel = std::make_shared<ConfigPanel>(&qsoPanel->audioInProcessed);
     qsoPanel->configPanel = configPanel;
     cwPanel = std::make_shared<CWPanel>();
-    audioWaterfall = std::make_shared<SubWaterfall>(trxAudioSampleRate, "Audio Heard");
+    audioWaterfall = std::make_shared<SubWaterfall>(trxAudioSampleRate, 5000, "Audio Heard");
 }
 
 void MobileMainWindow::init() {
@@ -2361,14 +2374,6 @@ void MobileMainWindow::init() {
             setConfig("showAudioWaterfall", _this->drawAudioWaterfall);
         }
     };
-    if (drawAudioWaterfall && !hasBottomWindow("audio_waterfall")) {
-        addBottomWindow("audio_waterfall", [&](){
-            const ImVec2& sz = ImGui::GetContentRegionAvail();
-            audioWaterfall->draw(ImVec2(0, 0), sz);
-        });
-    } else {
-        removeBottomWindow("audio_waterfall");
-    }
     displayDrawHandler.ctx = this;
     pvt->init();
 }
@@ -2402,9 +2407,6 @@ static bool doKeyboardButton(const std::string &title) {
     }
     return rv;
 };
-
-
-
 
 void MobileMainWindow::updateDXInfo() {
     if (currentDX == "") {

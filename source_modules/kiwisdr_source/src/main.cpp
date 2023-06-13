@@ -12,7 +12,7 @@ inline void usleep(int micros) {
 #include <utils/flog.h>
 #include <module.h>
 #include <gui/gui.h>
-#include <gui/widgets/finger_button.h>
+#include <gui/widgets/simple_widgets.h>
 #include <signal_path/signal_path.h>
 #include <core.h>
 #include <config.h>
@@ -39,12 +39,13 @@ ConfigManager config;
 struct KiwiSDRSourceModule : public ModuleManager::Instance {
 
     std::string kiwisdrSite = "sk6ag1.ddns.net:8071";
+    std::string kiwisdrLoc = "";
     //    std::string kiwisdrSite = "kiwi-iva.aprs.fi";
     KiwiSDRClient kiwiSdrClient;
     std::string root;
     KiwiSDRMapSelector selector;
 
-    KiwiSDRSourceModule(std::string name, const std::string &root) : kiwiSdrClient(), selector(root, "kiwisdr_source") {
+    KiwiSDRSourceModule(std::string name, const std::string &root) : kiwiSdrClient(), selector(root, "KiwiSDR Source") {
         this->name = name;
         this->root = root;
 
@@ -52,10 +53,13 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
         if (config.conf.contains("kiwisdr_site")) {
             kiwisdrSite = config.conf["kiwisdr_site"];
         }
+        if (config.conf.contains("kiwisdr_loc")) {
+            kiwisdrLoc = config.conf["kiwisdr_loc"];
+        }
         config.release(false);
 
 
-        kiwiSdrClient.init(kiwisdrSite, lastTuneFrequency);
+        kiwiSdrClient.init(kiwisdrSite);
 
         // Yeah no server-ception, sorry...
         // Initialize lists
@@ -75,6 +79,7 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
 
         kiwiSdrClient.onDisconnected = [&]() {
             connected = false;
+            running = false;
             gui::mainWindow.setPlayState(false);
         };
 
@@ -230,7 +235,7 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
         KiwiSDRSourceModule* _this = (KiwiSDRSourceModule*)ctx;
         _this->lastTuneFrequency = freq;
         if (_this->running && _this->connected) {
-            _this->kiwiSdrClient.tune(freq);
+            _this->kiwiSdrClient.tune(freq, KiwiSDRClient::TUNE_IQ);
         }
         flog::info("KiwiSDRSourceModule '{0}': Tune: {1}!", _this->name, freq);
     }
@@ -244,15 +249,20 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
 
         } else {
             // local ui
-            if (doFingerButton("Choose on map")) {
-                ImGui::OpenPopup("The KiwiSDR Map");
+            ImGui::BeginDisabled(gui::mainWindow.isPlaying());
+            if (doFingerButton("Choose on map...")) {
+                _this->selector.openPopup();
             }
+            ImGui::EndDisabled();
 
-            _this->selector.drawPopup([=](const std::string &x) {
-                _this->kiwisdrSite = x;
+            _this->selector.drawPopup([=](const std::string &hostPort, const std::string &loc) {
+                _this->kiwisdrSite = hostPort;
+                _this->kiwisdrLoc = loc;
                 config.acquire();
                 config.conf["kiwisdr_site"] = _this->kiwisdrSite;
+                config.conf["kiwisdr_loc"] = _this->kiwisdrLoc;
                 config.release(true);
+                _this->kiwiSdrClient.init(_this->kiwisdrSite);
             });
         }
 
@@ -260,6 +270,7 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
 
 
         SmGui::Text(("KiwiSDR site: " + _this->kiwisdrSite).c_str());
+        SmGui::Text(("Loc: " + _this->kiwisdrLoc).c_str());
         SmGui::Text(("Status: " + std::string(_this->kiwiSdrClient.connectionStatus)).c_str());
 
         long long int cst = sigpath::iqFrontEnd.getCurrentStreamTime();

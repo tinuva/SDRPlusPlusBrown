@@ -81,6 +81,7 @@ cp $build_dir/misc_modules/discord_integration/$RELDIR/discord_integration.dll s
 cp $build_dir/misc_modules/noise_reduction_logmmse/$RELDIR/noise_reduction_logmmse.dll sdrpp_windows_x64/modules/
 
 cp $build_dir/misc_modules/frequency_manager/$RELDIR/frequency_manager.dll sdrpp_windows_x64/modules/
+cp $build_dir/misc_modules/websdr_view/$RELDIR/websdr_view.dll sdrpp_windows_x64/modules/
 
 cp $build_dir/misc_modules/recorder/$RELDIR/recorder.dll sdrpp_windows_x64/modules/
 

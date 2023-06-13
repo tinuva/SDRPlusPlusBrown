@@ -78,7 +78,7 @@ namespace net::websock {
             int len = makeFrame(TEXT_FRAME, (unsigned char*)str.c_str(), str.length(), (unsigned char *)buffer.data(), buffer.size());
             buffer.resize(len);
             socket->sendstr(buffer);
-            flog::info("SENDING: {}", str);
+            flog::info("<= {}", str);
             //
         }
 
@@ -305,14 +305,17 @@ namespace net::websock {
                     data.erase(data.begin(), data.begin() + len0);
                     continue;
                 }
-                recvd = socket->recv(buf, sizeof(buf), false, NO_TIMEOUT);
-                onEveryReceive();
+                recvd = socket->recv(buf, sizeof(buf), false, 100); // 100 msec
+                if (recvd == 0) {
+                    continue;
+                }
 //                printf("recvd bytes in loop: %d\n", recvd);
                 if (recvd <= 0) {
                     socket->close();
                     onDisconnected();
                     break;
                 }
+                onEveryReceive();
                 for (int i = 0; i < recvd; i++) {
                     data.push_back(buf[i]);
                 }

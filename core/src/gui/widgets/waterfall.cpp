@@ -161,20 +161,22 @@ namespace ImGui {
         }
 
         // Horizontal scale
-        double startFreq = ceilf(lowerFreq / range) * range;
         double horizScale = (double)dataWidth / viewBandwidth;
-        float scaleVOfsset = 7 * style::uiScale;
-        for (double freq = startFreq; freq < upperFreq; freq += range) {
-            double xPos = fftAreaMin.x + ((freq - lowerFreq) * horizScale);
-            window->DrawList->AddLine(ImVec2(roundf(xPos), fftAreaMin.y + 1),
-                                      ImVec2(roundf(xPos), fftAreaMax.y),
-                                      IM_COL32(50, 50, 50, 255), style::uiScale);
-            window->DrawList->AddLine(ImVec2(roundf(xPos), fftAreaMax.y),
-                                      ImVec2(roundf(xPos), fftAreaMax.y + scaleVOfsset),
-                                      text, style::uiScale);
-            printAndScale(freq, buf);
-            ImVec2 txtSz = ImGui::CalcTextSize(buf);
-            window->DrawList->AddText(ImVec2(roundf(xPos - (txtSz.x / 2.0)), fftAreaMax.y + txtSz.y), text, buf);
+        if (horizontalScaleVisible) {
+            double startFreq = ceilf(lowerFreq / range) * range;
+            float scaleVOfsset = 7 * style::uiScale;
+            for (double freq = startFreq; freq < upperFreq; freq += range) {
+                double xPos = fftAreaMin.x + ((freq - lowerFreq) * horizScale);
+                window->DrawList->AddLine(ImVec2(roundf(xPos), fftAreaMin.y + 1),
+                                          ImVec2(roundf(xPos), fftAreaMax.y),
+                                          IM_COL32(50, 50, 50, 255), style::uiScale);
+                window->DrawList->AddLine(ImVec2(roundf(xPos), fftAreaMax.y),
+                                          ImVec2(roundf(xPos), fftAreaMax.y + scaleVOfsset),
+                                          text, style::uiScale);
+                printAndScale(freq, buf);
+                ImVec2 txtSz = ImGui::CalcTextSize(buf);
+                window->DrawList->AddText(ImVec2(roundf(xPos - (txtSz.x / 2.0)), fftAreaMax.y + txtSz.y), text, buf);
+            }
         }
 
         // Data
@@ -913,6 +915,9 @@ namespace ImGui {
             newFFTAreaHeight = FFTAreaHeight;
             fftHeight = FFTAreaHeight - (50.0f * style::uiScale);
             waterfallHeight = widgetSize.y - fftHeight - (50.0f * style::uiScale) - 2;
+            if (!horizontalScaleVisible) {
+                waterfallHeight += 50.0f * style::uiScale;
+            }
 
             waterfallHeadSectionIndex = 0;
             waterfallHeadSectionHeight = 0;
@@ -985,6 +990,10 @@ namespace ImGui {
 
         freqAreaMin = ImVec2(fftAreaMin.x, fftAreaMax.y + 1);
         freqAreaMax = ImVec2(fftAreaMax.x, fftAreaMax.y + (40.0f * style::uiScale));
+
+        if (!horizontalScaleVisible) {
+            freqAreaMax.y = freqAreaMin.y;
+        }
 
         wfMin = ImVec2(fftAreaMin.x, freqAreaMax.y + 1);
         wfMax = ImVec2(fftAreaMin.x + dataWidth, wfMin.y + waterfallHeight);
@@ -1063,7 +1072,7 @@ namespace ImGui {
     float* WaterFall::getFFTBuffer() {
         if (rawFFTs == NULL) { return NULL; }
         MEASURE_LOCK(buf_mtx);
-        if (waterfallVisible) {
+        if (waterfallVisible && waterfallHeight != 0) {
             currentFFTLine--;
             fftLines++;
             currentFFTLine = ((currentFFTLine + waterfallHeight) % waterfallHeight);
@@ -1456,6 +1465,7 @@ namespace ImGui {
         upperOffsetChanged = true;
         lowerOffsetChanged = true;
         redrawRequired = true;
+
     }
 
     void WaterfallVFO::setCenterOffset(double offset) {
@@ -1700,6 +1710,23 @@ namespace ImGui {
             out[i] = maxVal;
             id += factor;
         }
+    }
+
+    WaterFall::~WaterFall() {
+        glDeleteTextures(WATERFALL_NUMBER_OF_SECTIONS, waterfallTexturesIds);
+        if (rawFFTs) {
+            free(rawFFTs);
+        }
+        if (latestFFT != NULL) {
+            delete[] latestFFT;
+        }
+        if (latestFFTHold != NULL) {
+            delete[] latestFFTHold;
+        }
+        if (smoothingBuf) { delete[] smoothingBuf; }
+
+        delete[] waterfallFb;
+        delete[] tempDataForUpdateWaterfallFb;
     }
 
 

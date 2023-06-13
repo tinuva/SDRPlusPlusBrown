@@ -9,6 +9,7 @@
 #include <fftw3.h>
 
 struct SubWaterfall::SubWaterfallPrivate {
+    SubWaterfall *pub;
     dsp::multirate::RationalResampler<dsp::stereo_t> res;
     std::vector<dsp::stereo_t> inputBuffer;
     std::mutex inputBufferMutex;
@@ -25,6 +26,7 @@ struct SubWaterfall::SubWaterfallPrivate {
     int sampleRate;
     std::string lbl;
 
+
     void flushDrawUpdates() {
         std::lock_guard<std::mutex> lock(inputBufferMutex);
         while (inputBuffer.size() > fftSize) {
@@ -34,6 +36,16 @@ struct SubWaterfall::SubWaterfallPrivate {
             }
             fftwf_execute(fftwPlan);
             volk_32fc_s32f_power_spectrum_32f(spectrumLine, (const lv_32fc_t*)fft_out, fftSize, fftSize);
+            auto mx = -5000;
+            for(int i=0; i<fftSize; i++) {
+                if(spectrumLine[i] > mx) {
+                    mx = spectrumLine[i];
+                }
+            }
+            pub->peaks.emplace_back(mx);
+            while(pub->peaks.size() > 1000) {
+                pub->peaks.erase(pub->peaks.begin());
+            }
             float* dest = waterfall.getFFTBuffer();
             memcpy(dest, spectrumLine, fftSize * sizeof(float));
             for (int q = 0; q < fftSize / 2; q++) {
@@ -94,10 +106,12 @@ struct SubWaterfall::SubWaterfallPrivate {
     }
 };
 
-SubWaterfall::SubWaterfall(int sampleRate, const std::string & lbl) {
+SubWaterfall::SubWaterfall(int sampleRate, int wfrange, const std::string & lbl) {
     pvt = std::make_shared<SubWaterfallPrivate>();
+    pvt->pub = this;
     pvt->sampleRate = sampleRate;
     pvt->lbl = lbl;
+    pvt->hiFreq = wfrange;
     pvt->waterfall.WATERFALL_NUMBER_OF_SECTIONS = 5;
     pvt->fftSize = pvt->hiFreq / pvt->waterfallRate;
     pvt->waterfall.setRawFFTSize(pvt->fftSize);
@@ -128,12 +142,8 @@ void SubWaterfall::init() {
     pvt->res.init(nullptr, pvt->sampleRate, 2 * pvt->hiFreq);
 }
 
-void SubWaterfall::draw(ImVec2 loc, ImVec2 wfSize) {
-//    ImGui::SetCursorPos(loc);
-//    ImGui::BeginChild("audio_waterfall", wfSize, false,
-//                      ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_MenuBar);
+void SubWaterfall::draw() {
     pvt->waterfall.draw();
-//    ImGui::EndChild();
     pvt->flushDrawUpdates();
 }
 
@@ -153,4 +163,6 @@ void SubWaterfall::addAudioSamples(dsp::stereo_t* samples, int count, int sample
     pvt->inputBuffer.resize(curr + count);
     memcpy(pvt->inputBuffer.data() + curr, samples, count * sizeof(dsp::stereo_t));
 }
-
+void SubWaterfall::setFreqVisible(bool visible) {
+    pvt->waterfall.horizontalScaleVisible = visible;
+}

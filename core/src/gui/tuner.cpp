@@ -5,6 +5,7 @@
 
 namespace tuner {
 
+
     void centerTuning(std::string vfoName, double freq) {
         if (vfoName != "") {
             if (gui::waterfall.vfos.find(vfoName) == gui::waterfall.vfos.end()) { return; }

@@ -7,7 +7,7 @@
 #include <gui/style.h>
 #include <filesystem>
 #include <fstream>
-#include "gui/widgets/finger_button.h"
+#include "gui/widgets/simple_widgets.h"
 #include "kiwisdr_map.h"
 #include "utils/proto/kiwisdr.h"
 
@@ -26,6 +26,7 @@ struct KiwiSDRMapSelector {
     struct ServerEntry {
         ImVec2 gps; // -1 .. 1 etc
         std::string name;
+        std::string loc;
         std::string url;
         std::string antenna;
         float maxSnr;
@@ -36,8 +37,10 @@ struct KiwiSDRMapSelector {
 
     std::vector<ServerEntry> servers;
     std::string lastTestedServer;
+    std::string lastTestedServerLoc;
     std::mutex lastTestedServerMutex;
     const std::string configPrefix;
+    bool testInProgress = false;
 
     KiwiSDRMapSelector(const std::string& root, const std::string& configPrefix) : configPrefix(configPrefix) {
         this->root = root;
@@ -51,9 +54,13 @@ struct KiwiSDRMapSelector {
         geoMap.loadFrom(*kiwiSDRMapConfig, configPrefix.c_str()); // configPrefix is like "mapselector1_"
     }
 
-    void drawPopup(std::function<void(const std::string&)> onSelected) {
+    void openPopup() {
+        ImGui::OpenPopup((configPrefix+": The KiwiSDR Map").c_str());
+    }
+
+    void drawPopup(std::function<void(const std::string&, const std::string&)> onSelected) {
         ImGui::SetNextWindowPos(ImGui::GetIO().DisplaySize * 0.125f);
-        if (ImGui::BeginPopupModal("The KiwiSDR Map", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        if (ImGui::BeginPopupModal((configPrefix+": The KiwiSDR Map").c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             // Set the modal dialog's width and height
             const ImVec2 ws = ImGui::GetIO().DisplaySize * 0.75f;
             ImGui::SetWindowSize(ws);
@@ -87,6 +94,7 @@ struct KiwiSDRMapSelector {
                                         sscanf(gps_str.c_str(), "(%lf, %lf)", &geo.latitude, &geo.longitude);
                                         serverEntry.gps = geomap::geoToCartesian(geo).toImVec2();
                                         serverEntry.name = entry["name"].get<std::string>();
+                                        serverEntry.loc = entry["loc"].get<std::string>();
                                         serverEntry.url = entry["url"].get<std::string>();
                                         if (entry.contains("antenna")) {
                                             serverEntry.antenna = entry["antenna"].get<std::string>();
@@ -164,6 +172,7 @@ struct KiwiSDRMapSelector {
                 for (auto& s : servers) {
                     if (s.selected) {
                         ImGui::Text("%s", s.name.c_str());
+                        ImGui::Text("%s", s.loc.c_str());
                         if (!s.antenna.empty()) {
                             ImGui::Text("ANT: %s", s.antenna.c_str());
                         }
@@ -174,23 +183,28 @@ struct KiwiSDRMapSelector {
                             ImGui::Text("USR: %d/%d", s.users, s.usersmax);
                         }
                         ImGui::Text("URL: %s", s.url.c_str());
-                        if (doFingerButton("Test server")) {
+                        ImGui::BeginDisabled(testInProgress);
+                        auto doTest = doFingerButton("Test server");
+                        ImGui::EndDisabled();
+                        if (doTest) {
                             lastTestedServerMutex.lock();
                             lastTestedServer = "";
                             lastTestedServerMutex.unlock();
-                            if (serverTestStatus.empty()) {
+                            if (!testInProgress) {
+                                testInProgress = true;
                                 serverTestStatus = "Testing server " + s.url + " ...";
                                 std::thread tester([=]() {
                                     KiwiSDRClient testClient;
                                     bool plannedDisconnect = false;
                                     if (s.url.find("http://") == 0) {
                                         auto hostPort = s.url.substr(7);
+                                        auto loc = s.loc;
                                         auto lastSlash = hostPort.find("/");
                                         if (lastSlash != std::string::npos) {
                                             hostPort = hostPort.substr(0, lastSlash);
                                         }
                                         serverTestStatus = "Testing server " + hostPort + "...";
-                                        testClient.init(hostPort, 14074000);
+                                        testClient.init(hostPort);
                                         bool connected = 0;
                                         bool disconnected = 0;
                                         auto start = currentTimeMillis();
@@ -198,7 +212,7 @@ struct KiwiSDRMapSelector {
                                             connected = true;
                                             serverTestStatus = "Connected to server " + hostPort + " ...";
                                             start = currentTimeMillis();
-                                            testClient.tune(14074000);
+                                            testClient.tune(14074000, KiwiSDRClient::TUNE_IQ);
                                         };
                                         testClient.onDisconnected = [&]() {
                                             disconnected = true;
@@ -206,6 +220,7 @@ struct KiwiSDRMapSelector {
                                                 serverTestStatus = "Got some data. Server OK: " + s.url;
                                                 lastTestedServerMutex.lock();
                                                 lastTestedServer = hostPort;
+                                                lastTestedServerLoc = loc;
                                                 lastTestedServerMutex.unlock();
                                             }
                                             else {
@@ -240,6 +255,7 @@ struct KiwiSDRMapSelector {
                                         else {
                                             usleep(1000000);
                                         }
+                                        testInProgress = false;
                                     }
                                     else {
                                         serverTestStatus = "Non-http url " + s.url;
@@ -270,7 +286,7 @@ struct KiwiSDRMapSelector {
             if (lastTestedServer != "") {
                 ImGui::SameLine();
                 if (doFingerButton("Use tested server: " + lastTestedServer)) {
-                    onSelected(lastTestedServer);
+                    onSelected(lastTestedServer,lastTestedServerLoc);
                     ImGui::CloseCurrentPopup();
                 }
             }

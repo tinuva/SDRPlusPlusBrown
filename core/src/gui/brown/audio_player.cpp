@@ -3,7 +3,7 @@
 #include <utils/wav.h>
 #include "gui/gui.h"
 #include <signal_path/signal_path.h>
-#include <gui/widgets/finger_button.h>
+#include <gui/widgets/simple_widgets.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 #define CONCAT2(a, b, c) ((std::string(a) + b + c).c_str())

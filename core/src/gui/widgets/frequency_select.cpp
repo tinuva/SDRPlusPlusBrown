@@ -10,6 +10,10 @@
 #include <imgui/imgui_internal.h>
 #include "gui/menus/display.h"
 
+namespace gui {
+    Event<VFOFrequencyChange> vfoFrequencyChanged;
+}
+
 bool isInArea(ImVec2 val, ImVec2 min, ImVec2 max) {
     return val.x >= min.x && val.x < max.x && val.y >= min.y && val.y < max.y;
 }
@@ -221,12 +225,17 @@ void FrequencySelect::draw() {
 }
 
 void FrequencySelect::setFrequency(int64_t freq) {
+    if (freq != frequency) {
+        gui::vfoFrequencyChanged.emit({(float)freq});
+    }
+
     freq = std::max<int64_t>(0, freq);
-    int i = getNumberOfDigits()-1;
+    int i = getNumberOfDigits() - 1;
     for (uint64_t f = freq; i >= 0; i--) {
         digits[i] = f % 10;
         f -= digits[i];
         f /= 10;
     }
     frequency = freq;
+
 }

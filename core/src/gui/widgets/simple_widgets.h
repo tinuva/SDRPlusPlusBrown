@@ -20,3 +20,8 @@ inline bool doFingerButton(const std::string &title) {
     return rv;
 };
 
+inline void doRightText(const std::string &title) {
+    ImGui::Dummy(ImVec2(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize((title+"W").c_str()).x, 0));
+    ImGui::SameLine();
+    ImGui::TextUnformatted(title.c_str());
+}

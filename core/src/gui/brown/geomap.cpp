@@ -5,7 +5,7 @@
 #include <core.h>
 #include <utils/wstr.h>
 #include <utils/flog.h>
-#include <gui/widgets/finger_button.h>
+#include <gui/widgets/simple_widgets.h>
 #include <filesystem>
 #include <random>
 #include <imgui/imgui_internal.h>

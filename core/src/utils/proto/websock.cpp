@@ -21,7 +21,7 @@ void test1() {
 
         };
         x.onTextMessage = [&](std::string msg) {
-            flog::info("TEXT: {}", msg);
+            flog::info("=> TEXT: {}", msg);
         };
         x.onBinaryMessage = [&](std::string msg) {
             std::string start = "???";
@@ -29,7 +29,7 @@ void test1() {
                 start = msg.substr(0, 3);
             }
             if (start == "MSG") {
-                flog::info("BIN/MSG: {} text: {}", (int64_t)msg.size(), msg);
+                flog::info("=> BIN/MSG: {} text: {}", (int64_t)msg.size(), msg);
             } else {
                 if (msg.size() >= 70) {
                     char buf[100];
@@ -43,7 +43,7 @@ void test1() {
                         start += buf;
                     }
                 }
-                flog::info("BIN: {} bytes: {}", (int64_t)msg.size(), start);
+//                flog::info("=> BIN: {} bytes: {}", (int64_t)msg.size(), start);
             }
         };
         auto lastPing = currentTimeMillis();

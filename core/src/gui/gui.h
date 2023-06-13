@@ -14,6 +14,13 @@ namespace gui {
     SDRPP_EXPORT ThemeManager themeManager;
     SDRPP_EXPORT MobileMainWindow& mainWindow;
 
+    struct VFOFrequencyChange {
+//        WaterfallVFO* vfo;
+        double freq;
+    };
+
+    SDRPP_EXPORT Event<VFOFrequencyChange> vfoFrequencyChanged;
+
 
     void selectSource(std::string name);
 };

@@ -1,6 +1,7 @@
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include "imgui.h"
 #include <gui/main_window.h>
 #include <gui/gui.h>
-#include "imgui.h"
 #include "utils/usleep.h"
 #include "utils/cty.h"
 #include <stdio.h>
@@ -289,6 +290,7 @@ void MainWindow::preDraw(ImGui::WaterfallVFO**vfo) {
             }
             gui::freqSelect.setFrequency(gui::waterfall.getCenterFrequency() + (*vfo)->generalOffset);
             gui::freqSelect.frequencyChanged = false;
+
             core::configManager.acquire();
             core::configManager.conf["vfoOffsets"][gui::waterfall.selectedVFO] = (*vfo)->generalOffset;
             core::configManager.release(true);
@@ -427,6 +429,67 @@ void MainWindow::drawUpperLine(ImGui::WaterfallVFO* vfo) {
 
 int64_t lastDrawTime = 0;
 
+void ShowLogWindow() {
+    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize * 0.8, ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Log Console", &gui::mainWindow.logWindow))
+    {
+        ImGui::End();
+        return;
+    }
+
+    // As a specific feature guaranteed by the library, after calling Begin() the last Item represent the title bar.
+    // So e.g. IsItemHovered() will return true when hovering the title bar.
+    // Here we create a context menu only available from the title bar.
+    if (ImGui::BeginPopupContextItem())
+    {
+        if (ImGui::MenuItem("Close Console"))
+            gui::mainWindow.logWindow = false;
+        ImGui::EndPopup();
+    }
+
+
+
+    // Reserve enough left-over height for 1 separator + 1 input text
+    const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
+    ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false, ImGuiWindowFlags_HorizontalScrollbar);
+    if (ImGui::BeginPopupContextWindow())
+    {
+        if (ImGui::Selectable("Clear")) {
+            flog::outMtx.lock();
+            flog::logRecords.clear();
+            flog::outMtx.unlock();
+        }
+        ImGui::EndPopup();
+    }
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1)); // Tighten spacing
+    flog::outMtx.lock();
+    for (int i = 0; i < flog::logRecords.size(); i++)
+    {
+        auto item = flog::logRecords[i];
+        // Normally you would store more information in your item than just a string.
+        // (e.g. make Items[] an array of structure, store color/type etc.)
+        ImVec4 color;
+        bool has_color = false;
+        if (item.typ == flog::TYPE_ERROR)          { color = ImVec4(1.0f, 0.4f, 0.4f, 1.0f); has_color = true; }
+        else if (item.typ == flog::TYPE_WARNING) { color = ImVec4(1.0f, 0.8f, 0.6f, 1.0f); has_color = true; }
+        if (has_color)
+            ImGui::PushStyleColor(ImGuiCol_Text, color);
+        ImGui::TextUnformatted(item.message.c_str());
+        if (has_color)
+            ImGui::PopStyleColor();
+    }
+
+    flog::outMtx.unlock();
+    ImGui::SetScrollHereY(1.0f);
+
+    ImGui::PopStyleVar();
+    ImGui::EndChild();
+    ImGui::Separator();
+
+    ImGui::End();
+}
+
 void MainWindow::draw() {
     auto ctm = currentTimeMillis();
     ImGui::WaterfallVFO* vfo;
@@ -554,11 +617,19 @@ void MainWindow::draw() {
         lockWaterfallControls = true;
         ImGui::ShowDemoWindow();
     }
+    if (logWindow) {
+        lockWaterfallControls = true;
+        ShowLogWindow();
+    }
     if (showCredits) {
         lockWaterfallControls = true;
     }
 
-    ImGui::BeginChild("Waterfall");
+    ImVec2 wfSize = ImVec2(0, 0);
+    if (!bottomWindows.empty()) {
+        wfSize.y -= bottomWindows[0].size.y;
+    }
+    ImGui::BeginChild("Waterfall", wfSize);
 
     gui::waterfall.draw();
     onWaterfallDrawn.emit(GImGui);
@@ -650,7 +721,7 @@ void MainWindow::draw() {
 
     ImGui::EndChild();
 
-    this->drawBottomWindows();
+    this->drawBottomWindows(0);
 
     ImGui::End();
 
@@ -755,14 +826,14 @@ void MainWindow::handleWaterfallInput(ImGui::WaterfallVFO* vfo) {
 
 }
 
-void MainWindow::drawBottomWindows() {
+void MainWindow::drawBottomWindows(int dy) {
     if (!showMenu) {
         if (bottomWindows.size() > 0) {
             updateBottomWindowLayout();
             for (int i = 0; i < bottomWindows.size(); i++) {
                 ImGui::Begin(("bottomwindow_" + bottomWindows[i].name).c_str(),
                              NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
-                ImGui::SetWindowPos(ImVec2(bottomWindows[i].loc.x, gui::waterfall.wfMax.y - bottomWindows[i].size.y));
+                ImGui::SetWindowPos(ImVec2(bottomWindows[i].loc.x, gui::waterfall.wfMax.y + dy));
                 ImGui::SetWindowSize(ImVec2(bottomWindows[i].size.x, bottomWindows[i].size.y));
                 bottomWindows[i].drawFunc();
                 ImGui::End();
@@ -787,7 +858,7 @@ void MainWindow::addBottomWindow(std::string name, std::function<void()> drawFun
 
 void MainWindow::updateBottomWindowLayout() {
     auto fullWidth = gui::waterfall.fftAreaMax.x - gui::waterfall.fftAreaMin.x;
-    auto fullHeight = gui::waterfall.wfMax.y - gui::waterfall.wfMin.y;
+    auto fullHeight = ImGui::GetIO().DisplaySize.y;
     int nWindows = bottomWindows.size();
     if (nWindows < 5) {
         nWindows = 5;
@@ -830,6 +901,7 @@ void MainWindow::drawDebugMenu() {
         ImGui::Text("Center Frequency: %.0f Hz", gui::waterfall.getCenterFrequency());
         ImGui::Text("Source name: %s", sourceName.c_str());
         ImGui::Checkbox("Show demo window", &demoWindow);
+        ImGui::Checkbox("Show log", &logWindow);
         ImGui::Text("ImGui version: %s", ImGui::GetVersion());
 
         // ImGui::Checkbox("Bypass buffering", &sigpath::iqFrontEnd.inputBuffer.bypass);

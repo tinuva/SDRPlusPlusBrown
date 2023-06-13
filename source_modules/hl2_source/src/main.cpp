@@ -52,7 +52,7 @@ public:
         handler.ctx = this;
         handler.selectHandler = menuSelected;
         handler.deselectHandler = menuDeselected;
-        handler.menuHandler = menuHandler;
+        handler.menuHandler = _menuHandler;
         handler.startHandler = start;
         handler.stopHandler = stop;
         handler.tuneHandler = tune;
@@ -62,6 +62,10 @@ public:
 
         config.acquire();
         std::string devSerial = config.conf["device"];
+        if (config.conf.contains("staticIp")) {
+            std::string staticIpString = config.conf["staticIp"];
+            strncpy(staticIp, staticIpString.c_str(), 20);
+        }
         config.release();
 
         sigpath::sourceManager.registerSource("Hermes Lite 2", &handler);
@@ -90,11 +94,23 @@ public:
         return enabled;
     }
 
+    bool refreshing = false;
+    std::mutex uiLock;
+    std::function <void()> afterRefresh;
+
     void refresh() {
 
+        refreshing = true;
         devices = 0;
-        protocol1_discovery();
+        try {
+            protocol1_discovery(staticIp);
+        } catch (std::exception &e) {
+            flog::error("Error while discovering devices: %s", e.what());
+            refreshing = false;
+            return;
+        }
 
+        uiLock.lock();
         devListTxt = "";
 
         for (int i = 0; i < devices; i++) {
@@ -108,6 +124,8 @@ public:
 
             devListTxt += '\0';
         }
+        uiLock.unlock();
+        refreshing = false;
     }
 
     void selectFirst() {
@@ -200,6 +218,8 @@ private:
     std::vector<dsp::complex_t> incomingBuffer;
 
     StreamTracker hermesSamples;
+    bool showStaticIp = false;
+    char staticIp[20]={0};
 
     void incomingSample(double i, double q) {
         incomingBuffer.emplace_back(dsp::complex_t{(float)q, (float)i});
@@ -280,51 +300,80 @@ private:
         flog::info("HermerList2SourceModule '{0}': Tune: {1}!", _this->name, freq);
     }
 
-    static void menuHandler(void* ctx) {
+    static void _menuHandler(void* ctx) {
         auto* _this = (HermesLite2SourceModule*)ctx;
+        _this->menuHandler();
+    }
 
-        if (_this->running) { SmGui::BeginDisabled(); }
+    void menuHandler() {
+        if (running) { SmGui::BeginDisabled(); }
 
 //        SmGui::SetNextItemWidth(100);
-        if (SmGui::Combo(CONCAT("##_hl2_dev_sel_", _this->name), &_this->devId, _this->devListTxt.c_str())) {
-            _this->selectByIP(discoveredToIp(discovered[_this->devId]));
-            core::setInputSampleRate(_this->sampleRate);
-            if (!_this->selectedSerStr.empty()) {
+        uiLock.lock();
+        if (SmGui::Combo(CONCAT("##_hl2_dev_sel_", name), &devId, devListTxt.c_str())) {
+            selectByIP(discoveredToIp(discovered[devId]));
+            core::setInputSampleRate(sampleRate);
+            if (!selectedSerStr.empty()) {
                 config.acquire();
-                config.conf["device"] = _this->selectedSerStr;
+                config.conf["device"] = selectedSerStr;
                 config.release(true);
             }
         }
+        uiLock.unlock();
+        SmGui::SameLine();
+        SmGui::FillWidth();
+        if (SmGui::Button("Static IP")) {
+            showStaticIp = !showStaticIp;
+        }
+
+        if (showStaticIp) {
+            SmGui::LeftLabel("Query IP:");
+            SmGui::FillWidth();
+            if (SmGui::InputText(CONCAT("##_fixed_ip_hl2_source_", name), staticIp, 19)) {
+                config.acquire();
+                config.conf["staticIp"] = staticIp;
+                config.release(true);
+            }
+
+        }
 
         auto updateSampleRate = [&](int srid) {
-            _this->sampleRate = (int)_this->sampleRateList[_this->srId];
-            core::setInputSampleRate(_this->sampleRate);
-            if (!_this->selectedSerStr.empty()) {
+            sampleRate = (int)sampleRateList[srId];
+            core::setInputSampleRate(sampleRate);
+            if (!selectedSerStr.empty()) {
                 config.acquire();
-                config.conf["devices"][_this->selectedSerStr]["sampleRate"] = _this->sampleRate;
+                config.conf["devices"][selectedSerStr]["sampleRate"] = sampleRate;
                 config.release(true);
             }
 
         };
-        if (SmGui::Combo(CONCAT("##_hl2_sr_sel_", _this->name), &_this->srId, _this->sampleRateListTxt.c_str())) {
-            updateSampleRate(_this->srId);
+        if (SmGui::Combo(CONCAT("##_hl2_sr_sel_", name), &srId, sampleRateListTxt.c_str())) {
+            updateSampleRate(srId);
         }
 
         SmGui::SameLine();
         SmGui::FillWidth();
         SmGui::ForceSync();
-        if (SmGui::Button(CONCAT("Refresh##_hl2_refr_", _this->name))) {
-            _this->refresh();
-//            config.acquire();
-//            std::string devSerial = config.conf["device"];
-//            config.release();
-            if (devices > 0) {
-                _this->selectFirst();
+        if (SmGui::Button(CONCAT(refreshing ? "Refreshing..##_hl2_refr_": "Refresh##_hl2_refr_", name))) {
+            if (!refreshing) {
+                std::thread refreshThread([&]() {
+                    refresh();
+                    afterRefresh = [&]() {
+                        if (devices > 0) {
+                            selectFirst();
+                        }
+                    };
+                });
+                refreshThread.detach();
             }
         }
+        if (afterRefresh) {
+            afterRefresh();
+            afterRefresh = nullptr;
+        }
 
-        if (_this->running) { SmGui::EndDisabled(); }
-        bool overload = _this->device && _this->device->isADCOverload();
+        if (running) { SmGui::EndDisabled(); }
+        bool overload = device && device->isADCOverload();
         if (overload) {
             SmGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
         }
@@ -334,11 +383,11 @@ private:
         }
         SmGui::SameLine();
 //        SmGui::SetNextItemWidth(100);
-        if (SmGui::SliderInt(("##_radio_agc_gain_" + _this->name).c_str(), &_this->adcGain, -12, +48, SmGui::FMT_STR_INT_DB)) {
-            if (_this->device) {
-                _this->device->setADCGain(_this->adcGain);
+        if (SmGui::SliderInt(("##_radio_agc_gain_" + name).c_str(), &adcGain, -12, +48, SmGui::FMT_STR_INT_DB)) {
+            if (device) {
+                device->setADCGain(adcGain);
                 config.acquire();
-                config.conf["devices"][_this->selectedSerStr]["adcGain"] = _this->adcGain;
+                config.conf["devices"][selectedSerStr]["adcGain"] = adcGain;
                 config.release(true);
             }
         }
@@ -354,23 +403,23 @@ private:
             default: sprintf(strr, "???"); break;
             }
             if (q >=0) {
-                if (SmGui::RadioButton(strr, _this->sevenRelays[q])) {
-                    if (_this->sevenRelays[q]) {
-                        memset(_this->sevenRelays, 0, sizeof(_this->sevenRelays));
-                        if (_this->device) {
-                            _this->device->setSevenRelays(0);
+                if (SmGui::RadioButton(strr, sevenRelays[q])) {
+                    if (sevenRelays[q]) {
+                        memset(sevenRelays, 0, sizeof(sevenRelays));
+                        if (device) {
+                            device->setSevenRelays(0);
                             config.acquire();
-                            config.conf["devices"][_this->selectedSerStr]["sevenRelays"] = -1;
+                            config.conf["devices"][selectedSerStr]["sevenRelays"] = -1;
                             config.release(true);
                         }
                     }
                     else {
-                        memset(_this->sevenRelays, 0, sizeof(_this->sevenRelays));
-                        _this->sevenRelays[q] = !_this->sevenRelays[q];
-                        if (_this->device) {
-                            _this->device->setSevenRelays(1 << q);
+                        memset(sevenRelays, 0, sizeof(sevenRelays));
+                        sevenRelays[q] = !sevenRelays[q];
+                        if (device) {
+                            device->setSevenRelays(1 << q);
                             config.acquire();
-                            config.conf["devices"][_this->selectedSerStr]["sevenRelays"] = q;
+                            config.conf["devices"][selectedSerStr]["sevenRelays"] = q;
                             config.release(true);
                         }
                     }

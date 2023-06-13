@@ -75,6 +75,8 @@ struct ifaddrs {
 #include <mutex>
 #include <utils/flog.h>
 
+#include "utils/net.h"
+
 static std::mutex discoveredLock;
 
 std::string getLastSocketError() {
@@ -95,7 +97,16 @@ std::string getLastSocketError() {
     return errtxt;
 }
 
-static void discover(struct ifaddrs* iface) {
+int getLastSocketErrorNo() {
+    std::string errtxt;
+#ifdef WIN32
+    return WSAGetLastError();
+#else
+    return errno;
+#endif
+}
+
+static void discover(struct ifaddrs* iface, const struct sockaddr_in *fixed) {
     int rc;
     struct sockaddr_in *sa;
     struct sockaddr_in *mask;
@@ -106,9 +117,12 @@ static void discover(struct ifaddrs* iface) {
 
 #define DISCOVERY_PORT 1024
     int discovery_socket;
-
-    strcpy(interface_name,iface->ifa_name);
-    flog::info("discover: looking for HPSDR devices on {0}\n", interface_name);
+    if (iface) {
+        strcpy(interface_name, iface->ifa_name);
+    } else {
+        strcpy(interface_name, "fixed_addr");
+    }
+//    flog::info("discover: looking for HPSDR devices on {0}\n", interface_name);
 
     // send a broadcast to locate hpsdr boards on the network
     discovery_socket=socket(PF_INET,SOCK_DGRAM,IPPROTO_UDP);
@@ -120,37 +134,51 @@ static void discover(struct ifaddrs* iface) {
     int optval = 1;
     setsockopt(discovery_socket, SOL_SOCKET, SO_REUSEADDR, (const char *)&optval, sizeof(optval));
 
-    sa = (struct sockaddr_in *) iface->ifa_addr;
-    mask = (struct sockaddr_in *) iface->ifa_netmask;
-    interface_netmask.sin_addr.s_addr = mask->sin_addr.s_addr;
+    if (iface) {
+        sa = (struct sockaddr_in*)iface->ifa_addr;
+        mask = (struct sockaddr_in*)iface->ifa_netmask;
+        interface_netmask.sin_addr.s_addr = mask->sin_addr.s_addr;
 
-    // bind to this interface and the discovery port
-    //interface_addr.sin_family = AF_INET;
-    interface_addr.sin_family = iface->ifa_addr->sa_family;
-    interface_addr.sin_addr.s_addr = sa->sin_addr.s_addr;
-    //interface_addr.sin_port = htons(DISCOVERY_PORT*2);
-    interface_addr.sin_port = htons(0); // system assigned port
-    if(bind(discovery_socket,(struct sockaddr*)&interface_addr,sizeof(interface_addr))<0) {
-        flog::error("discover: bind socket failed for discovery_socket, for {0}", interface_name);
-        return;
+        // bind to this interface and the discovery port
+        // interface_addr.sin_family = AF_INET;
+        interface_addr.sin_family = iface->ifa_addr->sa_family;
+        interface_addr.sin_addr.s_addr = sa->sin_addr.s_addr;
+        // interface_addr.sin_port = htons(DISCOVERY_PORT*2);
+        interface_addr.sin_port = htons(0); // system assigned port
+        if (bind(discovery_socket, (struct sockaddr*)&interface_addr, sizeof(interface_addr)) < 0) {
+            flog::error("discover: bind socket failed for discovery_socket, for {0}", interface_name);
+            return;
+        }
     }
 
-    flog::info("discover: bound to {0}",interface_name);
-
     // allow broadcast on the socket
-    int on=1;
-    rc=setsockopt(discovery_socket, SOL_SOCKET, SO_BROADCAST, (const char*)&on, sizeof(on));
-    if(rc != 0) {
-        flog::error("discover: cannot set SO_BROADCAST: rc={0}, for {1}", rc, interface_name);
-        return;
+    if (!fixed) {
+        int on = 1;
+        rc = setsockopt(discovery_socket, SOL_SOCKET, SO_BROADCAST, (const char*)&on, sizeof(on));
+        if (rc != 0) {
+            flog::error("discover: cannot set SO_BROADCAST: rc={0}, for {1}", rc, interface_name);
+            return;
+        }
     }
 
     // setup to address
     struct sockaddr_in to_addr={0};
     //to_addr.sin_family=AF_INET;
-    to_addr.sin_family = iface->ifa_addr->sa_family;
     to_addr.sin_port=htons(DISCOVERY_PORT);
-    to_addr.sin_addr.s_addr=htonl(INADDR_BROADCAST);
+    if (fixed) {
+        to_addr.sin_family = AF_INET;
+        to_addr.sin_addr = fixed->sin_addr;
+        flog::info("discover: fixed, sending to: ip={}:{}",
+                   std::string(inet_ntoa(to_addr.sin_addr)).c_str(), DISCOVERY_PORT);
+    } else {
+        to_addr.sin_family = iface->ifa_addr->sa_family;
+        to_addr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+        flog::info("discover: bound to {} ip={}, sending to: ip={}:{}",
+                   interface_name,
+                   std::string(inet_ntoa(interface_addr.sin_addr)).c_str(),
+                   std::string(inet_ntoa(to_addr.sin_addr)).c_str(), DISCOVERY_PORT);
+    }
+
 
     // start a receive thread to collect discovery response packets
     std::thread receiver([&] {
@@ -175,14 +203,21 @@ static void discover(struct ifaddrs* iface) {
 #endif
         int localDevicesFound = 0;
         len=sizeof(addr);
+        int retryCount = 0;
         while(1) {
             bytes_read=recvfrom(discovery_socket,(char *)buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&len);
             if(bytes_read<0) {
+                if (getLastSocketErrorNo() == EINTR) {
+                    if (retryCount < 5) {
+                        retryCount++;
+                        continue;
+                    }
+                }
                 std::string errtxt = getLastSocketError();
                 flog::error("discovery: recvfrom socket failed for discover_receive_thread on {0}: {1}", interface_name, errtxt);
                 break;
             }
-            flog::info("discovered: received {0} bytes",bytes_read);
+            flog::info("discovered: received {0} bytes from {}",bytes_read, std::string(inet_ntoa(addr.sin_addr)).c_str());
             if ((buffer[0] & 0xFF) == 0xEF && (buffer[1] & 0xFF) == 0xFE) {
                 int status = buffer[2] & 0xFF;
                 if (status == 2 || status == 3) {
@@ -296,7 +331,7 @@ static void discover(struct ifaddrs* iface) {
             }
 
         }
-        flog::info("discovery: exiting discover_receive_thread, found {0} devices on {1}",localDevicesFound,interface_name);
+//        flog::info("discovery: exiting discover_receive_thread, found {0} devices on {1}",localDevicesFound,interface_name);
 
     });
 
@@ -331,7 +366,7 @@ closeReceiver:
     ::close(discovery_socket);
 #endif
 
-    flog::info("discover: exiting discover for {0}",iface->ifa_name);
+    flog::info("discover: exiting discover for {0}",interface_name);
 
 }
 
@@ -382,7 +417,7 @@ void __cdecl getifaddrs(struct ifaddrs **dest) {
 }
 #endif
 
-void protocol1_discovery() {
+void protocol1_discovery(std::string staticIp) {
     struct ifaddrs *addrs,*ifa;
 
     printf("protocol1_discovery\n");
@@ -402,12 +437,24 @@ void protocol1_discovery() {
                #endif
                 /*&& (ifa->ifa_flags&IFF_LOOPBACK)!=IFF_LOOPBACK*/) {
                 auto thisif = ifa;
-                interfaceThreads.emplace_back(std::make_shared<std::thread>([=]{
-                    discover(thisif);
-                }));
+                if (true) {
+                    interfaceThreads.emplace_back(std::make_shared<std::thread>([=] {
+                        discover(thisif, nullptr);
+                    }));
+                }
             }
         }
         ifa = ifa->ifa_next;
+    }
+    if (!staticIp.empty()) {
+        try {
+            net::Address addr(staticIp, 1024);
+            interfaceThreads.emplace_back(std::make_shared<std::thread>([&,a=addr]{
+                discover(nullptr, &a.addr);
+            }));
+        } catch (std::exception &e) {
+            flog::error("Invalid static IP address: {0}", e.what());
+        }
     }
 
     for(auto t: interfaceThreads) {
