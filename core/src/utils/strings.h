@@ -6,6 +6,14 @@
 #include <cmath>
 #include "memory.h"
 
+inline void coalesceSplit(std::vector<std::string> &x) {
+    for(int q=((int)x.size())-1; q>=0; q--) {
+        if (x[q] == "") {
+            x.erase(x.begin()+q);
+        }
+    }
+}
+
 inline void splitString(const std::string & str, const char *sep, const std::function<void(const std::string&)> &callback) {
     const char *c = str.data();
     size_t limit = str.length();

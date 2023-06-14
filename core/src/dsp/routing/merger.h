@@ -23,6 +23,10 @@ namespace dsp::routing {
             running = true;
         }
 
+        virtual ~Merger() {
+            this->stop();
+        }
+
         dsp::stream<T>* getOutput() {
             return &out;
         }

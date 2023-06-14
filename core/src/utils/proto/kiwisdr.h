@@ -3,6 +3,7 @@
 #include "utils/proto/websock.h"
 #include <dsp/types.h>
 #include <complex>
+#include <atomic>
 #include <ctm.h>
 #include <thread>
 #include <core.h>
@@ -37,7 +38,7 @@ struct KiwiSDRClient {
 
         this->hostPort = hostport;
         strcpy(connectionStatus, "Not connected");
-        static atomic_int outCount;
+        static std::atomic_int outCount;
 
         outCount = 0;
 

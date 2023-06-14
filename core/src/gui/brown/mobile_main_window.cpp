@@ -3096,6 +3096,7 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
 
 }
 QSOPanel::~QSOPanel() {
+    audioInProcessedMerger.stop();
     stopAudioPipeline();
 }
 void QSOPanel::init() {

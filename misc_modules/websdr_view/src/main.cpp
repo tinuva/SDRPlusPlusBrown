@@ -21,7 +21,7 @@ SDRPP_MOD_INFO{
 
 ConfigManager config;
 
-class WebsdrViewModule : public ModuleManager::Instance {
+class ReportsMonitorModule : public ModuleManager::Instance {
 
     bool intlSupport;
     bool mouseWheel;
@@ -38,11 +38,11 @@ public:
         std::shared_ptr<SubWaterfall> wf;
         bool started = false;
         long long startTime;
-        WebsdrViewModule *mod;
+        ReportsMonitorModule *mod;
         EventHandler<gui::VFOFrequencyChange> vfoFrequencyChangedHandler;
 
 
-        explicit SingleReceiver(const std::string &id, const std::string &url, const std::string &loc, WebsdrViewModule *mod) : id(id), url(url), loc(loc), mod(mod) {
+        explicit SingleReceiver(const std::string &id, const std::string &url, const std::string &loc, ReportsMonitorModule *mod) : id(id), url(url), loc(loc), mod(mod) {
             bottomWindowName = "SingleReceiver:" + url;
             vfoFrequencyChangedHandler.ctx = this;
             vfoFrequencyChangedHandler.handler = [](gui::VFOFrequencyChange e, void *ctx) {
@@ -223,12 +223,12 @@ public:
         }
     };
 
-    WebsdrViewModule(std::string name, std::string root) : selector(root, "WebSDR View") {
+    ReportsMonitorModule(std::string name, std::string root) : selector(root, "WebSDR View") {
         this->name = name;
         gui::menu.registerEntry(name, _menuHandler, this, NULL);
     }
 
-    ~WebsdrViewModule() {
+    ~ReportsMonitorModule() {
         gui::menu.removeEntry(name);
     }
 
@@ -332,7 +332,7 @@ private:
     }
 
     static void _menuHandler(void *ctx) {
-        ((WebsdrViewModule *) ctx)->menuHandler();
+        ((ReportsMonitorModule *) ctx)->menuHandler();
     }
 
     std::string name;
@@ -346,11 +346,11 @@ MOD_EXPORT void _INIT_() {
 }
 
 MOD_EXPORT ModuleManager::Instance *_CREATE_INSTANCE_(std::string name) {
-    return new WebsdrViewModule(name, core::args["root"].s());
+    return new ReportsMonitorModule(name, core::args["root"].s());
 }
 
 MOD_EXPORT void _DELETE_INSTANCE_(void *instance) {
-    delete (WebsdrViewModule *) instance;
+    delete (ReportsMonitorModule *) instance;
 }
 
 MOD_EXPORT void _END_() {
