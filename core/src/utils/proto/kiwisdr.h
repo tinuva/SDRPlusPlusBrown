@@ -7,7 +7,7 @@
 #include <ctm.h>
 #include <thread>
 #include <core.h>
-#include <stdatomic.h>
+#include <atomic.h>
 
 struct KiwiSDRClient {
     net::websock::WSClient wsClient;
