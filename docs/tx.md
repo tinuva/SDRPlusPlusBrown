@@ -5,7 +5,9 @@
 
 * 2023-06-12: It is possible to specify direct address of Hermes Lite, if broadcast scanning does not work for your specific network configuration.
 * 2023-06-12: websdr_view plugin is quite ready to self-monitor your signal across multiple kiwisdr at once.
-
+* 2023-06-01: Embedded Logbook with cty.dat file support. 
+* 2023-06-01: Recording of QSO audio for purposes of logging. QSO audio is attached to the logbook. 
+* 2023-06-01: Recording CQ call and sending it to the air. 
 
 ## Introduction
 

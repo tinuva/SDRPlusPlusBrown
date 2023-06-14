@@ -133,7 +133,7 @@ SNR chart is part of logmmse_noise_reduction plugin
 
 ## KiwiSDR Support
 
-It is possible to connect to almost eny KiwiSDR, and use it as a receiver. The way it works: it requests raw iq data
+It is possible to connect to almost any KiwiSDR and use it as a receiver. The way it works: it requests raw iq data
 from the selected service, and does all processing locally. Due to internet bandwidth saving restrictions in kiwisdr server,
 radio bandwidth is limited to 12 kHz (50 KB/sec). Also note some servers have their frequency drifted slightly, so no worry if you 
 encounter such phenomenon. Kiwisdr list is cached locally for an hour after network request. 
