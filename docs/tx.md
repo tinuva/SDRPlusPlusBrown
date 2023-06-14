@@ -1,6 +1,11 @@
 
 # SDR++Brown transmit functionality
 
+## Updates not reflected in the below document
+
+* 2023-06-12: It is possible to specify direct address of Hermes Lite, if broadcast scanning does not work for your specific network configuration.
+* 2023-06-12: websdr_view plugin is quite ready to self-monitor your signal across multiple kiwisdr at once.
+
 
 ## Introduction
 
@@ -15,7 +20,7 @@ If you want your hardware to be added, contact me or make code pull request.
 
 ### What works
 
-You can receive/transmit SSB (USB/LSB). You can use your microphone of your desktop/notebook computer. You can run sdr++ on the 
+You can receive/transmit SSB (USB/LSB). You can use your microphone of your desktop/notebook computer. You can run SDR++Brown on the 
 Android phone while laying on the sofa and use microphone of your smartphone, and use wireless connection to the transciever.
 Sofa was the primary driving factor for this software development, and I will add everything to make it work better, 
 including small logbook for QSO logging etc. Jokes aside, portable use was primary goal.
@@ -37,7 +42,7 @@ Sofa-style video here: [https://youtu.be/URkedh_fJyc](https://youtu.be/URkedh_fJ
 
 ### Recommendations
 
-* Use headphones on Android.
+* Use headphones on Android. Bluetooth headset can give remarkably good microphone audio.
 * Use wired connection if possible. Some androids support ethernet over USB, and it works well. Buy USB-C dock with ethernet port. It can also charge your phone while you use it. My third option for the phones that do not support usb ethernet, would be RNDIS(over USB) with an addition of intermediate single board computer (idea is reaping).
 * If using WiFi, use 5GHz band, because 2.4GHz could be close to useless, depending on the environment. Portable router with 5GHz band is a good idea.
 * Try narrow band for receiving (48 khz) if you have packet loss. It may help.
@@ -182,6 +187,23 @@ above.
 
 Buttons "Record" and "Play": ou can record your own voice and replay it back and observe how it sounds after processing. This is only 
 for self control. You cannot transmit the recorded voice (yet).  
+
+## My current config
+
+My current phone does not support ethernet over USB, to plug Hermes Lite 2 directly into it, so I use WiFi. I have a small WiFi router that is attached to
+the brick consisting of battery, HL2, amplifier, DC down converter and HF tuner, all connected together with a double-sided adhesive tape.
+On the router, I use WiFi on 5 GHz band. To achieve cross connectivity between HL2, SDR++ and the internet, i configured it
+following way:
+
+* HL2 is connected to the router via ethernet cable.
+* Phone is sharing the internet (Android portable hotspot) using WiFi.
+* Router is connected to the phone via WiFi (i.e. phone is internet provider for router).
+* Router has UDP port 1024 enabled and forwarded to the HL2 IP address. It is important to note that normally routers completely reject all traffic coming from internet side, so it is important to overcome this with a configuration.
+* HL2 IP address is fixed, my router's DHCP server remembers and does not randomize addresses.
+* I created simple golang program (can be found in repo) that can run on my openwrt router, and it can proxy hermes 2 lite traffic on UDP 1024 port to the backend transceiver. It is not required in the above configuration, but still can be useful.
+
+I probably could also try the use of USB internet sharing (Phone->Router USB) to avoid occasional 
+WiFi interruptions, but did not do it yet. I got used to the wireless freedoms while laying on the sofa, and I can live with occasional glitches. 
 
 ## Work in progress
 

@@ -13,7 +13,7 @@
 This is the software that allows display and decoding of radio frequency signals on PC and Android. To run the software, you
 need the hardware that can receive radio signals, such as [RTL-SDR](https://www.rtl-sdr.com/), [Airspy](https://airspy.com/).
 If you're not lucky enough, you can use [KiwiSDR](https://kiwisdr.com/) or [WebSDR](https://websdr.org/) to see how it feels.
-(However, you're lucky enough to use KiwiSDR without its web part now, because SDR++Brown begins to support it now.)
+You can try KiwiSDR right in the SDR++Brown.
 
 ## Why fork?
 
@@ -41,7 +41,7 @@ read on below.
 * Unicode support in fonts (Cyrillic), filenames and installation path (UTF-8), on Windows, too.
 * For Airspy HF+, added Fill-In option which cuts edge sides of the spectrum which are attenuated (low passed) by hardware.
 * When replaying WAV file, shows the timestamp, matching the factual time of the recording.
-* Experimental, basic KiwiSDR support (12 KHz bandwidth), no UI settings yet.
+* [KiwiSDR support](#kiwisdr-support) (12 KHz bandwidth)
 * [Multiple output audio devices support](#multiple-output-audio-devices-support). Also, possibility to output to the left or right channel only.
 * [More display scaling factors](#more-display-scaling-factors). 
 * [Bandwidth change slider](#bandwidth-slider) to easily edit bandwidth on touch devices.
@@ -130,6 +130,23 @@ SNR chart is part of logmmse_noise_reduction plugin
 
 ![](snr-chart.jpg)
 ![](snr-toggle.jpg)
+
+## KiwiSDR Support
+
+It is possible to connect to almost eny KiwiSDR, and use it as a receiver. The way it works: it requests raw iq data
+from the selected service, and does all processing locally. Due to internet bandwidth saving restrictions in kiwisdr server,
+radio bandwidth is limited to 12 kHz (50 KB/sec). Also note some servers have their frequency drifted slightly, so no worry if you 
+encounter such phenomenon. Kiwisdr list is cached locally for an hour after network request. 
+Excuse the minimalistic underlying vector art, hope you recognize familiar shapes of countries. 
+Shapes are taken from some geojson file, whose attribution is probably openstreetmap. 
+
+To use the KiwiSDR source in SDR++Brown, follow the order of actions on the below picture. Allow map to load first.
+
+It is recommended not to abuse kiwisdr because they are known to ban you by IP.
+
+
+![](kiwisdr.jpg)
+
 
 ## Multiple output audio devices support
 
