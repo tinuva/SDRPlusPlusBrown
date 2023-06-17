@@ -1912,7 +1912,7 @@ void MobileMainWindow::draw() {
     int openEditDialog = -1;
 
     if (qsoMode == VIEW_QSO) {
-        ImGui::SetCursorPos(buttonsStart + ImVec2{ 0, buttonsSpaceY - float(nButtonsQso + 1) * (childRegion.y + vertPadding) });
+        ImGui::SetCursorPos(buttonsStart + ImVec2{ 0, buttonsSpaceY - float(nButtonsQso) * (childRegion.y + vertPadding) });
         if (ImGui::BeginTable("qsolist-table", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(buttonsWidth - defaultButtonsWidth, float(nButtonsQso + 1) * (childRegion.y + vertPadding)))) {
             ImGui::TableSetupColumn("QSO List");
             ImGui::TableSetupScrollFreeze(1, 1);
