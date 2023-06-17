@@ -74,16 +74,26 @@ namespace dsp {
         }
 
         FILE *debugF = nullptr;
+        FILE *debugF0 = nullptr;
 
         void debugDump(const std::string &dest) {
-            if (debugF) {
-                fclose(debugF);
-            }
-            debugF = fopen(dest.c_str(), "wb");
-            if (debugF) {
-                out.outputHook = [=](O *buf, int n) {
-                    fwrite(buf, sizeof(O*), n, debugF);
-                };
+            if (false) {
+                if (debugF) {
+                    fclose(debugF);
+                }
+                if (debugF0) {
+                    fclose(debugF0);
+                }
+                debugF0 = fopen((dest + ".in").c_str(), "wb");
+                debugF = fopen(dest.c_str(), "wb");
+                if (debugF) {
+                    out.outputHook = [=](const O *buf, int n) {
+                        fwrite(buf, sizeof(O *), n, debugF);
+                    };
+                    out.inputHook = [=](const I *buf, int n) {
+                        fwrite(buf, sizeof(I *), n, debugF0);
+                    };
+                }
             }
         }
 

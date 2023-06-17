@@ -378,13 +378,14 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
     int sampleCount = 0;
     int tuneFrequency = 0;
     float bandwidth = 4000.0;
+    bool audioIsIqData = false;
 
     FILE *debugDump = nullptr;
 
     AudioInToTransmitter(dsp::stream<dsp::stereo_t>* in) {
         init(in);
         totalRead = 0;
-        debugDump = fopen("/tmp/aitt.raw", "wb");
+//        debugDump = fopen("/tmp/aitt.raw", "wb");
     }
 
     int totalRead;
@@ -404,6 +405,7 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
         auto lowPassBW = bandwidth;
         dsp::taps::free(halfBandPassTaps);
         dsp::taps::free(fullBandPassTaps);
+        audioIsIqData = false;
         if (this->submode == "LSB" || this->submode == "USB") {
             if (this->submode == "LSB") {
                 xlator1.init(nullptr, -(bandwidth) / 2, trxAudioSampleRate);
@@ -419,15 +421,28 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
             fullBandPassFilter.init(nullptr, fullBandPassTaps);
         }
         if (this->submode.substr(0, 2) == "CW") {
+            audioIsIqData = true;
             // translate to the middle of bandwidth
-            xlator1.init(nullptr, 1000, trxAudioSampleRate);       //
+/*
+            xlator1.init(nullptr, -1000, trxAudioSampleRate);       //
             xlator1.debugDump("/tmp/x1.wav");
-            xlator2.init(nullptr, -1000, trxAudioSampleRate);
+            xlator2.init(nullptr, 1000, trxAudioSampleRate);
             xlator2.debugDump("/tmp/x2.wav");
-            halfBandPassTaps = dsp::taps::bandPass<dsp::complex_t>(1000+gui::mainWindow.cwAudioFrequency-300, 1000+gui::mainWindow.cwAudioFrequency-300, 100, trxAudioSampleRate); // no filtering
+            halfBandPassTaps = dsp::taps::highPass0<dsp::complex_t>(1000+gui::mainWindow.cwAudioFrequency-300, 100, trxAudioSampleRate);
             halfBandPassFilter.init(nullptr, halfBandPassTaps);
             halfBandPassFilter.debugDump("/tmp/p1.wav");
             fullBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(gui::mainWindow.cwAudioFrequency+300, 100, trxAudioSampleRate);
+            fullBandPassFilter.init(nullptr, fullBandPassTaps);
+            fullBandPassFilter.debugDump("/tmp/p2.wav");
+*/
+            xlator1.init(nullptr, 0, trxAudioSampleRate);       //
+            xlator1.debugDump("/tmp/x1.wav");
+            xlator2.init(nullptr, 0, trxAudioSampleRate);
+            xlator2.debugDump("/tmp/x2.wav");
+            halfBandPassTaps = dsp::taps::highPass0<dsp::complex_t>(gui::mainWindow.cwAudioFrequency-100, 100, trxAudioSampleRate);
+            halfBandPassFilter.init(nullptr, halfBandPassTaps);
+            halfBandPassFilter.debugDump("/tmp/p1.wav");
+            fullBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(gui::mainWindow.cwAudioFrequency+100, 100, trxAudioSampleRate);
             fullBandPassFilter.init(nullptr, fullBandPassTaps);
             fullBandPassFilter.debugDump("/tmp/p2.wav");
         }
@@ -442,6 +457,7 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
     }
 
     int run() override {
+        SetThreadName("AudioInTT");
         int rd = this->_in->read();
         if (rd < 0) {
             return rd;
@@ -460,9 +476,17 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
             }
         }
         else {
-            dsp::convert::StereoToMono::process(rd, this->_in->readBuf, s2m.out.writeBuf);
+            if (audioIsIqData) {
+                memcpy(s2m.out.writeBuf, this->_in->readBuf, rd * sizeof(dsp::stereo_t)); // stereo_t = iqdata
+            } else {
+                dsp::convert::StereoToMono::process(rd, this->_in->readBuf, s2m.out.writeBuf);
+            }
             if (this->postprocess) { // modulate
-                dsp::convert::RealToComplex::process(rd, s2m.out.writeBuf, r2c.out.writeBuf);
+                if (audioIsIqData) {
+                    memcpy(r2c.out.writeBuf, s2m.out.writeBuf, rd * sizeof(dsp::stereo_t)); // stereo_t = iqdata
+                } else {
+                    dsp::convert::RealToComplex::process(rd, s2m.out.writeBuf, r2c.out.writeBuf);
+                };
                 // process in complex
 
                 // compress
@@ -2815,6 +2839,7 @@ void QSOPanel::startAudioPipeline() {
     audioIn.clearReadStop();
     sigpath::sinkManager.defaultInputAudio.bindStream(&audioIn);
     std::thread inputProcessor([this] {
+        SetThreadName("inputProcessor");
         int64_t start = currentTimeMillis();
         int64_t count = 0;
 
@@ -2988,7 +3013,7 @@ void QSOPanel::handleTxButton(ImGui::WaterfallVFO* vfo, bool tx, bool tune, dsp:
                 audioInToTransmitter->tuneFrequency = tune ? 20 : 0; // 20hz close to carrier
                 audioInToTransmitter->start();
                 sigpath::transmitter->setTransmitStream(&audioInToTransmitter->out);
-                sigpath::transmitter->setTransmitFrequency((int)currentFreq);
+                sigpath::transmitter->setTransmitFrequency((int)currentFreq + gui::mainWindow.txOffset);
                 sigpath::transmitter->setTransmitStatus(true);
             }
             lastSWR.clear();

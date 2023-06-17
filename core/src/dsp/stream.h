@@ -33,7 +33,8 @@ namespace dsp {
         const char *origin;
         const char originBuf[100] = "stream without origin";
         bool debugTraffic = false;
-        std::function<void(T*, int)> outputHook;
+        std::function<void(const T*, int)> outputHook;
+        std::function<void(const T*, int)> inputHook;
 
         stream() {
             static int streamCount = 0;

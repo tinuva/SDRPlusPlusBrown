@@ -95,8 +95,9 @@ std::vector<dsp::stereo_t> generateMorseAudio(int sampleRate, int freq, int ditL
                 } else if (i >= totalSamples - envelopeSamples) {
                     envelope = static_cast<float>(totalSamples - i) / envelopeSamples;
                 }
-                float sample = envelope * sin(2.0f * pi * freq * i / sampleRate);
-                samples.push_back(dsp::stereo_t{sample, sample});
+                float sampleI = envelope * sin(2.0f * pi * freq * i / sampleRate);
+                float sampleQ = envelope * cos(2.0f * pi * freq * i / sampleRate);
+                samples.push_back(dsp::stereo_t{sampleI * 0.8f, sampleQ * 0.8f});
             }
             for (int i = 0; i < ditSamples; i++) {
                 samples.push_back(dsp::stereo_t{0, 0});
@@ -421,8 +422,13 @@ private:
         auto saved = gui::mainWindow.getCurrentModeAttr("submode");
 
         gui::mainWindow.maybeTransmit(saudio,
-                                      [=]() { gui::mainWindow.setCurrentModeBySubmode("CW"); },
-                                      [=]() { gui::mainWindow.setCurrentModeBySubmode(saved); });
+                                      [=]() {
+            gui::mainWindow.setCurrentModeBySubmode("CW");
+            gui::mainWindow.txOffset = -gui::mainWindow.cwAudioFrequency;
+            },
+                                      [=]() { gui::mainWindow.setCurrentModeBySubmode(saved);
+                                          gui::mainWindow.txOffset = 0;
+        });
         flog::info("Done {}", morse);
     }
     

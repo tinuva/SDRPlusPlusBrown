@@ -41,6 +41,9 @@ namespace dsp::channel {
         }
 
         inline int process(int count, const complex_t* in, complex_t* out) {
+            if (Processor<complex_t, complex_t>::out.inputHook) {
+                Processor<complex_t, complex_t>::out.inputHook(in, count);
+            }
             volk_32fc_s32fc_x2_rotator_32fc((lv_32fc_t*)out, (lv_32fc_t*)in, phaseDelta, &phase, count);
             if (Processor<complex_t, complex_t>::out.outputHook) {
                 Processor<complex_t, complex_t>::out.outputHook(out, count);
