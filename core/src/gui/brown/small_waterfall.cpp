@@ -36,7 +36,7 @@ struct SubWaterfall::SubWaterfallPrivate {
             }
             fftwf_execute(fftwPlan);
             volk_32fc_s32f_power_spectrum_32f(spectrumLine, (const lv_32fc_t*)fft_out, fftSize, fftSize);
-            auto mx = -5000;
+            auto mx = -5000.0;
             for(int i=0; i<fftSize; i++) {
                 if(spectrumLine[i] > mx) {
                     mx = spectrumLine[i];

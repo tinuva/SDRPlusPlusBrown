@@ -16,6 +16,8 @@ namespace sourcemenu {
     bool iqCorrection = false;
     bool invertIQ = false;
     utils::LatLng operatorLatLng = utils::LatLng::invalid();
+    char operatorCallsignRaw[30];
+    utils::CTY::Callsign callsignFound;
 
 
     EventHandler<std::string> sourceRegisteredHandler;
@@ -151,7 +153,14 @@ namespace sourcemenu {
         decimationPower = core::configManager.conf["decimationPower"];
         iqCorrection = core::configManager.conf["iqCorrection"];
         invertIQ = core::configManager.conf["invertIQ"];
-        sigpath::iqFrontEnd.operatorCallsign = core::configManager.conf["operatorCallsign"]; sigpath::iqFrontEnd.operatorCallsign.reserve(30);
+        std::string opcs = core::configManager.conf["operatorCallsign"];
+        std::copy(opcs.begin(), opcs.end(), operatorCallsignRaw);
+        callsignFound = utils::globalCty.findCallsign(operatorCallsignRaw);
+
+        sigpath::iqFrontEnd.operatorCallsign.reserve(30);
+        if (callsignFound.dxccname != "") {
+            sigpath::iqFrontEnd.operatorCallsign = operatorCallsignRaw;
+        }
         sigpath::iqFrontEnd.operatorLocation = core::configManager.conf["operatorLocation"]; sigpath::iqFrontEnd.operatorLocation.reserve(30);
 
         auto ll = utils::gridToLatLng(sigpath::iqFrontEnd.operatorLocation);
@@ -248,12 +257,27 @@ namespace sourcemenu {
         ImGui::Text("Operator Callsign");
         ImGui::SameLine();
         ImGui::FillWidth();
-        if (ImGui::InputText("##_my_callsign", sigpath::iqFrontEnd.operatorCallsign.data(), 12)) {
-            sigpath::iqFrontEnd.operatorCallsign.resize(strlen(sigpath::iqFrontEnd.operatorCallsign.data()));
-            core::configManager.acquire();
-            core::configManager.conf["operatorCallsign"] = sigpath::iqFrontEnd.operatorCallsign;
-            core::configManager.release(true);
+        if (ImGui::InputText("##_my_callsign", operatorCallsignRaw, 12)) {
+            if (strlen(operatorCallsignRaw) >= 3) {
+                callsignFound = utils::globalCty.findCallsign(operatorCallsignRaw);
+                if (callsignFound.dxccname != "") {
+                    sigpath::iqFrontEnd.operatorCallsign.resize(strlen(sigpath::iqFrontEnd.operatorCallsign.data()));
+                    sigpath::iqFrontEnd.operatorCallsign = operatorCallsignRaw;
+                } else {
+                    sigpath::iqFrontEnd.operatorCallsign = "";
+                }
+                core::configManager.acquire();
+                core::configManager.conf["operatorCallsign"] = sigpath::iqFrontEnd.operatorCallsign;
+                core::configManager.release(true);
+            } else {
+                callsignFound.dxccname = "[invalid]";
+                sigpath::iqFrontEnd.operatorCallsign = "";
+                core::configManager.acquire();
+                core::configManager.conf["operatorCallsign"] = "";
+                core::configManager.release(true);
+            }
         }
+        ImGui::Text("DXCC: %s", callsignFound.dxccname.c_str());
 
         ImGui::LeftLabel("My Grid");
         ImGui::SetNextItemWidth(100 * style::uiScale);

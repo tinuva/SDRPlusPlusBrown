@@ -85,6 +85,9 @@ namespace dsp::filter {
             auto nmove = (_taps.size - 1) * sizeof(D);
             memmove(buffer, &buffer[count], nmove);
 
+            if (Processor<D, D>::out.outputHook) {
+                Processor<D, D>::out.outputHook(out, count);
+            }
             return count;
         }
 

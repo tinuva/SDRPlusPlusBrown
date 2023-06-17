@@ -26,14 +26,15 @@
 #include <ctm.h>
 #include <utils/strings.h>
 #include <cmath>
+#include <utils/usleep.h>
 #include "audio_player.h"
 #include "imgui-notify/imgui_notify.h"
 
 using namespace ::dsp::arrays;
 
-float trxAudioSampleRate = 48000.0;
-
 const int nSmallWheelFunctions = 3;
+
+float trxAudioSampleRate = 48000;
 
 const char* RecordCallCQPopup = "Record CallCQ";
 const char* TxModePopup = "TX/RX Mode Select";
@@ -378,10 +379,12 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
     int tuneFrequency = 0;
     float bandwidth = 4000.0;
 
+    FILE *debugDump = nullptr;
 
     AudioInToTransmitter(dsp::stream<dsp::stereo_t>* in) {
         init(in);
         totalRead = 0;
+        debugDump = fopen("/tmp/aitt.raw", "wb");
     }
 
     int totalRead;
@@ -398,18 +401,36 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
 
     void start() override {
         flog::info("AudioInToTransmitter: Start");
-        if (this->submode == "LSB") {
-            xlator1.init(nullptr, -(bandwidth) / 2, trxAudioSampleRate);
-            xlator2.init(nullptr, bandwidth / 2, trxAudioSampleRate);
+        auto lowPassBW = bandwidth;
+        dsp::taps::free(halfBandPassTaps);
+        dsp::taps::free(fullBandPassTaps);
+        if (this->submode == "LSB" || this->submode == "USB") {
+            if (this->submode == "LSB") {
+                xlator1.init(nullptr, -(bandwidth) / 2, trxAudioSampleRate);
+                xlator2.init(nullptr, bandwidth / 2, trxAudioSampleRate);
+            }
+            if (this->submode == "USB") {
+                xlator1.init(nullptr, (bandwidth) / 2, trxAudioSampleRate);
+                xlator2.init(nullptr, -bandwidth / 2, trxAudioSampleRate);
+            }
+            halfBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(bandwidth / 2, bandwidth / 2 * 0.1, trxAudioSampleRate);
+            halfBandPassFilter.init(nullptr, halfBandPassTaps);
+            fullBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(bandwidth, bandwidth * 0.1, trxAudioSampleRate);
+            fullBandPassFilter.init(nullptr, fullBandPassTaps);
         }
-        else {
-            xlator1.init(nullptr, (bandwidth) / 2, trxAudioSampleRate);
-            xlator2.init(nullptr, -bandwidth / 2, trxAudioSampleRate);
+        if (this->submode.substr(0, 2) == "CW") {
+            // translate to the middle of bandwidth
+            xlator1.init(nullptr, 1000, trxAudioSampleRate);       //
+            xlator1.debugDump("/tmp/x1.wav");
+            xlator2.init(nullptr, -1000, trxAudioSampleRate);
+            xlator2.debugDump("/tmp/x2.wav");
+            halfBandPassTaps = dsp::taps::bandPass<dsp::complex_t>(1000+gui::mainWindow.cwAudioFrequency-300, 1000+gui::mainWindow.cwAudioFrequency-300, 100, trxAudioSampleRate); // no filtering
+            halfBandPassFilter.init(nullptr, halfBandPassTaps);
+            halfBandPassFilter.debugDump("/tmp/p1.wav");
+            fullBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(gui::mainWindow.cwAudioFrequency+300, 100, trxAudioSampleRate);
+            fullBandPassFilter.init(nullptr, fullBandPassTaps);
+            fullBandPassFilter.debugDump("/tmp/p2.wav");
         }
-        halfBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(bandwidth / 2, bandwidth / 2 * 0.1, trxAudioSampleRate);
-        halfBandPassFilter.init(nullptr, halfBandPassTaps);
-        fullBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(bandwidth, bandwidth * 0.1, trxAudioSampleRate);
-        fullBandPassFilter.init(nullptr, fullBandPassTaps);
 
         dsp::Processor<dsp::stereo_t, dsp::complex_t>::start();
     }
@@ -424,6 +445,9 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
         int rd = this->_in->read();
         if (rd < 0) {
             return rd;
+        }
+        if (debugDump) {
+            fwrite(this->_in->readBuf, sizeof(dsp::stereo_t), rd, debugDump);
         }
         if (tuneFrequency != 0) {
             // generate sine wave for soft tune
@@ -1009,6 +1033,7 @@ struct ConfigPanel {
 
 struct QSOPanel {
 
+
     QSOPanel() : audioInProcessedMerger(), audioInProcessed() {
         audioInProcessed.init(audioInProcessedMerger.getOutput());
         audioIn.origin = "qsopanel.audioin";
@@ -1028,6 +1053,7 @@ struct QSOPanel {
     dsp::routing::Merger<dsp::stereo_t> audioInProcessedMerger;
     dsp::stream<dsp::stereo_t> audioTowardsTransmitter;
     std::shared_ptr<ConfigPanel> configPanel;
+    std::function<void()> onStopTransmit;
 
 
     //    int readSamples;
@@ -1094,7 +1120,19 @@ struct QSOAudioRecorder {
         audioInProcessed->bindStream(&micStream);
     }
 
+    void end() {
+        running = false;
+        radioStream->stopReader();
+        radioStream->stopWriter();
+        micStream.stopReader();
+        micStream.stopWriter();
+        sigpath::sinkManager.unbindStream(boundStream, radioStream);
+        audioInProcessed->unbindStream(&micStream);
+    }
+
+
     void runReadRadioStream() {
+        SetThreadName("QSOAudioRecorder");
         while(running) {
             int rd = radioStream->read();
             if (rd < 0) {
@@ -1107,6 +1145,7 @@ struct QSOAudioRecorder {
     }
 
     void runReadMicStream() {
+        SetThreadName("MicReadStream");
         while(running) {
             int rd = micStream.read();
             if (rd < 0) {
@@ -1152,13 +1191,6 @@ struct QSOAudioRecorder {
         }
     }
 
-    void end() {
-        running = false;
-        radioStream->stopReader();
-        radioStream->stopWriter();
-        sigpath::sinkManager.unbindStream(boundStream, radioStream);
-        audioInProcessed->unbindStream(&micStream);
-    }
 
     void flushToFile(const std::string &where) {
         wav::Writer w;
@@ -1189,6 +1221,21 @@ struct MobileMainWindowPrivate {
     std::vector<dsp::stereo_t> callCq;
 
     MobileMainWindowPrivate() : player("main_window_qso_record_player"), callCQlayer("call_cq_preview"){
+    }
+
+    void beginPlay() {
+        ImGui::WaterfallVFO*& pVfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
+        if (pVfo) {
+            callCQlayer.startPlaying();
+            callCQlayer.onPlayEnd = [&]() {
+                callCQlayer.onPlayEnd = nullptr;
+                callCQlayer.onPlayStart = nullptr;
+                pub->qsoPanel->handleTxButton(pVfo, false, false, &pub->pvt->callCQlayer.splitter);
+            };
+            pub->qsoPanel->handleTxButton(pVfo, true, false, &pub->pvt->callCQlayer.splitter);
+            sigpath::sinkManager.setAllMuted(false);    // re-enable sound
+        }
+
     }
 
     void init() {
@@ -1428,6 +1475,7 @@ void MobileMainWindow::updateSubmodeAfterChange() {
         setCurrentModeAttr("submode", submode);
     }
     this->submodeToggle.upperText = submode;
+    qsoPanel->setModeSubmode(mode, submode);
     ImGui::WaterfallVFO*& pVfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
     if (pVfo) {
         auto selectedDemod = RadioModule::RADIO_DEMOD_USB;
@@ -1438,6 +1486,7 @@ void MobileMainWindow::updateSubmodeAfterChange() {
         if (submode == "NFM") selectedDemod = RadioModule::RADIO_DEMOD_NFM;
         if (submode == "WFM") selectedDemod = RadioModule::RADIO_DEMOD_WFM;
         if (submode == "AM") selectedDemod = RadioModule::RADIO_DEMOD_AM;
+        if (submode == "DSB") selectedDemod = RadioModule::RADIO_DEMOD_DSB;
         pVfo->onUserChangedDemodulator.emit((int)selectedDemod);
     }
     updateFrequencyAfterChange();
@@ -1496,6 +1545,7 @@ void MobileMainWindow::updateAudioWaterfallPipeline() {
             currentAudioStreamSampleRate = (int)sigpath::sinkManager.getStreamSampleRate(currentAudioStreamName);
             currentAudioStream = sigpath::sinkManager.bindStream(currentAudioStreamName);
             std::thread x([&]() {
+                SetThreadName("AudioWaterfall");
                 while (true) {
                     int rd = currentAudioStream->read();
                     if (rd < 0) {
@@ -1516,6 +1566,15 @@ void MobileMainWindow::updateAudioWaterfallPipeline() {
 void MobileMainWindow::draw() {
 
     updateAudioWaterfallPipeline();
+
+    for(auto x: core::moduleManager.instances) {
+        auto radio = dynamic_cast<RadioModule *>(x.second.instance);
+        if (radio) {
+            updateModeFromRadio(radio->getSelectedDemodId());
+            break;
+        }
+    }
+
     pvt->audioRecorder.updateControlState(!encoder.enabled, this->qsoPanel->transmitting);
 
     if (drawAudioWaterfall && !hasBottomWindow("audio_waterfall")) {
@@ -1897,7 +1956,7 @@ void MobileMainWindow::draw() {
     ImGui::EndChild(); // buttons
 
 
-    if (qsoMode == VIEW_QSO && modeToggle.upperText == "CW") {
+    if (qsoMode == VIEW_QSO && modeToggle.upperText == "CW" && false) {
         ImGui::SetCursorPos(cornerPos + ImVec2(waterfallRegion.x / 4, waterfallRegion.y / 2));
         ImVec2 childRegion(waterfallRegion.x / 2, waterfallRegion.y / 2);
         ImGui::BeginChildEx("cwbuttons", ImGui::GetID("cwbuttons"), childRegion, true, 0);
@@ -1949,14 +2008,9 @@ void MobileMainWindow::draw() {
     if (pressedButton == &this->callCQ) {
         if (sigpath::transmitter && !qsoPanel->transmitting) {
             if (!pvt->callCQlayer.playing) {
-                pvt->callCQlayer.startPlaying();
-                pvt->callCQlayer.onPlayEnd = [&]() {
-                    pvt->callCQlayer.onPlayEnd = nullptr;
-                    pvt->callCQlayer.onPlayStart = nullptr;
-                    qsoPanel->handleTxButton(vfo, false, false, &pvt->callCQlayer.splitter);
-                };
-                qsoPanel->handleTxButton(vfo, true, false, &pvt->callCQlayer.splitter);
-                sigpath::sinkManager.setAllMuted(false);    // re-enable sound
+                auto root = (std::string)core::args["root"];
+                pvt->callCQlayer.loadFile(root + "/call_cq.wav");
+                pvt->beginPlay();
             } else {
                 pvt->callCQlayer.stopPlaying();
             }
@@ -2056,7 +2110,7 @@ void MobileMainWindow::draw() {
             updateSubmodeAfterChange();
         }
     }
-    qsoPanel->setModeSubmode(modeToggle.upperText, submodeToggle.upperText);
+//    qsoPanel->setModeSubmode(modeToggle.upperText, submodeToggle.upperText);
     if (sigpath::transmitter && qsoPanel->triggerTXOffEvent < 0) { // transiver exists, and TX is not in handing off state
         if (pressedButton == &this->softTune) {
             if (qsoPanel->audioInToTransmitter) {
@@ -2119,7 +2173,7 @@ void MobileMainWindow::draw() {
     }
 
     this->logbookDetailsPopup();
-
+    
 
     if (ImGui::BeginPopupModal(TxModePopup, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImVec2 screenSize = io.DisplaySize;
@@ -2246,10 +2300,29 @@ std::string MobileMainWindow::getCurrentMode() {
     return retval;
 }
 
+void MobileMainWindow::setCurrentModeBySubmode(std::string submode) {
+    if (this->qsoPanel->submode == submode) {
+        return;
+    }
+    for (auto& b : modes) {
+        for (auto& bb : subModes[b]) {
+            if (bb == submode) {
+                auto cm = getCurrentMode();
+                if (cm != b) {
+                    setCurrentMode(b);
+                }
+                setCurrentModeAttr("submode", bb);
+                updateSubmodeAfterChange();
+                return;
+            }
+        }
+    }
+}
 void MobileMainWindow::setCurrentMode(std::string mode) {
     core::configManager.acquire();
     core::configManager.conf["mobileRadioMode"] = mode;
     core::configManager.release(true);
+    modeToggle.upperText = mode;
 }
 
 void MobileMainWindow::leaveBandOrMode(int leavingFrequency) {
@@ -2376,8 +2449,43 @@ void MobileMainWindow::init() {
     };
     displayDrawHandler.ctx = this;
     pvt->init();
+
+    for(auto x: core::moduleManager.instances) {
+        auto radio = dynamic_cast<RadioModule *>(x.second.instance);
+        if (radio) {
+            updateModeFromRadio(radio->getSelectedDemodId());
+            break;
+        }
+    }
+
+
 }
 
+void MobileMainWindow::updateModeFromRadio(int radioDemodId) {
+    switch(radioDemodId) {
+        case RadioModule::RADIO_DEMOD_AM:
+            setCurrentModeBySubmode("AM");
+            return;
+        case RadioModule::RADIO_DEMOD_LSB:
+            setCurrentModeBySubmode("LSB");
+            return;
+        case RadioModule::RADIO_DEMOD_USB:
+            setCurrentModeBySubmode("USB");
+            return;
+        case RadioModule::RADIO_DEMOD_NFM:
+            setCurrentModeBySubmode("NFM");
+            return;
+        case RadioModule::RADIO_DEMOD_WFM:
+            setCurrentModeBySubmode("WFM");
+            return;
+        case RadioModule::RADIO_DEMOD_CW:
+            setCurrentModeBySubmode("CW");
+            return;
+        case RadioModule::RADIO_DEMOD_DSB:
+            setCurrentModeBySubmode("DSB");
+            return;
+    }
+}
 void MobileMainWindow::end() {
     pvt->end();
     displaymenu::onDisplayDraw.unbindHandler(&displayDrawHandler);
@@ -2490,7 +2598,7 @@ void MobileMainWindowPrivate::recordCallCQPopup() {
             }
             break;
         case SimpleRecorder::RECORDING_STARTED:
-            if (doFingerButton("Stop Rec")) {
+            if (doFingerButton("Stop Rec, then Preview")) {
                 pub->configPanel->recorder.stop();
                 {
                     auto root = (std::string)core::args["root"];
@@ -2527,18 +2635,18 @@ void MobileMainWindowPrivate::recordCallCQPopup() {
         if (doFingerButton("Save & Close")) {
             if (pub->configPanel->recorder.mode == SimpleRecorder::RECORDING_STARTED) {
                 pub->configPanel->recorder.stop();
-            } else {
-                auto root = (std::string)core::args["root"];
-                auto fnamePreview = root + "/call_cq_preview.wav";
-                auto fname = root + "/call_cq.wav";
-                FILE *f = fopen(fnamePreview.c_str(), "rb");
-                if (f) { // preview exists => rename it to main file.
-                    fclose(f);
-                    remove(fname.c_str());
-                    rename(fnamePreview.c_str(), fname.c_str());
-                }
-                ImGui::CloseCurrentPopup();
+                usleep(300000);
             }
+            auto root = (std::string)core::args["root"];
+            auto fnamePreview = root + "/call_cq_preview.wav";
+            auto fname = root + "/call_cq.wav";
+            FILE *f = fopen(fnamePreview.c_str(), "rb");
+            if (f) { // preview exists => rename it to main file.
+                fclose(f);
+                remove(fname.c_str());
+                rename(fnamePreview.c_str(), fname.c_str());
+            }
+            ImGui::CloseCurrentPopup();
         }
     }
 }
@@ -2669,6 +2777,30 @@ void MobileMainWindow::logbookEntryPopup(int currentFreq) {
     }
 }
 
+void MobileMainWindow::maybeTransmit(std::shared_ptr<std::vector<dsp::stereo_t>> sharedPtr, std::function<void()> txStart, std::function<void()> txEnd) {
+    if (sigpath::transmitter && !qsoPanel->transmitting) {
+        if (!pvt->callCQlayer.playing) {
+            qsoPanel->onStopTransmit = txEnd;
+            if (txStart) {
+                txStart();
+            }
+            pvt->callCQlayer.setData(sharedPtr.get(), trxAudioSampleRate);
+            pvt->beginPlay();
+        }
+    }
+}
+
+bool MobileMainWindow::canTransmit() {
+    return (bool)qsoPanel->audioInToFFT;
+}
+
+int MobileMainWindow::getLowPass() {
+    return configPanel->lowPass;
+}
+
+void MobileMainWindow::setLowPass(int lowpass) {
+    configPanel->lowPass = lowpass;
+}
 
 void QSOPanel::startAudioPipeline() {
     if (!configPanel->afnr) {
@@ -2875,6 +3007,8 @@ void QSOPanel::handleTxButton(ImGui::WaterfallVFO* vfo, bool tx, bool tune, dsp:
                 audioInToTransmitter->out.stopReader();
             }
             currentTransmitSource = nullptr;
+            if (onStopTransmit)
+                onStopTransmit();
         }
     }
     configPanel->afnr->allowed2 = !this->transmitting;
@@ -3110,12 +3244,13 @@ void ConfigPanel::draw(ImGui::WaterfallVFO* vfo) {
     gui::mainWindow.qsoPanel->currentFFTBufferMutex.unlock();
     ImVec2 space = ImGui::GetContentRegionAvail();
 
+
+
     ImGui::LeftLabel("Audio lo cutoff frequency");
     if (ImGui::SliderInt("##lowcutoff", &highPass, 0, lowPass, "%d Hz")) {
         setConfig("trx_highPass", highPass);
     }
     draw_db_gauge(space.x, highPassDecibels.getMax(3), highPassDecibels.getPeak(), -80, +20);
-
 
     if (ImGui::Checkbox("DX Equalizer / Compressor##equalizeit", &doEqualize)) {
         setConfig("trx_doEqualize", doEqualize);
@@ -3134,7 +3269,6 @@ void ConfigPanel::draw(ImGui::WaterfallVFO* vfo) {
 
     if (ImGui::Checkbox("Hiss add##_his_add_", &hissAdd)) {
     }
-
 
     ImGui::LeftLabel("AGC Attack");
     if (ImGui::SliderFloat("##attack-rec", &agcAttack, 1.0f, 200.0f)) {

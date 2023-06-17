@@ -460,6 +460,7 @@ private:
     }
     void setTransmitStream(dsp::stream<dsp::complex_t>* astream) override {
         std::thread([this, astream]() {
+            SetThreadName("hl2_tx_strm");
             std::vector<dsp::complex_t> buffer;
             int addedBlocks = 0;
             int readSamples = 0;

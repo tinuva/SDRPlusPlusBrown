@@ -58,6 +58,7 @@ void AudioPlayer::startPlaying() {
         if (!radioName.empty()) {
             playing = true;
             std::thread x([this] {
+                SetThreadName("AudioPlayer");
                 if (onPlayStart) {
                     onPlayStart();
                 }

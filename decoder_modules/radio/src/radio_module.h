@@ -268,6 +268,10 @@ public:
         _RADIO_DEMOD_COUNT,
     };
 
+    int getSelectedDemodId() {
+        return selectedDemodID;
+    }
+
 private:
     static void menuHandler(void* ctx) {
         RadioModule* _this = (RadioModule*)ctx;

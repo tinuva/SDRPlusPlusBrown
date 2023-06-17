@@ -170,6 +170,9 @@ void MainWindow::init() {
 
     gui::waterfall.updatePalletteFromArray(colormaps::maps["Turbo"].map, colormaps::maps["Turbo"].entryCount);
 
+    utils::loadAllCty();
+
+
     sourcemenu::init();
     sinkmenu::init();
     bandplanmenu::init();
@@ -234,9 +237,6 @@ void MainWindow::init() {
 
     autostart = core::args["autostart"].b();
     initComplete = true;
-
-    LoadingScreen::show("Loading cty data");
-    utils::loadAllCty();
 
     core::moduleManager.doPostInitAll();
 

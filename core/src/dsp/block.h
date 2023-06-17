@@ -6,6 +6,7 @@
 #include <functional>
 #include "stream.h"
 #include "types.h"
+#include "core.h"
 
 namespace dsp {
     class generic_block {
@@ -67,6 +68,15 @@ namespace dsp {
 
     protected:
         void workerLoop() {
+            std::string tn = typeid(*this).name();
+            int lastDigit = -1;
+            for(int q=0; q<tn.size(); q++) {
+                if (isdigit(tn[q])) {
+                    lastDigit = q;
+                }
+            }
+            tn = tn.substr(lastDigit+1);
+            SetThreadName("block:" + tn);
             while (run() >= 0) {}
         }
 

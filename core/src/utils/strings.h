@@ -47,6 +47,24 @@ inline void splitStringV(const std::string & str, const char *sep, std::vector<s
 }
 
 
+inline void removeSubstrings(std::string& input, const std::string& substring) {
+    size_t pos = input.find(substring);
+    while (pos != std::string::npos) {
+        input.erase(pos, substring.length());
+        pos = input.find(substring, pos);
+    }
+}
+
+
+inline void replaceSubstrings(std::string& input, const std::string& substring, const std::string& replacement) {
+    size_t pos = input.find(substring);
+    while (pos != std::string::npos) {
+        input.replace(pos, substring.length(), replacement);
+        pos = input.find(substring, pos + replacement.length());
+    }
+}
+
+
 inline void trimString(std::string & line) {
     while (!line.empty() && std::isspace(line.back())) {
         line.pop_back();

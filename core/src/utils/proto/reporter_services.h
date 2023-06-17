@@ -15,15 +15,22 @@ namespace net {
 
     struct Report {
         ReportingSource reportingSource;
+        // either
+        std::string errorStatus;
+        //
         std::string reporterCallsign;
         std::string reportedCallsign;
         std::string timestamp;
         std::string mode;
         std::string modeParameters;
-        std::string extraDetail;
+        std::string receiverLocator;
         float decibel;
         float frequency; // in Hz
-
+        long long createdTimestamp;
     };
+
+    void getReportsFromRBN(const std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running);
+    void getReportsFromPSKR(const std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running);
+    void getReportsFromWSPR(const std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running);
 
 }

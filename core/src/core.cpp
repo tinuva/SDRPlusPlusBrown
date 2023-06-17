@@ -570,6 +570,7 @@ int sdrpp_main(int argc, char* argv[]) {
     core::configManager.conf["modules"][modCount++] = "websdr_view.so";
     core::configManager.conf["modules"][modCount++] = "noise_reduction_logmmse.so";
     core::configManager.conf["modules"][modCount++] = "ft8_decoder.so";
+    core::configManager.conf["modules"][modCount++] = "reports_monitor.so";
 #endif
 
     // Fix missing elements in config

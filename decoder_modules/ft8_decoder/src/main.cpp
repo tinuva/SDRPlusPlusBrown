@@ -22,6 +22,7 @@
 #include "../../radio/src/demodulators/usb.h"
 #include <utils/kmeans.h>
 #include <utils/cty.h>
+#include "module_interface.h"
 
 using namespace utils;
 
@@ -431,8 +432,7 @@ struct SingleFT4Decoder : SingleDecoder {
 
 };
 
-
-class FT8DecoderModule : public ModuleManager::Instance {
+class FT8DecoderModule : public ModuleManager::Instance, public FT8ModuleInterface {
 
     SingleFT8Decoder ft8decoder;
     SingleFT4Decoder ft4decoder;
@@ -447,6 +447,13 @@ public:
     std::vector<std::shared_ptr<DrawableDecodedResult>>  decodedResultsDrawables;
     std::mutex decodedResultsLock;
 
+    bool isDefaultCallsign(const std::string &callsign) override {
+        return false;
+    }
+
+    std::vector<dsp::stereo_t> encodeCQ(const std::string &callsign, const std::string &grid) override {
+        return std::vector<dsp::stereo_t>();
+    }
 
     void addDecodedResult(const DecodedResult& incoming) {
         std::lock_guard g(decodedResultsLock);

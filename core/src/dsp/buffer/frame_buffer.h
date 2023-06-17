@@ -74,6 +74,7 @@ namespace dsp::buffer {
         }
 
         void worker() {
+            SetThreadName("FrameBufferWorker");
             while (true) {
                 // Wait for data
                 std::unique_lock lck(bufMtx);

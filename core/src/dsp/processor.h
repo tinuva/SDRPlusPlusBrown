@@ -1,5 +1,6 @@
 #pragma once
 #include "block.h"
+#include <stdio.h>
 
 // These macros define a run() function using a specic expression for processing
 // This is needed because not all process functions have the same arguments
@@ -72,9 +73,23 @@ namespace dsp {
             tempStart();
         }
 
+        FILE *debugF = nullptr;
+
+        void debugDump(const std::string &dest) {
+            if (debugF) {
+                fclose(debugF);
+            }
+            debugF = fopen(dest.c_str(), "wb");
+            if (debugF) {
+                out.outputHook = [=](O *buf, int n) {
+                    fwrite(buf, sizeof(O*), n, debugF);
+                };
+            }
+        }
+
         virtual int run() = 0;
 
-        stream<O> out = "ssb.out";
+        stream<O> out = "processor.out";
 
     protected:
         stream<I>* _in;

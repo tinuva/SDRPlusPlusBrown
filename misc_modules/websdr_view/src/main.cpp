@@ -98,6 +98,10 @@ public:
             // Calculate min and max values
             float minValue = *std::min_element(values.begin(), values.end());
             float maxValue = *std::max_element(values.begin(), values.end());
+            if (maxValue - minValue < 10 ) {
+                minValue = minValue - 10;
+                maxValue = maxValue + 10;
+            }
 
             // Set the next window size and disable resizing
             ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
@@ -190,7 +194,7 @@ public:
                     DrawChart(peaks, avail.x, avail.y);
                 }
             } else {
-                int remains = mod->duration - (currentTimeMillis() - startTime) / 1000;
+                int remains = mod->receiveDuration - (currentTimeMillis() - startTime) / 1000;
                 //                    ImGui::Text("Remains: %d", remains);
                 if (remains == 0) {
                     stop();
@@ -235,7 +239,7 @@ public:
     void postInit() {
         config.acquire();
         if (config.conf.contains("duration")) {
-            duration = config.conf["duration"];
+            receiveDuration = config.conf["duration"];
         }
         if (config.conf.contains("visible")) {
             visible = config.conf["visible"];
@@ -268,7 +272,7 @@ public:
 
 
     std::vector<std::shared_ptr<SingleReceiver>> receivers;
-    int duration = 15;
+    int receiveDuration = 15;
     bool visible = true;
 
 private:
@@ -276,9 +280,9 @@ private:
         auto removeIndex = -1;
         ImGui::LeftLabel("Seconds to receive:");
         ImGui::SameLine();
-        if (ImGui::SliderInt("##_websdr_duration_", &duration, 15, 45)) {
+        if (ImGui::SliderInt("##_websdr_duration_", &receiveDuration, 15, 45)) {
             config.acquire();
-            config.conf["duration"] = duration;
+            config.conf["duration"] = receiveDuration;
             config.release(true);
 
         }

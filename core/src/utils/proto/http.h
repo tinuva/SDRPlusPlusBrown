@@ -4,6 +4,19 @@
 #include "../net.h"
 
 namespace net::http {
+
+    struct ParsedUrl {
+        std::string protocol;
+        std::string host;
+        int port;
+        std::string path;
+        std::string query;
+    };
+
+    ParsedUrl parseUrl(const std::string& url);
+    std::string get(const std::string &url);
+    std::string post(const std::string &url, const std::string &formData);
+
     enum Method {
         METHOD_OPTIONS,
         METHOD_GET,

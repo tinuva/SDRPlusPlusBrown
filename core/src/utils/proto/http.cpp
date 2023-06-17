@@ -1,7 +1,132 @@
 #include "http.h"
 #include <inttypes.h>
+#include <regex>
+#include <utils/flog.h>
 
 namespace net::http {
+
+    std::string userAgent = "sdr++brown";
+
+    void setUserAgent(const std::string& agent) {
+        userAgent = agent;
+    }
+
+    ParsedUrl parseUrl(const std::string& url) {
+        std::regex urlRegex(R"(^(https?|ftp):\/\/([^\/:]+)(?::(\d+))?(\/[^?]*)(?:\?(.*))?$)");
+        std::smatch urlMatch;
+
+        if (std::regex_match(url, urlMatch, urlRegex)) {
+            ParsedUrl parsedUrl;
+            parsedUrl.protocol = urlMatch[1].str();
+            parsedUrl.host = urlMatch[2].str();
+            parsedUrl.port = urlMatch[3].str().empty() ? 0 : std::stoi(urlMatch[3].str());
+            parsedUrl.path = urlMatch[4].str();
+            parsedUrl.query = urlMatch[5].str();
+            if (parsedUrl.port == 0 && parsedUrl.protocol == "http") parsedUrl.port = 80;
+            if (parsedUrl.port == 0 && parsedUrl.protocol == "https") parsedUrl.port = 443;
+            return parsedUrl;
+        } else {
+            throw std::runtime_error("Invalid URL");
+        }
+
+    }
+
+    std::string receiveResponse(net::http::Client &http, net::http::ResponseHeader &rshdr, const std::shared_ptr<Socket> &sock) {
+        bool chunked = false;
+        if (rshdr.hasField("Transfer-Encoding")) {
+            chunked = rshdr.getField("Transfer-Encoding").find("chunked") != std::string::npos;
+        }
+        std::string s(3000000, ' ');
+        if (chunked) {
+            s.resize(0);
+            while(true) {
+                net::http::ChunkHeader chdr;
+                int err = http.recvChunkHeader(chdr, 25000);
+                if (err < 0) {
+                    throw std::runtime_error("Couldn't read chunk header");
+                }
+
+                size_t clen = chdr.getLength();
+                if (!clen) {
+                    break;  // end of stream
+                }
+
+                // Read JSON
+                std::string partial(clen+1, ' ');
+                auto rd = sock->recv((uint8_t *) partial.data(), clen, true, 25000);
+                if (rd != clen) {
+                    throw std::runtime_error("Couldn't read chunk, short read");
+                }
+                s.append(partial.data(), clen);
+                auto rd2 = sock->recv((uint8_t *) partial.data(), 2, true, 25000); // \r\n after block
+                if (rd2 != 2) {
+                    throw std::runtime_error("Couldn't read chunk, short read");
+                }
+            }
+            return std::string(s.data(), s.length());
+        } else {
+            int rd = sock->recv((uint8_t *) s.data(), s.size());
+            if (rd >= 0) {
+                s.data()[rd] = 0;
+            }
+            sock->close();
+            return std::string(s.data());
+        }
+
+    }
+    std::string get(const std::string &url) {
+        auto parsed = parseUrl(url);
+        if (parsed.protocol != "http") {
+            throw std::runtime_error("Only HTTP is supported");
+        }
+        auto sock = net::connect(parsed.host, parsed.port);
+        auto http = net::http::Client(sock);
+        net::http::RequestHeader rqhdr(net::http::METHOD_GET, parsed.path+"?"+parsed.query, parsed.host);
+        rqhdr.setField("User-Agent", userAgent);
+        http.sendRequestHeader(rqhdr);
+        net::http::ResponseHeader rshdr;
+        http.recvResponseHeader(rshdr, 5000);
+        if (rshdr.getStatusCode() != net::http::STATUS_CODE_OK) {
+            throw std::runtime_error("HTTP status code: "+std::to_string(rshdr.getStatusCode()) + " : " + rshdr.getStatusString());
+        }
+        return receiveResponse(http, rshdr, sock);
+    }
+
+    std::string post(const std::string &url, const std::string &formData) {
+        auto parsed = parseUrl(url);
+        if (parsed.protocol != "http") {
+            throw std::runtime_error("Only HTTP is supported");
+        }
+        auto sock = net::connect(parsed.host, parsed.port);
+        auto http = net::http::Client(sock);
+        net::http::RequestHeader rqhdr(net::http::METHOD_POST, parsed.path+"?"+parsed.query, parsed.host);
+
+        char lenBuf[16];
+        sprintf(lenBuf, "%zu", formData.size());
+        rqhdr.setField("Content-Length", lenBuf);
+        rqhdr.setField("Content-Type", "application/x-www-form-urlencoded");
+//        rqhdr.setField("Origin", "https://www.wsprnet.org");
+        rqhdr.setField("User-Agent", userAgent);
+        http.sendRequestHeader(rqhdr);
+        sock->sendstr(formData.c_str());
+        net::http::ResponseHeader rshdr;
+        http.recvResponseHeader(rshdr, 5000);
+        if (rshdr.getStatusCode() == net::http::STATUS_CODE_FOUND) {
+            if (rshdr.hasField("Location")) {
+                std::string loc = rshdr.getField("Location");
+                if (loc.find("https://") == 0) {
+                    loc = "http://" + loc.substr(8);
+                }
+                return get(loc);
+            }
+        }
+        if (rshdr.getStatusCode() != net::http::STATUS_CODE_OK) {
+            throw std::runtime_error("HTTP status code: "+std::to_string(rshdr.getStatusCode()) + " : " + rshdr.getStatusString());
+        }
+        const std::string result = receiveResponse(http, rshdr, sock);
+        return result;
+    }
+
     std::string MessageHeader::serialize() {
         std::string data;
 

@@ -12,6 +12,8 @@
 #include <signal_path/sink.h>
 
 
+SDRPP_EXPORT float trxAudioSampleRate;
+
 struct TheEncoder {
 
     double somePosition = 0; // angle in radians
@@ -92,6 +94,9 @@ public:
     std::string currentAudioStreamName = "";
     bool drawAudioWaterfall = false;
     EventHandler<ImGuiContext*> displayDrawHandler;
+    int cwAudioFrequency = 600;
+    int cwWPM = 18;
+    int txOffset = 0;       // for digital modes
     enum {
         VIEW_DEFAULT = 1,
         VIEW_QSO = 2,
@@ -101,7 +106,7 @@ public:
     bool txStateByButton = false; // true on short press of tx
     std::string currentDX; // callsign of current dx
     std::vector<std::string> modes = { "SSB", "CW", "FM", "AM", "DIGI" };
-    std::map<std::string, std::vector<std::string>> subModes = { { "SSB", { "LSB", "USB" } }, { "FM", { "WFM", "NFM" } }, { "AM", { "AM" } }, { "CW", { "CW" /*, "CWU", "CWL"*/ } }, { "DIGI", { "FT8", "FT4", "OLIVIA", "PSK31", "SSTV" } } };
+    std::map<std::string, std::vector<std::string>> subModes = { { "SSB", { "LSB", "USB" } }, { "FM", { "WFM", "NFM" } }, { "AM", { "AM", "DSB" } }, { "CW", { "CW" /*, "CWU", "CWL"*/ } }, { "DIGI", { "FT8", "FT4", "OLIVIA", "PSK31", "SSTV" } } };
     std::vector<std::string> bands = { "MW", "LW", "160M", "80M", "60M", "40M", "30M", "20M", "17M", "15M", "12M", "10M", "2M" };
     std::map<std::string, std::pair<int, int>> bandsLimits = {
         {"MW", {527000, 160000}},
@@ -214,8 +219,8 @@ public:
     void init() override;
     void end() override;
     std::string getCurrentMode();
-    static void setCurrentMode(std::string);
-    static std::string getCurrentBand();
+    void setCurrentMode(std::string);
+    std::string getCurrentBand();
     void selectCurrentBand(const std::string &band, int leavingFrequency);
     std::string getCurrentModeAttr(const std::string& key);
     void setCurrentModeAttr(const std::string& key, std::string val);
@@ -231,4 +236,15 @@ public:
     ImVec2 logbookPopupPosition = ImVec2(0, 0);
     void logbookEntryPopup(int frequency);
     void logbookDetailsPopup();
+
+    void maybeTransmit(std::shared_ptr<std::vector<dsp::stereo_t>> sharedPtr, std::function<void()> txStart, std::function<void()> txEnd);
+
+    bool canTransmit();
+
+    int getLowPass();
+    void setLowPass(int lowPass);
+
+    void setCurrentModeBySubmode(std::string submode);
+
+    void updateModeFromRadio(int radioDemodId);
 };
