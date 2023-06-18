@@ -255,14 +255,3 @@ namespace net {
 
 }
 
-void test1() {
-    try {
-        bool running = true;
-        net::getReportsFromRBN("9A9RA", [](auto &rep) {
-            flog::info("Freq {} report {} de {}, mode {}, db {}", rep.frequency, rep.reportedCallsign, rep.reporterCallsign, rep.mode, rep.decibel);
-        }, running);
-    } catch (std::exception &e) {
-        flog::error("Exception: {}", e.what());
-    }
-    abort();
-}

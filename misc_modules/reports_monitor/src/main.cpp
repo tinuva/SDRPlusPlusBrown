@@ -25,6 +25,251 @@ SDRPP_MOD_INFO{
         /* Max instances    */ -1
 };
 
+struct WSPREncoder {
+
+    // via https://ganymedeham.blogspot.com/2015/04/arduino-wspr-symbol-generator.html  aka Ganymede M0IFA
+
+    // WSPR_symbol_generator input coded, output on monitor
+    // based on code from Martin Nawrath, Acedemy of Media Arts, Cologne
+
+    const char SyncVec[162] = {
+            1,1,0,0,0,0,0,0,1,0,0,0,1,1,1,0,0,0,1,0,0,1,0,1,1,1,1,0,0,0,0,0,0,0,1,0,0,1,0,1,0,0,0,0,0,0,1,0,
+            1,1,0,0,1,1,0,1,0,0,0,1,1,0,1,0,0,0,0,1,1,0,1,0,1,0,1,0,1,0,0,1,0,0,1,0,1,1,0,0,0,1,1,0,1,0,1,0,
+            0,0,1,0,0,0,0,0,1,0,0,1,0,0,1,1,1,0,1,1,0,0,1,1,0,1,0,0,0,1,1,1,0,0,0,0,0,1,0,1,0,0,1,1,0,0,0,0,
+            0,0,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0,0
+    };
+
+    unsigned long n1;    // encoded callsign
+    unsigned long m1;    // encodes locator
+    typedef unsigned char byte;
+
+    byte c[11];                // encoded message
+    byte sym[170];             // symbol table 162
+    byte symt[170];            // symbol table temp
+
+// put your data here
+    char call[6];    // default values, 6 chars. 3rd numeric
+    char locator[4];   // default value 4 chars
+    byte power = 20;           // default value 2 numberic
+
+    int ii,bb;
+
+
+
+// normalize characters 0..9 A..Z Space in order 0..36
+    char chr_normf(char bc )
+    {
+        char cc=36;
+
+        if (bc >= '0' && bc <= '9') cc=bc-'0';
+        if (bc >= 'A' && bc <= 'Z') cc=bc-'A'+10;
+        if (bc == ' ' ) cc=36;
+
+        return(cc);
+    }
+
+// encode call sign
+    void encode_call()
+    {
+        unsigned long t1;
+
+        n1=chr_normf(call[0]);
+        n1=n1*36+chr_normf(call[1]);
+        n1=n1*10+chr_normf(call[2]);
+        n1=n1*27+chr_normf(call[3])-10;
+        n1=n1*27+chr_normf(call[4])-10;
+        n1=n1*27+chr_normf(call[5])-10;
+
+        // merge coded callsign into message array c[]
+        t1=n1;
+        c[0]= t1 >> 20;
+        t1=n1;
+        c[1]= t1 >> 12;
+        t1=n1;
+        c[2]= t1 >> 4;
+        t1=n1;
+        c[3]= t1 << 4;
+    }
+
+// encode locator
+    void encode_locator()
+    {
+        unsigned long t1;
+
+        // coding of locator
+        m1=179-10*(chr_normf(locator[0])-10)-chr_normf(locator[2]);
+        m1=m1*180+10*(chr_normf(locator[1])-10)+chr_normf(locator[3]);
+        m1=m1*128+power+64;
+
+        // merge coded locator and power into message array c[]
+        t1=m1;
+        c[3]= c[3] + ( 0x0f & t1 >> 18);
+        t1=m1;
+        c[4]= t1 >> 10;
+        t1=m1;
+        c[5]= t1 >> 2;
+        t1=m1;
+        c[6]= t1 << 6;
+    }
+
+// calculate parity
+    byte parity(unsigned long li)
+    {
+        byte po = 0;
+        while(li != 0)
+        {
+            po++;
+            li&= (li-1);
+        }
+        return (po & 1);
+    }
+
+    void encode_conv()
+    {
+        int bc=0;
+        int cnt=0;
+        int cc;
+        unsigned long sh1=0;
+
+        cc=c[0];
+
+        for (int i=0; i < 81;i++)
+        {
+            if (i % 8 == 0 )
+            {
+                cc=c[bc];
+                bc++;
+            }
+            if (cc & 0x80) sh1=sh1 | 1;
+
+            symt[cnt++]=parity(sh1 & 0xF2D05351);
+            symt[cnt++]=parity(sh1 & 0xE4613C47);
+
+            cc=cc << 1;
+            sh1=sh1 << 1;
+        }
+    }
+
+    bool within(int a, int x1, int x2) {
+        return a >= x1 && a <= x2;
+    }
+
+
+// interleave reorder the 162 data bits and and merge table with the sync vector
+    void interleave_sync()
+    {
+        int ii,ij,b2,bis,ip;
+        ip=0;
+
+        for (ii=0;ii<=255;ii++)
+        {
+            bis=1;
+            ij=0;
+
+            for (b2=0;b2 < 8 ;b2++)
+            {
+                if (ii & bis) ij= ij | (0x80 >> b2);
+                bis=bis << 1;
+            }
+
+            if (ij < 162 )
+            {
+                sym[ij]= SyncVec[ij] +2*symt[ip];
+                ip++;
+            }
+        }
+    }
+
+// encode sequence
+    void encode()
+    {
+        encode_call();
+        encode_locator();
+        encode_conv();
+        interleave_sync();
+    };
+
+};
+
+const double PI = 3.14159265358979323846;
+#define SYMBOL_DURATION (8192.0/12000) // in seconds
+#define TONE_SPACING 1.4648 // in Hz
+
+std::vector<dsp::stereo_t> generate_tone(double freq, double duration, int SAMPLE_RATE, double &phi0) {
+    int num_samples = static_cast<int>(SAMPLE_RATE * duration);
+    std::vector<dsp::stereo_t> tone(num_samples);
+    double phiOut = phi0;
+    for (int i = 0; i < num_samples; ++i) {
+        phiOut = phi0 + (2.0 * PI * i * freq) / SAMPLE_RATE;
+        tone[i].r = tone[i].l = static_cast<float>(sin(phiOut));
+
+    }
+    phiOut = phi0 + (2.0 * PI * num_samples * freq) / SAMPLE_RATE;
+    phi0 = phiOut;
+    return tone;
+}
+
+std::vector<dsp::stereo_t> generate_wspr_message(const std::vector<int>& message, double base_frequency, int SAMPLE_RATE) {
+    std::vector<dsp::stereo_t> audio_signal;
+    double phi = 0;
+    for (int i = 0; i < message.size(); ++i) {
+        double freq = base_frequency + message[i] * TONE_SPACING;
+        std::vector<dsp::stereo_t> tone = generate_tone(freq, SYMBOL_DURATION, SAMPLE_RATE, phi);
+        audio_signal.insert(audio_signal.end(), tone.begin(), tone.end());
+    }
+    return audio_signal;
+}
+
+std::vector<int> convertToWSPRSymbols(std::string callsign, std::string loc, int powerDbm) {
+    WSPREncoder wsprEncoder;
+    if (callsign.size() < 3) {
+        throw std::invalid_argument("callsign must be at least 3 characters long");
+    }
+    if (isdigit(callsign[2])) { // ok
+        //
+    } else {
+        if (isdigit(callsign[1])) {
+            callsign.insert(0, " ");
+        }
+    }
+    if (callsign.length() > 6) {
+        throw std::invalid_argument("long callsign cannot be sent in one go.");
+    }
+    while(callsign.size() < 6) {
+        callsign.append(" ");
+    }
+    bool valid = callsign[0] == ' ' || isupper(callsign[0]) && isalnum(callsign[0]);
+    valid &= isupper(callsign[1]) && isalpha(callsign[1]);
+    valid &= isdigit(callsign[2]);
+    valid &= isupper(callsign[3]) && isalnum(callsign[3]);
+    valid &= isupper(callsign[4]) && isalpha(callsign[4]) || callsign[4] == ' ';
+    valid &= isupper(callsign[5]) && isalpha(callsign[5]) || callsign[5] == ' ';
+    if (!valid) {
+        throw std::invalid_argument("callsign non-default, cannot send");
+    }
+    if (loc.length() > 4) {
+        loc = loc.substr(0, 4);
+    }
+    if (powerDbm < 0 || powerDbm > 60) {
+        throw std::invalid_argument("power must be between 0 and 60");
+    }
+    if (powerDbm % 10 != 0 && powerDbm % 10 != 3 && powerDbm % 10 != 7) {
+        throw std::invalid_argument("power must end with 0,3,7");
+    }
+    if (!isdigit(loc[2]) || !isdigit(loc[3]) || !wsprEncoder.within(loc[0],'A','R') || !wsprEncoder.within(loc[1],'A','R')) {
+        throw std::invalid_argument("locator is invalid (must be AA00-RR99)");
+    }
+    memcpy(wsprEncoder.call, callsign.c_str(), 6);
+    memcpy(wsprEncoder.locator, loc.c_str(), 6);
+    wsprEncoder.power = powerDbm;
+    wsprEncoder.encode();
+    std::vector<int> result;
+    for(int i=0; i<162; i++) {
+        result.emplace_back(wsprEncoder.sym[i]);
+    }
+    return result;
+}
+
 std::string convertToMorseCode(std::string input) {
     // Define Morse Code map
     std::unordered_map<char, std::string> morse {
@@ -433,10 +678,56 @@ private:
     }
     
     void transmitWSPR() {
+        try {
+            auto audioFreq = 1505;
+            auto symbols = convertToWSPRSymbols(sigpath::iqFrontEnd.operatorCallsign, sigpath::iqFrontEnd.operatorLocation, 37); // 37 dbm=5W
+            auto audio = generate_wspr_message(symbols, audioFreq, gui::mainWindow.currentAudioStreamSampleRate);
+            auto halfBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(audioFreq+200, 100, trxAudioSampleRate);
+            dsp::filter::FIR<dsp::stereo_t, dsp::complex_t> lpf(nullptr, halfBandPassTaps);
+            int nparts = 9;
+            auto singlePart = audio.size()/nparts;
+            for(int q=0; q<nparts; q++) {
+                lpf.process(singlePart, audio.data()+singlePart * q, audio.data()+singlePart * q);
+            }
+            saudio->clear();
+            saudio->insert(saudio->end(), audio.begin(), audio.end());
+            auto saved = gui::mainWindow.getCurrentModeAttr("submode");
+            gui::mainWindow.maybeTransmit(saudio,
+                                          [=]() {
+                                              gui::mainWindow.setCurrentModeBySubmode("USB");
+                                          },
+                                          [=]() { gui::mainWindow.setCurrentModeBySubmode(saved);
+                                          });
+
+        } catch (std::exception &e) {
+            ImGui::InsertNotification({ ImGuiToastType_Error, 5000, (std::string("WSPR:") + e.what()).c_str() });
+            return;
+        }
 
     }
 
     void transmitFT8() {
+        FT8ModuleInterface *ft8 = nullptr;
+        for(auto x: core::moduleManager.instances) {
+            ft8 = dynamic_cast<FT8ModuleInterface *>(x.second.instance);
+            if (ft8) {
+                break;
+            }
+        }
+        if (ft8) {
+            flog::info("FT8: {}", (void*)ft8);
+            auto [rv, msg] = ft8->encodeCQ_FT8(sigpath::iqFrontEnd.operatorCallsign,sigpath::iqFrontEnd.operatorLocation, 1000);
+            saudio->clear();
+            saudio->insert(saudio->end(), rv.begin(), rv.end());
+            auto saved = gui::mainWindow.getCurrentModeAttr("submode");
+            gui::mainWindow.maybeTransmit(saudio,
+                                          [=]() {
+                                              gui::mainWindow.setCurrentModeBySubmode("USB");
+                                          },
+                                          [=]() { gui::mainWindow.setCurrentModeBySubmode(saved);
+                                          });
+            flog::info("Done FT8");
+        }
 
     }
 

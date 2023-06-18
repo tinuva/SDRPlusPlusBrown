@@ -23,6 +23,7 @@
 #include <utils/kmeans.h>
 #include <utils/cty.h>
 #include "module_interface.h"
+#include "ft8_etc/gen_ft8.h"
 
 using namespace utils;
 
@@ -451,8 +452,24 @@ public:
         return false;
     }
 
-    std::vector<dsp::stereo_t> encodeCQ(const std::string &callsign, const std::string &grid) override {
-        return std::vector<dsp::stereo_t>();
+    std::pair<std::vector<dsp::stereo_t>, std::string> encodeCQ_FT8(const std::string &callsign, const std::string &grid, int frequency) override {
+        GenFt8 gen(false);
+        std::vector<short> wave(48000*15*2, 0.0);
+        auto msg = "CQ "+callsign+" "+grid;
+        auto length = gen.genft8(msg, wave.data(), 48000, frequency);
+        if (gen.s_unpack_msg != msg) {
+            msg = "CQ "+callsign;
+            length = gen.genft8(msg, wave.data(), 48000, frequency);
+            if (gen.s_unpack_msg != msg) {
+                throw std::runtime_error("Failed to generate CQ message");
+            }
+        }
+        flog::info("Length={}", length);
+        auto rv = std::vector<dsp::stereo_t>();
+        for(int q=0; q<length; q++) {
+            rv.emplace_back(dsp::stereo_t{wave[q]/32767.0f, wave[q]/32767.0f});
+        }
+        return std::make_pair(rv, *gen.s_unpack_msg.str);
     }
 
     void addDecodedResult(const DecodedResult& incoming) {
@@ -1389,7 +1406,7 @@ MOD_EXPORT void _INIT_() {
     config.setPath(core::args["root"].s() + "/ft8_decoder_config.json");
     config.load(def);
     config.enableAutoSave();
-
+    mshv_init();
 
 }
 

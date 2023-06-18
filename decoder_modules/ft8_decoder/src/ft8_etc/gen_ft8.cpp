@@ -230,6 +230,11 @@ int GenFt8::genft8(QString str_mam,short *t_iwave,double samp_rate,double f_tx)/
         // no problem to be here 2.20 becouse -> encode174_91 add +14bit affter 76bit
         bool unpk77_success;
         QString tms = TPackUnpackMsg77.unpack77(c77,unpk77_success);
+        auto pipe = tms.indexOf('|');
+        if (pipe != -1) {
+            tms.str->resize(pipe);
+        }
+
         s_unpack_msg.append(tms);
         if (islot < nslots - 1)
             s_unpack_msg.append("#"); 

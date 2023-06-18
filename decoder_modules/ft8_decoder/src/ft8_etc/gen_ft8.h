@@ -44,10 +44,11 @@ public:
 private:   
     GenPomFt genPomFt;      
     PackUnpackMsg77 TPackUnpackMsg77;
-    QString s_unpack_msg;
     double twopi;
     //QString format_msg(char *message_in, int cmsg);
     //void make_c77_i4tone(bool *c77,int *i4tone);//,bool f_gen,bool f_addc
-   
+public:
+    QString s_unpack_msg;
+
 };
 #endif

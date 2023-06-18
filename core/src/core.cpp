@@ -296,10 +296,28 @@ namespace core {
 
 extern void test1();
 
+#include "../../decoder_modules/ft8_decoder/src/module_interface.h"
+
+void test1() {
+    FT8ModuleInterface *ft8 = nullptr;
+    for(auto x: core::moduleManager.instances) {
+        ft8 = dynamic_cast<FT8ModuleInterface *>(x.second.instance);
+        if (ft8) {
+            break;
+        }
+    }
+    if (ft8) {
+        flog::info("FT8: {}", (void*)ft8);
+        auto [rv, msg] = ft8->encodeCQ_FT8("I9/UR6XXX","KO80", 1000);
+        FILE *f = fopen("/tmp/cq_ft8.raw", "wb");
+        fwrite(rv.data(), sizeof(dsp::stereo_t), rv.size(), f);
+        fclose(f);
+    }
+}
+
 // main
 int sdrpp_main(int argc, char* argv[]) {
 
-//    test1();
 #ifdef _WIN32
     setlocale(LC_ALL, ".65001"); // Set locale to UTF-8
 #endif
@@ -615,6 +633,7 @@ int sdrpp_main(int argc, char* argv[]) {
 
     if (serverMode) { return server::main(); }
 
+
     core::configManager.acquire();
     std::string resDir = core::configManager.conf["resourcesDirectory"];
     sdrppResourcesDirectory = strdup(resDir.c_str());
@@ -654,6 +673,9 @@ int sdrpp_main(int argc, char* argv[]) {
     gui::mainWindow.init();
 
     flog::info("Ready.");
+
+//    test1();
+
 
     // Run render loop (TODO: CHECK RETURN VALUE)
     backend::renderLoop();

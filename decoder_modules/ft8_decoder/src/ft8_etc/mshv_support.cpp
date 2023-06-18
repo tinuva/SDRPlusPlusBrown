@@ -147,9 +147,6 @@ void QString::append(char s) {
         abort();
     }
     sprintf(buf, "%s%c", str->c_str(), s);
-    //    str->resize(str->length() + 1);
-    //    str->data()[str->length()-1] = mshv_chars_m1[(unsigned char)s];
-    //    str->data()[str->length()-1]++;
     str = std::make_shared<std::string>(buf);
     mutated();
     verify();

@@ -51,9 +51,12 @@ void ConfigManager::load(json def, bool lock) {
 
 void ConfigManager::save(bool lock) {
     if (lock) { mtx.lock(); }
-    std::ofstream file(wstr::str2wstr(path));
+    auto justpath = wstr::str2wstr(path);
+    auto newpath = wstr::str2wstr(path + ".new");
+    std::ofstream file(newpath);
     file << conf.dump(4);
     file.close();
+    std::filesystem::rename(newpath, justpath);
     if (lock) { mtx.unlock(); }
 }
 
