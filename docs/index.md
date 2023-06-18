@@ -33,7 +33,9 @@ read on below.
 * [Bundled FT8 decoder](#bundled-ft8-decoder) - extracted from MSHV code, slightly tweaked.
 * [Noise Reduction](#noise-reduction) - both for audio frequency and baseband (visual noise reduction!)
 * [Hermes Lite 2 support](#hermes-lite-2-support) - hl2_source plugin (don't confuse with hermes_source).
-* [Transmit mode](#transmit-mode) for Hermes Lite 2 - at the time of the writing, basic SSB transmit is implemented. See the [MANUAL](tx.md) 
+* [Transmit mode](#transmit-mode) for Hermes Lite 2 - SSB QSO supported in full. See the [MANUAL](tx.md)
+  * transmit CQ in CW/FT8/WSPR in one button. (some kind of QSO dialogue is planned for later where applicable)
+* RBN/pskreporter/WSPRnet monitoring for your own call (estimate your signal when tuning your antenna)
 * [QSO / SWL Logging](#qso-logging) allows to add log records with date/time/frequency/callsign/rst etc. Optimized for mobile. 
 * [SNR Chart](#snr-chart) to compare SNR while tweaking antennas, de-noising etc.
 * Saving of zoom parameters between sessions

@@ -482,8 +482,8 @@ public:
                                     net::getReportsFromPSKR(sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running);
                                     break;
                                 case net::RS_RBN:
-                                    net::getReportsFromRBN(sigpath::iqFrontEnd.operatorCallsign, "", callbackReceiver(), running);
-//                                    net::getReportsFromRBN(sigpath::iqFrontEnd.operatorCallsign, sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running);
+//                                    net::getReportsFromRBN(sigpath::iqFrontEnd.operatorCallsign, "", callbackReceiver(), running);
+                                    net::getReportsFromRBN(sigpath::iqFrontEnd.operatorCallsign, sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running);
                                     break;
                             }
                         }
@@ -518,7 +518,7 @@ public:
     ReportingService rbn;
     ReportingService pskr;
 
-    void postInit() {
+    void postInit() override {
         config.acquire();
         if (config.conf.contains("receiveDuration")) {
             receiveDuration = config.conf["receiveDuration"];

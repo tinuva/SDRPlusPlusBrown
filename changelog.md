@@ -2,6 +2,12 @@
 
 Newest entries are at the top.
 
+2023.06.18
+
+* Added one-shot beacon (call CQ) transmit for WSPR/FT8/CW
+* Added connection to RBN/PSKReporter/SWPRnet to obtain reports.
+* WebSDR view plugin allows to add set of Kiwisdr servers and view (only) them below waterfall, with SNR estimation.
+
 2023.06.05
 
 * Added QSO audio recording. Click on the recorded QSO, and in the dialog it is possible to change text, to listen to the record.
