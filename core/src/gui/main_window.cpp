@@ -429,7 +429,7 @@ void MainWindow::drawUpperLine(ImGui::WaterfallVFO* vfo) {
 
 int64_t lastDrawTime = 0;
 
-void ShowLogWindow() {
+void MainWindow::ShowLogWindow() {
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize * 0.8, ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Log Console", &gui::mainWindow.logWindow))
     {

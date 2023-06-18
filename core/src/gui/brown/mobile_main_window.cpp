@@ -1252,6 +1252,7 @@ struct MobileMainWindowPrivate {
         if (pVfo) {
             callCQlayer.startPlaying();
             callCQlayer.onPlayEnd = [&]() {
+                flog::info("callCQlayer: onplayend, stopping tx via button");
                 callCQlayer.onPlayEnd = nullptr;
                 callCQlayer.onPlayStart = nullptr;
                 pub->qsoPanel->handleTxButton(pVfo, false, false, &pub->pvt->callCQlayer.splitter);
@@ -1665,6 +1666,19 @@ void MobileMainWindow::draw() {
     default:
         break;
     }
+
+    if (demoWindow) {
+        lockWaterfallControls = true;
+        ImGui::ShowDemoWindow();
+    }
+    if (logWindow) {
+        lockWaterfallControls = true;
+        ShowLogWindow();
+    }
+    if (showCredits) {
+        lockWaterfallControls = true;
+    }
+
 
     ImVec2 waterfallRegion = ImVec2(ImGui::GetContentRegionAvail().x - encoderWidth - buttonsWidth, ImGui::GetContentRegionAvail().y - statusHeight);
 
@@ -2808,7 +2822,9 @@ void MobileMainWindow::logbookEntryPopup(int currentFreq) {
 
 void MobileMainWindow::maybeTransmit(std::shared_ptr<std::vector<dsp::stereo_t>> sharedPtr, std::function<void()> txStart, std::function<void()> txEnd) {
     if (sigpath::transmitter && !qsoPanel->transmitting) {
+        flog::info("maybeTransmit: tx exists, not transmitting now");
         if (!pvt->callCQlayer.playing) {
+            flog::info("maybeTransmit: player is not playing");
             qsoPanel->onStopTransmit = txEnd;
             if (txStart) {
                 txStart();

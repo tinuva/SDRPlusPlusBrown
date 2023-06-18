@@ -99,4 +99,6 @@ protected:
     std::vector<ButtomWindow> bottomWindows;
 
     void drawDebugMenu();
+
+    void ShowLogWindow();
 };

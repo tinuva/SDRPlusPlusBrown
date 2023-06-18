@@ -104,6 +104,10 @@ that is slightly less expensive, and has alternative PA and filters schematics, 
 
 ![](hermes-2000.jpg)
 
+Update 2023-06-18: in addition to UDP broadcast discovery, you can now specify direct IP for discovery packet,
+or, if it was not enough, you can even skip discovery and pretend it has been successfully discovered at given
+IP address (Hermes Lite 2).
+
 ## Transmit mode
 
 Transmit mode is currently SSB-oriented. It supports microphone on desktop OS and built-in microphone on android. 

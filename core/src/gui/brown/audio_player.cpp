@@ -54,9 +54,11 @@ void AudioPlayer::stopPlaying() {
 
 void AudioPlayer::startPlaying() {
     if (!data->empty()) {
+        flog::info("ap.startPlaying: data not empty");
         auto radioName = gui::waterfall.selectedVFO;
         if (!radioName.empty()) {
             playing = true;
+            flog::info("ap.startPlaying: playing true");
             std::thread x([this] {
                 SetThreadName("AudioPlayer");
                 if (onPlayStart) {
