@@ -14,6 +14,10 @@
 
 SDRPP_EXPORT float trxAudioSampleRate;
 
+struct StatusReporter {
+    virtual std::string reportStatus() = 0;
+};
+
 struct TheEncoder {
 
     double somePosition = 0; // angle in radians
@@ -85,7 +89,7 @@ public:
 
     std::string currentDXInfo = "";
     bool doQSOAudioRecording = true;
-
+    std::vector<StatusReporter *> statusSeporters;
 
     std::shared_ptr<SubWaterfall> audioWaterfall;
     std::shared_ptr<MobileMainWindowPrivate> pvt;
@@ -249,4 +253,11 @@ public:
     void updateModeFromRadio(int radioDemodId);
 
     bool stopTx();
+
+    void registerStatusReporter(StatusReporter *rep) {
+        statusSeporters.emplace_back(rep);
+    }
+    void unregisterStatusReporter(StatusReporter *rep) {
+        std::remove(statusSeporters.begin(), statusSeporters.end(), rep);
+    }
 };

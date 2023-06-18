@@ -29,8 +29,8 @@ namespace net {
         long long createdTimestamp;
     };
 
-    void getReportsFromRBN(const std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running);
+    void getReportsFromRBN(const std::string telnetCallsign, const std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running);
     void getReportsFromPSKR(const std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running);
-    void getReportsFromWSPR(const std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running);
+    bool getReportsFromWSPR(const std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running);
 
 }

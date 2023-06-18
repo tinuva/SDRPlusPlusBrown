@@ -1691,12 +1691,17 @@ void MobileMainWindow::draw() {
     ImGui::SetCursorPos(cornerPos + ImVec2(addx, waterfallRegion.y));
     int statusLineDY = ImGui::GetCursorPosY();
     ImGui::PushFont(style::mediumFont);
-    ImGui::Text("%s -> %s    zoom: %s   qsorec: %d sec",
-                this->modeToggle.upperText.c_str(),
-                this->submodeToggle.upperText.c_str(),
-                this->zoomToggle.upperText.c_str(),
-                (int)(this->pvt->audioRecorder.qsoAudioRecordingBuffer.size() / trxAudioSampleRate)
-                );
+    static char statusBuf[1024];
+    sprintf(statusBuf, "%s | REC: %03d sec", this->submodeToggle.upperText.c_str(), (int)(this->pvt->audioRecorder.qsoAudioRecordingBuffer.size() / trxAudioSampleRate));
+    for(auto st: statusSeporters) {
+        auto s = st->reportStatus();
+        if (!s.empty()) {
+            strcat(statusBuf, " | ");
+            strcat(statusBuf, s.c_str());
+        }
+    }
+
+    ImGui::Text("%s", statusBuf);
     ImGui::Dummy(ImVec2(addx, 0));
     ImGui::SameLine();
     ImGui::Text("%s", currentDXInfo.c_str());

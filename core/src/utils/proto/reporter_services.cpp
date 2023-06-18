@@ -8,7 +8,8 @@
 
 namespace net {
 
-    void getReportsFromWSPR(std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running) {
+    // returns false after 3 minutes
+    bool getReportsFromWSPR(std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running) {
         auto reportError = [&](std::string error) {
             ::net::Report report;
             report.reportingSource = ::net::RS_WSPRNET;
@@ -16,6 +17,7 @@ namespace net {
             callback(report);
             usleep(30000000);
         };
+        auto startTime = currentTimeMillis();
         while(running) {
             net::http::Client httpClient;
             std::string formBuildId;
@@ -87,6 +89,14 @@ namespace net {
                         callback(report);
                     }
                 }
+                if (currentTimeMillis() - startTime > 15 * 1000) {
+                    rep.reportingSource = RS_WSPRNET;
+                    rep.errorStatus = "Stopped after 3 min";
+                    callback(rep);
+                    running = false;
+                    return false;
+                    break;
+                }
                 for(int i=15; i>=0; i--) {
                     rep.reportingSource = RS_WSPRNET;
                     rep.errorStatus = "Checked, sleeping..." + std::to_string(i);
@@ -98,6 +108,7 @@ namespace net {
                 continue;
             }
         }
+        return true;
 
     }
 
@@ -157,7 +168,7 @@ namespace net {
 
     }
 
-    void getReportsFromRBN(const std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running) {
+    void getReportsFromRBN(const std::string telnetCallsign, const std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running) {
         while(running) {
             // download reports from reverse beacon network
             auto sock = net::connect("telnet.reversebeacon.net", 7000);
@@ -172,7 +183,7 @@ namespace net {
                 sock->close();
                 throw std::runtime_error("RBN: Protocol error");
             }
-            int snt = sock->send((const uint8_t *) (callsign + "\r\n").c_str(), callsign.size() + 2);
+            int snt = sock->send((const uint8_t *) (telnetCallsign + "\r\n").c_str(), telnetCallsign.size() + 2);
             if (snt < 0) {
                 sock->close();
                 throw std::runtime_error("Failed to send data to RBN");
@@ -242,7 +253,7 @@ namespace net {
                                 trimString(txt);
                                 report.modeParameters = report.modeParameters + ": " + txt;
                             }
-                            if (report.reportedCallsign.find(callsign) != std::string::npos) {
+                            if (report.reportedCallsign.find(callsign) != std::string::npos || callsign == "") {
                                 callback(report);
                             }
                         }

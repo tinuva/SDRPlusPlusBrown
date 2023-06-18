@@ -365,7 +365,7 @@ class ReportsMonitorModule;
 
 ReportsMonitorModule *modul;
 
-class ReportsMonitorModule : public ModuleManager::Instance {
+class ReportsMonitorModule : public ModuleManager::Instance, public StatusReporter {
 
 public:
 
@@ -376,9 +376,11 @@ public:
         this->name = name;
         modul = this;
         gui::menu.registerEntry(name, _menuHandler, this, NULL);
+        gui::mainWindow.registerStatusReporter(this);
     }
 
     ~ReportsMonitorModule() {
+        gui::mainWindow.unregisterStatusReporter(this);
         gui::menu.removeEntry(name);
     }
 
@@ -395,10 +397,19 @@ public:
         if (!found) {
             auto nr = report;
             nr.createdTimestamp = currentTimeMillis();
-            reports.emplace_back(nr);
+            reports.insert(reports.begin(), nr);
         }
+
+
         reportsMutex.unlock();
 
+    }
+
+    std::string reportStatus() override {
+        std::lock_guard g(reportsMutex);
+        char buf[100];
+        sprintf(buf, "RPTS: %03zu", reports.size());
+        return buf;
     }
 
     struct ReportingService {
@@ -459,23 +470,29 @@ public:
                 started = currentTimeMillis();
                 if (!thr) {
                     thr = std::make_shared<std::thread>([&]() {
+                        bool doStatus = true;
                         while (running) {
                             switch(source) {
                                 case net::RS_WSPRNET:
-                                    net::getReportsFromWSPR(sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running);
+                                    if (!net::getReportsFromWSPR(sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running)) {
+                                        doStatus = false; // already reported
+                                    }
                                     break;
                                 case net::RS_PSKREPORTER:
                                     net::getReportsFromPSKR(sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running);
                                     break;
                                 case net::RS_RBN:
-                                    net::getReportsFromRBN(sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running);
+                                    net::getReportsFromRBN(sigpath::iqFrontEnd.operatorCallsign, "", callbackReceiver(), running);
+//                                    net::getReportsFromRBN(sigpath::iqFrontEnd.operatorCallsign, sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running);
                                     break;
                             }
                         }
                         thr->detach();
                         thr.reset();
                         stopping = false;
-                        setStatus("Stopped.");
+                        if (doStatus) {
+                            setStatus("Stopped.");
+                        }
                     });
                 }
             }
@@ -515,18 +532,18 @@ public:
         wspr.source = net::RS_WSPRNET;
     }
 
-    void enable() {
+    void enable() override  {
         enabled = true;
     }
 
-    void disable() {
+    void disable() override {
         enabled = false;
         rbn.stop();
         pskr.stop();
         wspr.stop();
     }
 
-    bool isEnabled() {
+    bool isEnabled() override {
         return enabled;
     }
 
@@ -537,9 +554,84 @@ public:
     }
 
 
-
+    const char *SELF_REPORTS_POPUP = "Self-Reports";
 
 private:
+
+    std::string to_string(net::ReportingSource source) {
+        switch (source) {
+            case net::RS_WSPRNET:
+                return ("WSPR");
+            case net::RS_PSKREPORTER:
+                return ("FT8");
+            case net::RS_RBN:
+                return ("CW");
+            default:
+                return "???";
+        }
+    }
+
+    void drawReportsPopup() {
+        ImVec2 ds = ImGui::GetIO().DisplaySize;
+        ImGui::SetNextWindowSize(ds * 0.9);
+        if (ImGui::BeginPopupModal(SELF_REPORTS_POPUP, NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar)) {
+            // Get window size
+            ImVec2 window_size = ImGui::GetWindowSize();
+            // Set the table size to be 90% of window size
+            ImVec2 table_size = ds * 0.8;
+
+            // Start the table
+            if (ImGui::BeginTable("ReportsTable", 10, ImGuiTableFlags_ScrollY, table_size)) {
+                ImGui::TableSetupColumn("Timestamp");
+                ImGui::TableSetupColumn("Type");
+                ImGui::TableSetupColumn("Mode");
+                ImGui::TableSetupColumn("DE (spotter)");
+                ImGui::TableSetupColumn("Receiver Locator");
+                ImGui::TableSetupColumn("DX (spotted)");
+                ImGui::TableSetupColumn("Decibel");
+                ImGui::TableSetupColumn("Frequency");
+                ImGui::TableSetupColumn("Mode Parameters");
+
+                // Header row
+                ImGui::TableHeadersRow();
+
+                // Iterate over each report and create a row for it
+                reportsMutex.lock();
+                for (const auto &report: reports) {
+                    int col = 0;
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(col++);
+                    ImGui::Text("%s", report.timestamp.c_str());
+                    ImGui::TableSetColumnIndex(col++);
+                    ImGui::Text("%s", to_string(report.reportingSource).c_str());
+                    ImGui::TableSetColumnIndex(col++);
+                    ImGui::Text("%s", report.mode.c_str());
+                    ImGui::TableSetColumnIndex(col++);
+                    ImGui::Text("%s", report.reporterCallsign.c_str());
+                    ImGui::TableSetColumnIndex(col++);
+                    ImGui::Text("%s", report.receiverLocator.c_str());
+                    ImGui::TableSetColumnIndex(col++);
+                    ImGui::Text("%s", report.reportedCallsign.c_str());
+                    ImGui::TableSetColumnIndex(col++);
+                    ImGui::Text("%02d", (int)report.decibel);
+                    ImGui::TableSetColumnIndex(col++);
+                    ImGui::Text("%0.2f", report.frequency);
+                    ImGui::TableSetColumnIndex(col++);
+                    ImGui::Text("%s", report.modeParameters.c_str());
+                }
+                reportsMutex.unlock();
+                // End the table
+                ImGui::EndTable();
+            }
+
+            if (ImGui::Button("Close")) {
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
+    }
+
     void menuHandler() {
         maintainThreads();
         ImGui::Text("Operator Callsign: %s", sigpath::iqFrontEnd.operatorCallsign.c_str());
@@ -580,7 +672,9 @@ private:
             pskr.toggleWithButton();
         }
         if (reports.size() > 0) {
+            ImGui::SameLine();
             if (doFingerButton("View..")) {
+                ImGui::OpenPopup(SELF_REPORTS_POPUP);
             }
         }
         ImGui::EndDisabled();
@@ -605,6 +699,9 @@ private:
                     break;
             }
         }
+        while(reports.size() > 0 && ctm - reports.back().createdTimestamp > aggregateDuration * 1000) {
+            reports.resize(reports.size()-1);
+        };
         reportsMutex.unlock();
         ImGui::Text("WSPR (%d): %s", wspr.displayCount, wspr.status.c_str());
         ImGui::Text("RBN (%d): %s", rbn.displayCount, rbn.status.c_str());
@@ -639,6 +736,7 @@ private:
         ImGui::EndDisabled();
 
         drawScheduledDialog();
+        drawReportsPopup();
     }
 
     std::shared_ptr<std::vector<dsp::stereo_t>> saudio = std::make_shared<std::vector<dsp::stereo_t>>();
