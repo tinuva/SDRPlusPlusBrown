@@ -1,6 +1,7 @@
 #pragma once
 #include <map>
 #include <string>
+#include <unordered_map>
 #include "../net.h"
 
 namespace net::http {
@@ -12,10 +13,6 @@ namespace net::http {
         std::string path;
         std::string query;
     };
-
-    ParsedUrl parseUrl(const std::string& url);
-    std::string get(const std::string &url);
-    std::string post(const std::string &url, const std::string &formData);
 
     enum Method {
         METHOD_OPTIONS,
@@ -267,8 +264,47 @@ namespace net::http {
         size_t length;
     };
 
+    struct CookieContext {
+        std::unordered_map<std::string, std::string> cookies;
+
+        void parseForCookies(ResponseHeader &header) {
+            std::string sc;
+            if (header.hasField("Set-Cookie")) {    // multiple not supported.
+                sc = header.getField("Set-Cookie");
+            }
+            if (header.hasField("set-cookie")) {
+                sc = header.getField("set-cookie");
+            }
+            if (sc != "") {
+                auto semi = sc.find(";");
+                if (semi != std::string::npos) {
+                    sc = sc.substr(0, semi);
+                }
+                auto eq = sc.find("=");
+                if (eq != std::string::npos) {
+                    auto key = sc.substr(0, eq);
+                    auto val = sc.substr(eq+1);
+                    cookies[key] = val;
+                }
+            }
+        }
+
+        void setIntoHeader(RequestHeader &header) {
+            std::string cookie;
+            for (auto& [key, val] : cookies) {
+                if (cookie != "") cookie += "; ";
+                cookie += key + "=" + val;
+            }
+            if (cookie != "") {
+                header.setField("Cookie", cookie);
+            }
+        }
+    };
+
     class Client {
     public:
+
+        CookieContext cookies;
         Client() {}
         Client(std::shared_ptr<Socket> sock);
 
@@ -279,11 +315,19 @@ namespace net::http {
         int sendChunkHeader(ChunkHeader& chdr);
         int recvChunkHeader(ChunkHeader& chdr, int timeout = -1);
 
+        // utility functions
+        std::string get(const std::string &url);
+        std::string post(const std::string &url, const std::string &formData);
+        ParsedUrl parseUrl(const std::string& url);
+
     private:
         int recvHeader(std::string& data, int timeout = -1);
         std::shared_ptr<Socket> sock;
 
     };
 
-    
+
+
+
+
 }

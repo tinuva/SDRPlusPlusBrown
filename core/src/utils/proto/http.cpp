@@ -11,7 +11,7 @@ namespace net::http {
         userAgent = agent;
     }
 
-    ParsedUrl parseUrl(const std::string& url) {
+    ParsedUrl Client::parseUrl(const std::string& url) {
         std::regex urlRegex(R"(^(https?|ftp):\/\/([^\/:]+)(?::(\d+))?(\/[^?]*)(?:\?(.*))?$)");
         std::smatch urlMatch;
 
@@ -74,7 +74,8 @@ namespace net::http {
         }
 
     }
-    std::string get(const std::string &url) {
+
+    std::string Client::get(const std::string &url) {
         auto parsed = parseUrl(url);
         if (parsed.protocol != "http") {
             throw std::runtime_error("Only HTTP is supported");
@@ -83,16 +84,18 @@ namespace net::http {
         auto http = net::http::Client(sock);
         net::http::RequestHeader rqhdr(net::http::METHOD_GET, parsed.path+"?"+parsed.query, parsed.host);
         rqhdr.setField("User-Agent", userAgent);
+        cookies.setIntoHeader(rqhdr);
         http.sendRequestHeader(rqhdr);
         net::http::ResponseHeader rshdr;
         http.recvResponseHeader(rshdr, 5000);
         if (rshdr.getStatusCode() != net::http::STATUS_CODE_OK) {
             throw std::runtime_error("HTTP status code: "+std::to_string(rshdr.getStatusCode()) + " : " + rshdr.getStatusString());
         }
+        cookies.parseForCookies(rshdr);
         return receiveResponse(http, rshdr, sock);
     }
 
-    std::string post(const std::string &url, const std::string &formData) {
+    std::string Client::post(const std::string &url, const std::string &formData) {
         auto parsed = parseUrl(url);
         if (parsed.protocol != "http") {
             throw std::runtime_error("Only HTTP is supported");
@@ -107,10 +110,12 @@ namespace net::http {
         rqhdr.setField("Content-Type", "application/x-www-form-urlencoded");
 //        rqhdr.setField("Origin", "https://www.wsprnet.org");
         rqhdr.setField("User-Agent", userAgent);
+        cookies.setIntoHeader(rqhdr);
         http.sendRequestHeader(rqhdr);
         sock->sendstr(formData.c_str());
         net::http::ResponseHeader rshdr;
         http.recvResponseHeader(rshdr, 5000);
+        cookies.parseForCookies(rshdr);
         if (rshdr.getStatusCode() == net::http::STATUS_CODE_FOUND) {
             if (rshdr.hasField("Location")) {
                 std::string loc = rshdr.getField("Location");

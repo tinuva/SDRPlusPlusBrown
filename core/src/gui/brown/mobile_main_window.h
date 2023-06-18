@@ -247,4 +247,6 @@ public:
     void setCurrentModeBySubmode(std::string submode);
 
     void updateModeFromRadio(int radioDemodId);
+
+    bool stopTx();
 };

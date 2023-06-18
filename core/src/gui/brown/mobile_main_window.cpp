@@ -2826,6 +2826,15 @@ void MobileMainWindow::setLowPass(int lowpass) {
     configPanel->lowPass = lowpass;
 }
 
+bool MobileMainWindow::stopTx() {
+    if (pvt->callCQlayer.playing) {
+        pvt->callCQlayer.stopPlaying();
+        return true;
+    } else {
+        return false;
+    }
+}
+
 void QSOPanel::startAudioPipeline() {
     if (!configPanel->afnr) {
         configPanel->afnr = std::make_shared<dsp::AFNR_OMLSA_MCRA>();

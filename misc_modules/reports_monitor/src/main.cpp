@@ -387,14 +387,14 @@ public:
         bool found = false;
         for(int q=0; q<reports.size(); q++) {
             auto &rep = reports[q];
-            if (rep.mode == report.mode && rep.reporterCallsign == report.reporterCallsign && rep.timestamp == report.timestamp) {
+            if (rep.mode == report.mode && rep.reporterCallsign == report.reporterCallsign && rep.reportedCallsign == report.reportedCallsign && rep.timestamp == report.timestamp) {
                 found = true;
                 break;
             }
         }
         if (!found) {
             auto nr = report;
-            nr.timestamp = currentTimeMillis();
+            nr.createdTimestamp = currentTimeMillis();
             reports.emplace_back(nr);
         }
         reportsMutex.unlock();
@@ -637,9 +637,87 @@ private:
             ImGui::Text("Load FT8 module to tx FT8/WSPR");
         }
         ImGui::EndDisabled();
+
+        drawScheduledDialog();
     }
 
     std::shared_ptr<std::vector<dsp::stereo_t>> saudio = std::make_shared<std::vector<dsp::stereo_t>>();
+    enum ScheduledDialogState {
+        SCHEDULED_NO_SCHEDULE,
+        SCHEDULED_SCHEDULED_WAITING,
+        SCHEDULED_WAIT_TX_BEGIN,
+        SCHEDULED_WAIT_TX_BEGIN_TO_CANCEL,
+        SCHEDULED_WAIT_TX_END,
+    } scheduledDialogState = SCHEDULED_NO_SCHEDULE;
+
+    std::function<void()> startScheduledTransmit;
+    long long scheduledTransmitTime = 0;
+    const char *SCHEDULED_POPUP = "Reports Monitor - Scheduled Transmit";
+
+    void drawScheduledDialog() {
+        ImGui::SetNextWindowPos(ImGui::GetIO().DisplaySize * 0.125f);
+        if (ImGui::BeginPopupModal(SCHEDULED_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            long long deltaTime = 0;
+            switch(scheduledDialogState) {
+                default:
+                    break;
+                case SCHEDULED_NO_SCHEDULE:
+                    ImGui::CloseCurrentPopup();
+                    break;
+                case SCHEDULED_SCHEDULED_WAITING:
+                    deltaTime = (scheduledTransmitTime - currentTimeMillis()) / 1000;
+                    if (deltaTime < 0) {
+                        scheduledDialogState = SCHEDULED_WAIT_TX_BEGIN;
+                        startScheduledTransmit();
+                    } else {
+                        ImGui::Text("Waiting before transmit: %lld sec", deltaTime);
+                        if (doFingerButton("Cancel")) {
+                            scheduledDialogState = SCHEDULED_NO_SCHEDULE;
+                        }
+                    }
+                    break;
+                case SCHEDULED_WAIT_TX_BEGIN_TO_CANCEL:
+                    ImGui::Text("Cancelling scheduled TX...");
+                    if (doFingerButton("Abort")) {
+                        scheduledDialogState = SCHEDULED_NO_SCHEDULE;
+                    } else {
+                        if (sigpath::transmitter && sigpath::transmitter->getTXStatus()) {
+                            scheduledDialogState = SCHEDULED_NO_SCHEDULE;
+                            gui::mainWindow.stopTx();
+                        }
+                    }
+                    break;
+                case SCHEDULED_WAIT_TX_BEGIN:
+                    ImGui::Text("Will tx, waiting tx to start now...");
+                    if (doFingerButton("Cancel")) {
+                        scheduledDialogState = SCHEDULED_WAIT_TX_BEGIN_TO_CANCEL;
+                    } else {
+                        if (sigpath::transmitter && sigpath::transmitter->getTXStatus()) {
+                            scheduledDialogState = SCHEDULED_WAIT_TX_END;
+                        }
+                    }
+                case SCHEDULED_WAIT_TX_END:
+                    deltaTime = (currentTimeMillis() - scheduledTransmitTime) / 1000;
+                    long long totalTime = (saudio->size() / 48000) + 1;
+                    ImGui::Text("Waiting tx to finish... %lld / %lld sec", deltaTime, totalTime);
+                    if (doFingerButton("Cancel")) {
+                        scheduledDialogState = SCHEDULED_NO_SCHEDULE;
+                        gui::mainWindow.stopTx();
+                    }
+                    if (sigpath::transmitter && !sigpath::transmitter->getTXStatus()) {
+                        scheduledDialogState = SCHEDULED_NO_SCHEDULE;
+                    }
+                    break;
+            }
+            ImGui::EndPopup();
+        }
+    }
+    void runScheduledTransmit(long long scheduledTime, std::function<void()> start) {
+        startScheduledTransmit = start;
+        scheduledDialogState = SCHEDULED_SCHEDULED_WAITING;
+        scheduledTransmitTime = scheduledTime;
+        ImGui::OpenPopup(SCHEDULED_POPUP);
+    }
 
     void transmitCQ() {
         char buf[1024];
@@ -664,17 +742,19 @@ private:
 //        w.write((float *)saudio->data(), saudio->size());
 //        w.close();
 
-        auto saved = gui::mainWindow.getCurrentModeAttr("submode");
-
-        gui::mainWindow.maybeTransmit(saudio,
-                                      [=]() {
-            gui::mainWindow.setCurrentModeBySubmode("CW");
-            gui::mainWindow.txOffset = -gui::mainWindow.cwAudioFrequency;
-            },
-                                      [=]() { gui::mainWindow.setCurrentModeBySubmode(saved);
-                                          gui::mainWindow.txOffset = 0;
+        runScheduledTransmit(currentTimeMillis(), [this, morse]() {
+            auto saved = gui::mainWindow.getCurrentModeAttr("submode");
+            gui::mainWindow.maybeTransmit(saudio,
+                                          [=]() {
+                                              gui::mainWindow.setCurrentModeBySubmode("CW");
+                                              gui::mainWindow.txOffset = -gui::mainWindow.cwAudioFrequency;
+                                          },
+                                          [=]() {
+                                              gui::mainWindow.setCurrentModeBySubmode(saved);
+                                              gui::mainWindow.txOffset = 0;
+                                          });
+            flog::info("Done {}", morse);
         });
-        flog::info("Done {}", morse);
     }
     
     void transmitWSPR() {
@@ -682,22 +762,29 @@ private:
             auto audioFreq = 1505;
             auto symbols = convertToWSPRSymbols(sigpath::iqFrontEnd.operatorCallsign, sigpath::iqFrontEnd.operatorLocation, 37); // 37 dbm=5W
             auto audio = generate_wspr_message(symbols, audioFreq, gui::mainWindow.currentAudioStreamSampleRate);
-            auto halfBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(audioFreq+200, 100, trxAudioSampleRate);
+            auto halfBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(audioFreq+200, 500, trxAudioSampleRate);
             dsp::filter::FIR<dsp::stereo_t, dsp::complex_t> lpf(nullptr, halfBandPassTaps);
             int nparts = 9;
             auto singlePart = audio.size()/nparts;
+            auto ctm = currentTimeMillis();
             for(int q=0; q<nparts; q++) {
                 lpf.process(singlePart, audio.data()+singlePart * q, audio.data()+singlePart * q);
             }
+            flog::info("Lowpass filter time: {}", (int64_t)(currentTimeMillis() - ctm));
             saudio->clear();
             saudio->insert(saudio->end(), audio.begin(), audio.end());
-            auto saved = gui::mainWindow.getCurrentModeAttr("submode");
-            gui::mainWindow.maybeTransmit(saudio,
-                                          [=]() {
-                                              gui::mainWindow.setCurrentModeBySubmode("USB");
-                                          },
-                                          [=]() { gui::mainWindow.setCurrentModeBySubmode(saved);
-                                          });
+
+            auto scheduleStart = (currentTimeMillis() / 1000 / 120 + 1) * 120 * 1000 + 1000;
+            runScheduledTransmit(scheduleStart, [&]() {
+                auto saved = gui::mainWindow.getCurrentModeAttr("submode");
+                gui::mainWindow.maybeTransmit(saudio,
+                                              [=]() {
+                                                  gui::mainWindow.setCurrentModeBySubmode("USB");
+                                              },
+                                              [=]() { gui::mainWindow.setCurrentModeBySubmode(saved);
+                                              });
+            });
+
 
         } catch (std::exception &e) {
             ImGui::InsertNotification({ ImGuiToastType_Error, 5000, (std::string("WSPR:") + e.what()).c_str() });
@@ -719,14 +806,18 @@ private:
             auto [rv, msg] = ft8->encodeCQ_FT8(sigpath::iqFrontEnd.operatorCallsign,sigpath::iqFrontEnd.operatorLocation, 1000);
             saudio->clear();
             saudio->insert(saudio->end(), rv.begin(), rv.end());
-            auto saved = gui::mainWindow.getCurrentModeAttr("submode");
-            gui::mainWindow.maybeTransmit(saudio,
-                                          [=]() {
-                                              gui::mainWindow.setCurrentModeBySubmode("USB");
-                                          },
-                                          [=]() { gui::mainWindow.setCurrentModeBySubmode(saved);
-                                          });
-            flog::info("Done FT8");
+            auto scheduleStart = (currentTimeMillis() / 1000 / 15 + 1) * 15 * 1000;
+            runScheduledTransmit(scheduleStart, [&]() {
+                auto saved = gui::mainWindow.getCurrentModeAttr("submode");
+                gui::mainWindow.maybeTransmit(saudio,
+                                              [=]() {
+                                                  gui::mainWindow.setCurrentModeBySubmode("USB");
+                                              },
+                                              [=]() {
+                                                  gui::mainWindow.setCurrentModeBySubmode(saved);
+                                              });
+                flog::info("Done FT8");
+            });
         }
 
     }

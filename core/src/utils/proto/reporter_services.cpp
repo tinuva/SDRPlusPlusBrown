@@ -17,13 +17,14 @@ namespace net {
             usleep(30000000);
         };
         while(running) {
+            net::http::Client httpClient;
             std::string formBuildId;
             try {
                 Report rep;
                 rep.reportingSource = RS_WSPRNET;
                 rep.errorStatus = "Checking..";
                 callback(rep);
-                auto emptyForm = net::http::get("http://www.wsprnet.org:80/drupal/wsprnet/spotquery");
+                auto emptyForm = httpClient.get("http://www.wsprnet.org:80/drupal/wsprnet/spotquery");
                 std::vector<std::string> lines;
                 splitStringV(emptyForm, "\n", lines);
                 // find string in lines, with form_id=wsprnet_spotquery_form
@@ -48,7 +49,7 @@ namespace net {
                     continue;
                 }
                 auto formData = "band=All&mode=All&count=100&timelimit=3600&sortby=date&call=" + callsign + "&reporter=&sortrev=1&excludespecial=1&op=update&form_id=wsprnet_spotquery_form&form_build_id="+formBuildId;
-                auto searchResults = net::http::post("http://www.wsprnet.org:80/drupal/wsprnet/spotquery", formData);
+                auto searchResults = httpClient.post("http://www.wsprnet.org:80/drupal/wsprnet/spotquery", formData);
                 flog::info("post result:\n{}", searchResults);
                 auto spots = searchResults.find("spots:</p>");
                 if (spots == std::string::npos) {
@@ -86,10 +87,12 @@ namespace net {
                         callback(report);
                     }
                 }
-                usleep(15000000);
-                rep.reportingSource = RS_WSPRNET;
-                rep.errorStatus = "Checked, sleeping.";
-                callback(rep);
+                for(int i=15; i>=0; i--) {
+                    rep.reportingSource = RS_WSPRNET;
+                    rep.errorStatus = "Checked, sleeping..." + std::to_string(i);
+                    callback(rep);
+                    usleep(1000000);
+                }
             } catch (std::exception &e) {
                 reportError(e.what());
                 continue;
