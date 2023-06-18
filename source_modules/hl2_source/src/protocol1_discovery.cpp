@@ -100,7 +100,14 @@ std::string getLastSocketError() {
 int getLastSocketErrorNo() {
     std::string errtxt;
 #ifdef WIN32
-    return WSAGetLastError();
+    auto en = SAGetLastError();
+    if (en == WSAEINTR) {
+        return EINTR;
+    }
+    if (en == WSAEWOULDBLOCK) {
+        return EAGAIN;
+    }
+    return en;
 #else
     return errno;
 #endif
@@ -204,17 +211,20 @@ static void discover(struct ifaddrs* iface, const struct sockaddr_in *fixed) {
         int localDevicesFound = 0;
         len=sizeof(addr);
         int retryCount = 0;
+        auto startTime = currentTimeMillis();
         while(1) {
             bytes_read=recvfrom(discovery_socket,(char *)buffer,sizeof(buffer),0,(struct sockaddr*)&addr,&len);
             if(bytes_read<0) {
-                if (getLastSocketErrorNo() == EINTR) {
-                    if (retryCount < 5) {
+                auto en = getLastSocketErrorNo();
+                if (en == EINTR|| en == EAGAIN) {
+                    if (currentTimeMillis() - startTime < 3000) {
+                        usleep(100000);
                         retryCount++;
                         continue;
                     }
                 }
                 std::string errtxt = getLastSocketError();
-                flog::error("discovery: recvfrom socket failed for discover_receive_thread on {0}: {1}", interface_name, errtxt);
+                flog::error("discovery: recvfrom socket failed after {} retries for discover_receive_thread on {0}: {1}", retryCount, interface_name, errtxt);
                 break;
             }
             flog::info("discovered: received {0} bytes from {}",bytes_read, std::string(inet_ntoa(addr.sin_addr)).c_str());

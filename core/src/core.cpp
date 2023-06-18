@@ -301,7 +301,7 @@ extern void test1();
 void test1() {
     FT8ModuleInterface *ft8 = nullptr;
     for(auto x: core::moduleManager.instances) {
-        ft8 = dynamic_cast<FT8ModuleInterface *>(x.second.instance);
+        ft8 = (FT8ModuleInterface *)x.second.instance->getInterface("FT8ModuleInterface");
         if (ft8) {
             break;
         }

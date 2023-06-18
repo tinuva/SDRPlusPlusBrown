@@ -643,7 +643,7 @@ void MainWindow::draw() {
 
     static int sliderDynamicAdjustmentY = 0;
 
-    ImVec2 wfSliderSize((displaymenu::smallScreen ? 40.0 : 20.0) * style::uiScale, (displaymenu::smallScreen ? 100.0 : 140.0) * style::uiScale - sliderDynamicAdjustmentY);
+    ImVec2 wfSliderSize((displaymenu::phoneLayout ? 40.0 : 20.0) * style::uiScale, (displaymenu::phoneLayout ? 100.0 : 140.0) * style::uiScale - sliderDynamicAdjustmentY);
     const int MIN_SLIDER_HEIGHT = 10;
     if (wfSliderSize.y < MIN_SLIDER_HEIGHT) {
         wfSliderSize.y = MIN_SLIDER_HEIGHT;    // Prevents dynamic adjustment too large;
@@ -705,7 +705,7 @@ void MainWindow::draw() {
         }
     };
 
-    if (displaymenu::smallScreen) {
+    if (displaymenu::phoneLayout) {
         // min slider is used much more often, if you ask me. So on small screen there should be no need to scroll down to operate it.
         addMinSlider();
         addMaxSlider();

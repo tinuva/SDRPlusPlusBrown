@@ -155,6 +155,28 @@ namespace net {
         do {
             // Wait for data or error if 
             if (blocking) {
+
+#if defined(__ANDROID__) || defined(__linux__)
+
+//                int flags = fcntl(sock, F_GETFL, 0);
+//                if (flags == -1)
+//                {
+//                    // handle error
+//                    return -1;
+//                }
+//
+//                int nflags = flags & ~O_NONBLOCK; // clear O_NONBLOCK flag
+//
+//                if (fcntl(sock, F_SETFL, nflags) == -1)
+//                {
+//                    // handle error
+//                    return -1;
+//                }
+                struct pollfd fd;
+                fd.fd = sock;
+                fd.events = POLLIN;
+                int err = poll(&fd, 1, timeout); // 1 second for timeout
+#else
                 // Enable FD in set
                 FD_SET(sock, &set);
 
@@ -162,10 +184,11 @@ namespace net {
                 timeval tv;
                 tv.tv_sec = 0;
                 tv.tv_usec = timeout * 1000;
-
                 // Wait for data
                 int err = select(sock+1, &set, NULL, &set, (timeout > 0) ? &tv : NULL);
+#endif
                 if (err <= 0) { return err; }
+
             }
 
             // Receive

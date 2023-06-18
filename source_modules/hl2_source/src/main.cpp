@@ -109,6 +109,20 @@ public:
             refreshing = false;
             return;
         }
+        if (devices == 0 && directIP) {
+            devices = 1;
+            discovered[0].info.network.address.sin_addr.s_addr = inet_addr(staticIp);
+            discovered[0].info.network.address.sin_port = htons(1024);
+            discovered[0].protocol = 1;
+            strcpy(discovered[0].name,"(direct) Hermes Lite V2");
+            discovered[0].device = DEVICE_HERMES_LITE2;
+            // HL2 send max supported receveirs in discovery response.
+            discovered[0].supported_receivers=1;
+            discovered[0].supported_transmitters=1;
+            discovered[0].adcs=1;
+            discovered[0].frequency_min=0.0;
+            discovered[0].frequency_max=30720000.0;
+        }
 
         uiLock.lock();
         devListTxt = "";
@@ -219,6 +233,7 @@ private:
 
     StreamTracker hermesSamples;
     bool showStaticIp = false;
+    bool directIP = false;
     char staticIp[20]={0};
 
     void incomingSample(double i, double q) {
@@ -328,6 +343,9 @@ private:
 
         if (showStaticIp) {
             SmGui::LeftLabel("Query IP:");
+            SmGui::SameLine();
+            SmGui::Checkbox("##hl2_direct_ip", &directIP);
+            SmGui::SameLine();
             SmGui::FillWidth();
             if (SmGui::InputText(CONCAT("##_fixed_ip_hl2_source_", name), staticIp, 19)) {
                 config.acquire();

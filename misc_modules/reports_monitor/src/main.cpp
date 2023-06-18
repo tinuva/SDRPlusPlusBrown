@@ -474,14 +474,17 @@ public:
                         while (running) {
                             switch(source) {
                                 case net::RS_WSPRNET:
+                                    SetThreadName("WSPRNET_read");
                                     if (!net::getReportsFromWSPR(sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running)) {
                                         doStatus = false; // already reported
                                     }
                                     break;
                                 case net::RS_PSKREPORTER:
+                                    SetThreadName("PSKrep_read");
                                     net::getReportsFromPSKR(sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running);
                                     break;
                                 case net::RS_RBN:
+                                    SetThreadName("RBN_read");
 //                                    net::getReportsFromRBN(sigpath::iqFrontEnd.operatorCallsign, "", callbackReceiver(), running);
                                     net::getReportsFromRBN(sigpath::iqFrontEnd.operatorCallsign, sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running);
                                     break;
@@ -659,7 +662,14 @@ private:
             config.release(true);
             reports.clear();
         }
-        ImGui::BeginDisabled(sigpath::iqFrontEnd.operatorCallsign.empty());
+        bool noCallsign = sigpath::iqFrontEnd.operatorCallsign.empty();
+        if (noCallsign) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
+            ImGui::TextUnformatted("Callsign is not set");
+            ImGui::PopStyleColor();
+
+        }
+        ImGui::BeginDisabled(noCallsign);
         if (doFingerButton("WSPR")) {
             wspr.toggleWithButton();
         }
@@ -706,8 +716,8 @@ private:
         ImGui::Text("WSPR (%d): %s", wspr.displayCount, wspr.status.c_str());
         ImGui::Text("RBN (%d): %s", rbn.displayCount, rbn.status.c_str());
         ImGui::Text("PSKR (%d): %s", pskr.displayCount, pskr.status.c_str());
-
-        auto disabled = sigpath::iqFrontEnd.operatorCallsign.empty() || !sigpath::transmitter || sigpath::transmitter->getTXStatus() || !gui::mainWindow.canTransmit();
+        
+        auto disabled = noCallsign || !sigpath::transmitter || sigpath::transmitter->getTXStatus() || !gui::mainWindow.canTransmit();
         ImGui::BeginDisabled(disabled);
         char buf[1024];
         sprintf(buf, "CW TX: CQ CQ DE %s %s K", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorCallsign.c_str());
@@ -717,7 +727,8 @@ private:
 
         FT8ModuleInterface *ft8 = nullptr;
         for(auto x: core::moduleManager.instances) {
-            ft8 = dynamic_cast<FT8ModuleInterface *>(x.second.instance);
+            Instance *pInstance = x.second.instance;
+            ft8 = (FT8ModuleInterface *)pInstance->getInterface("FT8ModuleInterface");
             if (ft8) {
                 break;
             }
@@ -894,7 +905,7 @@ private:
     void transmitFT8() {
         FT8ModuleInterface *ft8 = nullptr;
         for(auto x: core::moduleManager.instances) {
-            ft8 = dynamic_cast<FT8ModuleInterface *>(x.second.instance);
+            ft8 = (FT8ModuleInterface *)x.second.instance->getInterface("FT8ModuleInterface");
             if (ft8) {
                 break;
             }
@@ -903,7 +914,7 @@ private:
             flog::info("FT8: {}", (void*)ft8);
             auto [rv, msg] = ft8->encodeCQ_FT8(sigpath::iqFrontEnd.operatorCallsign,sigpath::iqFrontEnd.operatorLocation, 1000);
             saudio->clear();
-            saudio->insert(saudio->end(), rv.begin(), rv.end());
+            saudio->insert(saudio->end(), rv.begin(), rv.end()); flog::info("FT8: Sound length produced: {}", rv.size());
             auto scheduleStart = (currentTimeMillis() / 1000 / 15 + 1) * 15 * 1000;
             runScheduledTransmit(scheduleStart, [&]() {
                 auto saved = gui::mainWindow.getCurrentModeAttr("submode");

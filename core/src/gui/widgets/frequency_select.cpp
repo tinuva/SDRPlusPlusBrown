@@ -22,7 +22,7 @@ FrequencySelect::FrequencySelect() {
 }
 
 static int getNumberOfDigits() {
-    return displaymenu::smallScreen ? 9 : 12;
+    return displaymenu::phoneLayout ? 9 : 12;
 }
 
 void FrequencySelect::init() {

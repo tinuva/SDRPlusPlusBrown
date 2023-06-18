@@ -26,7 +26,7 @@ namespace displaymenu {
     int fftHoldSpeed = 60;
     bool fftSmoothing = false;
     int fftSmoothingSpeed = 100;
-    bool smallScreen = false;
+    bool phoneLayout = false;
 
     Event<ImGuiContext *> onDisplayDraw;
 
@@ -115,7 +115,7 @@ namespace displaymenu {
 
         gui::menu.locked = core::configManager.conf["lockMenuOrder"];
 
-        smallScreen = core::configManager.conf["smallScreen"];
+        phoneLayout = core::configManager.conf["smallScreen"];
         transcieverLayout = core::configManager.conf["transcieverLayout"];
 
         fftHold = core::configManager.conf["fftHold"];
@@ -154,12 +154,9 @@ namespace displaymenu {
     void draw(void* ctx) {
         float menuWidth = ImGui::GetContentRegionAvail().x;
         bool homePressed = ImGui::IsKeyPressed(ImGuiKey_Home, false);
-        ImGuiIO &io = ImGui::GetIO();
-        ImGuiStyle &style = ImGui::GetStyle();
-        style.ScrollbarSize = smallScreen ? 40.0 : style::baseFont->FontSize / 1.5;
-        if (ImGui::Checkbox("Phone layout##_sdrpp", &smallScreen)) {
+        if (ImGui::Checkbox("Phone layout##_sdrpp", &phoneLayout)) {
             core::configManager.acquire();
-            core::configManager.conf["smallScreen"] = smallScreen;
+            core::configManager.conf["smallScreen"] = phoneLayout;
             core::configManager.release(true);
         }
         if (ImGui::RadioButton("Layout: default ##_sdrpp", transcieverLayout == TRAL_NONE)) {

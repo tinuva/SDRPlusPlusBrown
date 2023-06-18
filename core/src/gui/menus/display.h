@@ -6,7 +6,7 @@
 namespace displaymenu {
     void init();
     void draw(void* ctx);
-    extern bool smallScreen;
+    extern bool phoneLayout;
 #ifdef __ANDROID__
     extern float displayDensity;
 #endif

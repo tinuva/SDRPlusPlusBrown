@@ -15,7 +15,12 @@ namespace net {
             report.reportingSource = ::net::RS_WSPRNET;
             report.errorStatus = error;
             callback(report);
-            usleep(30000000);
+            for(int q=0; q<30; q++) {
+                if (!running) {
+                    break;
+                }
+                usleep(1000000);
+            }
         };
         auto startTime = currentTimeMillis();
         while(running) {
@@ -169,6 +174,18 @@ namespace net {
     }
 
     void getReportsFromRBN(const std::string telnetCallsign, const std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running) {
+        auto reportError = [&](std::string error) {
+            ::net::Report report;
+            report.reportingSource = ::net::RS_RBN;
+            report.errorStatus = error;
+            callback(report);
+            for(int q=0; q<30; q++) {
+                if (!running) {
+                    break;
+                }
+                usleep(1000000);
+            }
+        };
         while(running) {
             // download reports from reverse beacon network
             auto sock = net::connect("telnet.reversebeacon.net", 7000);
@@ -176,17 +193,20 @@ namespace net {
             int received = sock->recv(buf, sizeof(buf), false, 10000);
             if (received < 0) {
                 sock->close();
-                throw std::runtime_error("Failed to receive data from RBN");
+                reportError("receive: "+std::string(strerror(errno)));
+                continue;
             }
             std::string data((char *) buf, received);
             if (data.find("your call") == std::string::npos) {
                 sock->close();
-                throw std::runtime_error("RBN: Protocol error");
+                reportError("Protocol error");
+                continue;
             }
             int snt = sock->send((const uint8_t *) (telnetCallsign + "\r\n").c_str(), telnetCallsign.size() + 2);
             if (snt < 0) {
                 sock->close();
-                throw std::runtime_error("Failed to send data to RBN");
+                reportError("Failed to send");
+                continue;
             }
             std::string ready;
             while (running) {

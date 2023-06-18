@@ -196,6 +196,7 @@ private:
     }
 
     void worker() {
+        SetThreadName("Andr:audiowrite");
         float hz = 800;
         int period = (int)(sampleRate / hz);
         float tick = M_PI * 2 / period;
@@ -223,6 +224,7 @@ private:
     }
 
     void workerW() {
+        SetThreadName("Andr:audioread");
         std::vector<dsp::stereo_t> samplesBuffer;
         samplesBuffer.resize(bufferSize);
         int nInBuffer = 0;

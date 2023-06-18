@@ -38,6 +38,9 @@ public:
         virtual void enable() = 0;
         virtual void disable() = 0;
         virtual bool isEnabled() = 0;
+        virtual void *getInterface(const char *name) {
+            return nullptr;
+        }
     };
 
     struct Module_t {

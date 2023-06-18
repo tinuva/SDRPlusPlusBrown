@@ -735,6 +735,13 @@ public:
     EventHandler<ImGuiContext *> debugDrawHandler;
 
 
+    void *getInterface(const char *name) override {
+        if (!strcmp(name, "FT8ModuleInterface")) {
+            return dynamic_cast<FT8ModuleInterface *>(this);
+        }
+        return Instance::getInterface(name);
+    }
+
     FT8DecoderModule(std::string name) {
         this->name = name;
         ft8decoder.mod = ft8decoder.mod2 = this;
