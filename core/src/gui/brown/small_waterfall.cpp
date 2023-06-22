@@ -53,10 +53,8 @@ struct SubWaterfall::SubWaterfallPrivate {
             }
             // bins are located
             // -hiFreq .. 0 ... hiFreq  // total fftSize
-            int startFreq = 50;
-            int stopFreq = 2300;
-            int startBin = fftSize / 2 + (startFreq / hiFreq * fftSize / 2);
-            int endBin = fftSize / 2 + (stopFreq / hiFreq * fftSize / 2);
+            int startBin = fftSize/2 - fftSize/16; // 1/8th of the fftSize in the middle
+            int endBin = fftSize/2 + fftSize/16;
             float minn = dest[startBin];
             float maxx = dest[startBin];
             for (int q = startBin; q < endBin; q++) {
