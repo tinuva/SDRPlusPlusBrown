@@ -997,7 +997,7 @@ private:
             flog::info("FT8: generated tx wav in {} msec", (int64_t)(currentTimeMillis()-ctm));
             saudio->clear();
             saudio->insert(saudio->end(), rv.begin(), rv.begin() + 13 * gui::mainWindow.currentAudioStreamSampleRate); // 13 seconds only
-            flog::info("FT8: Sound length produced: {}", rv.size());
+            flog::info("FT8: Sound length produced: {}", (int64_t)rv.size());
             auto scheduleStart = (currentTimeMillis() / 1000 / 15 + 1) * 15 * 1000;
             runScheduledTransmit(scheduleStart, [&, frequency]() {
                 gui::mainWindow.maybeTransmit(saudio,
