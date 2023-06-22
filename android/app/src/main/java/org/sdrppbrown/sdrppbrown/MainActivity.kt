@@ -32,8 +32,12 @@ import android.view.View
 import android.view.inputmethod.InputMethodManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.PermissionChecker
+import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.Locale
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -271,6 +275,28 @@ class MainActivity : NativeActivity(), SensorEventListener {
         super.onCreate(savedInstanceState)
     }
 
+    public fun httpGet(url: String): String {
+        var response = ""
+        var connection : HttpURLConnection? = null
+        try {
+            connection = URL(url).openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            val responseCode = connection.responseCode
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                val reader = BufferedReader(InputStreamReader(connection.inputStream))
+                response = reader.readText()
+                reader.close()
+            } else {
+                throw Exception("HTTP error code: $responseCode")
+            }
+        } catch (e: RuntimeException) {
+            response = "#ERROR: + "+e.toString();
+        } finally {
+            connection?.disconnect()
+        }
+
+        return response
+    }
     private fun makeUsbPermissionIntent(): PendingIntent? {
         try {
             return PendingIntent.getBroadcast(

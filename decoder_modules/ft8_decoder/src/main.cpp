@@ -265,8 +265,8 @@ static int rangeContainsInclusive(double largeRangeStart, double largeRangeEnd, 
 }
 
 static std::pair<int,int> calculateVFOCenterOffset(const std::vector<int> &frequencies, double centerFrequency, double ifBandwidth) {
-    int rangeStart = centerFrequency - ifBandwidth;
-    int rangeEnd = centerFrequency + ifBandwidth;
+    int rangeStart = centerFrequency - ifBandwidth/2;
+    int rangeEnd = centerFrequency + ifBandwidth/2;
     for (auto q = std::begin(frequencies); q != std::end(frequencies); q++) {
         auto center = (*q + USB_BANDWIDTH);
         if (rangeContainsInclusive(rangeStart, rangeEnd, (double)(center - USB_BANDWIDTH), (double(center + USB_BANDWIDTH)))) {
@@ -280,6 +280,7 @@ static std::pair<int,int> calculateVFOCenterOffset(const std::vector<int> &frequ
 
 
 class FT8DecoderModule;
+static std::vector<int> ft8Frequencies = { 1840000, 3573000, 5357000, 7074000, 10136000, 14074000, 18100000, 21074000, 24915000, 28074000, 50000000 };
 
 struct SingleDecoder {
     FT8DecoderModule *mod;
@@ -402,10 +403,11 @@ struct SingleFT8Decoder : SingleDecoder {
     
 
     std::pair<int,int> calculateVFOCenterOffsetForMode(double centerFrequency, double ifBandwidth) override {
-        static std::vector<int> frequencies = { 1840000, 3573000, 5357000, 7074000, 10136000, 14074000, 18100000, 21074000, 24915000, 28074000, 50000000 };
-        return calculateVFOCenterOffset(frequencies, centerFrequency, ifBandwidth);
+        return calculateVFOCenterOffset(ft8Frequencies, centerFrequency, ifBandwidth);
     }
 };
+
+const std::vector<int> wsprFrequencies = { 136000, 474200, 1836600, 3568600, 7038600, 10138700, 14095600, 21094600, 24924600, 28124600, 50293000, 70091000, 144489000, 129650000, 181046000, 249246000, 281246000, 432300000 };
 
 struct SingleFT4Decoder : SingleDecoder {
 
@@ -450,6 +452,28 @@ public:
 
     bool isDefaultCallsign(const std::string &callsign) override {
         return false;
+    }
+
+    int getCurrentFrequency(const std::string &mode) override {
+        if (mode == "FT8") {
+            auto [newOffset, centerOffset] = calculateVFOCenterOffset(ft8Frequencies, gui::waterfall.getCenterFrequency(), gui::waterfall.getBandwidth());
+            if (centerOffset == INVALID_OFFSET) {
+                return INVALID_OFFSET;
+            }
+            return centerOffset - USB_BANDWIDTH;
+        } else if (mode == "WSPR") {
+            auto [newOffset, centerOffset] = calculateVFOCenterOffset(wsprFrequencies, gui::waterfall.getCenterFrequency(), gui::waterfall.getBandwidth());
+            if (centerOffset == INVALID_OFFSET) {
+                return INVALID_OFFSET;
+            }
+            return centerOffset - USB_BANDWIDTH;
+        } else if (mode == "FT4") {
+            if (ft4decoder.previousCenterOffset == INVALID_OFFSET) {
+                return INVALID_OFFSET;
+            }
+            return ft4decoder.previousCenterOffset-USB_BANDWIDTH;
+        }
+        throw std::runtime_error("Unknown mode");
     }
 
     std::pair<std::vector<dsp::stereo_t>, std::string> encodeCQ_FT8(const std::string &callsign, const std::string &grid, int frequency) override {

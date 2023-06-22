@@ -14,6 +14,10 @@ Newest entries are at the top.
 * Added "Call CQ" recorders/player. It is possible to record "CQ 20 meters, CQ 20 meters, ..." and replay many times on the air.
 * Added the Kiwisdr dialog to select the KiwiSDR server. No two finger zoom, alas. Only buttons. 
 
+2023.05.06
+
+* Multithreaded decoding option for FT8/FT4, however works only marginally better.
+
 2023.05.03
 
 * Improved TX pipeline (lowpass/compression part). Fixed issue with random non-start of hermes lite 2 driver.

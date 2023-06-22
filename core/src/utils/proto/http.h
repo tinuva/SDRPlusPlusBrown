@@ -324,6 +324,7 @@ namespace net::http {
         int recvHeader(std::string& data, int timeout = -1);
         std::shared_ptr<Socket> sock;
 
+        std::string get_https(const std::string &url);
     };
 
 

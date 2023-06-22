@@ -100,7 +100,11 @@ public:
     EventHandler<ImGuiContext*> displayDrawHandler;
     int cwAudioFrequency = 600;
     int cwWPM = 18;
-    int txOffset = 0;       // for digital modes
+    int txOffset = 0;       // for digital modes / audio player
+    int txFrequencyOverride = 0;       // for digital modes / audio player
+    std::string txSubmodeOverride;       // for digital modes / audio player
+    bool audioIsIqData = false;     // for audio player, affects the formation of tx iq data
+
     enum {
         VIEW_DEFAULT = 1,
         VIEW_QSO = 2,
@@ -260,4 +264,7 @@ public:
     void unregisterStatusReporter(StatusReporter *rep) {
         std::remove(statusSeporters.begin(), statusSeporters.end(), rep);
     }
+
+    bool getIqDataInAudio();
+    void setIqDataInAudio(bool);
 };

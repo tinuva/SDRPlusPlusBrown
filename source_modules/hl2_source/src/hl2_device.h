@@ -149,6 +149,10 @@ struct HL2Device {
         setHangLatency(pttHangTime, bufferLatency); // as in linhpsdr
         setDuplex(true);
         setSoftwarePower(255);
+        bool debug = true;
+        if (debug) {
+            debugOut = fopen("/tmp/hl2_tx_stream.bin", "wb");
+        }
     }
 
     bool isADCOverload() {
@@ -310,6 +314,7 @@ struct HL2Device {
 
     //
 
+    FILE *debugOut = nullptr;
 
     float maxAmp = 0;
 
@@ -331,6 +336,14 @@ struct HL2Device {
                 Q = ((int32_t)((comp.im * nscale) * 32767)) & 0xFFFF;
                 //                    flog::info("Clipping: re={} im={} amp={} nscale={} I={} Q={}", comp.re, comp.im, amp, nscale, I, Q);
             }
+
+            if (debugOut) {
+                if (transmitMode) {
+                    fwrite(&I, 2, 1, debugOut);
+                    fwrite(&Q, 2, 1, debugOut);
+                }
+            }
+
 
             // add low pass filter HERE.
 

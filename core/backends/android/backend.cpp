@@ -45,6 +45,38 @@ namespace backend {
         gui::mainWindow.setFirstMenuRender();
     }
 
+    std::string httpGet(const std::string& url) {
+        JNIEnv* java_env;
+        JavaVM* java_vm = backend::app->activity->vm;
+        jint jni_return = java_vm->AttachCurrentThread(&java_env, NULL);
+        if (jni_return != JNI_OK)
+            return "#ERROR:JNI:Could not attach to thread";
+
+        // Find class
+        jclass mainActivityClass = java_env->GetObjectClass(app->activity->clazz);
+        if (!mainActivityClass)
+            return "#ERROR:JNI:MainActivity class not found";
+
+        // Find method
+        jmethodID httpGetMethodId = java_env->GetMethodID(mainActivityClass, "httpGet", "(Ljava/lang/String;)Ljava/lang/String;");
+        if (!httpGetMethodId)
+            return "#ERROR:JNI:MainActivity.httpGet method not found";
+
+        // Convert std::string to jstring
+        jstring url_jstring = java_env->NewStringUTF(url.c_str());
+
+        // Call method
+        jobject result_jstring = java_env->CallObjectMethod(app->activity->clazz, httpGetMethodId, url_jstring);
+
+        // Convert jstring to std::string
+        const char *result_cstr = java_env->GetStringUTFChars((jstring) result_jstring, NULL);
+        std::string result(result_cstr);
+        java_env->ReleaseStringUTFChars((jstring) result_jstring, result_cstr);
+
+        return result;
+    }
+
+
     void androidHapticFeedback() {
         JavaVM* java_vm = app->activity->vm;
         JNIEnv* java_env = NULL;
@@ -536,6 +568,7 @@ extern "C" {
         char* dummy[] = { "", "-r", rootpath, "-x", cacheDirPath };
         sdrpp_main(5, dummy);
     }
+
 
 
 }

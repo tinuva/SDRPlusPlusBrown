@@ -569,7 +569,9 @@ void MainWindow::draw() {
         ImGui::SetColumnWidth(0, menuWidth);
         ImGui::SetColumnWidth(1, std::max<int>(winSize.x - menuWidth - (60.0f * style::uiScale), 100.0f * style::uiScale));
         ImGui::SetColumnWidth(2, 60.0f * style::uiScale);
+
         ImGui::BeginChild("Left Column");
+
 
         if (gui::menu.draw(firstMenuRender)) {
             core::configManager.acquire();
@@ -599,6 +601,8 @@ void MainWindow::draw() {
         this->drawDebugMenu();
 
         ImGui::EndChild();
+
+
     }
     else {
         // When hiding the menu bar

@@ -141,12 +141,15 @@ namespace net {
                     if (n == 0 && client->isOpen()) {
                         // eagain
                         send_ping_if_needed();
+                        if (onIdle) {
+                            onIdle();
+                        }
                         continue;
                     }
 #if defined(PJON_ESP) && defined(ESP32)
                     if (n == -1) n = 0; // ESP32 returns -1 if nothing there, not only if connection broken
 #else
-                    if (n == -1) break; // Normal behavior, -1 = error, connection broken
+                    if (n == -1 || !client->isOpen()) break; // Normal behavior, -1 = error, connection broken
 #endif
                     if (n == 0 && (uint32_t) (currentTimeMillis() - start) > READ_TIMEOUT) break;
                     if (!blocking && n == 0 && remain == len) break; // available() sometimes gives false positive, exit if nothing
@@ -187,6 +190,7 @@ namespace net {
         }
 
         bool socket_connect(std::string host, uint16_t port) {
+            gotPong = 0;
             try {
                 client = net::connect(host, port);
             } catch (const std::exception &e) {
@@ -375,6 +379,8 @@ namespace net {
             return ok;
         }
 
+        long long gotPong = 0;
+
         bool update() {
             if (client && client->isOpen()) {
                 send_ping_if_needed();
@@ -386,7 +392,10 @@ namespace net {
                         else if (buffer[0] == SUBACK) handle_suback(buffer, packet_len, payload_len, false);
                         else if (buffer[0] == UNSUBACK) handle_suback(buffer, packet_len, payload_len, true);
                         else if (buffer[0] == PINGREQ_2[0]) send_pingresp();
-                        else if (buffer[0] == PINGRESP_2[0]) waiting_for_ping = false;
+                        else if (buffer[0] == PINGRESP_2[0]) {
+                            gotPong = currentTimeMillis();
+                            waiting_for_ping = false;
+                        }
 #ifdef MQTT_DEBUGPRINT
                         else printf("%u Received UNKNOWN packet %u len %d\n", millis(), buffer[0], packet_len);
 #endif
@@ -436,6 +445,7 @@ namespace net {
         }
 
         char *topic_buf() { return topicbuf; } // Allow temporary access for composing outgoing topic, saving memory
+        std::function<void()> onIdle;
     };
 
 }

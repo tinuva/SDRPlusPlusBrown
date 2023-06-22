@@ -11,7 +11,7 @@ struct AudioPlayer {
     std::string id;
     std::string error;
     float position;
-    bool playing;
+    bool playing = false;
     int64_t dataPosition;
     dsp::routing::Splitter<dsp::stereo_t> splitter;
     dsp::stream<dsp::stereo_t> outStream;

@@ -46,6 +46,19 @@ inline void splitStringV(const std::string & str, const char *sep, std::vector<s
     });
 }
 
+inline std::string joinStringV(const char *sep, std::vector<std::string> &src) {
+    std::string ret;
+    int ix = 0;
+    for(auto q:src) {
+        if (ix > 0){
+            ret += sep;
+        }
+        ret += q;
+        ix++;
+    }
+    return ret;
+}
+
 
 inline void removeSubstrings(std::string& input, const std::string& substring) {
     size_t pos = input.find(substring);

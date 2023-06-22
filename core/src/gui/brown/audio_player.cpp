@@ -58,9 +58,9 @@ void AudioPlayer::startPlaying() {
         auto radioName = gui::waterfall.selectedVFO;
         if (!radioName.empty()) {
             playing = true;
-            flog::info("ap.startPlaying: playing true");
             std::thread x([this] {
                 SetThreadName("AudioPlayer");
+                flog::info("ap.startPlaying: playing thread, data size: {}", data->size());
                 if (onPlayStart) {
                     onPlayStart();
                 }
@@ -91,7 +91,7 @@ void AudioPlayer::startPlaying() {
                     position = dataPosition / (float)sampleRate;
                     //                        flog::info("player Swapped to {}: {} - {} = {}", audioOut.origin, blockEnd, i, blockEnd - i);
                 }
-                flog::info("startPlaying: stop");
+                flog::info("ap.startPlaying: stop, data ended, playing: ",(int)playing);
                 merger->unbindStream(&splitterOut);
                 splitter.stop();
                 playing = false;

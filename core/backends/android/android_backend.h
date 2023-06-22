@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <stdint.h>
+#include <string>
 
 namespace backend {
     struct DevVIDPID {
@@ -14,4 +15,6 @@ namespace backend {
     extern const std::vector<DevVIDPID> RTL_SDR_VIDPIDS;
 
     int getDeviceFD(int& vid, int& pid, const std::vector<DevVIDPID>& allowedVidPids);
+
+    std::string httpGet(const std::string& url);
 }

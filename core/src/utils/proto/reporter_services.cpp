@@ -8,30 +8,35 @@
 
 namespace net {
 
-    // returns false after 3 minutes
-    bool getReportsFromWSPR(std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running) {
-        auto reportError = [&](std::string error) {
-            ::net::Report report;
-            report.reportingSource = ::net::RS_WSPRNET;
-            report.errorStatus = error;
-            callback(report);
-            for(int q=0; q<30; q++) {
+    void generalReportError(const std::string &error, ReportingSource reportingSource, std::function<void(const ::net::Report &)> callback, bool &running, bool delay) {
+        ::net::Report report;
+        report.reportingSource = reportingSource;
+        report.errorStatus = error;
+        callback(report);
+        if (delay) {
+            for (int q = 0; q < 30; q++) {
                 if (!running) {
                     break;
                 }
                 usleep(1000000);
             }
+        }
+    };
+
+
+    // returns false after 3 minutes
+    bool getReportsFromWSPR_pull(const std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running) {
+        auto reportError = [&](const std::string &error, bool delay = true) {
+            generalReportError(error, RS_WSPRNET_PULL, callback, running, delay);
         };
         auto startTime = currentTimeMillis();
         while(running) {
             net::http::Client httpClient;
             std::string formBuildId;
             try {
-                Report rep;
-                rep.reportingSource = RS_WSPRNET;
-                rep.errorStatus = "Checking..";
-                callback(rep);
+                reportError("Getting form..", false);
                 auto emptyForm = httpClient.get("http://www.wsprnet.org:80/drupal/wsprnet/spotquery");
+                reportError("Got form..", false);
                 std::vector<std::string> lines;
                 splitStringV(emptyForm, "\n", lines);
                 // find string in lines, with form_id=wsprnet_spotquery_form
@@ -56,7 +61,9 @@ namespace net {
                     continue;
                 }
                 auto formData = "band=All&mode=All&count=100&timelimit=3600&sortby=date&call=" + callsign + "&reporter=&sortrev=1&excludespecial=1&op=update&form_id=wsprnet_spotquery_form&form_build_id="+formBuildId;
+                reportError("Sent query..", false);
                 auto searchResults = httpClient.post("http://www.wsprnet.org:80/drupal/wsprnet/spotquery", formData);
+                reportError("Got main response.", false);
                 flog::info("post result:\n{}", searchResults);
                 auto spots = searchResults.find("spots:</p>");
                 if (spots == std::string::npos) {
@@ -86,7 +93,7 @@ namespace net {
                         report.reporterCallsign = fields[7];
                         report.reportedCallsign = fields[1];
                         report.frequency = atof(fields[2].c_str())*1000000;
-                        report.reportingSource = RS_WSPRNET;
+                        report.reportingSource = RS_WSPRNET_PULL;
                         report.decibel = atof(fields[3].c_str());
                         report.mode = fields[11];
                         report.modeParameters = fields[4];  // drift
@@ -94,18 +101,134 @@ namespace net {
                         callback(report);
                     }
                 }
-                if (currentTimeMillis() - startTime > 15 * 1000) {
-                    rep.reportingSource = RS_WSPRNET;
-                    rep.errorStatus = "Stopped after 3 min";
-                    callback(rep);
+                if (currentTimeMillis() - startTime > 300 * 1000) {
+                    reportError("Stopped after 5 min", false);
                     running = false;
                     return false;
                     break;
                 }
                 for(int i=15; i>=0; i--) {
-                    rep.reportingSource = RS_WSPRNET;
-                    rep.errorStatus = "Checked, sleeping..." + std::to_string(i);
+                    reportError("Done, sleeping " + std::to_string(i), false);
+                    usleep(1000000);
+                }
+            } catch (std::exception &e) {
+                reportError(e.what());
+                continue;
+            }
+        }
+        return true;
+
+    }
+
+    bool getReportsFromPSKR_pull(std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running) {
+        auto reportError = [&](const std::string &error, bool delay = true) {
+            generalReportError(error, RS_PSKREPORTER_PULL, callback, running, delay);
+        };
+        auto startTime = currentTimeMillis();
+        while(running) {
+            net::http::Client httpClient;
+            std::string formBuildId;
+            try {
+                reportError("Requesting..", false);
+                auto response = httpClient.get("https://pskreporter.info/cgi-bin/pskquery5.pl?encap=0&callback=doNothing&flowStartSeconds=-600&senderCallsign="+callsign);
+                reportError("Got response..", false);
+                int ix = response.find("{");
+                if (ix == std::string::npos) {
+                    reportError("Invalid response");
+                    continue;
+                }
+                response = response.substr(ix);
+                ix = response.rfind("}");
+                if (ix == std::string::npos) {
+                    reportError("Invalid response(2)");
+                    continue;
+                }
+                response = response.substr(0, ix+1);
+                auto obj = nlohmann::json::parse(response);
+                int64_t ctm = currentTimeMillis()/1000;
+                for(auto &[k, v] : obj["receptionReport"].items()) {
+                    if ((int)v["isSender"] == 1) {
+                        Report rep;
+                        rep.reportingSource = ::net::RS_PSKREPORTER_PULL;
+                        time_t t = (int) (float) v["flowStartSeconds"];
+                        rep.reportedCallsign = v["senderCallsign"];
+                        rep.reporterCallsign = v["receiverCallsign"];
+                        rep.receiverLocator = v["receiverLocator"];
+                        rep.mode = v["mode"];
+                        rep.frequency = v["frequency"];
+                        rep.decibel = v["sNR"];
+                        if (ctm - t > 12 * 3600) {
+                            rep.timestamp = "not recent";
+                        } else {
+                            auto tmm = std::gmtime(&t);
+                            char streamTime[64];
+                            strftime(streamTime, sizeof(streamTime), "%H:%M:%SZ", tmm);
+                            rep.timestamp = streamTime;
+                        }
+                        callback(rep);
+                    }
+                }
+                if (currentTimeMillis() - startTime > 300 * 1000) {
+                    reportError("Stopped after 5 min", false);
+                    running = false;
+                    return false;
+                    break;
+                }
+                for(int i=45; i>=0; i--) {
+                    reportError("Done, sleeping " + std::to_string(i), false);
+                    usleep(1000000);
+                }
+            } catch (std::exception &e) {
+                reportError(e.what());
+                continue;
+            }
+        }
+        return true;
+
+    }
+
+    bool getReportsFromRBN_pull(std::string callsign, std::function<void(const ::net::Report &)> callback, bool &running) {
+        auto reportError = [&](const std::string &error, bool delay = true) {
+            generalReportError(error, RS_RBN_PULL, callback, running, delay);
+        };
+        auto startTime = currentTimeMillis();
+        while(running) {
+            net::http::Client httpClient;
+            std::string formBuildId;
+            try {
+                reportError("Querying endpoint..", false);
+                auto jsonData = httpClient.get("https://reversebeacon.net/spots.php?h=fb94a8&b=91,3,7,84,12,17,22,27,32,37,42,50,55,62&s=0&r=40&cdx=" + callsign);
+                reportError("Got data..", false);
+                auto obj = nlohmann::json::parse(jsonData);
+                int64_t ctm = currentTimeMillis()/1000;
+                for(auto &[k, v] : obj["spots"].items()) {
+                    Report rep;
+                    time_t t = (int)(float)v[11];
+                    rep.reportingSource = ::net::RS_RBN_PULL;
+                    rep.reportedCallsign = v[2];
+                    rep.reporterCallsign = v[0];
+                    rep.mode = "CW";
+                    rep.frequency = atof(((std::string)v[1]).c_str());
+                    rep.decibel = v[3];
+                    rep.modeParameters = std::to_string((int)v[4])+" WPM";
+                    if (ctm - t > 12 * 3600) {
+                        rep.timestamp = "not recent";
+                    } else {
+                        auto tmm = std::gmtime(&t);
+                        char streamTime[64];
+                        strftime(streamTime, sizeof(streamTime), "%H:%M:%SZ", tmm);
+                        rep.timestamp = streamTime;
+                    }
                     callback(rep);
+                }
+                if (currentTimeMillis() - startTime > 300 * 1000) {
+                    reportError("Stopped after 5 min", false);
+                    running = false;
+                    return false;
+                    break;
+                }
+                for(int i=15; i>=0; i--) {
+                    reportError("Done, sleeping " + std::to_string(i), false);
                     usleep(1000000);
                 }
             } catch (std::exception &e) {
@@ -125,6 +248,10 @@ namespace net {
             callback(report);
             usleep(30000000);
         };
+        Report rep;
+        rep.reportingSource = RS_PSKREPORTER;
+        rep.errorStatus = "Connecting...";
+        callback(rep);
         while(running) {
             MQTTClient client;
             if (!client.socket_connect("mqtt.pskreporter.info", 1883)) {
@@ -139,6 +266,7 @@ namespace net {
                     Report rep;
                     auto obj = nlohmann::json::parse(buf);
                     time_t t = obj["t"];
+                    rep.reportingSource = ::net::RS_PSKREPORTER;
                     rep.reportedCallsign = obj["sc"];
                     rep.reporterCallsign = obj["rc"];
                     rep.decibel = obj["rp"];
@@ -163,6 +291,23 @@ namespace net {
             rep.reportingSource = RS_PSKREPORTER;
             rep.errorStatus = "MQTT connected.";
             callback(rep);
+            std::string lastStatus;
+            client.onIdle = [&]() {
+                if (client.gotPong) {
+                    auto pongAgo = (currentTimeMillis() - client.gotPong) / 1000;
+                    auto newStatus = "pong " + std::to_string(pongAgo)+" sec ago";
+                    if (newStatus != lastStatus) {
+                        lastStatus = newStatus;
+                        ::net::Report report;
+                        report.reportingSource = ::net::RS_PSKREPORTER;
+                        report.errorStatus = newStatus;
+                        callback(report);
+                    }
+                }
+                if (!running && client.client->isOpen()) {
+                    client.client->close();
+                }
+            };
             while (running) {
                 if (!client.update()) {
                     break;
@@ -209,8 +354,10 @@ namespace net {
                 continue;
             }
             std::string ready;
+            int count = 0;
+            generalReportError("telnet connected.", RS_RBN ,callback, running, false);
             while (running) {
-                auto rd = sock->recv(buf, sizeof(buf), false, 10000);
+                auto rd = sock->recv(buf, sizeof(buf), false, 1000);
                 if (rd == 0) { // timeout?
                     if (!sock->isOpen()) {
                         break;
@@ -222,10 +369,6 @@ namespace net {
                     sock->close();
                     return;
                 }
-                Report rep;
-                rep.reportingSource = RS_WSPRNET;
-                rep.errorStatus = "telnet connected.";
-                callback(rep);
                 buf[rd] = 0;
                 ready.append((const char *) buf);
                 while (true) {
@@ -273,9 +416,11 @@ namespace net {
                                 trimString(txt);
                                 report.modeParameters = report.modeParameters + ": " + txt;
                             }
+                            count++;
                             if (report.reportedCallsign.find(callsign) != std::string::npos || callsign == "") {
                                 callback(report);
                             }
+                            generalReportError("streaming: "+ std::to_string(count), RS_RBN ,callback, running, false);
                         }
                     }
                     // delete from ready
@@ -286,6 +431,35 @@ namespace net {
     }
 
 
-
+    std::string Report::toString() const {
+        if (errorStatus != "") {
+            return "STATUS:"+errorStatus;
+        }
+        return to_string(reportingSource)+": "+reportedCallsign+" by "+reporterCallsign+" TS:"+timestamp+" "+mode+" "+modeParameters+" LOC:"+receiverLocator+" FREQ:"+std::to_string(frequency)+" SNR:"+std::to_string(decibel);
+    }
 }
+
+void test1() {
+//    bool running = true;
+//    net::getReportsFromRBN_pull("EA4HKF", [](const net::Report &rep) {
+//        flog::info("RBN: {}", rep.toString());
+//    }, running);
+//    get
+//    FT8ModuleInterface *ft8 = nullptr;
+//    for(auto x: core::moduleManager.instances) {
+//        ft8 = (FT8ModuleInterface *)x.second.instance->getInterface("FT8ModuleInterface");
+//        if (ft8) {
+//            break;
+//        }
+//    }
+//    if (ft8) {
+//        flog::info("FT8: {}", (void*)ft8);
+//        auto [rv, msg] = ft8->encodeCQ_FT8("I9/UR6XXX","KO80", 1000);
+//        FILE *f = fopen("/tmp/cq_ft8.raw", "wb");
+//        fwrite(rv.data(), sizeof(dsp::stereo_t), rv.size(), f);
+//        fclose(f);
+//    }
+}
+
+
 

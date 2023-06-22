@@ -14,6 +14,7 @@
 #include "../../decoder_modules/ft8_decoder/src/module_interface.h"
 #include "utils/wav.h"
 #include "gui/brown/imgui-notify/imgui_notify.h"
+#include "dsp/taps/high_pass.h"
 
 #define MAX_COMMAND_LENGTH 8192
 
@@ -201,7 +202,8 @@ std::vector<dsp::stereo_t> generate_tone(double freq, double duration, int SAMPL
     double phiOut = phi0;
     for (int i = 0; i < num_samples; ++i) {
         phiOut = phi0 + (2.0 * PI * i * freq) / SAMPLE_RATE;
-        tone[i].r = tone[i].l = static_cast<float>(sin(phiOut));
+        tone[i].l = static_cast<float>(sin(phiOut));
+        tone[i].r = static_cast<float>(cos(phiOut));
 
     }
     phiOut = phi0 + (2.0 * PI * num_samples * freq) / SAMPLE_RATE;
@@ -322,26 +324,65 @@ std::string convertToMorseCode(std::string input) {
 }
 
 
+void doLowPassComplex(int freq, int transition, float sampleRate, dsp::complex_t *pComplex, unsigned long size) {
+    auto halfBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(freq, transition, sampleRate);
+    dsp::filter::FIR<dsp::complex_t, dsp::complex_t> lpf(nullptr, halfBandPassTaps);
+    for(int q=0; q<size; q+=STREAM_BUFFER_SIZE) {
+        int sz = STREAM_BUFFER_SIZE;
+        if (q + sz > size) {
+            sz = size - q;
+        }
+        lpf.process(sz, pComplex, pComplex);
+        pComplex+=sz;
+    }
+    dsp::taps::free(halfBandPassTaps);
+}
+
+void doHighPassComplex(int freq, int transition, float sampleRate, dsp::complex_t *pComplex, unsigned long size) {
+    auto halfBandPassTaps = dsp::taps::highPass0<dsp::complex_t>(freq, transition, sampleRate);
+    dsp::filter::FIR<dsp::complex_t, dsp::complex_t> lpf(nullptr, halfBandPassTaps);
+    for(int q=0; q<size; q+=STREAM_BUFFER_SIZE) {
+        int sz = STREAM_BUFFER_SIZE;
+        if (q + sz > size) {
+            sz = size - q;
+        }
+        lpf.process(sz, pComplex, pComplex);
+        pComplex+=sz;
+    }
+    dsp::taps::free(halfBandPassTaps);
+}
+
+
 std::vector<dsp::stereo_t> generateMorseAudio(int sampleRate, int freq, int ditLengthMs, const std::string &morse) {
     std::vector<dsp::stereo_t> samples;
+    std::vector<float> envelope;
     const float ditDuration = ditLengthMs / 1000.0f;
-    const float envelopeDuration = ditDuration / 20.0f;
+    const float envelopeDuration = ditDuration / 10.0f;
     const int ditSamples = static_cast<int>(ditDuration * sampleRate);
     const int envelopeSamples = static_cast<int>(envelopeDuration * sampleRate);
     const float pi = std::acos(-1);
+
+
+    // generates /--\
+
+    for (int i=0; i < envelopeSamples; i++) {
+        envelope.emplace_back(0.5 * (1 - cos(2 * M_PI * i / (envelopeSamples - 1))));
+    }
+
     
     for (char c : morse) {
         if (c == '.' || c == '-') {
             int totalSamples = (c == '.' ? ditSamples : 3 * ditSamples);
             for (int i = 0; i < totalSamples; i++) {
-                float envelope = 1.0f;
-                if (i < envelopeSamples) {
-                    envelope = static_cast<float>(i) / envelopeSamples;
-                } else if (i >= totalSamples - envelopeSamples) {
-                    envelope = static_cast<float>(totalSamples - i) / envelopeSamples;
+                float env = 1.0f;
+                if (i < envelopeSamples/2) {
+                    env = envelope[i];
+                } else if (i >= totalSamples - envelopeSamples/2) // End of pulse
+                {
+                    env = envelope[envelopeSamples/2 + i-(totalSamples - envelopeSamples/2)];
                 }
-                float sampleI = envelope * sin(2.0f * pi * freq * i / sampleRate);
-                float sampleQ = envelope * cos(2.0f * pi * freq * i / sampleRate);
+                float sampleI = env * sin(2.0f * pi * freq * i / sampleRate);
+                float sampleQ = env * cos(2.0f * pi * freq * i / sampleRate);
                 samples.push_back(dsp::stereo_t{sampleI * 0.8f, sampleQ * 0.8f});
             }
             for (int i = 0; i < ditSamples; i++) {
@@ -353,9 +394,8 @@ std::vector<dsp::stereo_t> generateMorseAudio(int sampleRate, int freq, int ditL
             }
         }
     }
-    auto halfBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(800, 100, trxAudioSampleRate);
-    dsp::filter::FIR<dsp::stereo_t, dsp::complex_t> lpf(nullptr, halfBandPassTaps);
-    lpf.process(samples.size(), samples.data(), samples.data());
+    doLowPassComplex(freq, 400, trxAudioSampleRate, (dsp::complex_t *)samples.data(), samples.size());
+    doHighPassComplex(freq, 400, trxAudioSampleRate, (dsp::complex_t *)samples.data(), samples.size());
     return samples;
 }
 
@@ -419,6 +459,7 @@ public:
         std::shared_ptr<std::thread> thr;
         std::string status = "not monitoring";
         bool stopping = false;
+        bool usePull = false;
         std::mutex mtx;
         int displayCount;
 
@@ -473,19 +514,30 @@ public:
                         bool doStatus = true;
                         while (running) {
                             switch(source) {
-                                case net::RS_WSPRNET:
-                                    SetThreadName("WSPRNET_read");
-                                    if (!net::getReportsFromWSPR(sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running)) {
+                                case net::RS_WSPRNET_PULL:
+                                    SetThreadName("WSPRNET_pull");
+                                    if (!net::getReportsFromWSPR_pull(sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running)) {
+                                        doStatus = false; // already reported
+                                    }
+                                    break;
+                                case net::RS_PSKREPORTER_PULL:
+                                    SetThreadName("PSKrep_pull");
+                                    if (!net::getReportsFromPSKR_pull(sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running)) {
                                         doStatus = false; // already reported
                                     }
                                     break;
                                 case net::RS_PSKREPORTER:
-                                    SetThreadName("PSKrep_read");
+                                    SetThreadName("PSKrep_mq");
                                     net::getReportsFromPSKR(sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running);
                                     break;
+                                case net::RS_RBN_PULL:
+                                    SetThreadName("RBN_pull");
+                                    if (!net::getReportsFromRBN_pull(sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running)) {
+                                        doStatus = false;
+                                    }
+                                    break;
                                 case net::RS_RBN:
-                                    SetThreadName("RBN_read");
-//                                    net::getReportsFromRBN(sigpath::iqFrontEnd.operatorCallsign, "", callbackReceiver(), running);
+                                    SetThreadName("RBN_telnet");
                                     net::getReportsFromRBN(sigpath::iqFrontEnd.operatorCallsign, sigpath::iqFrontEnd.operatorCallsign, callbackReceiver(), running);
                                     break;
                             }
@@ -519,7 +571,11 @@ public:
 
     ReportingService wspr;
     ReportingService rbn;
+    ReportingService rbn_pull;
     ReportingService pskr;
+    ReportingService pskr_pull;
+
+    std::vector<ReportingService *> allServices= {&wspr, &rbn, &rbn_pull, &pskr, &pskr_pull};
 
     void postInit() override {
         config.acquire();
@@ -532,7 +588,11 @@ public:
         config.release(false);
         rbn.source = net::RS_RBN;
         pskr.source = net::RS_PSKREPORTER;
-        wspr.source = net::RS_WSPRNET;
+        wspr.source = net::RS_WSPRNET_PULL;
+        rbn_pull.source = net::RS_RBN_PULL;
+        pskr_pull.source = net::RS_PSKREPORTER_PULL;
+        pskr_pull.usePull = true;
+        rbn_pull.usePull = true;
     }
 
     void enable() override  {
@@ -560,19 +620,6 @@ public:
     const char *SELF_REPORTS_POPUP = "Self-Reports";
 
 private:
-
-    std::string to_string(net::ReportingSource source) {
-        switch (source) {
-            case net::RS_WSPRNET:
-                return ("WSPR");
-            case net::RS_PSKREPORTER:
-                return ("FT8");
-            case net::RS_RBN:
-                return ("CW");
-            default:
-                return "???";
-        }
-    }
 
     void drawReportsPopup() {
         ImVec2 ds = ImGui::GetIO().DisplaySize;
@@ -635,6 +682,44 @@ private:
         }
     }
 
+    bool doTXButtonAtFrequency(const std::string &text, int frequency) {
+        static const int INVALID_OFFSET = 0x7FFFFFFF;
+        char buf[1000];
+        std::vector<std::string> x;
+        splitStringV(text, "\n", x);
+        if (frequency == INVALID_OFFSET) {
+            ImGui::BeginDisabled(true);
+            x[0] += " ! not on freq";
+            auto rv = doFingerButton(joinStringV("\n", x));
+            ImGui::EndDisabled();
+            return rv;
+        } else {
+            sprintf(buf, "@ %0.4f MHz", frequency/1e6);
+            x[0] += buf;
+            auto rv = doFingerButton(joinStringV("\n", x));
+            return rv;
+        }
+    }
+
+    bool doServiceButton(const char *lbl, ReportingService &service) {
+        bool pushed = false;
+        if (service.stopping) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0, 1.0f));
+            pushed = true;
+        } else if (service.running) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0, 1.0f));
+            pushed = true;
+        }
+        auto rv = ImGui::Button(lbl);
+        if (pushed) {
+            ImGui::PopStyleColor();
+        }
+        if (rv) {
+            service.toggleWithButton();
+        }
+        return rv;
+    }
+
     void menuHandler() {
         maintainThreads();
         ImGui::Text("Operator Callsign: %s", sigpath::iqFrontEnd.operatorCallsign.c_str());
@@ -670,59 +755,42 @@ private:
 
         }
         ImGui::BeginDisabled(noCallsign);
-        if (doFingerButton("WSPR")) {
-            wspr.toggleWithButton();
+        char boo[200];
+        for(auto &s: allServices) {
+            sprintf(boo, "%s (%d): %s", net::to_string(s->source).c_str(), s->displayCount, s->status.c_str());
+            doServiceButton(boo, *s);
+            s->displayCount = 0;
         }
-        ImGui::SameLine();
-        if (doFingerButton("RBN(CW)")) {
-            rbn.toggleWithButton();
-        }
-        ImGui::SameLine();
-        if (doFingerButton("PSKR(FT8)")) {
-            pskr.toggleWithButton();
-        }
+        ImGui::EndDisabled();
         if (reports.size() > 0) {
             ImGui::SameLine();
             if (doFingerButton("View..")) {
                 ImGui::OpenPopup(SELF_REPORTS_POPUP);
             }
         }
-        ImGui::EndDisabled();
-        wspr.displayCount = 0;
-        rbn.displayCount = 0;
-        pskr.displayCount = 0;
         reportsMutex.lock();
         long long int ctm = currentTimeMillis();
         for (auto &r:  reports) {
             if (ctm - r.createdTimestamp > aggregateDuration * 1000) {
                 continue;
             }
-            switch(r.reportingSource) {
-                case net::RS_RBN:
-                    rbn.displayCount++;
-                    break;
-                case net::RS_WSPRNET:
-                    wspr.displayCount++;
-                    break;
-                case net::RS_PSKREPORTER:
-                    pskr.displayCount++;
-                    break;
+            for(auto &s: allServices) {
+                if (r.reportingSource == s->source) {
+                    s->displayCount++;
+                }
             }
         }
         while(reports.size() > 0 && ctm - reports.back().createdTimestamp > aggregateDuration * 1000) {
             reports.resize(reports.size()-1);
         };
         reportsMutex.unlock();
-        ImGui::Text("WSPR (%d): %s", wspr.displayCount, wspr.status.c_str());
-        ImGui::Text("RBN (%d): %s", rbn.displayCount, rbn.status.c_str());
-        ImGui::Text("PSKR (%d): %s", pskr.displayCount, pskr.status.c_str());
-        
+
         auto disabled = noCallsign || !sigpath::transmitter || sigpath::transmitter->getTXStatus() || !gui::mainWindow.canTransmit();
         ImGui::BeginDisabled(disabled);
         char buf[1024];
-        sprintf(buf, "CW TX: CQ CQ DE %s %s K", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorCallsign.c_str());
-        if (doFingerButton(buf)) {
-            transmitCQ();
+        sprintf(buf, "CW TX:\nCQ CQ DE %s %s K", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorCallsign.c_str());
+        if (doTXButtonAtFrequency(buf, gui::freqSelect.frequency)) {
+            transmitCW(gui::freqSelect.frequency);
         }
 
         FT8ModuleInterface *ft8 = nullptr;
@@ -734,12 +802,15 @@ private:
             }
         }
         if (ft8) {
-            if (doFingerButton("WSPR TX: 5W power")) {
-                transmitWSPR();
+            int freq = ft8->getCurrentFrequency("WSPR");
+            sprintf(buf, "WSPR TX:\n5W power, %s", sigpath::iqFrontEnd.operatorLocation.substr(0, 4).c_str());
+            if (doTXButtonAtFrequency("WSPR TX:\n5W power", freq)) {
+                transmitWSPR(freq);
             }
-            sprintf(buf, "FT8 TX: CQ %s %s", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorLocation.substr(0, 4).c_str());
-            if (doFingerButton(buf)) {
-                transmitFT8();
+            sprintf(buf, "FT8 TX:\nCQ %s %s", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorLocation.substr(0, 4).c_str());
+            freq = ft8->getCurrentFrequency("FT8");
+            if (doTXButtonAtFrequency(buf, freq)) {
+                transmitFT8(freq);
             }
         } else {
             ImGui::Text("Load FT8 module to tx FT8/WSPR");
@@ -765,7 +836,10 @@ private:
 
     void drawScheduledDialog() {
         ImGui::SetNextWindowPos(ImGui::GetIO().DisplaySize * 0.125f);
+
         if (ImGui::BeginPopupModal(SCHEDULED_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGuiContext& g = *GImGui;
+            g.DimBgRatio = 0.0f; // Set the alpha value to zero
             long long deltaTime = 0;
             switch(scheduledDialogState) {
                 default:
@@ -828,69 +902,70 @@ private:
         ImGui::OpenPopup(SCHEDULED_POPUP);
     }
 
-    void transmitCQ() {
+    void transmitCW(int frequency) {
         char buf[1024];
         sprintf(buf, "CQ CQ DE %s %s K", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorCallsign.c_str());
         const std::string morse = " " +convertToMorseCode(buf)+ " " ;
 
         auto ditDuration = 60 * 1000 / (50 * gui::mainWindow.cwWPM);
-
+        auto ctm = currentTimeMillis();
         auto audio = generateMorseAudio(trxAudioSampleRate, gui::mainWindow.cwAudioFrequency, ditDuration, morse);
+        flog::info("CW generation time: {}", (int64_t)(currentTimeMillis()-ctm));
         saudio->clear();
         saudio->insert(saudio->end(), audio.begin(), audio.end());
 
-//        wav::Writer w;
-//        w.setChannels(2);
-//        w.setFormat(wav::FORMAT_WAV);
-//        w.setSampleType(wav::SAMP_TYPE_FLOAT32);
-//        w.setSamplerate(trxAudioSampleRate);
-//        if (!w.open("/tmp/t1.wav")) {
-//            ImGui::InsertNotification({ ImGuiToastType_Error, 5000, ("Write err: " + std::string(strerror(errno))).c_str() });
-//            return;
-//        }
-//        w.write((float *)saudio->data(), saudio->size());
-//        w.close();
-
-        runScheduledTransmit(currentTimeMillis(), [this, morse]() {
-            auto saved = gui::mainWindow.getCurrentModeAttr("submode");
+        runScheduledTransmit(currentTimeMillis(), [this, morse, frequency]() {
+            auto savediq = gui::mainWindow.getIqDataInAudio();
             gui::mainWindow.maybeTransmit(saudio,
                                           [=]() {
-                                              gui::mainWindow.setCurrentModeBySubmode("CW");
+                                              gui::mainWindow.txSubmodeOverride = "CW";
                                               gui::mainWindow.txOffset = -gui::mainWindow.cwAudioFrequency;
+                                              gui::mainWindow.txFrequencyOverride = frequency;
+                                              gui::mainWindow.setIqDataInAudio(true);
                                           },
                                           [=]() {
-                                              gui::mainWindow.setCurrentModeBySubmode(saved);
+                                              gui::mainWindow.txSubmodeOverride = "";
+                                              gui::mainWindow.txFrequencyOverride = 0;
                                               gui::mainWindow.txOffset = 0;
+                                              gui::mainWindow.setIqDataInAudio(savediq);
                                           });
             flog::info("Done {}", morse);
         });
     }
     
-    void transmitWSPR() {
+    void transmitWSPR(int frequency) {
         try {
             auto audioFreq = 1505;
+            auto ctm = currentTimeMillis();
             auto symbols = convertToWSPRSymbols(sigpath::iqFrontEnd.operatorCallsign, sigpath::iqFrontEnd.operatorLocation, 37); // 37 dbm=5W
             auto audio = generate_wspr_message(symbols, audioFreq, gui::mainWindow.currentAudioStreamSampleRate);
-            auto halfBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(audioFreq+200, 500, trxAudioSampleRate);
-            dsp::filter::FIR<dsp::stereo_t, dsp::complex_t> lpf(nullptr, halfBandPassTaps);
-            int nparts = 9;
-            auto singlePart = audio.size()/nparts;
-            auto ctm = currentTimeMillis();
-            for(int q=0; q<nparts; q++) {
-                lpf.process(singlePart, audio.data()+singlePart * q, audio.data()+singlePart * q);
-            }
-            flog::info("Lowpass filter time: {}", (int64_t)(currentTimeMillis() - ctm));
+            flog::info("WSPR: generated tx wav in {} msec", (int64_t)(currentTimeMillis()-ctm));
+//            auto halfBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(audioFreq+200, 500, trxAudioSampleRate);
+//            dsp::filter::FIR<dsp::stereo_t, dsp::complex_t> lpf(nullptr, halfBandPassTaps);
+//            int nparts = 9;
+//            auto singlePart = audio.size()/nparts;
+//            for(int q=0; q<nparts; q++) {
+//                lpf.process(singlePart, audio.data()+singlePart * q, audio.data()+singlePart * q);
+//            }
+//            flog::info("WSPR: lowpass filter time: {}", (int64_t)(currentTimeMillis() - ctm));
             saudio->clear();
             saudio->insert(saudio->end(), audio.begin(), audio.end());
 
             auto scheduleStart = (currentTimeMillis() / 1000 / 120 + 1) * 120 * 1000 + 1000;
-            runScheduledTransmit(scheduleStart, [&]() {
+            runScheduledTransmit(scheduleStart, [&, frequency]() {
                 auto saved = gui::mainWindow.getCurrentModeAttr("submode");
+                auto savediq = gui::mainWindow.getIqDataInAudio();
                 gui::mainWindow.maybeTransmit(saudio,
                                               [=]() {
-                                                  gui::mainWindow.setCurrentModeBySubmode("USB");
+                                                  gui::mainWindow.txSubmodeOverride = "USB";
+                                                  gui::mainWindow.setIqDataInAudio(true);
+                                                  gui::mainWindow.txFrequencyOverride = frequency;
                                               },
-                                              [=]() { gui::mainWindow.setCurrentModeBySubmode(saved);
+                                              [=]() {
+                                                  gui::mainWindow.txSubmodeOverride = "";
+                                                  gui::mainWindow.setCurrentModeBySubmode(saved);
+                                                  gui::mainWindow.setIqDataInAudio(savediq);
+                                                  gui::mainWindow.txFrequencyOverride = 0;
                                               });
             });
 
@@ -902,7 +977,7 @@ private:
 
     }
 
-    void transmitFT8() {
+    void transmitFT8(int frequency) {
         FT8ModuleInterface *ft8 = nullptr;
         for(auto x: core::moduleManager.instances) {
             ft8 = (FT8ModuleInterface *)x.second.instance->getInterface("FT8ModuleInterface");
@@ -911,19 +986,22 @@ private:
             }
         }
         if (ft8) {
-            flog::info("FT8: {}", (void*)ft8);
+            auto ctm = currentTimeMillis();
             auto [rv, msg] = ft8->encodeCQ_FT8(sigpath::iqFrontEnd.operatorCallsign,sigpath::iqFrontEnd.operatorLocation, 1000);
+            flog::info("FT8: generated tx wav in {} msec", (int64_t)(currentTimeMillis()-ctm));
             saudio->clear();
-            saudio->insert(saudio->end(), rv.begin(), rv.end()); flog::info("FT8: Sound length produced: {}", rv.size());
+            saudio->insert(saudio->end(), rv.begin(), rv.begin() + 13 * gui::mainWindow.currentAudioStreamSampleRate); // 13 seconds only
+            flog::info("FT8: Sound length produced: {}", rv.size());
             auto scheduleStart = (currentTimeMillis() / 1000 / 15 + 1) * 15 * 1000;
-            runScheduledTransmit(scheduleStart, [&]() {
-                auto saved = gui::mainWindow.getCurrentModeAttr("submode");
+            runScheduledTransmit(scheduleStart, [&, frequency]() {
                 gui::mainWindow.maybeTransmit(saudio,
                                               [=]() {
-                                                  gui::mainWindow.setCurrentModeBySubmode("USB");
+                                                  gui::mainWindow.txSubmodeOverride = "USB";
+                                                  gui::mainWindow.txFrequencyOverride = frequency;
                                               },
                                               [=]() {
-                                                  gui::mainWindow.setCurrentModeBySubmode(saved);
+                                                  gui::mainWindow.txSubmodeOverride = "";
+                                                  gui::mainWindow.txFrequencyOverride = 0;
                                               });
                 flog::info("Done FT8");
             });

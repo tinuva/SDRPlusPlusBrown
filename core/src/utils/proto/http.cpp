@@ -3,6 +3,11 @@
 #include <regex>
 #include <utils/flog.h>
 
+
+#ifdef __ANDROID__
+#include "../../backends/android/android_backend.h"
+#endif
+
 namespace net::http {
 
     std::string userAgent = "sdr++brown";
@@ -75,8 +80,49 @@ namespace net::http {
 
     }
 
+#ifdef __ANDROID__
+
+    std::string Client::get_https(const std::string &url) {
+        return ::backend::httpGet(url);
+    }
+#elif defined(__linux__)
+    std::string Client::get_https(const std::string &url) {
+
+        FILE *stuff = popen(("curl -k '"+url+"'").c_str(), "r");
+        if (!stuff) {
+            throw std::runtime_error("Please install curl for HTTPS support");
+        }
+        // read full response into std::string
+        std::string s(3000000, ' ');
+        int rd = fread((uint8_t *) s.data(), 1, s.size(), stuff);
+        if (rd >= 0) {
+            s.resize(rd);
+        } else {
+            fclose(stuff);
+            throw std::runtime_error("error reading from curl");
+        }
+        fclose(stuff);
+        if (s.find("curl: (") == 0) {
+            throw std::runtime_error(s);
+        }
+        return std::string(s);
+    }
+#else
+    std::string Client::get_https(const std::string &url) {
+        throw std::runtime_error("HTTPS not supported yet on this platform");
+    }
+#endif
+
     std::string Client::get(const std::string &url) {
         auto parsed = parseUrl(url);
+        if (parsed.protocol== "https") {
+            auto rv = Client::get_https(url);
+            if (rv.find("#ERROR:") == 0) {
+                throw std::runtime_error(rv.substr(7));
+            } else {
+                return rv;
+            }
+        }
         if (parsed.protocol != "http") {
             throw std::runtime_error("Only HTTP is supported");
         }

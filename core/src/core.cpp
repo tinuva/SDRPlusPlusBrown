@@ -296,24 +296,7 @@ namespace core {
 
 extern void test1();
 
-#include "../../decoder_modules/ft8_decoder/src/module_interface.h"
-
-void test1() {
-    FT8ModuleInterface *ft8 = nullptr;
-    for(auto x: core::moduleManager.instances) {
-        ft8 = (FT8ModuleInterface *)x.second.instance->getInterface("FT8ModuleInterface");
-        if (ft8) {
-            break;
-        }
-    }
-    if (ft8) {
-        flog::info("FT8: {}", (void*)ft8);
-        auto [rv, msg] = ft8->encodeCQ_FT8("I9/UR6XXX","KO80", 1000);
-        FILE *f = fopen("/tmp/cq_ft8.raw", "wb");
-        fwrite(rv.data(), sizeof(dsp::stereo_t), rv.size(), f);
-        fclose(f);
-    }
-}
+//#include "../../decoder_modules/ft8_decoder/src/module_interface.h"
 
 // main
 int sdrpp_main(int argc, char* argv[]) {
@@ -674,7 +657,7 @@ int sdrpp_main(int argc, char* argv[]) {
 
     flog::info("Ready.");
 
-//    test1();
+    test1();
 
 
     // Run render loop (TODO: CHECK RETURN VALUE)
