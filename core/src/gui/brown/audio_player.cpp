@@ -60,7 +60,7 @@ void AudioPlayer::startPlaying() {
             playing = true;
             std::thread x([this] {
                 SetThreadName("AudioPlayer");
-                flog::info("ap.startPlaying: playing thread, data size: {}", data->size());
+                flog::info("ap.startPlaying: playing thread, data size: {}", (int)data->size());
                 if (onPlayStart) {
                     onPlayStart();
                 }
