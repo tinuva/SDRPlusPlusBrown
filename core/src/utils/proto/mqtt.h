@@ -138,6 +138,9 @@ namespace net {
                 uint16_t remain = len, pos = startpos;
                 uint32_t start = currentTimeMillis();
                 while (remain > 0) {
+                    if (!client->isOpen()) {
+                        return false;
+                    }
                     int n = client->recv(&buf[pos], remain, true, 1000);
                     if (n == 0 && client->isOpen()) {
                         // eagain

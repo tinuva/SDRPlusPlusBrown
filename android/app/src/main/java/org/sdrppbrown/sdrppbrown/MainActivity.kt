@@ -252,10 +252,6 @@ class MainActivity : NativeActivity(), SensorEventListener {
 
         }
 
-        // temporary directory for C++
-        val cacheDir = cacheDir
-        this.thisCacheDir = cacheDir.absolutePath
-
 
     }
 
@@ -276,6 +272,10 @@ class MainActivity : NativeActivity(), SensorEventListener {
     public override fun onCreate(savedInstanceState: Bundle?) {
         // Hide bars
         hideSystemBars();
+
+        // temporary directory for C++
+        val cacheDir = cacheDir
+        this.thisCacheDir = cacheDir.absolutePath
 
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
