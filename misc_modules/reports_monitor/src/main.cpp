@@ -1,8 +1,14 @@
 
+#ifdef _WIN32
+#define _WINSOCKAPI_ // stops windows.h including winsock.h
+#endif
+#define _USE_MATH_DEFINES
+
 #include "gui/brown/kiwisdr_map.h"
 #include "gui/brown/small_waterfall.h"
 
 #include <imgui.h>
+#include <cmath>
 #include <module.h>
 #include <gui/gui.h>
 #include "utils/proto/reporter_services.h"
@@ -838,8 +844,8 @@ private:
         ImGui::SetNextWindowPos(ImGui::GetIO().DisplaySize * 0.125f);
 
         if (ImGui::BeginPopupModal(SCHEDULED_POPUP, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGuiContext& g = *GImGui;
-            g.DimBgRatio = 0.0f; // Set the alpha value to zero
+            ImGuiContext* g = ImGui::GetCurrentContext();
+            g->DimBgRatio = 0.0f; // Set the alpha value to zero
             long long deltaTime = 0;
             switch(scheduledDialogState) {
                 default:

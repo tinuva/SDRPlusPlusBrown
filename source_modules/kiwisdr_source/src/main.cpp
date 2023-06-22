@@ -45,7 +45,7 @@ struct KiwiSDRSourceModule : public ModuleManager::Instance {
     std::string root;
     KiwiSDRMapSelector selector;
 
-    KiwiSDRSourceModule(std::string name, const std::string &root) : kiwiSdrClient(), selector(root, "KiwiSDR Source") {
+    KiwiSDRSourceModule(std::string name, const std::string &root) : kiwiSdrClient(), selector(root, &config, "KiwiSDR Source") {
         this->name = name;
         this->root = root;
 

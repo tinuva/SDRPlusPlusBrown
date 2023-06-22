@@ -100,7 +100,7 @@ std::string getLastSocketError() {
 int getLastSocketErrorNo() {
     std::string errtxt;
 #ifdef WIN32
-    auto en = SAGetLastError();
+    auto en = WSAGetLastError();
     if (en == WSAEINTR) {
         return EINTR;
     }

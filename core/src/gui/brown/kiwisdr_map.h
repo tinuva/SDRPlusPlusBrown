@@ -11,7 +11,7 @@
 #include "utils/proto/kiwisdr.h"
 #include <gui/brown/geomap.h>
 
-extern std::shared_ptr<ConfigManager> kiwiSDRMapConfig;
+
 
 struct KiwiSDRMapSelector {
 
@@ -42,16 +42,14 @@ struct KiwiSDRMapSelector {
     const std::string configPrefix;
     bool testInProgress = false;
 
-    KiwiSDRMapSelector(const std::string& root, const std::string& configPrefix) : configPrefix(configPrefix) {
+    ConfigManager* config;
+
+    KiwiSDRMapSelector(const std::string& root, ConfigManager *config, const std::string& configPrefix) : configPrefix(configPrefix) {
         this->root = root;
-        if (!kiwiSDRMapConfig) {
-            json def = json({});
-            kiwiSDRMapConfig = std::make_shared<ConfigManager>();
-            kiwiSDRMapConfig->setPath(root + "/kiwisdr_map.json");
-            kiwiSDRMapConfig->load(def);
-            kiwiSDRMapConfig->enableAutoSave();
-        }
-        geoMap.loadFrom(*kiwiSDRMapConfig, configPrefix.c_str()); // configPrefix is like "mapselector1_"
+        this->config = config;
+        json def = json({});
+        config->load(def);
+        geoMap.loadFrom(*config, configPrefix.c_str()); // configPrefix is like "mapselector1_"
     }
 
     void openPopup() {
@@ -67,7 +65,7 @@ struct KiwiSDRMapSelector {
             ImGui::BeginChild("##geomap-kiwisdr", ws - ImVec2(0, 50), true, 0);
             geoMap.draw();
             if (geoMap.scaleTranslateDirty) {
-                geoMap.saveTo(*kiwiSDRMapConfig, configPrefix.c_str());
+                geoMap.saveTo(*config, configPrefix.c_str());
                 geoMap.scaleTranslateDirty = false;
             }
             if (!serversList) {

@@ -1,4 +1,8 @@
 
+#ifdef _WIN32
+#define _WINSOCKAPI_ // stops windows.h including winsock.h
+#endif
+
 #include "gui/brown/kiwisdr_map.h"
 #include "gui/brown/small_waterfall.h"
 
@@ -227,7 +231,7 @@ public:
         }
     };
 
-    ReportsMonitorModule(std::string name, std::string root) : selector(root, "WebSDR View") {
+    ReportsMonitorModule(std::string name, std::string root) : selector(root, &config, "WebSDR View") {
         this->name = name;
         gui::menu.registerEntry(name, _menuHandler, this, NULL);
     }

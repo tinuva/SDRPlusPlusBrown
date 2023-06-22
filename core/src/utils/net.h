@@ -5,7 +5,9 @@
 #include <memory>
 #include <map>
 
+
 #ifdef _WIN32
+#define _WINSOCKAPI_ // stops windows.h including winsock.h
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <iphlpapi.h>
