@@ -1,4 +1,8 @@
 #pragma once
+#ifdef _WIN32
+#define _WINSOCKAPI_ // stops windows.h including winsock.h
+#endif
+
 #include <json.hpp>
 #include <imgui/imgui.h>
 #include <stdint.h>

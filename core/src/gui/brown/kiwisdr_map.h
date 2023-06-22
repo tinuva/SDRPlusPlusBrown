@@ -1,15 +1,15 @@
 #pragma once
 
 #define IMGUI_DEFINE_MATH_OPERATORS
+#include <core.h>
 #include <imgui.h>
 #include <imgui_internal.h>
-#include <gui/brown/geomap.h>
 #include <gui/style.h>
 #include <filesystem>
 #include <fstream>
 #include "gui/widgets/simple_widgets.h"
-#include "kiwisdr_map.h"
 #include "utils/proto/kiwisdr.h"
+#include <gui/brown/geomap.h>
 
 extern std::shared_ptr<ConfigManager> kiwiSDRMapConfig;
 

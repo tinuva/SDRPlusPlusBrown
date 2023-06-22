@@ -1,6 +1,5 @@
 #pragma once
 
-#include "utils/proto/websock.h"
 #include <dsp/types.h>
 #include <complex>
 #include <atomic>
@@ -8,6 +7,8 @@
 #include <thread>
 #include <core.h>
 #include <atomic>
+#include "utils/usleep.h"
+#include "utils/proto/websock.h"
 
 struct KiwiSDRClient {
     net::websock::WSClient wsClient;

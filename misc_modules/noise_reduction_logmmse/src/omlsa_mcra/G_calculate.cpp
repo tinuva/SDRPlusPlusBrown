@@ -3,10 +3,14 @@
 #include"SearchChart.h"
 #include"time.h"
 #include<algorithm>
+#include <sdrpp_export.h>
 
 using namespace std;
 
-extern char* sdrppResourcesDirectory;
+#ifdef _WIN32
+#define _WINSOCKAPI_    // stops windows.h including winsock.h
+#endif
+SDRPP_EXPORT char* sdrppResourcesDirectory;
 
 G_calculate::G_calculate()
 {

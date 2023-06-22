@@ -1,3 +1,8 @@
+
+#ifdef _WIN32
+#define _WINSOCKAPI_ // stops windows.h including winsock.h
+#endif
+
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 
