@@ -98,7 +98,7 @@ class MainActivity : NativeActivity(), SensorEventListener {
         }
     }
 
-    val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO, Manifest.permission.INTERNET);
+    val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO, Manifest.permission.INTERNET, Manifest.permission.HIGH_SAMPLING_RATE_SENSORS);
     val PERMISSION_REQUEST_CODE = 1001;
 
     fun checkAndAsk(permission: String) {
