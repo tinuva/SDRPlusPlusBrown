@@ -86,6 +86,8 @@ public:
     std::shared_ptr<QSOPanel> qsoPanel;
     std::shared_ptr<CWPanel> cwPanel;
     int smallWheelFunctionN = 0;
+    int encoderWidth = 150;
+    float buttonsWidthScale = 1.0;
 
     std::string currentDXInfo = "";
     bool doQSOAudioRecording = true;
@@ -102,6 +104,7 @@ public:
     int cwWPM = 18;
     int txOffset = 0;       // for digital modes / audio player
     int txFrequencyOverride = 0;       // for digital modes / audio player
+    int txBandwidthOverride = 0;       // for digital modes / audio player
     std::string txSubmodeOverride;       // for digital modes / audio player
     bool audioIsIqData = false;     // for audio player, affects the formation of tx iq data
 

@@ -998,10 +998,12 @@ private:
                                               [=]() {
                                                   gui::mainWindow.txSubmodeOverride = "USB";
                                                   gui::mainWindow.txFrequencyOverride = frequency;
+                                                  gui::mainWindow.txBandwidthOverride = 1000;
                                               },
                                               [=]() {
                                                   gui::mainWindow.txSubmodeOverride = "";
                                                   gui::mainWindow.txFrequencyOverride = 0;
+                                                  gui::mainWindow.txBandwidthOverride = 0;
                                               });
                 flog::info("Done FT8");
             });

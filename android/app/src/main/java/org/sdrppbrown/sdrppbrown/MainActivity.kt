@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.content.res.AssetManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -31,6 +32,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
 import java.io.BufferedReader
 import java.io.File
@@ -96,6 +98,8 @@ class MainActivity : NativeActivity(), SensorEventListener {
         }
     }
 
+    val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO, Manifest.permission.INTERNET);
+    val PERMISSION_REQUEST_CODE = 1001;
 
     fun checkAndAsk(permission: String) {
         if (PermissionChecker.checkSelfPermission(
@@ -182,6 +186,93 @@ class MainActivity : NativeActivity(), SensorEventListener {
         sensorManager.unregisterListener(this)
     }
 
+    fun proceedWithPermissions() {
+
+        if (REQUIRED_PERMISSIONS.all {
+            ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
+        }) {
+            this.permissionsPassed.add(PERMISSION_REQUEST_CODE);
+        }
+        if (permissionsPassed.contains(PERMISSION_REQUEST_CODE)) {
+            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSION_REQUEST_CODE);
+            return;
+        }
+        if (!permissionsPassed.contains(PERMISSION_REQUEST_CODE+1)) {
+            // USB stuff
+            usbManager = getSystemService(USB_SERVICE) as UsbManager;
+            val filter = IntentFilter(ACTION_USB_PERMISSION)
+            registerReceiver(usbReceiver, filter)
+
+
+            // Get permission for all USB devices
+            usbReceiver.devList = usbManager!!.getDeviceList();
+//        Log.w("SDR++", "Dev list size: " + devList.size.toString())
+
+            val permissionIntent = makeUsbPermissionIntent()
+
+            for ((name, dev) in usbReceiver.devList) {
+                Log.w("SDR++", "Dev list item: $name $dev")
+                val prodName = dev.productName?.toUpperCase(Locale.US) ?: ""
+                if (prodName.indexOf("Network") != -1
+                    || prodName.indexOf("LAN") != -1
+                    || prodName.indexOf("KEYBOARD") != -1
+                    || prodName.indexOf("MOUSE") != -1
+                )
+                // ignore LAN device.
+                    continue
+                usbManager!!.requestPermission(dev, permissionIntent);
+                return
+            }
+            permissionsPassed.add(PERMISSION_REQUEST_CODE+1)
+        }
+
+        if (!permissionsPassed.contains(PERMISSION_REQUEST_CODE+2)) {
+            // filesystem crap
+            val externalStorageDirectory = Environment.getExternalStorageDirectory()
+            val testFile = File(externalStorageDirectory, "sdrppbrown.test")
+            Log.w("SDR++", "Trying Test file: $testFile")
+            var success = false;
+            try {
+                testFile.delete()
+                success = testFile.createNewFile()
+            } catch (e: java.lang.Exception) {
+                Log.w("SDR++", "Test file create: Exception: ${e.message}")
+                // no luck
+            }
+            if (success) {
+                testFile.delete()
+            } else {
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                val uri: Uri = Uri.fromParts("package", packageName, null)
+                intent.data = uri
+                startActivityForResult(intent, PERMISSION_REQUEST_CODE+2);
+                return;
+            }
+            permissionsPassed.add(PERMISSION_REQUEST_CODE+2);
+
+        }
+
+        // temporary directory for C++
+        val cacheDir = cacheDir
+        this.thisCacheDir = cacheDir.absolutePath
+
+
+    }
+
+    var permissionsPassed = HashSet<Int>();
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        if (requestCode > PERMISSION_REQUEST_CODE && requestCode < PERMISSION_REQUEST_CODE + 10) {
+            this.permissionsPassed.add(requestCode);
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        proceedWithPermissions();
+    }
+
     public override fun onCreate(savedInstanceState: Bundle?) {
         // Hide bars
         hideSystemBars();
@@ -214,65 +305,13 @@ class MainActivity : NativeActivity(), SensorEventListener {
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE;
 
-        // Ask for required permissions, without these the app cannot run.
-        checkAndAsk(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        checkAndAsk(Manifest.permission.READ_EXTERNAL_STORAGE);
-
-        // TODO: Have the main code wait until these two permissions are available
-
-        // Register events
-        usbManager = getSystemService(USB_SERVICE) as UsbManager;
-        val filter = IntentFilter(ACTION_USB_PERMISSION)
-        registerReceiver(usbReceiver, filter)
+        //// cont here
 
 
-        // Get permission for all USB devices
-        usbReceiver.devList = usbManager!!.getDeviceList();
-//        Log.w("SDR++", "Dev list size: " + devList.size.toString())
-
-        val permissionIntent = makeUsbPermissionIntent()
-
-        for ((name, dev) in usbReceiver.devList) {
-            Log.w("SDR++", "Dev list item: $name $dev")
-            val prodName = dev.productName?.toUpperCase(Locale.US) ?: ""
-            if (prodName.indexOf("Network") != -1
-                || prodName.indexOf("LAN") != -1
-                || prodName.indexOf("KEYBOARD") != -1
-                || prodName.indexOf("MOUSE") != -1
-            )
-                // ignore LAN device.
-                continue
-            usbManager!!.requestPermission(dev, permissionIntent);
-            break; // next request in the handler.
-        }
-
-        // Ask for internet permission
-        checkAndAsk(Manifest.permission.INTERNET);
-        checkAndAsk(Manifest.permission.RECORD_AUDIO);
-
-        val externalStorageDirectory = Environment.getExternalStorageDirectory()
-        val testFile = File(externalStorageDirectory, "sdrppbrown.test")
-        var success = false;
-        try {
-            testFile.delete()
-            success = testFile.createNewFile()
-        } catch (e: java.lang.Exception) {
-            // no luck
-        }
-        if (success) {
-            testFile.delete()
-        } else {
-            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-            val uri: Uri = Uri.fromParts("package", packageName, null)
-            intent.data = uri
-            startActivityForResult(intent, 0);
-        }
-
-        // temporary directory for C++
-        val cacheDir = cacheDir
-        this.thisCacheDir = cacheDir.absolutePath
 
         super.onCreate(savedInstanceState)
+
+        proceedWithPermissions();
     }
 
     public fun httpGet(url: String): String {
@@ -301,14 +340,14 @@ class MainActivity : NativeActivity(), SensorEventListener {
         try {
             return PendingIntent.getBroadcast(
                 this@MainActivity,
-                0,
+                PERMISSION_REQUEST_CODE+1,
                 Intent(ACTION_USB_PERMISSION),
                 0
             )
         } catch (e: Exception) {
             return PendingIntent.getBroadcast(
                 this@MainActivity,
-                0,
+                PERMISSION_REQUEST_CODE+1,
                 Intent(ACTION_USB_PERMISSION),
                 FLAG_MUTABLE
             )

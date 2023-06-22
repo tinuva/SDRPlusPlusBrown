@@ -403,12 +403,15 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
 
     void start() override {
         flog::info("AudioInToTransmitter: Start");
-        auto lowPassBW = bandwidth;
         dsp::taps::free(halfBandPassTaps);
         dsp::taps::free(fullBandPassTaps);
         auto submode = this->submode;
         if (gui::mainWindow.txSubmodeOverride != "") {
             submode = gui::mainWindow.txSubmodeOverride;
+        }
+        auto bw = bandwidth;
+        if (gui::mainWindow.txBandwidthOverride > 0) {
+            bw = gui::mainWindow.txBandwidthOverride;
         }
         if (submode == "LSB" || submode == "USB") {
             if (audioIsIqData) {
@@ -425,16 +428,16 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
             } else {
                 // normal audio
                 if (submode == "LSB") {
-                    xlator1.init(nullptr, -(bandwidth) / 2, trxAudioSampleRate);
-                    xlator2.init(nullptr, bandwidth / 2, trxAudioSampleRate);
+                    xlator1.init(nullptr, -(bw) / 2, trxAudioSampleRate);
+                    xlator2.init(nullptr, bw / 2, trxAudioSampleRate);
                 }
                 if (submode == "USB") {
-                    xlator1.init(nullptr, (bandwidth) / 2, trxAudioSampleRate);
-                    xlator2.init(nullptr, -bandwidth / 2, trxAudioSampleRate);
+                    xlator1.init(nullptr, (bw) / 2, trxAudioSampleRate);
+                    xlator2.init(nullptr, -bw / 2, trxAudioSampleRate);
                 }
-                halfBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(bandwidth / 2, bandwidth / 2 * 0.1, trxAudioSampleRate);
+                halfBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(bw / 2, bw / 2 * 0.1, trxAudioSampleRate);
                 halfBandPassFilter.init(nullptr, halfBandPassTaps);
-                fullBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(bandwidth, bandwidth * 0.1, trxAudioSampleRate);
+                fullBandPassTaps = dsp::taps::lowPass0<dsp::complex_t>(bw, bw * 0.1, trxAudioSampleRate);
                 fullBandPassFilter.init(nullptr, fullBandPassTaps);
             }
         }
@@ -1670,7 +1673,6 @@ void MobileMainWindow::draw() {
 
     auto cornerPos = ImGui::GetCursorPos();
 
-    float encoderWidth = 150;
     float defaultButtonsWidth = 300;
     float buttonsWidth = defaultButtonsWidth;
     float statusHeight = 100;
@@ -1684,6 +1686,8 @@ void MobileMainWindow::draw() {
     default:
         break;
     }
+    buttonsWidth *= buttonsWidthScale;
+    defaultButtonsWidth *= buttonsWidthScale;
 
     if (demoWindow) {
         lockWaterfallControls = true;
@@ -2509,6 +2513,8 @@ void MobileMainWindow::init() {
     getConfig("showAudioWaterfall", drawAudioWaterfall);
     getConfig("logbookPopupPosition_x", logbookPopupPosition.x);
     getConfig("logbookPopupPosition_y", logbookPopupPosition.y);
+    getConfig("buttonsWidthScale", buttonsWidthScale);
+    getConfig("encoderWidth", encoderWidth);
 
 
     displaymenu::onDisplayDraw.bindHandler(&displayDrawHandler);
@@ -2516,6 +2522,16 @@ void MobileMainWindow::init() {
         MobileMainWindow* _this = (MobileMainWindow*)data;
         if (ImGui::Checkbox("Show Audio Waterfall##_sdrpp", &_this->drawAudioWaterfall)) {
             setConfig("showAudioWaterfall", _this->drawAudioWaterfall);
+        }
+        ImGui::LeftLabel("Wheel Width");
+        ImGui::FillWidth();
+        if (ImGui::SliderInt("##mmw_wheel_width", &_this->encoderWidth, 15, 200)) {
+            setConfig("encoderWidth", _this->encoderWidth);
+        }
+        ImGui::LeftLabel("TX Panel Width");
+        ImGui::FillWidth();
+        if (ImGui::SliderFloat("##mmw_buttons_width", &_this->buttonsWidthScale, 0.3, 3)) {
+            setConfig("buttonsWidthScale", _this->buttonsWidthScale);
         }
     };
     displayDrawHandler.ctx = this;

@@ -561,6 +561,7 @@ extern "C" {
         strcpy(cacheDirPath, cacheDir.c_str());
 
         float displayDensity = atof(backend::getDisplayDensityStr().c_str());
+        flog::info("Display density: %f", displayDensity);
         if (displayDensity != 0.0f) {
             displaymenu::displayDensity = displayDensity;
         }
