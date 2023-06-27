@@ -66,8 +66,6 @@ class MobileMainWindow : public MainWindow {
 public:
     TheEncoder encoder;
     TheEncoder smallEncoder;
-    MobileButton bandUp;
-    MobileButton bandDown;
     MobileButton zoomToggle;
     MobileButton autoWaterfall;
     MobileButton audioConfigToggle;
@@ -237,7 +235,6 @@ public:
     void setCurrentModeAttr(const std::string& key, std::string val);
     void updateFrequencyAfterChange();
     void updateSubmodeAfterChange();
-    void autoDetectBand(int frequency);
     const std::string &getBand(int frequency);
     void leaveBandOrMode(int leavingFrequency);
     void selectSSBModeForBand(const std::string& band);

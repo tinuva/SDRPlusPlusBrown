@@ -58,7 +58,6 @@ public:
         handler.tuneHandler = tune;
         handler.stream = &stream;
 
-        refresh();
 
         config.acquire();
         std::string devSerial = config.conf["device"];
@@ -68,6 +67,7 @@ public:
         }
         config.release();
 
+        refresh();
         sigpath::sourceManager.registerSource("Hermes Lite 2", &handler);
         selectFirst();
 

@@ -380,19 +380,47 @@ namespace net {
         // Create socket
         SockHandle_t s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
+        setNonblocking(s);
+
         // Connect to server
         if (::connect(s, (sockaddr*)&addr.addr, sizeof(sockaddr_in))) {
-            closeSocket(s);
-#ifdef __linux__
-            throw std::runtime_error("Could not connect: " + std::string(strerror(errno)));
+#ifdef _WIN32
+            auto le = WSAGetLastError();
+            if (le != WSAEWOULDBLOCK) {
+                closeSocket(s);
+                LPVOID lpMsgBuf;
+                FormatMessage(
+                    FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                    FORMAT_MESSAGE_FROM_SYSTEM |
+                    FORMAT_MESSAGE_IGNORE_INSERTS,
+                    NULL,
+                    le,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                    (LPTSTR) &lpMsgBuf,
+                    0, NULL );
+                std::string err ="Could not connect: " + string((char*)lpMsgBuf);
+                LocalFree(lpMsgBuf);
+                throw std::runtime_error(err);
+            }
 #else
-            throw std::runtime_error("Could not connect");
+            auto err = errno;
+            if (err != EINPROGRESS) {
+                closeSocket(s);
+                throw std::runtime_error("Could not connect: " + std::string(strerror(err)));
+            }
 #endif
-            return NULL;
         }
 
-        // Enable nonblocking mode
-        setNonblocking(s);
+        struct pollfd pfds[1];
+        pfds[0].fd = s;
+        pfds[0].events = POLLOUT;
+
+        int pollRes = poll(pfds, 1, 5 * 1000); // convert timeout to milliseconds for poll()
+
+        if (pollRes <= 0) {
+            closeSocket(s);
+            throw std::runtime_error("Connection timeout");
+        }
 
         // Return socket class
         return std::make_shared<Socket>(s);

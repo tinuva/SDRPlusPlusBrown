@@ -138,7 +138,7 @@ namespace net {
                 uint16_t remain = len, pos = startpos;
                 uint32_t start = currentTimeMillis();
                 while (remain > 0) {
-                    if (!client->isOpen()) {
+                    if (!client || !client->isOpen()) {
                         return false;
                     }
                     int n = client->recv(&buf[pos], remain, true, 1000);
@@ -406,8 +406,10 @@ namespace net {
                     }
                     return true;
                 } else {
-                    client->close();
-                    client.reset();
+                    if (client) {
+                        client->close();
+                        client.reset();
+                    }
                     return false;
                 }
             }

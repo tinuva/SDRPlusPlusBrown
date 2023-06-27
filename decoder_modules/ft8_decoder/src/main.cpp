@@ -280,7 +280,7 @@ static std::pair<int,int> calculateVFOCenterOffset(const std::vector<int> &frequ
 
 
 class FT8DecoderModule;
-static std::vector<int> ft8Frequencies = { 1840000, 3573000, 5357000, 7074000, 10136000, 14074000, 18100000, 21074000, 24915000, 28074000, 50000000 };
+static std::vector<int> ft8Frequencies = { 1840000, 3573000, 5357000, 7074000, 10136000, 14074000, 18100000, 21074000, 24915000, 28074000, 50313000 };
 
 struct SingleDecoder {
     FT8DecoderModule *mod;
@@ -1102,7 +1102,7 @@ void FT8DrawableDecodedResult::draw(const ImVec2& _origin, ImGuiWindow* window) 
     auto maxCorner = origin + textSize - ImVec2(0, 2);
     window->DrawList->AddRectFilled(origin, maxCorner, IM_COL32(RR, GG, BB, 160));
 
-    if (ImGui::IsMouseHoveringRect(origin, maxCorner)) {
+    if (ImGui::IsMouseHoveringRect(origin, maxCorner) && !gui::mainWindow.showMenu) {
         char buf[128];
         ImGui::BeginTooltip();
 

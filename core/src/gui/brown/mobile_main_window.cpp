@@ -1539,6 +1539,8 @@ void MobileMainWindow::updateSubmodeAfterChange() {
 }
 
 void MobileMainWindow::updateFrequencyAfterChange() {
+    // this is broken and gonna die.
+    /*
     auto mode = getCurrentMode();
     auto submode = getCurrentModeAttr("submode");
     auto band = getCurrentBand();
@@ -1557,24 +1559,7 @@ void MobileMainWindow::updateFrequencyAfterChange() {
     if (nfreq != 0) {
         tuner::tune(tuner::TUNER_MODE_CENTER, gui::waterfall.selectedVFO, nfreq * 1000.0);
     }
-}
-
-void MobileMainWindow::autoDetectBand(int frequency) {
-    static int lastFrequency = 0;
-    static const std::string* lastFreqBand = nullptr;
-    const std::string* newBand;
-
-    if (frequency == lastFrequency) {
-        newBand = lastFreqBand;
-    }
-    else {
-        newBand = &this->getBand(frequency);
-        lastFrequency = frequency;
-        lastFreqBand = newBand;
-    }
-    if (*newBand != this->bandUp.upperText) {
-        this->bandUp.upperText = *newBand;
-    }
+     */
 }
 
 void MobileMainWindow::updateAudioWaterfallPipeline() {
@@ -1640,6 +1625,7 @@ void MobileMainWindow::draw() {
         return;
     }
     if (shouldInitialize) {
+        /*
         shouldInitialize = false;
         if (getCurrentBand().empty()) {
             selectCurrentBand("20M", -1);
@@ -1649,6 +1635,7 @@ void MobileMainWindow::draw() {
         modeToggle.upperText = currentMode;
         updateSubmodeAfterChange();
         zoomToggle.upperText = "custom";
+         */
     }
     gui::waterfall.alwaysDrawLine = true;
     ImGui::WaterfallVFO* vfo = nullptr; // gets initialized below
@@ -1712,11 +1699,6 @@ void MobileMainWindow::draw() {
     auto waterfallStart = ImGui::GetCursorPos();
     gui::waterfall.draw();
 
-
-    ImGui::SetCursorPos(waterfallStart + ImVec2(gui::waterfall.fftAreaMin.x + 5 * style::uiScale, 0));
-    ImGui::PushFont(style::mediumFont);
-    ImGui::Text("BAND: %s", this->bandUp.upperText.c_str());
-    ImGui::PopFont();
 
     onWaterfallDrawn.emit(GImGui);
     ImGui::EndChild();
@@ -1886,7 +1868,7 @@ void MobileMainWindow::draw() {
         }
     }
     //    auto currentFreq = vfo ? (vfo->generalOffset + gui::waterfall.getCenterFrequency()) : gui::waterfall.getCenterFrequency();
-    this->autoDetectBand((int)currentFreq);
+//    this->autoDetectBand((int)currentFreq);
     ImGui::EndChild(); // encoder
 
 
@@ -2138,27 +2120,6 @@ void MobileMainWindow::draw() {
         makeZoom(selectedIndex);
     }
 
-    if (pressedButton == &this->bandUp || pressedButton == &this->bandDown) {
-        auto cb = getCurrentBand();
-        auto cbIter = std::find(bands.begin(), bands.end(), cb);
-        if (cbIter != bands.end()) {
-            auto cbIndex = cbIter - bands.begin();
-            if (pressedButton == &this->bandUp) {
-                cbIndex = (int)(cbIndex + 1) % bands.size();
-            }
-            else {
-                cbIndex = (int)(cbIndex + bands.size() - 1) % bands.size();
-            }
-            auto newBand = bands[cbIndex];
-            selectCurrentBand(newBand, (int)currentFreq);
-            if (getCurrentMode() == "SSB") {
-                this->selectSSBModeForBand(newBand);
-            }
-            updateFrequencyAfterChange();
-        }
-    }
-
-
     if (pressedButton == &this->modeToggle) {
         ImGui::OpenPopup(TxModePopup);
     }
@@ -2351,15 +2312,7 @@ void MobileMainWindow::draw() {
 }
 
 std::string MobileMainWindow::getCurrentBand() {
-    std::string retval;
-    core::configManager.acquire();
-    if (core::configManager.conf.find("mobileBand") == core::configManager.conf.end()) {
-        core::configManager.release(false);
-        return "20M";
-    }
-    retval = core::configManager.conf["mobileBand"];
-    core::configManager.release(false);
-    return retval;
+    return getBand(gui::waterfall.getCenterFrequency());
 }
 
 std::string MobileMainWindow::getCurrentMode() {
@@ -2474,8 +2427,6 @@ const std::string& MobileMainWindow::getBand(int frequency) {
 
 
 MobileMainWindow::MobileMainWindow() : MainWindow(),
-                                       bandUp("14 Mhz", "+"),
-                                       bandDown("", "-"),
                                        zoomToggle("custom", "Zoom"),
                                        smallWheelFunction("", smallWheelFunctionName(0)),
                                        audioConfigToggle("", "Audio Cfg"),

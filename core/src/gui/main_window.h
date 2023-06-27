@@ -50,6 +50,7 @@ public:
     bool hasBottomWindow(std::string name);
 
     bool logWindow = false;
+    bool showMenu = true;
 
 protected:
     static void vfoAddedHandler(VFOManager::VFO* vfo, void* ctx);
@@ -74,7 +75,6 @@ protected:
     bool grabbingMenu = false;
     int newWidth = 300;
     int fftHeight = 300;
-    bool showMenu = true;
     int tuningMode = tuner::TUNER_MODE_NORMAL;
 
     dsp::stream<dsp::complex_t> dummyStream;
