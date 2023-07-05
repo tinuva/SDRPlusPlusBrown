@@ -154,7 +154,7 @@ namespace displaymenu {
     void draw(void* ctx) {
         float menuWidth = ImGui::GetContentRegionAvail().x;
         bool homePressed = ImGui::IsKeyPressed(ImGuiKey_Home, false);
-        if (ImGui::Checkbox("Phone layout##_sdrpp", &phoneLayout)) {
+        if (ImGui::Checkbox("Small screen / thick fingers##_sdrpp", &phoneLayout)) {
             core::configManager.acquire();
             core::configManager.conf["smallScreen"] = phoneLayout;
             core::configManager.release(true);

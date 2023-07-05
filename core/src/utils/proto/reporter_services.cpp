@@ -89,7 +89,7 @@ namespace net {
                         }
                         flog::info("{}", line);
                         Report report;
-                        report.timestamp = fields[0].substr(11)+"00Z";
+                        report.timestamp = fields[0].substr(11)+":00Z";
                         report.reporterCallsign = fields[7];
                         report.reportedCallsign = fields[1];
                         report.frequency = atof(fields[2].c_str())*1000000;
