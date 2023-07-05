@@ -2,6 +2,7 @@
 #include <string.h>
 #include <codecvt>
 #include <stdexcept>
+#include <string>
 
 #ifdef _WIN32
 #define WOULD_BLOCK (WSAGetLastError() == WSAEWOULDBLOCK)
@@ -158,25 +159,12 @@ namespace net {
 
 #if defined(__ANDROID__) || defined(__linux__)
 
-//                int flags = fcntl(sock, F_GETFL, 0);
-//                if (flags == -1)
-//                {
-//                    // handle error
-//                    return -1;
-//                }
-//
-//                int nflags = flags & ~O_NONBLOCK; // clear O_NONBLOCK flag
-//
-//                if (fcntl(sock, F_SETFL, nflags) == -1)
-//                {
-//                    // handle error
-//                    return -1;
-//                }
                 struct pollfd fd;
                 fd.fd = sock;
                 fd.events = POLLIN;
                 int err = poll(&fd, 1, timeout); // 1 second for timeout
 #else
+                FD_ZERO(&set);
                 // Enable FD in set
                 FD_SET(sock, &set);
 
@@ -411,6 +399,7 @@ namespace net {
 #endif
         }
 
+#ifndef _WIN32
         struct pollfd pfds[1];
         pfds[0].fd = s;
         pfds[0].events = POLLOUT;
@@ -421,6 +410,21 @@ namespace net {
             closeSocket(s);
             throw std::runtime_error("Connection timeout");
         }
+#else
+        fd_set set;
+        FD_SET(s, &set);
+
+        // Set timeout
+        timeval tv;
+        tv.tv_sec = 0;
+        tv.tv_usec = timeout * 1000;
+        // Wait for data
+        int err = select(s+1, &set, NULL, &set, (timeout > 0) ? &tv : NULL);
+        if (err <= 0) {
+            closeSocket(s);
+            throw std::runtime_error("Connection timeout");
+        }
+#endif
 
         // Return socket class
         return std::make_shared<Socket>(s);
