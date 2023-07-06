@@ -386,7 +386,7 @@ namespace net {
                     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                     (LPTSTR) &lpMsgBuf,
                     0, NULL );
-                std::string err ="Could not connect: " + string((char*)lpMsgBuf);
+                std::string err ="Could not connect: " + std::string((char*)lpMsgBuf);
                 LocalFree(lpMsgBuf);
                 throw std::runtime_error(err);
             }
@@ -416,10 +416,10 @@ namespace net {
 
         // Set timeout
         timeval tv;
-        tv.tv_sec = 0;
-        tv.tv_usec = timeout * 1000;
+        tv.tv_sec = 5;
+        tv.tv_usec = 0;
         // Wait for data
-        int err = select(s+1, &set, NULL, &set, (timeout > 0) ? &tv : NULL);
+        int err = select(s+1, &set, NULL, &set, &tv);
         if (err <= 0) {
             closeSocket(s);
             throw std::runtime_error("Connection timeout");
