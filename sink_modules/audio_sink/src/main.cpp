@@ -63,54 +63,57 @@ public:
         int count = audio.getDeviceCount();
         RtAudio::DeviceInfo info;
         for (int i = 0; i < count; i++) {
-            info = audio.getDeviceInfo(i);
-            if (info.isDefaultInput) {
-                inputDeviceInfo = info;
-                defaultInputDeviceId = i;
-                flog::info("Default input: {} defaultInputDeviceId={}", info.name, std::to_string(i));
+            try {
+                info = audio.getDeviceInfo(i);
+                if (info.isDefaultInput) {
+                    inputDeviceInfo = info;
+                    defaultInputDeviceId = i;
+                    flog::info("Default input: {} defaultInputDeviceId={}", info.name, std::to_string(i));
+                }
+                if (!info.probed) {
+                    RtAudio::StreamParameters parameters;
+                    parameters.deviceId = i;
+                    parameters.nChannels = 2;
+                    unsigned int bufferFrames = sampleRate / 60;
+                    RtAudio::StreamOptions opts;
+                    //                opts.flags = RTAUDIO_MINIMIZE_LATENCY;
+                    opts.streamName = _streamName;
+                    info.probed = true;
+                    rtaudioCallbackError = false;
+                    try {
+                        audio.openStream(&parameters, NULL, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback, this, &opts, rtaudioCallback);
+                    }
+                    catch (RtAudioError &err) {
+                        rtaudioCallbackError = true;
+                    }
+                    if (rtaudioCallbackError) {
+                        continue;
+                    }
+                    audio.closeStream();
+                    info.outputChannels = 2;
+                }
+                if (info.outputChannels == 0) { continue; }
+                if (info.isDefaultOutput) { defaultOutputDevId = devList.size(); }
+                devList.push_back(info);
+                txtDevList += info.name;
+                txtDevList += '\0';
+                auto ni = info;
+                ni.name += " -> left";
+                devList.push_back(ni);
+                txtDevList += ni.name;
+                txtDevList += '\0';
+                ni = info;
+                ni.name += " -> right";
+                devList.push_back(ni);
+                txtDevList += ni.name;
+                txtDevList += '\0';
+                deviceIds.push_back(i);
+                deviceIds.push_back(i);
+                deviceIds.push_back(i);
+            } catch (std::exception e) {
+                flog::error("AudioSinkModule Error getting audio device info: {0}", e.what());
             }
-            if (!info.probed) {
-                RtAudio::StreamParameters parameters;
-                parameters.deviceId = i;
-                parameters.nChannels = 2;
-                unsigned int bufferFrames = sampleRate / 60;
-                RtAudio::StreamOptions opts;
-                //                opts.flags = RTAUDIO_MINIMIZE_LATENCY;
-                opts.streamName = _streamName;
-                info.probed = true;
-                rtaudioCallbackError = false;
-                try {
-                    audio.openStream(&parameters, NULL, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &callback, this, &opts, rtaudioCallback);
-                }
-                catch (RtAudioError& err) {
-                    rtaudioCallbackError = true;
-                }
-                if (rtaudioCallbackError) {
-                    continue;
-                }
-                audio.closeStream();
-                info.outputChannels = 2;
-            }
-            if (info.outputChannels == 0) { continue; }
-            if (info.isDefaultOutput) { defaultOutputDevId = devList.size(); }
-            devList.push_back(info);
-            txtDevList += info.name;
-            txtDevList += '\0';
-            auto ni = info;
-            ni.name += " -> left";
-            devList.push_back(ni);
-            txtDevList += ni.name;
-            txtDevList += '\0';
-            ni = info;
-            ni.name += " -> right";
-            devList.push_back(ni);
-            txtDevList += ni.name;
-            txtDevList += '\0';
-            deviceIds.push_back(i);
-            deviceIds.push_back(i);
-            deviceIds.push_back(i);
         }
-
         selectByName(device);
     }
 
