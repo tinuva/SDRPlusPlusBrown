@@ -34,11 +34,13 @@ read on below.
 * [Noise Reduction](#noise-reduction) - both for audio frequency and baseband (visual noise reduction!)
 * [Hermes Lite 2 support](#hermes-lite-2-support) - hl2_source plugin (don't confuse with hermes_source).
 * [Transmit mode](#transmit-mode) for Hermes Lite 2 - SSB QSO supported in full. See the [MANUAL](tx.md)
-  * transmit CQ in CW/FT8/WSPR in one button. (some kind of QSO dialogue is planned for later where applicable)
+  * record and then transmit the SSB CQ call to the air.
+  * [transmit CQ](#self-monitoring-using-digital-modes) in CW/FT8/WSPR in one button. (some kind of QSO dialogue is planned for later where applicable)
 * [SNR Chart](#snr-chart) during RX to compare SNR while tweaking antennas, de-noising etc.
-* SNR Chart during TX (using multiple remote kiwisdr) to compare SNR while transmitting.
+* [SNR Chart during TX](#websdr-view) (using multiple remote kiwisdr) to compare SNR while transmitting.
 * RBN/pskreporter/WSPRnet continuous monitoring for your own call (estimate your signal when tuning your antenna)
-* [QSO / SWL Logging](#qso-logging) allows to add log records with date/time/frequency/callsign/rst etc. Optimized for mobile. 
+* [QSO / SWL Logging](#qso-logging) allows to add log records with date/time/frequency/callsign/rst etc. Optimized for mobile.
+  * single-button save of the audio recording of your QSO (wav file) up to 3 minutes long.
 * Saving of zoom parameters between sessions
 * Mouse wheel support on the sliders
 * Unicode support in fonts (Cyrillic), filenames and installation path (UTF-8), on Windows, too.
@@ -128,6 +130,31 @@ it is parsed as received/sent RST. Remainder of text is comment. UI is minimal. 
 Haptic feedback on Android.
 
 ![](logging.jpg)
+
+## Websdr View
+
+You can manually add multiple kiwisdr waterfalls. They will be displayed in multiple windows. To
+save you from kiwisdr network ban by IP, by default you can only view them for the duration less than
+minute all together at a time. Use with caution! Respect their bandwidth.
+
+Use for that is self-monitoring of your own transmission. Press "Soft Tune" and
+observe your signal on multiple remote websdrs, give yourself an estimate of propagation and
+your antenna properties.
+
+![](websdr-view.png)
+
+## Self-monitoring using digital modes
+
+You can easily transmit CQ in FT8, WSPR or CW mode in single press of a button and immediately observe your signals on related monitoring services
+such as [PSKReporter](https://pskreporter.info/pskmap.html) or [WSPRnet](https://wsprnet.org/drupal/wsprnet/map)
+or Reverse Beacon Network. This is a good way to estimate your antenna performance and propagation conditions.
+
+![](self-monitoring1.png)
+
+Feedback from those services is integrated into the application, which is useful during portable 
+operations, or other conditions.
+
+![](self-monitoring2.png)
 
 ## SNR Chart
 

@@ -1,12 +1,9 @@
 
 # SDR++Brown transmit functionality
 
-## Updates not reflected in the below document
+## Recent news (few tx features are reported in main document)
 
-* 2023-06-15: Send CQ in WSPR/FT8/CW. Also, pskreporter/rbn/wsprnet monitoring integrated.
 * 2023-06-12: It is possible to specify direct address of Hermes Lite, if broadcast scanning does not work for your specific network configuration.
-* 2023-06-12: websdr_view plugin.
-* 2023-06-01: Embedded Logbook with cty.dat file support. 
 * 2023-06-01: Recording of QSO audio for purposes of logging. QSO audio is attached to the logbook. 
 * 2023-06-01: Recording CQ call and sending it to the air. 
 
@@ -70,10 +67,16 @@ discovered by sdr++. If you have your TRX active in other software, stop it ther
 
 Select bandwidth (start with 48khz). Press play button on the top. You must see the waterfall and hear the noise.
 The ADC gain includes both amplification and attenuation in one control. If there's ADC overflow, it
-will be drawn in red. As of present, there's no automatic maximum gain now. 
+will be drawn in red. As of present, there's no automatic maximum gain now.
 
-The filters selection below works. On stock HL2, it controls low-pass transmit filters. On my other
-model pass-band receive filters. The checkboxes here are not synchronized with the current frequency yet.
+Not reflected on the image: you can enter static IP address as of July 2023. This static IP will be used
+along with the default discovery broadcast address list, if default broadcast is not working for you.
+Moreover, you can use additional checkbox near the static IP entry to force this IP to be added to the list
+regardless of discovery results, and to be directly connected to when you start the receiver stream (play button),
+this may help when using various simpler VPN/forwarding schemes.
+
+The filters selection below works. It controls the filter board of your transceiver. 
+The checkboxes here are not synchronized with the current frequency (yet?), you have to manually control them.
 
 ### Switching to TRX layout
 
