@@ -27,5 +27,10 @@ Have an issue? Works worse than original? File an [issue](https://github.com/san
 * make sure you put rtaudiod.dll in the build folder's root otherwise audio sink will not load.
 * use system monitor to debug missing dlls while they fail to load.
 
+## Local Android build:
+
+* put into your ~/.gradle/gradle.properties this line: sdrKitRoot=/home/user/SDRPlusPlus/android-sdr-kit/root
+  it can obtained from: https://github.com/AlexandreRouma/android-sdr-kit
+  
 Good luck.
 

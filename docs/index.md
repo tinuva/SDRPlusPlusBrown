@@ -17,10 +17,10 @@ You can try KiwiSDR right in the SDR++Brown.
 
 ## Why fork?
 
-Main project is very good, so I am standing on the shoulders of the giants (Alexandre Rouma and others) 
+Original SDR++ project is very good, so I am standing on the shoulders of the giants (Alexandre Rouma and others) 
 please check it out [by clicking here](http://sdrpp.org). My best recommendations. 
 
-However, this fork adds several features which could not find their way into the main project. 
+This ***fork adds lots of features that could not, however, find their way into the main project.*** 
 It has also been observed that addition of some features in this fork improves the chances of same features appearance in the main project!
 
 SDR++Brown is maintaining all original features from main project, the synchronization of the source code happens on regular basis.

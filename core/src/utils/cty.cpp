@@ -37,6 +37,9 @@ namespace utils {
         if (locatorString.length() == 4) {
             locatorString = locatorString + "ll";
         }
+        if (locatorString.length() > 6) {
+            locatorString = locatorString.substr(0, 6);
+        }
         if (!isValidLocatorString(locatorString)) {
             return LatLng::invalid();
         }

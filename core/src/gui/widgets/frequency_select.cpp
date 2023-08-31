@@ -224,6 +224,7 @@ void FrequencySelect::draw() {
     ImGui::SetCursorPosX(digitBottomMaxs[getNumberOfDigits()-1].x + (17.0f * style::uiScale));
 }
 
+
 void FrequencySelect::setFrequency(int64_t freq) {
     if (freq != frequency) {
         gui::vfoFrequencyChanged.emit({(float)freq});

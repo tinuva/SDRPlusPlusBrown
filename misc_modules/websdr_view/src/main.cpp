@@ -309,11 +309,14 @@ private:
         if (doFingerButton("Add new...")) {
             selector.openPopup();
         }
-        for (auto &r: receivers) {
-            if (ImGui::Button(("delete: "+r->loc).c_str())) {
-                gui::mainWindow.removeBottomWindow(r->bottomWindowName);
-                removeIndex = std::distance(receivers.begin(), std::find(receivers.begin(), receivers.end(), r));
+        for (int ri=0; ri< receivers.size(); ri++) {
+            std::shared_ptr<SingleReceiver> recvr = receivers[ri];
+            ImGui::BeginDisabled(recvr->started);
+            if (ImGui::Button(("delete: "+recvr->loc).c_str())) {
+                removeIndex = ri;
+                gui::mainWindow.removeBottomWindow(recvr->bottomWindowName);
             }
+            ImGui::EndDisabled();
         }
         if (removeIndex != -1) {
             std::shared_ptr<SingleReceiver> recvr = receivers[removeIndex];

@@ -65,6 +65,12 @@ public:
             std::string staticIpString = config.conf["staticIp"];
             strncpy(staticIp, staticIpString.c_str(), 20);
         }
+        if (config.conf.contains("scanIP")) {
+            scanIP = config.conf["scanIP"];
+        }
+        if (config.conf.contains("directIP")) {
+            directIP = config.conf["directIP"];
+        }
         config.release();
 
         refresh();
@@ -103,25 +109,25 @@ public:
         refreshing = true;
         devices = 0;
         try {
-            protocol1_discovery(staticIp);
+            protocol1_discovery(staticIp, scanIP);
         } catch (std::exception &e) {
             flog::error("Error while discovering devices: %s", e.what());
             refreshing = false;
             return;
         }
-        if (devices == 0 && directIP) {
-            devices = 1;
-            discovered[0].info.network.address.sin_addr.s_addr = inet_addr(staticIp);
-            discovered[0].info.network.address.sin_port = htons(1024);
-            discovered[0].protocol = 1;
+        if (directIP) {
+            discovered[devices].info.network.address.sin_addr.s_addr = inet_addr(staticIp);
+            discovered[devices].info.network.address.sin_port = htons(1024);
+            discovered[devices].protocol = 1;
             strcpy(discovered[0].name,"(direct) Hermes Lite V2");
-            discovered[0].device = DEVICE_HERMES_LITE2;
+            discovered[devices].device = DEVICE_HERMES_LITE2;
             // HL2 send max supported receveirs in discovery response.
-            discovered[0].supported_receivers=1;
-            discovered[0].supported_transmitters=1;
-            discovered[0].adcs=1;
-            discovered[0].frequency_min=0.0;
-            discovered[0].frequency_max=30720000.0;
+            discovered[devices].supported_receivers=1;
+            discovered[devices].supported_transmitters=1;
+            discovered[devices].adcs=1;
+            discovered[devices].frequency_min=0.0;
+            discovered[devices].frequency_max=30720000.0;
+            devices++;
         }
 
         uiLock.lock();
@@ -214,13 +220,16 @@ public:
         config.release(created);
 
 //        airspyhf_close(dev);
+        this->menuSelected(this);
     }
 
 private:
 
     static void menuSelected(void* ctx) {
         auto* _this = (HermesLite2SourceModule*)ctx;
-        core::setInputSampleRate(_this->sampleRate);
+        if (_this->sampleRate >= 48000) {
+            core::setInputSampleRate(_this->sampleRate);
+        }
         flog::info("HermerList2SourceModule '{0}': Menu Select!", _this->name);
     }
 
@@ -234,6 +243,7 @@ private:
     StreamTracker hermesSamples;
     bool showStaticIp = false;
     bool directIP = false;
+    bool scanIP = true;
     char staticIp[20]={0};
 
     void incomingSample(double i, double q) {
@@ -337,19 +347,27 @@ private:
         uiLock.unlock();
         SmGui::SameLine();
         SmGui::FillWidth();
-        if (SmGui::Button("Static IP")) {
+        if (SmGui::Button("Methods")) {
             showStaticIp = !showStaticIp;
         }
 
         if (showStaticIp) {
-            SmGui::LeftLabel("Query IP:");
-            SmGui::SameLine();
-            SmGui::Checkbox("##hl2_direct_ip", &directIP);
+            SmGui::LeftLabel("Probe IP:");
             SmGui::SameLine();
             SmGui::FillWidth();
             if (SmGui::InputText(CONCAT("##_fixed_ip_hl2_source_", name), staticIp, 19)) {
                 config.acquire();
                 config.conf["staticIp"] = staticIp;
+                config.release(true);
+            }
+            if (SmGui::Checkbox("Hardcode this IP##hl2_direct_ip", &directIP)) {
+                config.acquire();
+                config.conf["directIP"] = directIP;
+                config.release(true);
+            }
+            if (SmGui::Checkbox("Full UDP scan /24##hl2_scan_ip", &scanIP)) {
+                config.acquire();
+                config.conf["scanIP"] = scanIP;
                 config.release(true);
             }
 
@@ -372,7 +390,7 @@ private:
         SmGui::SameLine();
         SmGui::FillWidth();
         SmGui::ForceSync();
-        if (SmGui::Button(CONCAT(refreshing ? "Refreshing..##_hl2_refr_": "Refresh##_hl2_refr_", name))) {
+        if (SmGui::Button(CONCAT(refreshing ? "[Refreshing..]##_hl2_refr_": "Refresh##_hl2_refr_", name))) {
             if (!refreshing) {
                 std::thread refreshThread([&]() {
                     refresh();

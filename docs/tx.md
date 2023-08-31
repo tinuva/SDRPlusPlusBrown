@@ -166,23 +166,24 @@ above.
 * "DX equalizer/compressor" is (as of now) the fixed equalizer that boosts the high frequencies and further
   attenuates low frequencies. There's a checkbox. Also, Post-amplifier compensates the compressor results.
 * gauge below represents the signal after that stage.
-* "Hiss add" - attempts to bring "s" sound in the word "six" from the 5khz into the 1.5khz range of signal. 
-  Experimental, may not work in your build.
+* "Hiss add" - attempts to bring "s" sound in the word "six" from the 5khz into the 1.5khz range of signal. Experimental. 
 * "AGC Attack", "AGC Decay" - the signal automatic gain control. Routines are same as on receiving pipeline. 
   I found that setting very low AGC Decay (0.1) helps keeping the signal power pressure mostly constant at 
   maximum, which is good for transmission.
 * "Mic NR" - enables the microphone noise reduction (algorithm same as Audio NR2, i.e. OMLSA-MCRA). Very useful on desktop os with simple mic. 
   Not needed for the Android, because Android has its own noise reduction, already used by default.
-  Note: the use of processed/raw input in Android pipeline, there's toggle in the Sink section of the main 
+  Note: the choose the use of processed or raw input in Android pipeline, there's toggle in the Sink section of the main 
   menu. Also note that there's still work in progress, NR2 needs its own AGC that scales from complex numbers to 
-  16-bit integers samples because it's implemented in 16-bit integers, and back.
+  16-bit integers samples because it's implemented in 16-bit integers, and back. Also note that some correspondents note
+  the digital nature of the signal and express the disgust.
 * There's preamp for Mic NR
 * gauge below the "Mic NR" represents the signal after that stage.
 * "Mic SQL" enables squelch (silence detection) on the microphone. You know when person uses SDR on PC, their signal contains
   a lot of noises in the pauses. In addition to the Mic NR, Mic SQL works very well in producing
-  deep silence in the pauses, reflected in emitted radio signal. Pleasure for eyes and ears.
+  deep silence in the pauses, reflected in emitted radio signal. Pleasure for eyes and ears. Not applicable in noisy
+  environments (children, city street etc).
 * "High cut-off" - low-pass filter, that coincides with selected mode width (e.g. 2.7 Khz for SSB). You 
-  cannot tune it here, it's tuned by the default means in the sdr++, or in the "Mode" dialog.
+  cannot tune it here, it's tuned by setting the modulator bandwidth in the left menu, or in the "Mode" dialog.
 * Final phase is the amp/attenuator of the final IQ signal that is sent to the transmitter. Use "TX Soft PA"
   slider to control the scale, and observe the TX IQ.
 * Clipping occurs in the TX driver and is not shown here. Complex IQ data is translated to 16-bit samples. When
@@ -191,8 +192,8 @@ above.
   lot of out-of-band emissions and I left it that way.
 
 
-Buttons "Record" and "Play": ou can record your own voice and replay it back and observe how it sounds after processing. This is only 
-for self control. You cannot transmit the recorded voice (yet).  
+Buttons "Record" and "Play": you can record your own voice and replay it back and observe how it sounds after processing. This is only 
+for self-control.   
 
 ## My current config
 

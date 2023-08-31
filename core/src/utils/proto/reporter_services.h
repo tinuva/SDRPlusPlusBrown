@@ -45,6 +45,7 @@ namespace net {
         std::string mode;
         std::string modeParameters;
         std::string receiverLocator;
+        int distance = -1;
         float decibel;
         float frequency; // in Hz
         long long createdTimestamp;

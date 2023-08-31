@@ -1320,7 +1320,9 @@ struct MobileMainWindowPrivate {
             fname += "_";
             fname += std::to_string(r.frequency)+"000";
             fname += "_";
-            fname += r.dxcall;
+            auto dxcall = r.dxcall;
+            replaceSubstrings(dxcall,"/","_");       // replace special symbol in callsign
+            fname += dxcall;
             fname += ".wav";
             audioRecorder.flushToFile(root + "/" + fname);
             r.recordedQSO = (root + "/" + fname);
@@ -1688,18 +1690,24 @@ void MobileMainWindow::draw() {
         lockWaterfallControls = true;
     }
 
+    if (showMenu) {
+        menuWidth = core::configManager.conf["menuWidth"];
+    } else {
+        menuWidth = 0;
+    }
 
+
+    // waterfall, reduced for menu
+    ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(menuWidth, 0));
     ImVec2 waterfallRegion = ImVec2(ImGui::GetContentRegionAvail().x - encoderWidth - buttonsWidth, ImGui::GetContentRegionAvail().y - statusHeight);
 
-    lockWaterfallControls = showMenu || (qsoMode != VIEW_DEFAULT && modeToggle.upperText == "CW") || !encoder.enabled;
+    lockWaterfallControls = (qsoMode != VIEW_DEFAULT && modeToggle.upperText == "CW") || !encoder.enabled;
     if (!bottomWindows.empty()) {
         waterfallRegion.y -= bottomWindows[0].size.y;
     }
     ImGui::BeginChildEx("Waterfall", ImGui::GetID("sdrpp_waterfall"), waterfallRegion, false, 0);
-    auto waterfallStart = ImGui::GetCursorPos();
+//    auto waterfallStart = ImGui::GetCursorPos();
     gui::waterfall.draw();
-
-
     onWaterfallDrawn.emit(GImGui);
     ImGui::EndChild();
 
@@ -1730,7 +1738,6 @@ void MobileMainWindow::draw() {
 
 
     if (showMenu) {
-        menuWidth = core::configManager.conf["menuWidth"];
         const ImVec2 menuRegion = ImVec2((float)menuWidth, ImGui::GetContentRegionAvail().y);
 
 
@@ -1777,7 +1784,8 @@ void MobileMainWindow::draw() {
         ImGui::EndChild();
     }
 
-    ImGui::SetCursorPos(cornerPos + ImVec2{ waterfallRegion.x + buttonsWidth, 0 });
+    // draw encoders
+    ImGui::SetCursorPos(cornerPos + ImVec2{ waterfallRegion.x + buttonsWidth + menuWidth, 0 });
     float encodersHeight = ImGui::GetContentRegionAvail().y;
     ImGui::BeginChildEx("Small Encoder", ImGui::GetID("sdrpp_small_encoder"), ImVec2(encoderWidth, encodersHeight / 3), false, 0);
 
@@ -1840,7 +1848,7 @@ void MobileMainWindow::draw() {
     }
     }
     //    flog::info("small encoder speed: {}", smallChangeSpeed);
-    ImGui::SetCursorPos(cornerPos + ImVec2{ waterfallRegion.x + buttonsWidth, +encodersHeight / 3 });
+    ImGui::SetCursorPos(cornerPos + ImVec2{ waterfallRegion.x + buttonsWidth + menuWidth, +encodersHeight / 3 });
     ImGui::BeginChildEx("Encoder", ImGui::GetID("sdrpp_encoder"), ImVec2(encoderWidth, encodersHeight * 2 / 3), false, 0);
     auto currentFreq = vfo ? (vfo->generalOffset + gui::waterfall.getCenterFrequency()) : gui::waterfall.getCenterFrequency();
     double offsetDelta = encoder.draw(currentFreq);
@@ -1867,12 +1875,11 @@ void MobileMainWindow::draw() {
             tuner::tune(tuningMode, gui::waterfall.selectedVFO, cf);
         }
     }
-    //    auto currentFreq = vfo ? (vfo->generalOffset + gui::waterfall.getCenterFrequency()) : gui::waterfall.getCenterFrequency();
-//    this->autoDetectBand((int)currentFreq);
     ImGui::EndChild(); // encoder
 
 
-    ImGui::SetCursorPos(cornerPos + ImVec2{ waterfallRegion.x, 0 });
+    // draw TX buttons
+    ImGui::SetCursorPos(cornerPos + ImVec2{ waterfallRegion.x + menuWidth, 0 });
     auto vertPadding = ImGui::GetStyle().WindowPadding.y;
 
 
@@ -2600,6 +2607,7 @@ void MobileMainWindow::logbookDetailsPopup() {
         }
 
         if (doFingerButton("Cancel")) {
+            pvt->player.stopPlaying();
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
@@ -2610,6 +2618,7 @@ void MobileMainWindow::logbookDetailsPopup() {
             newRec.fulltext = record.fulltext;
             qsoRecords[pvt->logbookDetailsEditIndex] = newRec;
             writeQSOList();
+            pvt->player.stopPlaying();
             ImGui::CloseCurrentPopup();
         }
 
@@ -2790,6 +2799,7 @@ void MobileMainWindow::logbookEntryPopup(int currentFreq) {
         if (doKeyboardButton("save")) {
             pvt->addQsoRecord(parseAddQsoRecord(this->currentDX, currentFreq));
             this->currentDX = "";
+            encoder.enabled = true;
         }
         addButton('/');
         ImGui::Dummy(ImVec2(1 * style::baseFont->FontSize, 0));
@@ -3189,6 +3199,14 @@ void QSOPanel::drawHistogram() {
     }
 }
 
+void MobileMainWindow::setBothGains(unsigned char gain) {
+    sigpath::transmitter->setTransmitSoftwareGain(gain);
+    sigpath::transmitter->setTransmitHardwareGain(gain);
+    setConfig("trx_txHardwareGain", gain);
+    setConfig("trx_txGain", gain);
+}
+
+
 void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
     this->currentFreq = _currentFreq;
     currentFFTBufferMutex.lock();
@@ -3253,13 +3271,12 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
 
         ImGui::Text("TX Soft PA:");
         ImGui::SameLine();
+        int hwgain = sigpath::transmitter->getTransmitHardwareGain();
         if (ImGui::SliderInt("##_radio_tx_gain_", &this->txGain, 0, 255)) {
-            sigpath::transmitter->setTransmitSoftwareGain(this->txGain);
-            setConfig("trx_txGain", this->txGain);
+            gui::mainWindow.setBothGains((unsigned char)this->txGain);
         }
         ImGui::LeftLabel("TX Hard PA:");
         ImGui::SameLine();
-        int hwgain = sigpath::transmitter->getTransmitHardwareGain();
         if (ImGui::SliderInt("##_radio_tx_hgain_", &hwgain, 0, 255)) {
             sigpath::transmitter->setTransmitHardwareGain(hwgain);
             setConfig("trx_txHardwareGain", hwgain);

@@ -79,6 +79,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("Listening on frontend " + frontendAddr.String() + " (wanted: " + *clientAddress + ")")
 	defer frontendConn.Close()
 
 	backendConn, err := net.DialUDP("udp", nil, backendAddrx)

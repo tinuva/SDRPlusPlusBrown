@@ -12,6 +12,7 @@
 #include <module.h>
 #include <gui/gui.h>
 #include "utils/proto/reporter_services.h"
+#include "utils/cty.h"
 #include <core.h>
 #include <signal_path/signal_path.h>
 #include <config.h>
@@ -443,6 +444,18 @@ public:
         if (!found) {
             auto nr = report;
             nr.createdTimestamp = currentTimeMillis();
+            if (nr.receiverLocator != "") {
+                auto ll = utils::gridToLatLng(nr.receiverLocator);
+                auto ll2 = utils::gridToLatLng(sigpath::iqFrontEnd.operatorLocation);
+                if (ll.isValid() && ll2.isValid()) {
+                    auto bd = utils::bearingDistance(ll, ll2);
+                    nr.distance = bd.distance;
+                } else {
+                    nr.distance = -1;
+                }
+            } else {
+                nr.distance = -1;
+            }
             reports.insert(reports.begin(), nr);
         }
 
@@ -642,7 +655,7 @@ private:
                 ImGui::TableSetupColumn("Type");
                 ImGui::TableSetupColumn("Mode");
                 ImGui::TableSetupColumn("DE (spotter)");
-                ImGui::TableSetupColumn("Receiver Locator");
+                ImGui::TableSetupColumn("Distance");
                 ImGui::TableSetupColumn("DX (spotted)");
                 ImGui::TableSetupColumn("Decibel");
                 ImGui::TableSetupColumn("Frequency");
@@ -665,11 +678,35 @@ private:
                     ImGui::TableSetColumnIndex(col++);
                     ImGui::Text("%s", report.reporterCallsign.c_str());
                     ImGui::TableSetColumnIndex(col++);
-                    ImGui::Text("%s", report.receiverLocator.c_str());
+                    char buf[100];
+                    if (report.distance > 0) {
+                        static int charMaxWidth = -1;
+                        if (charMaxWidth < 0) {
+                            sprintf(buf, "88888 km");
+                            charMaxWidth = ImGui::CalcTextSize(buf).x;
+                        }
+                        sprintf(buf, "%d km", report.distance);
+                        float textWidth = ImGui::CalcTextSize(buf).x;
+                        ImGui::Dummy(ImVec2(charMaxWidth - textWidth, 0));
+                        ImGui::SameLine();
+                        ImGui::Text("%s", buf);
+                    } else {
+                        ImGui::Text("");
+                    }
                     ImGui::TableSetColumnIndex(col++);
                     ImGui::Text("%s", report.reportedCallsign.c_str());
                     ImGui::TableSetColumnIndex(col++);
-                    ImGui::Text("%02d", (int)report.decibel);
+
+                    if (report.decibel > 0) {
+                        sprintf(buf, "%d", (int)report.decibel);
+                        float textWidth = ImGui::CalcTextSize(buf).x;
+                        ImGui::Dummy(ImVec2(ImGui::GetContentRegionAvail().x - textWidth, 0));
+                        ImGui::SameLine();
+                        ImGui::Text("%s", buf);
+                    } else {
+                        ImGui::Text("");
+                    }
+
                     ImGui::TableSetColumnIndex(col++);
                     ImGui::Text("%0.2f", report.frequency);
                     ImGui::TableSetColumnIndex(col++);
@@ -898,6 +935,14 @@ private:
                     }
                     break;
             }
+
+            ImGui::Text("TX  PA:");
+            ImGui::SameLine();
+            int hwgain = sigpath::transmitter->getTransmitHardwareGain();
+            if (ImGui::SliderInt("##_radio_tx_gain_", &hwgain, 0, 255)) {
+                gui::mainWindow.setBothGains(hwgain);
+            }
+
             ImGui::EndPopup();
         }
     }

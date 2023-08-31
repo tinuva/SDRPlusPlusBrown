@@ -241,6 +241,9 @@ public:
     void updateAudioWaterfallPipeline();
     void updateDXInfo();
 
+    void setBothGains(unsigned char gain);
+
+
     ImVec2 logbookPopupPosition = ImVec2(0, 0);
     void logbookEntryPopup(int frequency);
     void logbookDetailsPopup();

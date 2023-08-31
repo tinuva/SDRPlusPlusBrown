@@ -113,7 +113,7 @@ int getLastSocketErrorNo() {
 #endif
 }
 
-static void discover(struct ifaddrs* iface, const struct sockaddr_in *fixed) {
+static void discover(struct ifaddrs* iface, const struct sockaddr_in *fixed, bool scanIP) {
     int rc;
     struct sockaddr_in *sa;
     struct sockaddr_in *mask;
@@ -180,6 +180,25 @@ static void discover(struct ifaddrs* iface, const struct sockaddr_in *fixed) {
     } else {
         to_addr.sin_family = iface->ifa_addr->sa_family;
         to_addr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+#ifdef __linux__
+        {
+            int family;
+            struct ifreq ifreq;
+            char host[128];
+            memset(&ifreq, 0, sizeof ifreq);
+            strncpy(ifreq.ifr_name, interface_name, IFNAMSIZ);
+
+            if(ioctl(discovery_socket, SIOCGIFBRDADDR, &ifreq) != 0)
+            {
+                fprintf(stderr, "Could not find interface named %s", interface_name);
+            } else {
+                getnameinfo(&ifreq.ifr_broadaddr, sizeof(ifreq.ifr_broadaddr), host, sizeof(host), 0, 0, NI_NUMERICHOST);
+                auto z = ifreq.ifr_broadaddr;
+                to_addr.sin_addr.s_addr = ((const sockaddr_in *)(&z))->sin_addr.s_addr;
+                flog::info("Interface: %s  Broadcast: %s\n", interface_name, host);
+            }
+        }
+#endif
         flog::info("discover: bound to {} ip={}, sending to: ip={}:{}",
                    interface_name,
                    std::string(inet_ntoa(interface_addr.sin_addr)).c_str(),
@@ -360,10 +379,19 @@ static void discover(struct ifaddrs* iface, const struct sockaddr_in *fixed) {
     usleep(300000);
 
     if(sendto(discovery_socket,(char*)buffer,63,0,(struct sockaddr*)&to_addr,sizeof(to_addr))<0) {
-        flog::error("discover: sendto socket failed for discovery_socket\n");
-//        if(errno!=EHOSTUNREACH && errno!=EADDRNOTAVAIL) {
-//            exit(-1);
-//        }
+        flog::error("discover: sendto (broadcast/direct) failed for discovery_socket\n");
+    }
+    if (scanIP) {
+        unsigned char *ipv4 = (unsigned char *) &to_addr.sin_addr.s_addr;
+        flog::info("Scanning interface %s:  %d.%d.%d.1 - %d.%d.%d.254..", interface_name, ipv4[0], ipv4[1], ipv4[2]);
+        for (int q = 1; q <= 254; q++) {
+            ipv4[3] = q;
+            if (sendto(discovery_socket, (char *) buffer, 63, 0, (struct sockaddr *) &to_addr, sizeof(to_addr)) < 0) {
+                flog::error("discover: sendto (scan) failed for discovery_socket\n");
+            }
+            usleep(1500);
+        }
+        flog::info("Finished scanning %s", interface_name);
     }
 
     // wait for receive thread to complete
@@ -427,7 +455,7 @@ void __cdecl getifaddrs(struct ifaddrs **dest) {
 }
 #endif
 
-void protocol1_discovery(std::string staticIp) {
+void protocol1_discovery(std::string staticIp, bool scanIp) {
     struct ifaddrs *addrs,*ifa;
 
     printf("protocol1_discovery\n");
@@ -449,7 +477,7 @@ void protocol1_discovery(std::string staticIp) {
                 auto thisif = ifa;
                 if (true) {
                     interfaceThreads.emplace_back(std::make_shared<std::thread>([=] {
-                        discover(thisif, nullptr);
+                        discover(thisif, nullptr, scanIp);
                     }));
                 }
             }
@@ -460,7 +488,7 @@ void protocol1_discovery(std::string staticIp) {
         try {
             net::Address addr(staticIp, 1024);
             interfaceThreads.emplace_back(std::make_shared<std::thread>([&,a=addr]{
-                discover(nullptr, &a.addr);
+                discover(nullptr, &a.addr, false);
             }));
         } catch (std::exception &e) {
             flog::error("Invalid static IP address: {0}", e.what());
