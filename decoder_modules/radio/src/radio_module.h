@@ -150,6 +150,13 @@ public:
         sigpath::txState.bindHandler(&txHandler);
     }
 
+    void *getInterface(const char *name) override {
+        if (!strcmp(name,"RadioModule")) {
+            return (RadioModule*)this;
+        }
+        return nullptr;
+    }
+
     std::shared_ptr<SinkManager::Stream> addSecondaryStream(std::string secondaryName = "") {
         if (secondaryName.empty()) {
             secondaryName = SinkManager::makeSecondaryStreamName(name, streams.size());

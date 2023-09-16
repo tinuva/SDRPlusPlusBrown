@@ -1601,7 +1601,7 @@ void MobileMainWindow::draw() {
     updateAudioWaterfallPipeline();
 
     for(auto x: core::moduleManager.instances) {
-        auto radio = dynamic_cast<RadioModule *>(x.second.instance);
+        auto radio = (RadioModule *)x.second.instance->getInterface("RadioModule");
         if (radio) {
             updateModeFromRadio(radio->getSelectedDemodId());
             break;
@@ -2496,7 +2496,7 @@ void MobileMainWindow::init() {
     pvt->init();
 
     for(auto x: core::moduleManager.instances) {
-        auto radio = dynamic_cast<RadioModule *>(x.second.instance);
+        auto radio = (RadioModule*)x.second.instance->getInterface("RadioModule");
         if (radio) {
             updateModeFromRadio(radio->getSelectedDemodId());
             break;
