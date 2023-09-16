@@ -1,5 +1,6 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #define _USE_MATH_DEFINES // NOLINT(bugprone-reserved-identifier)
+
 #include "mobile_main_window.h"
 #include <gui/gui.h>
 #include <imgui_internal.h>
@@ -21,6 +22,7 @@
 #include "../../../decoder_modules/radio/src/radio_module.h"
 #include "../../../misc_modules/noise_reduction_logmmse/src/arrays.h"
 #include "../../../misc_modules/noise_reduction_logmmse/src/af_nr.h"
+#include "../../../misc_modules/frequency_manager/src/frequency_manager.h"
 #include "../dsp/convert/stereo_to_mono.h"
 #include "utils/wav.h"
 #include <ctm.h>
@@ -36,10 +38,10 @@ const int nSmallWheelFunctions = 3;
 
 float trxAudioSampleRate = 48000;
 
-const char* RecordCallCQPopup = "Record CallCQ";
-const char* TxModePopup = "TX/RX Mode Select";
-const char* LogBookEntryPopup = "Logbook Entry";
-const char* LogBookDetailsPopup = "Logbook Details";
+const char *RecordCallCQPopup = "Record CallCQ";
+const char *TxModePopup = "TX/RX Mode Select";
+const char *LogBookEntryPopup = "Logbook Entry";
+const char *LogBookDetailsPopup = "Logbook Details";
 
 struct QSORecord {
     std::string dxcall;     // eg W1WWW
@@ -107,7 +109,7 @@ struct QSORecord {
 QSORecord parseQsoRecord(QSORecord input, const std::vector<std::string> &f) {
     QSORecord r = input;
     int wordScan = 0;
-    for(int q=0; q<f.size(); q++) {
+    for (int q = 0; q < f.size(); q++) {
         if (wordScan > 0) {
             if (f[q].empty()) {
                 continue;
@@ -129,22 +131,22 @@ QSORecord parseQsoRecord(QSORecord input, const std::vector<std::string> &f) {
                 } else {
                     r.receivedRST = f[q];
                 }
-                continue ;
+                continue;
             }
         }
-        switch(wordScan) {
-        case 0:
-            r.dxcall = f[q];
-            wordScan++;
-            break;
-        case 1:
-            r.name = f[q];
-            wordScan++;
-            break;
-        case 2:
-            r.qth = f[q];
-            wordScan++;
-            break;
+        switch (wordScan) {
+            case 0:
+                r.dxcall = f[q];
+                wordScan++;
+                break;
+            case 1:
+                r.name = f[q];
+                wordScan++;
+                break;
+            case 2:
+                r.qth = f[q];
+                wordScan++;
+                break;
         }
     }
     return r;
@@ -155,7 +157,7 @@ QSORecord parseAddQsoRecord(const std::string &s, int frequency) {
     splitStringV(s, " ", f);
     auto r = parseQsoRecord(QSORecord{}, f);
     long long int cst = currentTimeMillis();
-    std::time_t t = cst /1000;
+    std::time_t t = cst / 1000;
     auto tmm = std::gmtime(&t);
     char streamTime[64];
     strftime(streamTime, sizeof(streamTime), "%Y-%m-%d %H:%M", tmm);
@@ -170,9 +172,9 @@ QSORecord parseAddQsoRecord(const std::string &s, int frequency) {
 std::vector<QSORecord> qsoRecords;
 
 void writeQSOList() {
-    auto root = (std::string)core::args["root"];
-    FILE* f = fopen((root + "/qso.txt.new").c_str(), "wt");
-    for(auto &q: qsoRecords) {
+    auto root = (std::string) core::args["root"];
+    FILE *f = fopen((root + "/qso.txt.new").c_str(), "wt");
+    for (auto &q: qsoRecords) {
         fprintf(f, "%s\n", q.toJson().c_str());
     }
     fclose(f);
@@ -182,11 +184,11 @@ void writeQSOList() {
 
 
 void readQSOList() {
-    auto root = (std::string)core::args["root"];
+    auto root = (std::string) core::args["root"];
     FILE *f = fopen((root + "/qso.txt").c_str(), "rt");
     qsoRecords.clear();
     if (f) {
-        while(true) {
+        while (true) {
             char lineBuffer[1000];
             char *l = std::fgets(lineBuffer, sizeof(lineBuffer), f);
             if (!l) {
@@ -195,13 +197,13 @@ void readQSOList() {
             if (strlen(l) == 0) {
                 continue;
             }
-            if (l[strlen(l)-1] == '\n') {
-                l[strlen(l)-1] = 0;
+            if (l[strlen(l) - 1] == '\n') {
+                l[strlen(l) - 1] = 0;
             }
-            if (l[strlen(l)-1] == '\r') {
-                l[strlen(l)-1] = 0;
+            if (l[strlen(l) - 1] == '\r') {
+                l[strlen(l) - 1] = 0;
             }
-            
+
             std::vector<std::string> f;
             auto line = std::string(l);
             if (line.size() == 0) {
@@ -237,29 +239,29 @@ void readQSOList() {
     }
 }
 
-const char* smallWheelFunctionName(int n) {
+const char *smallWheelFunctionName(int n) {
     switch (n % nSmallWheelFunctions) {
-    case 0:
-        return "Zoom/";
-    case 1:
-        return "Brightness/";
-    case 2:
-        return "Volume/";
-    default:
-        return "WTF";
+        case 0:
+            return "Zoom/";
+        case 1:
+            return "Brightness/";
+        case 2:
+            return "Volume/";
+        default:
+            return "WTF";
     }
 }
 
-template <typename X>
-void setConfig(const std::string& key, X value) {
+template<typename X>
+void setConfig(const std::string &key, X value) {
     core::configManager.acquire();
     flog::info("Setting core config: {} = {}", key.c_str(), std::to_string(value).c_str());
     core::configManager.conf[key] = value;
     core::configManager.release(true);
 }
 
-template <typename X>
-void getConfig(const std::string& key, X& value) {
+template<typename X>
+void getConfig(const std::string &key, X &value) {
     core::configManager.acquire();
     if (core::configManager.conf.find(key) != core::configManager.conf.end()) {
         value = core::configManager.conf[key];
@@ -271,7 +273,8 @@ struct Decibelometer {
     float maxSignalPeak = -1000.0;
     long long maxSignalPeakTime = 0.0;
     std::vector<float> lastMeasures;
-    void addSamples(dsp::stereo_t* samples, int count) {
+
+    void addSamples(dsp::stereo_t *samples, int count) {
         if (count > 0) {
             float summ = 0;
             for (int i = 0; i < count; i++) {
@@ -286,7 +289,7 @@ struct Decibelometer {
         }
     }
 
-    void addSamples(dsp::complex_t* samples, int count) {
+    void addSamples(dsp::complex_t *samples, int count) {
         if (count > 0) {
             float summ = 0;
             for (int i = 0; i < count; i++) {
@@ -323,7 +326,7 @@ struct Decibelometer {
         return maxx;
     }
 
-    void addSamples(float* samples, int count) {
+    void addSamples(float *samples, int count) {
         float summ = 0;
         for (int i = 0; i < count; i++) {
             summ += samples[i] * samples[i];
@@ -344,8 +347,7 @@ struct Decibelometer {
         auto mx = *lastMeasures.end();
         if (mx > maxSignalPeak || maxSignalPeakTime < currentTimeMillis() - 500) {
             maxSignalPeak = mx;
-            maxSignalPeakTime = currentTimeMillis();
-            ;
+            maxSignalPeakTime = currentTimeMillis();;
         }
     }
 };
@@ -382,7 +384,7 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
 
     FILE *debugDump = nullptr;
 
-    AudioInToTransmitter(dsp::stream<dsp::stereo_t>* in, bool audioIsIqData) {
+    AudioInToTransmitter(dsp::stream<dsp::stereo_t> *in, bool audioIsIqData) {
         this->audioIsIqData = audioIsIqData;
         init(in);
         totalRead = 0;
@@ -391,7 +393,7 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
 
     int totalRead;
 
-    void setSubmode(const std::string& _submode) {
+    void setSubmode(const std::string &_submode) {
         if (this->submode != _submode) {
             this->submode = _submode;
         }
@@ -472,12 +474,11 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
             int period = trxAudioSampleRate / tuneFrequency;
             auto thisStart = sampleCount % period;
             for (auto q = 0; q < rd; q++) {
-                auto angle = (thisStart + q) / (double)period * 2 * M_PI;
-                out.writeBuf[q].re = (float)sin(angle);
-                out.writeBuf[q].im = (float)cos(angle);
+                auto angle = (thisStart + q) / (double) period * 2 * M_PI;
+                out.writeBuf[q].re = (float) sin(angle);
+                out.writeBuf[q].im = (float) cos(angle);
             }
-        }
-        else {
+        } else {
             if (audioIsIqData) {
                 memcpy(s2m.out.writeBuf, this->_in->readBuf, rd * sizeof(dsp::stereo_t)); // stereo_t = iqdata
             } else {
@@ -526,8 +527,7 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
                 } else {
                     memcpy(out.writeBuf, xlator2.out.writeBuf, rd * sizeof(dsp::complex_t));
                 }
-            }
-            else {
+            } else {
                 // sort of AM but without carrier.
                 dsp::convert::RealToComplex::process(rd, s2m.out.writeBuf, out.writeBuf);
             }
@@ -549,14 +549,14 @@ struct AudioInToTransmitter : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
 
 struct AudioFFTForDisplay : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
 
-    template <class X>
+    template<class X>
     using Arg = std::shared_ptr<X>;
 
     using base_type = dsp::Processor<dsp::stereo_t, dsp::complex_t>;
 
 
     std::vector<dsp::stereo_t> inputData;
-    float& FREQUENCY = trxAudioSampleRate;
+    float &FREQUENCY = trxAudioSampleRate;
     const int FRAMERATE = 60;
     Arg<fftwPlan> plan;
     const int windowSize = FREQUENCY / FRAMERATE;
@@ -564,17 +564,17 @@ struct AudioFFTForDisplay : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
     FloatArray hanningWin;
     std::atomic<int> receivedSamplesCount = 0;
     dsp::stream<dsp::stereo_t> strm;
-    dsp::routing::Splitter<dsp::stereo_t>* in;
+    dsp::routing::Splitter<dsp::stereo_t> *in;
 
 
-    explicit AudioFFTForDisplay(dsp::routing::Splitter<dsp::stereo_t>* in) {
+    explicit AudioFFTForDisplay(dsp::routing::Splitter<dsp::stereo_t> *in) {
         init(&strm);
         this->in = in;
         inputData.reserve(4096);
         plan = dsp::arrays::allocateFFTWPlan(false, windowSize);
         inputArray = npzeros_c(windowSize);
         hanningWin = nphanning(windowSize);
-        hanningWin = div(mul(hanningWin, (float)windowSize), npsum(hanningWin));
+        hanningWin = div(mul(hanningWin, (float) windowSize), npsum(hanningWin));
     }
 
     ~AudioFFTForDisplay() override {
@@ -615,7 +615,7 @@ struct AudioFFTForDisplay : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
         std::copy(strm.readBuf + 0, strm.readBuf + rd, inputData.begin() + offset);
         if (inputData.size() >= windowSize) {
             for (int q = 0; q < windowSize; q++) {
-                (*inputArray)[q] = dsp::complex_t{ inputData[q].l, 0 };
+                (*inputArray)[q] = dsp::complex_t{inputData[q].l, 0};
             }
             //            static int counter = 0;
             //            if (counter++ % 30 == 0) {
@@ -628,7 +628,7 @@ struct AudioFFTForDisplay : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
             auto inputMul = muleach(hanningWin, inputArray);
             auto result = dsp::arrays::npfftfft(inputMul, plan);
             std::copy(result->begin(), result->end(), this->out.writeBuf);
-            this->out.swap((int)result->size());
+            this->out.swap((int) result->size());
             //            flog::info("input data size: {} erase {}", inputData.size(), result->size());
             inputData.erase(inputData.begin(), inputData.begin() + windowSize);
         }
@@ -725,33 +725,29 @@ struct CWPanel {
             if (sendDot && sendDa) {
                 if (state == DA) {
                     state = DOT;
-                }
-                else {
+                } else {
                     state = DA;
                 }
                 // nothing
-            }
-            else if (sendDot) {
+            } else if (sendDot) {
                 dotWanted = false;
                 state = DOT;
-            }
-            else if (sendDa) {
+            } else if (sendDa) {
                 daWanted = false;
                 state = DA;
-            }
-            else {
+            } else {
                 state = 0;
             }
             stateTime = 0;
         }
         if (stateTime == 0 && state != 0) {
             // start any tone
-            flog::info("Set Tone Enabled: true, time={}, ctm={}", (int64_t)currentTime, (int64_t)currentTimeMillis());
+            flog::info("Set Tone Enabled: true, time={}, ctm={}", (int64_t) currentTime, (int64_t) currentTimeMillis());
             setToneEnabled(true);
         }
         if (state == DOT && stateTime == dot || state == DA && stateTime == 3 * dot) {
             // stop tone at specified time
-            flog::info("Set Tone Enabled: OFF , time={}, ctm={}", (int64_t)currentTime, (int64_t)currentTimeMillis());
+            flog::info("Set Tone Enabled: OFF , time={}, ctm={}", (int64_t) currentTime, (int64_t) currentTimeMillis());
             setToneEnabled(false);
         }
         if (state == DA) {
@@ -763,11 +759,9 @@ struct CWPanel {
 
         if (clickSendTime == currentTime) {
             sigpath::sinkManager.toneGenerator.store(2);
-        }
-        else if (toneEnabled) {
+        } else if (toneEnabled) {
             sigpath::sinkManager.toneGenerator.store(1);
-        }
-        else {
+        } else {
             sigpath::sinkManager.toneGenerator.store(0);
         }
         currentTime++;
@@ -776,6 +770,7 @@ struct CWPanel {
 
     bool toneEnabled = false;
     long long clickSendTime = 0;
+
     void setToneEnabled(bool enabled) {
         toneEnabled = enabled;
     }
@@ -796,9 +791,9 @@ struct SimpleRecorder {
     std::vector<dsp::stereo_t> data;
     bool keepPlaying = true;
 
-    dsp::routing::Splitter<dsp::stereo_t>* inputAudio;
+    dsp::routing::Splitter<dsp::stereo_t> *inputAudio;
 
-    explicit SimpleRecorder(dsp::routing::Splitter<dsp::stereo_t>* inputAudio) : inputAudio(inputAudio) {
+    explicit SimpleRecorder(dsp::routing::Splitter<dsp::stereo_t> *inputAudio) : inputAudio(inputAudio) {
         recorderOut.origin = "simpleRecorder.recorderOut";
         recorderIn.origin = "simpleRecorder.recorderIn";
     }
@@ -835,15 +830,15 @@ struct SimpleRecorder {
                 keepPlaying = true;
                 std::thread x([this] {
                     flog::info("startPlaying: start");
-                    dsp::routing::Merger<dsp::stereo_t>* merger = sigpath::sinkManager.getMerger(gui::waterfall.selectedVFO);
+                    dsp::routing::Merger<dsp::stereo_t> *merger = sigpath::sinkManager.getMerger(gui::waterfall.selectedVFO);
                     recorderOut.clearReadStop();
                     recorderOut.clearWriteStop();
                     merger->bindStream(-10, &recorderOut);
-                    auto waitTil = (double)currentTimeMillis();
+                    auto waitTil = (double) currentTimeMillis();
                     for (int i = 0; i < data.size() && keepPlaying; i += 1024) {
                         auto ctm = currentTimeMillis();
-                        if (ctm < (long long)waitTil) {
-                            std::this_thread::sleep_for(std::chrono::milliseconds((int64_t)waitTil - ctm));
+                        if (ctm < (long long) waitTil) {
+                            std::this_thread::sleep_for(std::chrono::milliseconds((int64_t) waitTil - ctm));
                         }
                         size_t blockEnd = i + 1024;
                         if (blockEnd > data.size()) {
@@ -863,19 +858,20 @@ struct SimpleRecorder {
             }
         }
     }
+
     void stop() {
         switch (mode) {
-        case PLAYING_STARTED:
-            keepPlaying = false;
-            break;
-        case RECORDING_STARTED:
-            sigpath::sinkManager.setAllMuted(false);
-            inputAudio->unbindStream(&recorderIn);
-            recorderIn.stopReader();
-            mode = RECORDING_IDLE;
-            break;
-        default:
-            break;
+            case PLAYING_STARTED:
+                keepPlaying = false;
+                break;
+            case RECORDING_STARTED:
+                sigpath::sinkManager.setAllMuted(false);
+                inputAudio->unbindStream(&recorderIn);
+                recorderIn.stopReader();
+                mode = RECORDING_IDLE;
+                break;
+            default:
+                break;
         }
     }
 };
@@ -907,9 +903,9 @@ struct Equalizer : public dsp::Processor<dsp::complex_t, dsp::complex_t> {
     }
 
     Equalizer() : dsp::Processor<dsp::complex_t, dsp::complex_t>() {
-        std::vector<float> center_freqs = { 800, 1200, 1800, 2400 };
-        std::vector<float> bandwidths = { 800, 800, 800, 800 };
-        std::vector<float> gains = { 0.3, 1.0, 2.0, 2.0 };
+        std::vector<float> center_freqs = {800, 1200, 1800, 2400};
+        std::vector<float> bandwidths = {800, 800, 800, 800};
+        std::vector<float> gains = {0.3, 1.0, 2.0, 2.0};
 
         std::vector<dsp::complex_t> equalizer;
 
@@ -920,8 +916,7 @@ struct Equalizer : public dsp::Processor<dsp::complex_t, dsp::complex_t> {
             }
             if (i == 0) {
                 equalizer = band_filter;
-            }
-            else {
+            } else {
                 for (int j = 0; j < band_filter.size(); ++j) {
                     equalizer[j] += band_filter[j];
                 }
@@ -937,7 +932,7 @@ struct Equalizer : public dsp::Processor<dsp::complex_t, dsp::complex_t> {
         flt.init(nullptr, taps);
     }
 
-    void process(size_t size, dsp::complex_t* in, dsp::complex_t* out) {
+    void process(size_t size, dsp::complex_t *in, dsp::complex_t *out) {
         flt.process(size, in, out);
     }
 
@@ -961,7 +956,7 @@ struct FreqMaim : public dsp::Processor<dsp::complex_t, dsp::complex_t> {
 
     std::vector<dsp::complex_t> buffer;
 
-    void process(size_t size, dsp::complex_t* in, dsp::complex_t* out) {
+    void process(size_t size, dsp::complex_t *in, dsp::complex_t *out) {
         buffer.reserve(buffer.size() + size);
         buffer.insert(buffer.end(), in, in + size);
         auto ina = npzeros_c(nbuckets);
@@ -973,15 +968,14 @@ struct FreqMaim : public dsp::Processor<dsp::complex_t, dsp::complex_t> {
             auto rev = npfftfft(outa, backward);
             for (int i = 0; i < nbuckets; ++i) {
                 out[i] = (*rev)[i];
-                out[i] *= (float)nbuckets;
+                out[i] *= (float) nbuckets;
             }
             for (int i = nbuckets - 1; i >= 0; --i) {
-                auto ndest = (int)(1.5 * i);
+                auto ndest = (int) (1.5 * i);
                 if (ndest >= nbuckets) {
                     out[i].re /= 512;
                     out[i].im /= 512;
-                }
-                else {
+                } else {
                     auto amp = out[ndest].amplitude();
                     out[i].re = out[ndest].re;
                     out[i].im = 0;
@@ -1049,7 +1043,7 @@ struct ConfigPanel {
     dsp::channel::FrequencyXlator xlatorForS;
 
 
-    explicit ConfigPanel(dsp::routing::Splitter<dsp::stereo_t>* inputAudio) : recorder(inputAudio) {
+    explicit ConfigPanel(dsp::routing::Splitter<dsp::stereo_t> *inputAudio) : recorder(inputAudio) {
         //        afnr.setProcessingBandwidth(11000);
         //        agc2.init(NULL, 1.0, agcAttack / 48000.0, agcDecay / 48000.0, 10e6, 10.0, INFINITY);
     }
@@ -1073,7 +1067,7 @@ struct ConfigPanel {
         xlatorForS.init(nullptr, hissCut - (2700.0 / 2 - hissSize), trxAudioSampleRate);
     }
 
-    void draw(ImGui::WaterfallVFO* vfo);
+    void draw(ImGui::WaterfallVFO *vfo);
 };
 
 struct QSOPanel {
@@ -1087,11 +1081,17 @@ struct QSOPanel {
         audioInProcessedMerger.bindStream(100, &audioProcessedOut);
         audioInProcessedMerger.start();
     }
+
     virtual ~QSOPanel();
+
     void startAudioPipeline();
+
     void init();
+
     void stopAudioPipeline();
-    void draw(float currentFreq, ImGui::WaterfallVFO* pVfo);
+
+    void draw(float currentFreq, ImGui::WaterfallVFO *pVfo);
+
     dsp::stream<dsp::stereo_t> audioIn;
     dsp::stream<dsp::stereo_t> audioProcessedOut;
     dsp::routing::Splitter<dsp::stereo_t> audioInProcessed;
@@ -1108,7 +1108,9 @@ struct QSOPanel {
     std::shared_ptr<std::thread> receiveBuffers;
     dsp::arrays::FloatArray currentFFTBuffer;
     std::mutex currentFFTBufferMutex;
-    void handleTxButton(ImGui::WaterfallVFO* vfo, bool tx, bool tune, dsp::routing::Splitter<dsp::stereo_t>* what);
+
+    void handleTxButton(ImGui::WaterfallVFO *vfo, bool tx, bool tune, dsp::routing::Splitter<dsp::stereo_t> *what);
+
     float currentFreq;
     int txGain = 0;
 
@@ -1117,7 +1119,8 @@ struct QSOPanel {
     bool transmitting = false;
     dsp::routing::Splitter<dsp::stereo_t> *currentTransmitSource = nullptr;      // either mic processed, or call cq playuer
 
-    void setModeSubmode(const std::string& mode, const std::string& submode);
+    void setModeSubmode(const std::string &mode, const std::string &submode);
+
     std::string submode;
     std::string mode;
     EventHandler<float> maxSignalHandler;
@@ -1125,6 +1128,7 @@ struct QSOPanel {
     bool postprocess = true;
     int triggerTXOffEvent = 0;
     std::vector<float> lastSWR, lastForward, lastReflected;
+
     void drawHistogram();
 
     float maxTxSignalPeak = 0.0;
@@ -1178,7 +1182,7 @@ struct QSOAudioRecorder {
 
     void runReadRadioStream() {
         SetThreadName("QSOAudioRecorder");
-        while(running) {
+        while (running) {
             int rd = radioStream->read();
             if (rd < 0) {
                 break;
@@ -1191,7 +1195,7 @@ struct QSOAudioRecorder {
 
     void runReadMicStream() {
         SetThreadName("MicReadStream");
-        while(running) {
+        while (running) {
             int rd = micStream.read();
             if (rd < 0) {
                 break;
@@ -1215,7 +1219,7 @@ struct QSOAudioRecorder {
         prevQsoInProcess = qsoInProcess;
     }
 
-    void incomingRadio(dsp::stereo_t* pStereo, int i) {
+    void incomingRadio(dsp::stereo_t *pStereo, int i) {
         if (recordRadio) {
             std::lock_guard g(qsoAudioRecordingBufferMutex);
             qsoAudioRecordingBuffer.insert(qsoAudioRecordingBuffer.end(), pStereo, pStereo + i);
@@ -1225,7 +1229,8 @@ struct QSOAudioRecorder {
             }
         }
     }
-    void incomingMic(dsp::stereo_t* pStereo, int i) {
+
+    void incomingMic(dsp::stereo_t *pStereo, int i) {
         if (!recordRadio) {
             std::lock_guard g(qsoAudioRecordingBufferMutex);
             qsoAudioRecordingBuffer.insert(qsoAudioRecordingBuffer.end(), pStereo, pStereo + i);
@@ -1244,14 +1249,14 @@ struct QSOAudioRecorder {
         w.setSampleType(wav::SAMP_TYPE_FLOAT32);
         w.setSamplerate(trxAudioSampleRate);
         if (!w.open(where)) {
-            ImGui::InsertNotification({ ImGuiToastType_Error, 5000, ("Write err: " + std::string(strerror(errno))).c_str() });
+            ImGui::InsertNotification({ImGuiToastType_Error, 5000, ("Write err: " + std::string(strerror(errno))).c_str()});
             return;
         }
         std::lock_guard g(qsoAudioRecordingBufferMutex);
-        w.write((float *)qsoAudioRecordingBuffer.data(), qsoAudioRecordingBuffer.size());
+        w.write((float *) qsoAudioRecordingBuffer.data(), qsoAudioRecordingBuffer.size());
         w.close();
         qsoAudioRecordingBuffer.clear();
-        ImGui::InsertNotification({ ImGuiToastType_Info, 3000, "QSO audio recorded."});
+        ImGui::InsertNotification({ImGuiToastType_Info, 3000, "QSO audio recorded."});
     }
 };
 
@@ -1265,11 +1270,11 @@ struct MobileMainWindowPrivate {
     QSORecord editableRecord;
     std::vector<dsp::stereo_t> callCq;
 
-    MobileMainWindowPrivate() : player("main_window_qso_record_player"), callCQlayer("call_cq_preview"){
+    MobileMainWindowPrivate() : player("main_window_qso_record_player"), callCQlayer("call_cq_preview") {
     }
 
     void beginPlay() {
-        ImGui::WaterfallVFO*& pVfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
+        ImGui::WaterfallVFO *&pVfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
         if (pVfo) {
             callCQlayer.startPlaying();
             callCQlayer.onPlayEnd = [&]() {
@@ -1286,7 +1291,7 @@ struct MobileMainWindowPrivate {
 
     void init() {
         audioRecorder.init(&pub->qsoPanel->audioInProcessed);
-        auto root = (std::string)core::args["root"];
+        auto root = (std::string) core::args["root"];
         callCQlayer.loadFile(root + "/call_cq.wav");
         if (callCQlayer.error == "") {
             callCq = callCQlayer.dataOwn;
@@ -1300,7 +1305,7 @@ struct MobileMainWindowPrivate {
     }
 
     void addQsoRecord(QSORecord r) {
-        auto root = (std::string)core::args["root"];
+        auto root = (std::string) core::args["root"];
         if (r.dxcall == "") {
             return;
         }
@@ -1318,10 +1323,10 @@ struct MobileMainWindowPrivate {
             }
             fname += std::to_string(seconds);
             fname += "_";
-            fname += std::to_string(r.frequency)+"000";
+            fname += std::to_string(r.frequency) + "000";
             fname += "_";
             auto dxcall = r.dxcall;
-            replaceSubstrings(dxcall,"/","_");       // replace special symbol in callsign
+            replaceSubstrings(dxcall, "/", "_");       // replace special symbol in callsign
             fname += dxcall;
             fname += ".wav";
             audioRecorder.flushToFile(root + "/" + fname);
@@ -1338,7 +1343,6 @@ struct MobileMainWindowPrivate {
 
     void recordCallCQPopup();
 };
-
 
 
 bool MobileButton::isLongPress() {
@@ -1369,7 +1373,7 @@ bool MobileButton::draw() {
 
     bool pressed = ImGui::IsAnyMouseDown() && ImGui::GetTopMostPopupModal() == NULL;
     bool startedInside = withinRect(avail, this->pressPoint);
-    ImGuiContext& g = *GImGui;
+    ImGuiContext &g = *GImGui;
     if (pressed) {
         const float t = g.IO.MouseDownDuration[0];
         if (t < 0.2) {
@@ -1381,8 +1385,7 @@ bool MobileButton::draw() {
                 }
             }
         }
-    }
-    else {
+    } else {
         this->currentlyPressed = false;
         if (startedInside && withinRect(avail, mouseCoord)) {
             // released inside
@@ -1391,31 +1394,30 @@ bool MobileButton::draw() {
             }
         }
         currentlyPressedTime = 0;
-        this->pressPoint = ImVec2((float)nan(""), (float)nan(""));
+        this->pressPoint = ImVec2((float) nan(""), (float) nan(""));
     }
 
     if (pressed && startedInside && withinRect(avail, mouseCoord)) {
         if (this->currentlyPressedTime != 0) {
             bg0 = ImGui::ColorConvertFloat4ToU32(ImVec4(1.0f, 1.0f, 0.5f, 1.0f));
-        }
-        else {
+        } else {
             // remove the highlight after long press
         }
     }
 
-    window->DrawList->AddRectFilled(windowPos, windowPos + avail, bg0, (float)avail.y / 10.0);
+    window->DrawList->AddRectFilled(windowPos, windowPos + avail, bg0, (float) avail.y / 10.0);
 
 
     //    auto ts = ImGui::CalcTextSize(this->upperText.c_str());
     //    ImGui::SetCursorPos((ImVec2{avail.x, 0} - ImVec2{ts.x, 0}) / 2);
     //    ImGui::Text("%s", this->upperText.c_str());
 
-    const char* buttonTextStr = this->buttonText.c_str();
+    const char *buttonTextStr = this->buttonText.c_str();
     //    if (this->buttonText.size() == 1) {
     //        ImGui::PushFont(style::bigFont);
     //    }
     auto ts = ImGui::CalcTextSize(buttonTextStr);
-    ImGui::SetCursorPos((avail - ImVec2{ ts.x, ts.y }) / 2);
+    ImGui::SetCursorPos((avail - ImVec2{ts.x, ts.y}) / 2);
     ImGui::Text("%s", buttonTextStr);
     //    if (this->buttonText.size() == 1) {
     //        ImGui::PopFont();
@@ -1446,8 +1448,8 @@ double TheEncoder::draw(float currentValue) {
     window->DrawList->AddRectFilled(widgetPos, widgetPos + avail, bg0);
 
     for (int q = 0; q < MARKS_PER_ENCODER; q++) {
-        auto markY = (R * DRAW_HEIGHT_PERCENT) * (float)sin(M_PI * 2 / MARKS_PER_ENCODER * q + this->somePosition);
-        auto markColor = (float)cos(M_PI * 2 / MARKS_PER_ENCODER * q + this->somePosition);
+        auto markY = (R * DRAW_HEIGHT_PERCENT) * (float) sin(M_PI * 2 / MARKS_PER_ENCODER * q + this->somePosition);
+        auto markColor = (float) cos(M_PI * 2 / MARKS_PER_ENCODER * q + this->somePosition);
         if (markColor > 0) {
             ImU32 col = ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, markColor));
             window->DrawList->AddRectFilled(widgetPos + ImVec2(0, R + markY - 4), widgetPos + ImVec2(avail.x, R + markY + 4), col);
@@ -1465,25 +1467,22 @@ double TheEncoder::draw(float currentValue) {
             bool mouseInside = mouseX >= 0 && mouseX < avail.x && mouseY >= 0 && mouseY < avail.y;
             if (!mouseInside && isnan(lastMouseAngle)) {
                 // clicked outside
-            }
-            else {
+            } else {
                 // can continue everywhere
                 auto mouseAngle = (ImGui::GetMousePos().y - widgetPos.y - R) / (R * DRAW_HEIGHT_PERCENT);
                 if (!isnan(lastMouseAngle)) {
                     this->somePosition += mouseAngle - lastMouseAngle;
-                    retval = (float)(mouseAngle - lastMouseAngle);
-                }
-                else {
+                    retval = (float) (mouseAngle - lastMouseAngle);
+                } else {
                     // first click!
-                    this->currentValue = (float)currentValue;
+                    this->currentValue = (float) currentValue;
                     currentEncoderTouch = encoderId;
                 }
                 lastMouseAngle = mouseAngle;
                 this->speed = 0;
                 fingerMovement.emplace_back(lastMouseAngle);
             }
-        }
-        else {
+        } else {
             // finger up
             if (currentEncoderTouch == encoderId) {
                 currentEncoderTouch = -1;
@@ -1504,12 +1503,11 @@ double TheEncoder::draw(float currentValue) {
         }
         this->somePosition += speed;
         if (speed != 0) {
-            retval = (float)speed;
+            retval = (float) speed;
         }
         this->speed *= this->delayFactor;
         return retval;
-    }
-    else {
+    } else {
         this->speed = 0;
         return 0;
     }
@@ -1524,7 +1522,7 @@ void MobileMainWindow::updateSubmodeAfterChange() {
     }
     this->submodeToggle.upperText = submode;
     qsoPanel->setModeSubmode(mode, submode);
-    ImGui::WaterfallVFO*& pVfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
+    ImGui::WaterfallVFO *&pVfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
     if (pVfo) {
         auto selectedDemod = RadioModule::RADIO_DEMOD_USB;
         if (submode == "LSB") selectedDemod = RadioModule::RADIO_DEMOD_LSB;
@@ -1535,7 +1533,7 @@ void MobileMainWindow::updateSubmodeAfterChange() {
         if (submode == "WFM") selectedDemod = RadioModule::RADIO_DEMOD_WFM;
         if (submode == "AM") selectedDemod = RadioModule::RADIO_DEMOD_AM;
         if (submode == "DSB") selectedDemod = RadioModule::RADIO_DEMOD_DSB;
-        pVfo->onUserChangedDemodulator.emit((int)selectedDemod);
+        pVfo->onUserChangedDemodulator.emit((int) selectedDemod);
     }
     updateFrequencyAfterChange();
 }
@@ -1573,9 +1571,8 @@ void MobileMainWindow::updateAudioWaterfallPipeline() {
         currentAudioStreamName = gui::waterfall.selectedVFO;
         if (currentAudioStreamName.empty()) {
             currentAudioStream = nullptr;
-        }
-        else {
-            currentAudioStreamSampleRate = (int)sigpath::sinkManager.getStreamSampleRate(currentAudioStreamName);
+        } else {
+            currentAudioStreamSampleRate = (int) sigpath::sinkManager.getStreamSampleRate(currentAudioStreamName);
             currentAudioStream = sigpath::sinkManager.bindStream(currentAudioStreamName);
             std::thread x([&]() {
                 SetThreadName("AudioWaterfall");
@@ -1592,20 +1589,36 @@ void MobileMainWindow::updateAudioWaterfallPipeline() {
         }
     }
     if (currentAudioStreamName != "") {
-        currentAudioStreamSampleRate = (int)sigpath::sinkManager.getStreamSampleRate(currentAudioStreamName);
+        currentAudioStreamSampleRate = (int) sigpath::sinkManager.getStreamSampleRate(currentAudioStreamName);
     }
+}
+
+static RadioModule *getRadioModule() {
+    for (auto x: core::moduleManager.instances) {
+        auto radio = (RadioModule *) x.second.instance->getInterface("RadioModule");
+        if (radio) {
+            return radio;
+        }
+    }
+    return nullptr;
+}
+
+static TransientBookmarkManager *getTransientBookmarkManager() {
+    for (auto x: core::moduleManager.instances) {
+        auto theMod = (TransientBookmarkManager *) x.second.instance->getInterface("TransientBookmarkManager");
+        if (theMod) {
+            return theMod;
+        }
+    }
+    return nullptr;
 }
 
 void MobileMainWindow::draw() {
 
     updateAudioWaterfallPipeline();
 
-    for(auto x: core::moduleManager.instances) {
-        auto radio = (RadioModule *)x.second.instance->getInterface("RadioModule");
-        if (radio) {
-            updateModeFromRadio(radio->getSelectedDemodId());
-            break;
-        }
+    if (auto radio = getRadioModule()) {
+        updateModeFromRadio(radio->getSelectedDemodId());
     }
 
     pvt->audioRecorder.updateControlState(!encoder.enabled, this->qsoPanel->transmitting);
@@ -1620,7 +1633,7 @@ void MobileMainWindow::draw() {
     }
 
     gui::waterfall.alwaysDrawLine = false;
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO &io = ImGui::GetIO();
     if (displaymenu::transcieverLayout == 0) {
         shouldInitialize = true;
         MainWindow::draw();
@@ -1640,14 +1653,14 @@ void MobileMainWindow::draw() {
          */
     }
     gui::waterfall.alwaysDrawLine = true;
-    ImGui::WaterfallVFO* vfo = nullptr; // gets initialized below
+    ImGui::WaterfallVFO *vfo = nullptr; // gets initialized below
     this->preDraw(&vfo);
 
     ImGui::Begin("Main", nullptr, WINDOW_FLAGS);
 
     ImVec4 textCol = ImGui::GetStyleColorVec4(ImGuiCol_Text);
     ImVec2 btnSize(30 * style::uiScale, 30 * style::uiScale);
-    ImGui::PushID((int)ImGui::GetID("sdrpp_menu_btn"));
+    ImGui::PushID((int) ImGui::GetID("sdrpp_menu_btn"));
     if (ImGui::ImageButton(icons::MENU, btnSize, ImVec2(0, 0), ImVec2(1, 1), 5, ImVec4(0, 0, 0, 0), textCol) || ImGui::IsKeyPressed(ImGuiKey_Menu, false)) {
         showMenu = !showMenu;
         core::configManager.acquire();
@@ -1666,14 +1679,14 @@ void MobileMainWindow::draw() {
     float buttonsWidth = defaultButtonsWidth;
     float statusHeight = 100;
     switch (qsoMode) {
-    case VIEW_QSO:
-        buttonsWidth = 600;
-        break;
-    case VIEW_CONFIG:
-        buttonsWidth = style::baseFont->FontSize * 25;
-        break;
-    default:
-        break;
+        case VIEW_QSO:
+            buttonsWidth = 600;
+            break;
+        case VIEW_CONFIG:
+            buttonsWidth = style::baseFont->FontSize * 25;
+            break;
+        default:
+            break;
     }
     buttonsWidth *= buttonsWidthScale;
     defaultButtonsWidth *= buttonsWidthScale;
@@ -1718,8 +1731,8 @@ void MobileMainWindow::draw() {
     int statusLineDY = ImGui::GetCursorPosY();
     ImGui::PushFont(style::mediumFont);
     static char statusBuf[1024];
-    sprintf(statusBuf, "%s | REC: %03d sec", this->submodeToggle.upperText.c_str(), (int)(this->pvt->audioRecorder.qsoAudioRecordingBuffer.size() / trxAudioSampleRate));
-    for(auto st: statusSeporters) {
+    sprintf(statusBuf, "%s | REC: %03d sec", this->submodeToggle.upperText.c_str(), (int) (this->pvt->audioRecorder.qsoAudioRecordingBuffer.size() / trxAudioSampleRate));
+    for (auto st: statusSeporters) {
         auto s = st->reportStatus();
         if (!s.empty()) {
             strcat(statusBuf, " | ");
@@ -1738,7 +1751,7 @@ void MobileMainWindow::draw() {
 
 
     if (showMenu) {
-        const ImVec2 menuRegion = ImVec2((float)menuWidth, ImGui::GetContentRegionAvail().y);
+        const ImVec2 menuRegion = ImVec2((float) menuWidth, ImGui::GetContentRegionAvail().y);
 
 
         ImGuiStyle &style = ImGui::GetStyle();
@@ -1767,7 +1780,7 @@ void MobileMainWindow::draw() {
             core::configManager.conf["menuElements"] = arr;
 
             // Update enabled and disabled modules
-            for (auto [_name, inst] : core::moduleManager.instances) {
+            for (auto [_name, inst]: core::moduleManager.instances) {
                 if (!core::configManager.conf["moduleInstances"].contains(_name)) { continue; }
                 core::configManager.conf["moduleInstances"][_name]["enabled"] = inst.instance->isEnabled();
             }
@@ -1776,8 +1789,7 @@ void MobileMainWindow::draw() {
         }
         if (startedWithMenuClosed) {
             startedWithMenuClosed = false;
-        }
-        else {
+        } else {
             firstMenuRender = false;
         }
         this->drawDebugMenu();
@@ -1785,70 +1797,70 @@ void MobileMainWindow::draw() {
     }
 
     // draw encoders
-    ImGui::SetCursorPos(cornerPos + ImVec2{ waterfallRegion.x + buttonsWidth + menuWidth, 0 });
+    ImGui::SetCursorPos(cornerPos + ImVec2{waterfallRegion.x + buttonsWidth + menuWidth, 0});
     float encodersHeight = ImGui::GetContentRegionAvail().y;
     ImGui::BeginChildEx("Small Encoder", ImGui::GetID("sdrpp_small_encoder"), ImVec2(encoderWidth, encodersHeight / 3), false, 0);
 
     double smallChangeSpeed = smallEncoder.draw(2000); // random value
     ImGui::EndChild();
     switch (smallWheelFunctionN) {
-    case 0: { // zoom
-        auto nbw = bw + smallChangeSpeed / 5;
-        if (nbw < 0) {
-            nbw = 0;
-        }
-        if (nbw > 1) {
-            nbw = 1;
-        }
-        if (bw != nbw) {
-            bw = nbw;
-            core::configManager.acquire();
-            core::configManager.conf["zoomBw"] = bw;
-            core::configManager.release(true);
-            updateWaterfallZoomBandwidth(bw);
-        }
-        break;
-    }
-    case 1: { // brightness
-        auto nfftMin = fftMin + smallChangeSpeed * 10;
-        if (nfftMin < -200) {
-            nfftMin = -200;
-        }
-        if (nfftMin > 0) {
-            nfftMin = 0;
-        }
-        nfftMin = std::min<float>(fftMax - 10, nfftMin);
-        if (nfftMin != fftMin) {
-            fftMin = nfftMin;
-            core::configManager.acquire();
-            core::configManager.conf["min"] = fftMin;
-            core::configManager.release(true);
-            gui::waterfall.setWaterfallMin(fftMin);
-        }
-        break;
-    }
-    case 2: { // volume
-
-        auto vfoName = gui::waterfall.selectedVFO;
-        if (vfoName == "" || sigpath::sinkManager.streams.find(vfoName) == sigpath::sinkManager.streams.end()) {
+        case 0: { // zoom
+            auto nbw = bw + smallChangeSpeed / 5;
+            if (nbw < 0) {
+                nbw = 0;
+            }
+            if (nbw > 1) {
+                nbw = 1;
+            }
+            if (bw != nbw) {
+                bw = nbw;
+                core::configManager.acquire();
+                core::configManager.conf["zoomBw"] = bw;
+                core::configManager.release(true);
+                updateWaterfallZoomBandwidth(bw);
+            }
             break;
         }
-        auto stream = sigpath::sinkManager.streams[vfoName];
-        auto nvol = stream->getVolume() - smallChangeSpeed / 5;
-        if (nvol < 0) {
-            nvol = 0;
+        case 1: { // brightness
+            auto nfftMin = fftMin + smallChangeSpeed * 10;
+            if (nfftMin < -200) {
+                nfftMin = -200;
+            }
+            if (nfftMin > 0) {
+                nfftMin = 0;
+            }
+            nfftMin = std::min<float>(fftMax - 10, nfftMin);
+            if (nfftMin != fftMin) {
+                fftMin = nfftMin;
+                core::configManager.acquire();
+                core::configManager.conf["min"] = fftMin;
+                core::configManager.release(true);
+                gui::waterfall.setWaterfallMin(fftMin);
+            }
+            break;
         }
-        if (nvol > 1) {
-            nvol = 1;
+        case 2: { // volume
+
+            auto vfoName = gui::waterfall.selectedVFO;
+            if (vfoName == "" || sigpath::sinkManager.streams.find(vfoName) == sigpath::sinkManager.streams.end()) {
+                break;
+            }
+            auto stream = sigpath::sinkManager.streams[vfoName];
+            auto nvol = stream->getVolume() - smallChangeSpeed / 5;
+            if (nvol < 0) {
+                nvol = 0;
+            }
+            if (nvol > 1) {
+                nvol = 1;
+            }
+            if (nvol != stream->getVolume()) {
+                stream->setVolume(nvol);
+            }
+            break;
         }
-        if (nvol != stream->getVolume()) {
-            stream->setVolume(nvol);
-        }
-        break;
-    }
     }
     //    flog::info("small encoder speed: {}", smallChangeSpeed);
-    ImGui::SetCursorPos(cornerPos + ImVec2{ waterfallRegion.x + buttonsWidth + menuWidth, +encodersHeight / 3 });
+    ImGui::SetCursorPos(cornerPos + ImVec2{waterfallRegion.x + buttonsWidth + menuWidth, +encodersHeight / 3});
     ImGui::BeginChildEx("Encoder", ImGui::GetID("sdrpp_encoder"), ImVec2(encoderWidth, encodersHeight * 2 / 3), false, 0);
     auto currentFreq = vfo ? (vfo->generalOffset + gui::waterfall.getCenterFrequency()) : gui::waterfall.getCenterFrequency();
     double offsetDelta = encoder.draw(currentFreq);
@@ -1857,21 +1869,19 @@ void MobileMainWindow::draw() {
         if (fabs(externalFreq - encoder.currentValue) > 10000) {
             // something changed! e.g. changed band when encoder was rotating
             encoder.speed = 0;
-        }
-        else {
+        } else {
             double od = offsetDelta * 100;
             double sign = od < 0 ? -1 : 1;
             if (fabs(od) < 2) {
                 od = 0.5 * sign;
-            }
-            else {
+            } else {
                 od = fabs(od) - 1; // 4 will become 1
                 od = pow(od, 1.4) * sign;
                 //                od *= 5;
             }
             flog::info("od={} encoder.currentFrequency={}", od, encoder.currentValue);
             encoder.currentValue -= od;
-            auto cf = ((int)(encoder.currentValue / 10)) * 10.0;
+            auto cf = ((int) (encoder.currentValue / 10)) * 10.0;
             tuner::tune(tuningMode, gui::waterfall.selectedVFO, cf);
         }
     }
@@ -1879,33 +1889,33 @@ void MobileMainWindow::draw() {
 
 
     // draw TX buttons
-    ImGui::SetCursorPos(cornerPos + ImVec2{ waterfallRegion.x + menuWidth, 0 });
+    ImGui::SetCursorPos(cornerPos + ImVec2{waterfallRegion.x + menuWidth, 0});
     auto vertPadding = ImGui::GetStyle().WindowPadding.y;
 
 
-    MobileButton* buttonsDefault[] = { &this->qsoButton, &this->zoomToggle, &this->modeToggle, &this->autoWaterfall, &this->audioConfigToggle, &this->smallWheelFunction /*&this->bandUp, &this->bandDown, &this->submodeToggle,*/ };
-    MobileButton* buttonsQso[] = { &this->endQsoButton,
+    MobileButton *buttonsDefault[] = {&this->qsoButton, &this->zoomToggle, &this->modeToggle, &this->autoWaterfall, &this->audioConfigToggle, &this->smallWheelFunction /*&this->bandUp, &this->bandDown, &this->submodeToggle,*/ };
+    MobileButton *buttonsQso[] = {&this->endQsoButton,
 #ifndef __ANDROID__
-                                   &this->txButton, // on android, volume button works as PTT
+                                  &this->txButton, // on android, volume button works as PTT
 #endif
-                                   &this->softTune, &this->smallWheelFunction, &this->lockFrequency,
+                                  &this->softTune, &this->smallWheelFunction, &this->lockFrequency,
 #ifdef __ANDROID__
-                                   &this->dummy,    // spacer
+            &this->dummy,    // spacer
 #endif
-                                   &this->callCQ,
+                                  &this->callCQ,
     };
-    MobileButton* buttonsConfig[] = { &this->exitConfig };
-    auto nButtonsQso = (int)((sizeof(buttonsQso) / sizeof(buttonsQso[0])));
-    auto nButtonsDefault = (int)((sizeof(buttonsDefault) / sizeof(buttonsDefault[0])));
-    auto nButtonsConfig = (int)((sizeof(buttonsConfig) / sizeof(buttonsConfig[0])));
+    MobileButton *buttonsConfig[] = {&this->exitConfig};
+    auto nButtonsQso = (int) ((sizeof(buttonsQso) / sizeof(buttonsQso[0])));
+    auto nButtonsDefault = (int) ((sizeof(buttonsDefault) / sizeof(buttonsDefault[0])));
+    auto nButtonsConfig = (int) ((sizeof(buttonsConfig) / sizeof(buttonsConfig[0])));
     auto buttonsSpaceY = ImGui::GetContentRegionAvail().y;
     switch (this->qsoMode) {
-    case VIEW_QSO:
-        qsoButton.buttonText = "End QSO";
-    case VIEW_DEFAULT:
-        qsoButton.buttonText = "QSO";
-    default:
-        break;
+        case VIEW_QSO:
+            qsoButton.buttonText = "End QSO";
+        case VIEW_DEFAULT:
+            qsoButton.buttonText = "QSO";
+        default:
+            break;
     }
     const ImVec2 buttonsRegion = ImVec2(buttonsWidth, buttonsSpaceY);
     ImGui::BeginChildEx("Buttons", ImGui::GetID("sdrpp_mobile_buttons"), buttonsRegion, false, ImGuiWindowFlags_NoScrollbar);
@@ -1918,7 +1928,7 @@ void MobileMainWindow::draw() {
     }
     if (this->qsoMode == VIEW_QSO) {
         ImGui::BeginChildEx("QSO", ImGui::GetID("sdrpp_qso"), ImVec2(buttonsWidth, ImGui::GetContentRegionAvail().y), false, 0);
-        qsoPanel->draw((float)currentFreq, vfo);
+        qsoPanel->draw((float) currentFreq, vfo);
         //        auto afterQSOPanel = ImGui::GetCursorPos();
         ImGui::EndChild(); // buttons
 
@@ -1928,23 +1938,23 @@ void MobileMainWindow::draw() {
     ImGui::SetCursorPos(beforePanel);
 
 
-    MobileButton** buttons;
+    MobileButton **buttons;
     int NBUTTONS;
     switch (this->qsoMode) {
-    case VIEW_QSO:
-        buttons = buttonsQso;
-        NBUTTONS = nButtonsQso;
-        break;
-    case VIEW_DEFAULT:
-        NBUTTONS = nButtonsDefault;
-        buttons = buttonsDefault;
-        break;
-    case VIEW_CONFIG:
-        NBUTTONS = nButtonsConfig;
-        buttons = buttonsConfig;
-        break;
+        case VIEW_QSO:
+            buttons = buttonsQso;
+            NBUTTONS = nButtonsQso;
+            break;
+        case VIEW_DEFAULT:
+            NBUTTONS = nButtonsDefault;
+            buttons = buttonsDefault;
+            break;
+        case VIEW_CONFIG:
+            NBUTTONS = nButtonsConfig;
+            buttons = buttonsConfig;
+            break;
     }
-    MobileButton* pressedButton = nullptr;
+    MobileButton *pressedButton = nullptr;
     auto buttonsStart = ImGui::GetCursorPos();
     auto intButtonHeight = style::baseFont->FontSize * 3.3;
     const ImVec2 childRegion = ImVec2(defaultButtonsWidth, intButtonHeight - vertPadding);
@@ -1953,11 +1963,10 @@ void MobileMainWindow::draw() {
         sprintf(chi, "mob_button_%d", b);
         if (this->qsoMode == VIEW_DEFAULT && false) {
             // align from top
-            ImGui::SetCursorPos(buttonsStart + ImVec2{ 0, buttonsSpaceY - float(nButtonsDefault - b) * (childRegion.y + vertPadding) });
-        }
-        else {
+            ImGui::SetCursorPos(buttonsStart + ImVec2{0, buttonsSpaceY - float(nButtonsDefault - b) * (childRegion.y + vertPadding)});
+        } else {
             // align from bottom
-            ImGui::SetCursorPos(buttonsStart + ImVec2{ buttonsWidth - defaultButtonsWidth, buttonsSpaceY - float(b + 1) * (childRegion.y + vertPadding) });
+            ImGui::SetCursorPos(buttonsStart + ImVec2{buttonsWidth - defaultButtonsWidth, buttonsSpaceY - float(b + 1) * (childRegion.y + vertPadding)});
         }
         ImGui::BeginChildEx(chi, ImGui::GetID(chi), childRegion, false, 0);
         if (buttons[b] == &txButton && txStateByButton) {
@@ -1976,7 +1985,7 @@ void MobileMainWindow::draw() {
     int openEditDialog = -1;
 
     if (qsoMode == VIEW_QSO) {
-        ImGui::SetCursorPos(buttonsStart + ImVec2{ 0, buttonsSpaceY - float(nButtonsQso) * (childRegion.y + vertPadding) });
+        ImGui::SetCursorPos(buttonsStart + ImVec2{0, buttonsSpaceY - float(nButtonsQso) * (childRegion.y + vertPadding)});
         if (ImGui::BeginTable("qsolist-table", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(buttonsWidth - defaultButtonsWidth, float(nButtonsQso + 1) * (childRegion.y + vertPadding)))) {
             ImGui::TableSetupColumn("QSO List");
             ImGui::TableSetupScrollFreeze(1, 1);
@@ -1989,15 +1998,14 @@ void MobileMainWindow::draw() {
                 ImGui::TextUnformatted("while QSO");
                 ImGui::TextUnformatted("and record it!");
             } else {
-                for (int q = qsoRecords.size()-1; q >= 0; q--) {
+                for (int q = qsoRecords.size() - 1; q >= 0; q--) {
                     ImGui::TableNextRow();
                     auto &qso = qsoRecords[q];
                     ImGui::TableSetColumnIndex(0);
-                    ImGui::TextUnformatted((qso.datetime+" UTC").c_str());
+                    ImGui::TextUnformatted((qso.datetime + " UTC").c_str());
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0, 1.0f));
 
-                    if (ImGui::Selectable(qso.dxcall.c_str(), false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap))
-                    {
+                    if (ImGui::Selectable(qso.dxcall.c_str(), false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap)) {
                         openEditDialog = q;
                     }
 
@@ -2005,9 +2013,9 @@ void MobileMainWindow::draw() {
                     if (qso.recordedQSO != "") {
                         ImGui::SameLine();
                         ImGui::TextUnformatted("(rec)");
-                                                // Create a selectable area for the cell and check if it was clicked.
+                        // Create a selectable area for the cell and check if it was clicked.
                     }
-                    ImGui::TextUnformatted((std::to_string(qso.frequency)+" SSB R"+qso.receivedRST+" S"+qso.sentRST).c_str());
+                    ImGui::TextUnformatted((std::to_string(qso.frequency) + " SSB R" + qso.receivedRST + " S" + qso.sentRST).c_str());
                 }
             }
 
@@ -2037,7 +2045,6 @@ void MobileMainWindow::draw() {
     ImGui::PopFont();
     ImGui::PopStyleVar(1); // Don't forget to Pop()
     ImGui::PopStyleColor(1);
-
 
 
     ImGui::End();
@@ -2072,7 +2079,7 @@ void MobileMainWindow::draw() {
     if (pressedButton == &this->callCQ) {
         if (sigpath::transmitter && !qsoPanel->transmitting) {
             if (!pvt->callCQlayer.playing) {
-                auto root = (std::string)core::args["root"];
+                auto root = (std::string) core::args["root"];
                 pvt->callCQlayer.loadFile(root + "/call_cq.wav");
                 pvt->beginPlay();
             } else {
@@ -2082,11 +2089,14 @@ void MobileMainWindow::draw() {
     }
     //
     if (pressedButton == &this->lockFrequency || ImGui::IsKeyPressed(ImGuiKey_ScrollLock)) {
-
         encoder.enabled = !encoder.enabled;
         showMenu = false;
         if (encoder.enabled) {
+            this->maybeAddBookmark(currentDX, currentFreq, getCurrentModeAttr("submode"), vfo->bandwidth, false);
             currentDX = "";
+            updateDXInfo();
+        } else {
+            currentDX = this->maybeFindBookmark(currentFreq, getCurrentModeAttr("submode"), vfo->bandwidth);
             updateDXInfo();
         }
     }
@@ -2143,7 +2153,7 @@ void MobileMainWindow::draw() {
         qsoPanel->stopAudioPipeline();
     }
     if (pressedButton == &this->submodeToggle) {
-        std::vector<std::string>& submos = subModes[getCurrentMode()];
+        std::vector<std::string> &submos = subModes[getCurrentMode()];
         auto submoIter = std::find(submos.begin(), submos.end(), getCurrentModeAttr("submode"));
         if (submoIter != submos.end()) {
             auto submoIndex = submoIter - submos.begin();
@@ -2161,8 +2171,7 @@ void MobileMainWindow::draw() {
                 qsoPanel->handleTxButton(vfo, false, true, &qsoPanel->audioInProcessed);
 #define SOFT_TUNE_LABEL "SoftTune"
                 pressedButton->buttonText = SOFT_TUNE_LABEL;
-            }
-            else {
+            } else {
                 // need to start
                 qsoPanel->handleTxButton(vfo, true, true, &qsoPanel->audioInProcessed);
                 pressedButton->buttonText = "Tuning..";
@@ -2180,12 +2189,10 @@ void MobileMainWindow::draw() {
             qsoPanel->handleTxButton(vfo, txPressed, false, &qsoPanel->audioInProcessed);
             //
         }
-    }
-    else if (!sigpath::transmitter) {
+    } else if (!sigpath::transmitter) {
         if (txButton.currentlyPressed) {
             sigpath::sinkManager.toneGenerator.store(1);
-        }
-        else {
+        } else {
             sigpath::sinkManager.toneGenerator.store(0);
         }
     }
@@ -2216,7 +2223,7 @@ void MobileMainWindow::draw() {
     }
 
     this->logbookDetailsPopup();
-    
+
 
     if (ImGui::BeginPopupModal(TxModePopup, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImVec2 screenSize = io.DisplaySize;
@@ -2227,17 +2234,16 @@ void MobileMainWindow::draw() {
         auto currentBand = getCurrentBand();
         ImGui::Text("Band (wavelength meters):");
         ImGui::NewLine();
-        for (auto& b : bands) {
+        for (auto &b: bands) {
             ImGui::SameLine();
             bool pressed = false;
             if (currentBand == b) {
                 pressed = doFingerButton(">" + b + "<");
-            }
-            else {
+            } else {
                 pressed = doFingerButton(b);
             }
             if (pressed && b != currentBand) {
-                selectCurrentBand(b, (int)currentFreq);
+                selectCurrentBand(b, (int) currentFreq);
                 if (getCurrentMode() == "SSB") {
                     this->selectSSBModeForBand(b);
                 }
@@ -2249,15 +2255,14 @@ void MobileMainWindow::draw() {
         ImGui::NewLine();
         auto currentSubmode = getCurrentModeAttr("submode");
         std::string currentMode = "";
-        for (auto& b : modes) {
+        for (auto &b: modes) {
             ImGui::SameLine();
-            for (auto& bb : subModes[b]) {
+            for (auto &bb: subModes[b]) {
                 bool pressed = false;
                 ImGui::SameLine();
                 if (bb == currentSubmode) {
                     pressed = doFingerButton(">" + bb + "<");
-                }
-                else {
+                } else {
                     pressed = doFingerButton(bb);
                 }
                 if (pressed && bb != currentSubmode) {
@@ -2274,7 +2279,7 @@ void MobileMainWindow::draw() {
         ImGui::NewLine();
         ImGui::Text("Bandwidth:");
         ImGui::NewLine();
-        auto* bw = &ssbBandwidths;
+        auto *bw = &ssbBandwidths;
         if (currentMode == "CW") {
             bw = &cwBandwidths;
         }
@@ -2291,20 +2296,18 @@ void MobileMainWindow::draw() {
         //            sprintf(fmt, "%0.0f", bandwidthk);
         //        } else {
         //        }
-        for (auto& b : *bw) {
+        for (auto &b: *bw) {
             ImGui::SameLine();
             bool pressed = false;
             if (b == fmt) {
                 pressed = doFingerButton(">" + b + "<");
-            }
-            else {
+            } else {
                 pressed = doFingerButton(b);
             }
             if (pressed) {
                 if (bw == &cwBandwidths) {
                     vfo->setBandwidth(std::stof(b)); // in hz
-                }
-                else {
+                } else {
                     vfo->setBandwidth(std::stof(b) * 1000); // in khz
                 }
             }
@@ -2339,8 +2342,8 @@ void MobileMainWindow::setCurrentModeBySubmode(std::string submode) {
     if (this->qsoPanel->submode == submode) {
         return;
     }
-    for (auto& b : modes) {
-        for (auto& bb : subModes[b]) {
+    for (auto &b: modes) {
+        for (auto &bb: subModes[b]) {
             if (bb == submode) {
                 auto cm = getCurrentMode();
                 if (cm != b) {
@@ -2353,6 +2356,7 @@ void MobileMainWindow::setCurrentModeBySubmode(std::string submode) {
         }
     }
 }
+
 void MobileMainWindow::setCurrentMode(std::string mode) {
     core::configManager.acquire();
     core::configManager.conf["mobileRadioMode"] = mode;
@@ -2369,13 +2373,12 @@ void MobileMainWindow::leaveBandOrMode(int leavingFrequency) {
     }
 }
 
-void MobileMainWindow::selectSSBModeForBand(const std::string& band) {
+void MobileMainWindow::selectSSBModeForBand(const std::string &band) {
     auto maybeSubmode = getCurrentModeAttr("band_" + band + "_ssb");
     if (!maybeSubmode.empty()) {
         if (bandsLimits[band].first >= 10000000) {
             maybeSubmode = "USB";
-        }
-        else {
+        } else {
             maybeSubmode = "LSB";
         }
     }
@@ -2383,7 +2386,7 @@ void MobileMainWindow::selectSSBModeForBand(const std::string& band) {
     updateSubmodeAfterChange();
 }
 
-void MobileMainWindow::selectCurrentBand(const std::string& band, int leavingFrequency) {
+void MobileMainWindow::selectCurrentBand(const std::string &band, int leavingFrequency) {
     if (getCurrentBand() != "" && leavingFrequency > 0) {
         this->leaveBandOrMode(leavingFrequency);
     }
@@ -2392,7 +2395,7 @@ void MobileMainWindow::selectCurrentBand(const std::string& band, int leavingFre
     core::configManager.release(true);
 }
 
-std::string MobileMainWindow::getCurrentModeAttr(const std::string& key) {
+std::string MobileMainWindow::getCurrentModeAttr(const std::string &key) {
     std::string retval;
     auto currentMode = getCurrentMode();
     core::configManager.acquire();
@@ -2406,15 +2409,14 @@ std::string MobileMainWindow::getCurrentModeAttr(const std::string& key) {
     return retval;
 }
 
-void MobileMainWindow::setCurrentModeAttr(const std::string& key, std::string val) {
+void MobileMainWindow::setCurrentModeAttr(const std::string &key, std::string val) {
     auto currentMode = getCurrentMode();
     core::configManager.acquire();
     json x = core::configManager.conf["mobileRadioMode_" + currentMode];
     if (!x.empty()) {
         x[key] = val;
         core::configManager.conf["mobileRadioMode_" + currentMode] = x;
-    }
-    else {
+    } else {
         x = json();
         x[key] = val;
         core::configManager.conf["mobileRadioMode_" + currentMode] = x;
@@ -2422,9 +2424,9 @@ void MobileMainWindow::setCurrentModeAttr(const std::string& key, std::string va
     core::configManager.release(true);
 }
 
-const std::string& MobileMainWindow::getBand(int frequency) {
+const std::string &MobileMainWindow::getBand(int frequency) {
     static std::string empty;
-    for (auto& b : bandsLimits) {
+    for (auto &b: bandsLimits) {
         if (frequency >= b.second.first && frequency <= b.second.second) {
             return b.first;
         }
@@ -2476,8 +2478,8 @@ void MobileMainWindow::init() {
 
 
     displaymenu::onDisplayDraw.bindHandler(&displayDrawHandler);
-    displayDrawHandler.handler = [](ImGuiContext* ctx, void* data) {
-        MobileMainWindow* _this = (MobileMainWindow*)data;
+    displayDrawHandler.handler = [](ImGuiContext *ctx, void *data) {
+        MobileMainWindow *_this = (MobileMainWindow *) data;
         if (ImGui::Checkbox("Show Audio Waterfall##_sdrpp", &_this->drawAudioWaterfall)) {
             setConfig("showAudioWaterfall", _this->drawAudioWaterfall);
         }
@@ -2495,19 +2497,14 @@ void MobileMainWindow::init() {
     displayDrawHandler.ctx = this;
     pvt->init();
 
-    for(auto x: core::moduleManager.instances) {
-        auto radio = (RadioModule*)x.second.instance->getInterface("RadioModule");
-        if (radio) {
-            updateModeFromRadio(radio->getSelectedDemodId());
-            break;
-        }
+    if (auto radio = getRadioModule()) {
+        updateModeFromRadio(radio->getSelectedDemodId());
     }
-
 
 }
 
 void MobileMainWindow::updateModeFromRadio(int radioDemodId) {
-    switch(radioDemodId) {
+    switch (radioDemodId) {
         case RadioModule::RADIO_DEMOD_AM:
             setCurrentModeBySubmode("AM");
             return;
@@ -2531,6 +2528,7 @@ void MobileMainWindow::updateModeFromRadio(int radioDemodId) {
             return;
     }
 }
+
 void MobileMainWindow::end() {
     pvt->end();
     displaymenu::onDisplayDraw.unbindHandler(&displayDrawHandler);
@@ -2553,8 +2551,8 @@ void hapticFeedback() {
 }
 
 static bool doKeyboardButton(const std::string &title) {
-    const ImVec2& labelWidth = ImGui::CalcTextSize(title.c_str(), nullptr, true, -1);
-    auto rv = ImGui::Button(title.c_str(), ImVec2(labelWidth.x + 2*style::baseFont->FontSize, style::bigFont->FontSize * 1.2));
+    const ImVec2 &labelWidth = ImGui::CalcTextSize(title.c_str(), nullptr, true, -1);
+    auto rv = ImGui::Button(title.c_str(), ImVec2(labelWidth.x + 2 * style::baseFont->FontSize, style::bigFont->FontSize * 1.2));
     if (rv) {
         hapticFeedback();
     }
@@ -2574,11 +2572,11 @@ void MobileMainWindow::updateDXInfo() {
         if (!callsign.ll.isValid()) {
             currentDXInfo = "DX: invalid";
         } else {
-            currentDXInfo = "DX: " + dx + "   | QTH: "+ callsign.dxccname + ", " + callsign.continent + " ";
+            currentDXInfo = "DX: " + dx + "   | QTH: " + callsign.dxccname + ", " + callsign.continent + " ";
             auto ll = utils::gridToLatLng(sigpath::iqFrontEnd.operatorLocation);
             if (ll.isValid()) {
                 auto bd = bearingDistance(ll, callsign.ll);
-                currentDXInfo += "  | Bearing: " + std::to_string((int)((180.0 / M_PI) * bd.bearing)) + "   | Dist: " + std::to_string((int)bd.distance)+" Km";
+                currentDXInfo += "  | Bearing: " + std::to_string((int) ((180.0 / M_PI) * bd.bearing)) + "   | Dist: " + std::to_string((int) bd.distance) + " Km";
             }
         }
     }
@@ -2593,11 +2591,11 @@ void MobileMainWindow::logbookDetailsPopup() {
             setConfig("logbookPopupPosition_y", logbookPopupPosition.y);
         }
 
-        ImGuiIO& io = ImGui::GetIO();
+        ImGuiIO &io = ImGui::GetIO();
 
         ImGui::Text("QSO data entered:");
-        QSORecord& record = qsoRecords[pvt->logbookDetailsEditIndex];
-        if (ImGui::InputText("##_qso_data_entered", record.fulltext.data(), 100)) {
+        QSORecord &record = qsoRecords[pvt->logbookDetailsEditIndex];
+        if (ImGui::InputText("##_qso_data_entered", record.fulltext.data(), 100, ImGuiInputTextFlags_CharsUppercase)) {
             record.fulltext.resize(strlen(record.fulltext.data()));
         }
 
@@ -2632,47 +2630,47 @@ void MobileMainWindowPrivate::recordCallCQPopup() {
     if (renderPopup) {
 
         switch (pub->configPanel->recorder.mode) {
-        case SimpleRecorder::PLAYING_STARTED:
-            // nothing here.
-            break;
-        case SimpleRecorder::RECORDING_IDLE:
-            if (doFingerButton("Record new")) {
-                pub->configPanel->recorder.startRecording();
-            }
-            if (callCq.size() > 0) {
-                ImGui::TextUnformatted("Current Call CQ recording:");
-                callCQlayer.draw();
-            }
-            break;
-        case SimpleRecorder::RECORDING_STARTED:
-            if (doFingerButton("Stop Rec, then Preview")) {
-                pub->configPanel->recorder.stop();
-                {
-                    auto root = (std::string)core::args["root"];
-                    auto fname = root + "/call_cq_preview.wav";
-                    wav::Writer w;
-                    w.setChannels(2);
-                    w.setFormat(wav::FORMAT_WAV);
-                    w.setSampleType(wav::SAMP_TYPE_FLOAT32);
-                    w.setSamplerate(trxAudioSampleRate);
-                    if (!w.open(fname)) {
-                        ImGui::InsertNotification({ ImGuiToastType_Error, 5000, ("Write err: " + std::string(strerror(errno))).c_str() });
-                        return;
-                    }
-                    w.write((float *)pub->configPanel->recorder.data.data(), pub->configPanel->recorder.data.size());
-                    w.close();
-                    pub->configPanel->recorder.data.clear();
-                    callCQlayer.loadFile(fname);
-                    callCq = callCQlayer.dataOwn;
-                    callCQlayer.setData(&callCq, callCQlayer.sampleRate);
-                    ImGui::InsertNotification({ ImGuiToastType_Info, 5000, "File recorded." });
+            case SimpleRecorder::PLAYING_STARTED:
+                // nothing here.
+                break;
+            case SimpleRecorder::RECORDING_IDLE:
+                if (doFingerButton("Record new")) {
+                    pub->configPanel->recorder.startRecording();
                 }
-            }
-            break;
+                if (callCq.size() > 0) {
+                    ImGui::TextUnformatted("Current Call CQ recording:");
+                    callCQlayer.draw();
+                }
+                break;
+            case SimpleRecorder::RECORDING_STARTED:
+                if (doFingerButton("Stop Rec, then Preview")) {
+                    pub->configPanel->recorder.stop();
+                    {
+                        auto root = (std::string) core::args["root"];
+                        auto fname = root + "/call_cq_preview.wav";
+                        wav::Writer w;
+                        w.setChannels(2);
+                        w.setFormat(wav::FORMAT_WAV);
+                        w.setSampleType(wav::SAMP_TYPE_FLOAT32);
+                        w.setSamplerate(trxAudioSampleRate);
+                        if (!w.open(fname)) {
+                            ImGui::InsertNotification({ImGuiToastType_Error, 5000, ("Write err: " + std::string(strerror(errno))).c_str()});
+                            return;
+                        }
+                        w.write((float *) pub->configPanel->recorder.data.data(), pub->configPanel->recorder.data.size());
+                        w.close();
+                        pub->configPanel->recorder.data.clear();
+                        callCQlayer.loadFile(fname);
+                        callCq = callCQlayer.dataOwn;
+                        callCQlayer.setData(&callCq, callCQlayer.sampleRate);
+                        ImGui::InsertNotification({ImGuiToastType_Info, 5000, "File recorded."});
+                    }
+                }
+                break;
         }
 
         if (doFingerButton("Cancel")) {
-            auto root = (std::string)core::args["root"];
+            auto root = (std::string) core::args["root"];
             auto fnamePreview = root + "/call_cq_preview.wav";
             remove(fnamePreview.c_str()); // remove preview file
             pub->configPanel->recorder.stop();
@@ -2684,7 +2682,7 @@ void MobileMainWindowPrivate::recordCallCQPopup() {
                 pub->configPanel->recorder.stop();
                 usleep(300000);
             }
-            auto root = (std::string)core::args["root"];
+            auto root = (std::string) core::args["root"];
             auto fnamePreview = root + "/call_cq_preview.wav";
             auto fname = root + "/call_cq.wav";
             FILE *f = fopen(fnamePreview.c_str(), "rb");
@@ -2699,7 +2697,7 @@ void MobileMainWindowPrivate::recordCallCQPopup() {
 }
 
 void MobileMainWindow::logbookEntryPopup(int currentFreq) {
-    bool renderPopup = ImGui::BeginPopup(LogBookEntryPopup, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoBackground);
+    bool renderPopup = ImGui::BeginPopup(LogBookEntryPopup, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBackground);
     if (renderPopup) {
 
         if (!(ImGui::GetWindowPos().x == logbookPopupPosition.x && ImGui::GetWindowPos().y == logbookPopupPosition.y)) {
@@ -2708,7 +2706,7 @@ void MobileMainWindow::logbookEntryPopup(int currentFreq) {
             setConfig("logbookPopupPosition_y", logbookPopupPosition.y);
         }
 
-        ImGuiIO& io = ImGui::GetIO();
+        ImGuiIO &io = ImGui::GetIO();
 
         if (doKeyboardButton(doQSOAudioRecording ? "REC is: ON (-10sec)" : "REC is: OFF")) {
             doQSOAudioRecording = !doQSOAudioRecording;
@@ -2739,12 +2737,12 @@ void MobileMainWindow::logbookEntryPopup(int currentFreq) {
         if (io.InputQueueCharacters.Size > 0) {
             bool changed = false;
             for (int n = 0; n < io.InputQueueCharacters.Size; n++) {
-                unsigned int c = (unsigned int)io.InputQueueCharacters[n];
+                unsigned int c = (unsigned int) io.InputQueueCharacters[n];
                 if (c >= 'a' && c <= 'z') {
                     c = std::toupper(c);
                 }
                 if (c >= 'A' && c <= 'Z' || c >= '0' && c <= '9') {
-                    currentDX += (char)c;
+                    currentDX += (char) c;
                     changed = true;
                     updateDXInfo();
                 }
@@ -2784,9 +2782,9 @@ void MobileMainWindow::logbookEntryPopup(int currentFreq) {
             }
             updateDXInfo();
         }
-        const char* qwerty = "QWERTYUIOP";
-        const char* asdf = "ASDFGHJKL";
-        const char* zxcv = "ZXCVBNM";
+        const char *qwerty = "QWERTYUIOP";
+        const char *asdf = "ASDFGHJKL";
+        const char *zxcv = "ZXCVBNM";
         ImGui::Dummy(ImVec2(style::baseFont->FontSize, 0));
         ImGui::SameLine();
         for (int q = 0; q < strlen(qwerty); q++) addButton(qwerty[q]);
@@ -2798,6 +2796,8 @@ void MobileMainWindow::logbookEntryPopup(int currentFreq) {
         ImGui::SameLine();
         if (doKeyboardButton("save")) {
             pvt->addQsoRecord(parseAddQsoRecord(this->currentDX, currentFreq));
+            ImGui::WaterfallVFO *&vfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
+            this->maybeAddBookmark(this->currentDX, currentFreq, getCurrentModeAttr("submode"), vfo->bandwidth, true);
             this->currentDX = "";
             encoder.enabled = true;
         }
@@ -2843,7 +2843,7 @@ void MobileMainWindow::maybeTransmit(std::shared_ptr<std::vector<dsp::stereo_t>>
 }
 
 bool MobileMainWindow::canTransmit() {
-    return (bool)qsoPanel->audioInToFFT;
+    return (bool) qsoPanel->audioInToFFT;
 }
 
 int MobileMainWindow::getLowPass() {
@@ -2944,15 +2944,13 @@ void QSOPanel::startAudioPipeline() {
                 for (int i = 0; i < rd; i++) {
                     configPanel->equalizer.out.writeBuf[i] *= mult;
                 }
-            }
-            else {
+            } else {
                 memcpy(configPanel->equalizer.out.writeBuf, hipass.out.writeBuf, rd * sizeof(dsp::complex_t));
             }
             configPanel->equalizerDecibels.addSamples(configPanel->equalizer.out.writeBuf, rd);
             if (configPanel->doFreqMaim) {
                 configPanel->freqMaim.process(rd, configPanel->equalizer.out.writeBuf, configPanel->freqMaim.out.writeBuf);
-            }
-            else {
+            } else {
                 memcpy(configPanel->freqMaim.out.writeBuf, configPanel->equalizer.out.writeBuf, rd * sizeof(dsp::complex_t));
             }
             configPanel->c2r.process(rd, configPanel->freqMaim.out.writeBuf, configPanel->c2r.out.writeBuf);
@@ -2989,8 +2987,8 @@ void QSOPanel::startAudioPipeline() {
     audioInToFFT->start();
     sigpath::averageTxSignalLevel.bindHandler(&maxSignalHandler);
     maxSignalHandler.ctx = this;
-    maxSignalHandler.handler = [](float _maxSignal, void* ctx) {
-        auto _this = (QSOPanel*)ctx;
+    maxSignalHandler.handler = [](float _maxSignal, void *ctx) {
+        auto _this = (QSOPanel *) ctx;
         _this->maxSignal.store(_maxSignal);
     };
     audioInProcessed.start();
@@ -3024,7 +3022,7 @@ void QSOPanel::startAudioPipeline() {
 }
 
 
-void QSOPanel::setModeSubmode(const std::string& _mode, const std::string& _submode) {
+void QSOPanel::setModeSubmode(const std::string &_mode, const std::string &_submode) {
     if (submode != _submode) {
         submode = _submode;
     }
@@ -3033,7 +3031,7 @@ void QSOPanel::setModeSubmode(const std::string& _mode, const std::string& _subm
     }
 }
 
-void QSOPanel::handleTxButton(ImGui::WaterfallVFO* vfo, bool tx, bool tune, dsp::routing::Splitter<dsp::stereo_t> *what) {
+void QSOPanel::handleTxButton(ImGui::WaterfallVFO *vfo, bool tx, bool tune, dsp::routing::Splitter<dsp::stereo_t> *what) {
     if (currentTransmitSource != nullptr && currentTransmitSource != what) {
         // do not interfere, other tx source is active
         return;
@@ -3048,8 +3046,7 @@ void QSOPanel::handleTxButton(ImGui::WaterfallVFO* vfo, bool tx, bool tune, dsp:
                 audioInToTransmitter = std::make_shared<AudioInToTransmitter>(&audioTowardsTransmitter, gui::mainWindow.audioIsIqData);
                 if (vfo) {
                     audioInToTransmitter->bandwidth = std::min<double>(12000.0, vfo->bandwidth);
-                }
-                else {
+                } else {
                     audioInToTransmitter->bandwidth = 2700;
                 }
                 audioInToTransmitter->setSubmode(submode);
@@ -3058,15 +3055,14 @@ void QSOPanel::handleTxButton(ImGui::WaterfallVFO* vfo, bool tx, bool tune, dsp:
                 audioInToTransmitter->tuneFrequency = tune ? 20 : 0; // 20hz close to carrier
                 audioInToTransmitter->start();
                 sigpath::transmitter->setTransmitStream(&audioInToTransmitter->out);
-                sigpath::transmitter->setTransmitFrequency((gui::mainWindow.txFrequencyOverride ? gui::mainWindow.txFrequencyOverride : (int)currentFreq) + gui::mainWindow.txOffset);
+                sigpath::transmitter->setTransmitFrequency((gui::mainWindow.txFrequencyOverride ? gui::mainWindow.txFrequencyOverride : (int) currentFreq) + gui::mainWindow.txOffset);
                 sigpath::transmitter->setTransmitStatus(true);
             }
             lastSWR.clear();
             lastForward.clear();
             lastReflected.clear();
         }
-    }
-    else {
+    } else {
         if (this->transmitting) {
             this->transmitting = false;
             triggerTXOffEvent = 14; // 60fps,
@@ -3101,7 +3097,7 @@ void QSOPanel::stopAudioPipeline() {
     }
 }
 
-float rtmax(std::vector<float>& v) {
+float rtmax(std::vector<float> &v) {
     if (v.empty()) {
         return 0;
     }
@@ -3173,8 +3169,7 @@ void QSOPanel::drawHistogram() {
         ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "allow mic access in");
         ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "the app permissions!");
         ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "(and then restart)");
-    }
-    else {
+    } else {
         if (submode == "LSB" || submode == "USB") {
             auto mx0 = npmax(currentFFTBuffer);
             auto data = npsqrt(currentFFTBuffer);
@@ -3206,16 +3201,97 @@ void MobileMainWindow::setBothGains(unsigned char gain) {
     setConfig("trx_txGain", gain);
 }
 
+std::string MobileMainWindow::maybeFindBookmark(double frequency, std::string submode, double bandwidth) {
+    auto tbm = getTransientBookmarkManager();
+    if (tbm) {
+        for (int z = 0; z < tbm->transientBookmarks.size(); z++) {
+            WaterfallBookmark &bookmark = tbm->transientBookmarks[z];
+            if (fabs(bookmark.bookmark.frequency - frequency) <= 100 && bookmark.extraInfo != "") {     //
+                return bookmark.extraInfo;
+            }
+        }
+    }
+    return "";
+}
 
-void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
+void MobileMainWindow::maybeAddBookmark(const std::string dx, double frequency, std::string submode, double bandwidth, bool worked) {
+    auto tbm = getTransientBookmarkManager();
+    if (!tbm) return;
+    auto p = tbm->getModesList();
+
+    int index = -1;
+    int modeI = -1;
+    int usbI = -1;
+    while (*p) {
+        index++;
+        if (!strcmp(p, "USB")) {
+            usbI = index;
+        }
+        if (!strcmp(p, submode.c_str())) {
+            modeI = index;
+            break;
+        }
+        p += strlen(p) + 1;
+    }
+    if (modeI == -1) {
+        modeI = usbI;
+    }
+    if (dx != "") {
+        std::vector<std::string> f;
+        splitStringV(dx, " ", f);
+        auto rec = parseQsoRecord(QSORecord{}, f);
+        bool modified = false;
+        if (rec.dxcall != "") {
+            bool found = false;
+            for (int z = 0; z < tbm->transientBookmarks.size(); z++) {
+                WaterfallBookmark &bookmark = tbm->transientBookmarks[z];
+                if (fabs(bookmark.bookmark.frequency - frequency) <= 100) {     //
+                    found = true;
+                    bookmark.extraInfo = dx;
+                    bookmark.bookmarkName = rec.dxcall;
+                    bookmark.listName = "OnAir";
+                    bookmark.bookmark.mode = modeI;
+                    bookmark.bookmark.bandwidth = bandwidth;
+                    bookmark.bookmark.frequency = frequency;
+                    bookmark.worked |= worked;
+                    modified = true;
+                }
+            }
+            if (!found) {
+                tbm->transientBookmarks.push_back(WaterfallBookmark{"OnAir", rec.dxcall, dx, worked, FrequencyBookmark{frequency, bandwidth, modeI, false}, currentTimeMillis() + 1000 * 60 * 180}); // 3hours
+                modified = true;
+            }
+        }
+        if (modified) {
+            tbm->refreshWaterfallBookmarks(false);
+        }
+    } else {
+        // delete it.
+        bool found = false;
+        for (int z = 0; z < tbm->transientBookmarks.size(); z++) {
+            WaterfallBookmark &bookmark = tbm->transientBookmarks[z];
+            if (fabs(bookmark.bookmark.frequency - frequency) <= 100) {     //
+                tbm->transientBookmarks.erase(tbm->transientBookmarks.begin() + z);
+                found = true;
+                z--;
+            }
+        }
+        if (found) {
+            tbm->refreshWaterfallBookmarks(false);
+        }
+    }
+
+}
+
+
+void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO *) {
     this->currentFreq = _currentFreq;
     currentFFTBufferMutex.lock();
     this->drawHistogram();
     float mx = 10 * log10(this->maxSignal.load());
     if (mx > maxTxSignalPeak || maxTxSignalPeakTime < currentTimeMillis() - 500) {
         maxTxSignalPeak = mx;
-        maxTxSignalPeakTime = currentTimeMillis();
-        ;
+        maxTxSignalPeakTime = currentTimeMillis();;
     }
 
     if (maxTxSignalPeak > 0) {
@@ -3244,7 +3320,7 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
         //        if (ImGui::Checkbox("PostPro(SSB)", &this->postprocess)) {
         //        }
         if (false) {
-            int fillLevel = (int)sigpath::transmitter->getFillLevel();
+            int fillLevel = (int) sigpath::transmitter->getFillLevel();
             if (fillLevel <= 1 && sigpath::transmitter->getTXStatus()) {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
             }
@@ -3273,7 +3349,7 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
         ImGui::SameLine();
         int hwgain = sigpath::transmitter->getTransmitHardwareGain();
         if (ImGui::SliderInt("##_radio_tx_gain_", &this->txGain, 0, 255)) {
-            gui::mainWindow.setBothGains((unsigned char)this->txGain);
+            gui::mainWindow.setBothGains((unsigned char) this->txGain);
         }
         ImGui::LeftLabel("TX Hard PA:");
         ImGui::SameLine();
@@ -3292,8 +3368,7 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
         //            sigpath::transmitter->setTransmittedPttDelay(ptthang);
         //            setConfig("trx_txPTTHangTime", ptthang);
         //        }
-    }
-    else {
+    } else {
         ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "Transmitter not playng");
         ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "Select a device");
         ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "(e.g. HL2 Source)");
@@ -3308,21 +3383,22 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO*) {
 
 
 }
+
 QSOPanel::~QSOPanel() {
     audioInProcessedMerger.stop();
     stopAudioPipeline();
 }
+
 void QSOPanel::init() {
     getConfig("trx_txGain", this->txGain);
 }
 
 
-void ConfigPanel::draw(ImGui::WaterfallVFO* vfo) {
+void ConfigPanel::draw(ImGui::WaterfallVFO *vfo) {
     gui::mainWindow.qsoPanel->currentFFTBufferMutex.lock();
     gui::mainWindow.qsoPanel->drawHistogram();
     gui::mainWindow.qsoPanel->currentFFTBufferMutex.unlock();
     ImVec2 space = ImGui::GetContentRegionAvail();
-
 
 
     ImGui::LeftLabel("Audio lo cutoff frequency");
@@ -3388,8 +3464,7 @@ void ConfigPanel::draw(ImGui::WaterfallVFO* vfo) {
     }
     if (vfo) {
         lowPass = vfo->bandwidth;
-    }
-    else {
+    } else {
         lowPass = 2700;
     }
     ImGui::Text("Audio bandwidth (high cut-off): %d", lowPass);
@@ -3406,31 +3481,31 @@ void ConfigPanel::draw(ImGui::WaterfallVFO* vfo) {
     ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(0, style::baseFont->FontSize * 0.4));
 
     switch (recorder.mode) {
-    case SimpleRecorder::RECORDING_IDLE:
-        if (doFingerButton("Record")) {
-            recorder.startRecording();
-        }
-        if (!recorder.data.empty()) {
-            ImGui::SameLine();
-            if (doFingerButton("<------- Play")) {
-                recorder.startPlaying();
+        case SimpleRecorder::RECORDING_IDLE:
+            if (doFingerButton("Record")) {
+                recorder.startRecording();
             }
-        }
-        break;
-    case SimpleRecorder::RECORDING_STARTED:
-        if (doFingerButton("Stop Rec")) {
-            recorder.stop();
-        }
-        break;
-    case SimpleRecorder::PLAYING_STARTED:
-        ImGui::BeginDisabled(true);
-        if (doFingerButton("Record")) {
-        }
-        ImGui::EndDisabled();
-        ImGui::SameLine();
-        if (doFingerButton("<-------- Stop Play")) {
-            recorder.stop();
-        }
-        break;
+            if (!recorder.data.empty()) {
+                ImGui::SameLine();
+                if (doFingerButton("<------- Play")) {
+                    recorder.startPlaying();
+                }
+            }
+            break;
+        case SimpleRecorder::RECORDING_STARTED:
+            if (doFingerButton("Stop Rec")) {
+                recorder.stop();
+            }
+            break;
+        case SimpleRecorder::PLAYING_STARTED:
+            ImGui::BeginDisabled(true);
+            if (doFingerButton("Record")) {
+            }
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            if (doFingerButton("<-------- Stop Play")) {
+                recorder.stop();
+            }
+            break;
     }
 }

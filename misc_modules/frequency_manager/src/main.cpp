@@ -14,6 +14,7 @@
 #include <gui/dialogs/dialog_box.h>
 #include <fstream>
 #include "utils/wstr.h"
+#include "frequency_manager.h"
 
 SDRPP_MOD_INFO{
     /* Name:            */ "frequency_manager",
@@ -21,19 +22,6 @@ SDRPP_MOD_INFO{
     /* Author:          */ "Ryzerth;Zimm",
     /* Version:         */ 0, 3, 0,
     /* Max instances    */ 1
-};
-
-struct FrequencyBookmark {
-    double frequency;
-    double bandwidth;
-    int mode;
-    bool selected;
-};
-
-struct WaterfallBookmark {
-    std::string listName;
-    std::string bookmarkName;
-    FrequencyBookmark bookmark;
 };
 
 ConfigManager config;
@@ -60,7 +48,7 @@ enum {
 
 const char* bookmarkDisplayModesTxt = "Off\0Top\0Bottom\0";
 
-class FrequencyManagerModule : public ModuleManager::Instance {
+class FrequencyManagerModule : public ModuleManager::Instance, public TransientBookmarkManager {
 public:
     FrequencyManagerModule(std::string name) {
         this->name = name;
@@ -72,7 +60,7 @@ public:
 
         refreshLists();
         loadByName(selList);
-        refreshWaterfallBookmarks();
+        refreshWaterfallBookmarks(true);
 
         fftRedrawHandler.ctx = this;
         fftRedrawHandler.handler = fftRedraw;
@@ -82,6 +70,17 @@ public:
         gui::menu.registerEntry(name, menuHandler, this, NULL);
         gui::waterfall.onFFTRedraw.bindHandler(&fftRedrawHandler);
         gui::waterfall.onInputProcess.bindHandler(&inputHandler);
+    }
+
+    void *getInterface(const char *name) override {
+        if (!strcmp(name, "TransientBookmarkManager")) {
+            return (TransientBookmarkManager*)this;
+        }
+        return nullptr;
+    }
+
+    const char *getModesList() override {
+        return demodModeListTxt;
     }
 
     ~FrequencyManagerModule() {
@@ -285,7 +284,7 @@ private:
         config.release();
     }
 
-    void refreshWaterfallBookmarks(bool lockConfig = true) {
+    void refreshWaterfallBookmarks(bool lockConfig) override {
         if (lockConfig) { config.acquire(); }
         waterfallBookmarks.clear();
         for (auto [listName, list] : config.conf["lists"].items()) {
@@ -298,7 +297,16 @@ private:
                 wbm.bookmark.bandwidth = config.conf["lists"][listName]["bookmarks"][bookmarkName]["bandwidth"];
                 wbm.bookmark.mode = config.conf["lists"][listName]["bookmarks"][bookmarkName]["mode"];
                 wbm.bookmark.selected = false;
+                wbm.notValidAfter = 0;
+                wbm.extraInfo = "";
+                wbm.worked = false;
                 waterfallBookmarks.push_back(wbm);
+            }
+        }
+        auto ctm = currentTimeMillis();
+        for (auto &tr: transientBookmarks) {
+            if (ctm < tr.notValidAfter) {
+                waterfallBookmarks.push_back(tr);
             }
         }
         if (lockConfig) { config.release(); }
@@ -620,8 +628,12 @@ private:
 
 
         int index = -1;
+        auto ctm = currentTimeMillis();
         for (auto const &bm : _this->waterfallBookmarks) {
             index++;
+
+            if (bm.notValidAfter && ctm > bm.notValidAfter) { continue; }
+
             double centerXpos = args.min.x + std::round((bm.bookmark.frequency - args.lowFreq) * args.freqToPixelRatio);
 
             ImVec2 nameSize = ImGui::CalcTextSize(bm.bookmarkName.c_str());
@@ -655,14 +667,14 @@ again:
                 if (clampedRectMin.y < args.min.y || clampedRectMax.y >= args.max.y) {
                     continue; // dont draw at all.
                 }
-                args.window->DrawList->AddRectFilled(clampedRectMin, clampedRectMax, IM_COL32(255, 255, 0, 255));
+                args.window->DrawList->AddRectFilled(clampedRectMin, clampedRectMax, bm.worked ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 255, 0, 255));
                 _this->rects.emplace_back(Drawn { newRect, index } );
             }
             if (rectMin.x >= args.min.x && rectMax.x <= args.max.x) {
                 args.window->DrawList->AddText(ImVec2(centerXpos - (nameSize.x / 2), rectMin.y), IM_COL32(0, 0, 0, 255), bm.bookmarkName.c_str());
             }
             if (bm.bookmark.frequency >= args.lowFreq && bm.bookmark.frequency <= args.highFreq) {
-                args.window->DrawList->AddLine(ImVec2(centerXpos, args.min.y), ImVec2(centerXpos, args.max.y), IM_COL32(255, 255, 0, 255));
+                args.window->DrawList->AddLine(ImVec2(centerXpos, args.min.y), ImVec2(centerXpos, args.max.y), bm.worked ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 255, 0, 255));
             }
 
         }

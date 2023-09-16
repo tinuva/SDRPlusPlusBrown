@@ -270,4 +270,8 @@ public:
 
     bool getIqDataInAudio();
     void setIqDataInAudio(bool);
+
+    void maybeAddBookmark(std::string dx, double frequency, std::string submode, double bandwidth, bool worked);
+
+    std::string maybeFindBookmark(double d, std::string basicString, double d1);
 };
