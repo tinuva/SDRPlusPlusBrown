@@ -611,7 +611,7 @@ private:
         }
     }
 
-    static struct Drawn {
+    struct Drawn {
         ImRect rect;
         int index;
     };
