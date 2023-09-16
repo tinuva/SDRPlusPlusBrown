@@ -257,6 +257,8 @@ class MainActivity : NativeActivity(), SensorEventListener {
 
     var permissionsPassed = HashSet<Int>();
 
+    var autoPermissionProceed = true;
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -266,7 +268,9 @@ class MainActivity : NativeActivity(), SensorEventListener {
             this.permissionsPassed.add(requestCode);
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        proceedWithPermissions();
+        if (autoPermissionProceed) {
+            proceedWithPermissions();
+        }
     }
 
     public override fun onCreate(savedInstanceState: Bundle?) {
@@ -459,6 +463,10 @@ class MainActivity : NativeActivity(), SensorEventListener {
     }
 
 
+    fun doPermissionsDialogs() {
+        autoPermissionProceed = false;
+        proceedWithPermissions();
+    }
     fun performHapticFeedback() {
         val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
         if (vibrator != null) {

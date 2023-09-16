@@ -897,6 +897,12 @@ void MainWindow::removeBottomWindow(std::string name) {
     }
 }
 
+#ifdef __ANDROID__
+namespace backend {
+    extern void doPermissionsDialogs();
+}
+#endif
+
 void MainWindow::drawDebugMenu() {
     if (ImGui::CollapsingHeader("Debug")) {
         ImGui::Text("Frame time: %.3f ms/frame", ImGui::GetIO().DeltaTime * 1000.0f);
@@ -927,6 +933,11 @@ void MainWindow::drawDebugMenu() {
                 ImGui::Text("Hello world3");
             });
         }
+#ifdef __ANDROID__
+        if (ImGui::Button("Perm.Request")) {
+            backend::doPermissionsDialogs();
+        }
+#endif
 
         ImGui::Checkbox("WF Single Click", &gui::waterfall.VFOMoveSingleClick);
         onDebugDraw.emit(GImGui);

@@ -19,6 +19,7 @@ namespace dsp::loop {
             _maxGain = maxGain;
             _maxOutputAmp = maxOutputAmp;
             _initGain = initGain;
+            _startEnvelope = 0;
             _frozen.store(false);
             amp = _setPoint / _initGain;
             base_type::init(in);
@@ -74,6 +75,7 @@ namespace dsp::loop {
             assert(base_type::_block_init);
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
             amp = _setPoint / _initGain;
+            _startEnvelope  =0;
         }
 
         void setFrozen(bool b) {
@@ -81,6 +83,7 @@ namespace dsp::loop {
         }
 
         inline int process(int count, T* in, T* out) {
+            float envelope = 1.0f;
             for (int i = 0; i < count; i++) {
                 // Get signal amplitude
                 float inAmp, gain = 1.0;
@@ -117,9 +120,13 @@ namespace dsp::loop {
                     amp = maxAmp;
                     gain = std::min<float>(_setPoint / amp, _maxGain);
                 }
-                
+
+                if (_startEnvelope < _totalEnvelopeLength) {
+                    envelope = _startEnvelope / (float)_totalEnvelopeLength;
+                }
+                _startEnvelope++;
                 // Scale output by gain
-                out[i] = in[i] * gain;
+                out[i] = in[i] * gain * envelope;
             }
             return count;
         }
@@ -144,6 +151,8 @@ namespace dsp::loop {
         float _maxGain;
         float _maxOutputAmp;
         float _initGain;
+        int   _startEnvelope;
+        int   _totalEnvelopeLength = 4800; // length of start envelope, circa 1/10 of second. This is needed to reduce clicks when e.g. switching SSB/AM
         std::atomic_bool _frozen;
 
         float amp = 1.0;

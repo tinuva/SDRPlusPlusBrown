@@ -462,7 +462,7 @@ private:
     }
 
     void selectDemod(demod::Demodulator* demod) {
-        // Stopcurrently selected demodulator and select new
+        // Stop currently selected demodulator and select new
         afChain.setInput(&dummyAudioStream, [=](dsp::stream<dsp::stereo_t>* out){ afsplitter.setInput(out); });
         if (selectedDemod) {
             selectedDemod->stop();
