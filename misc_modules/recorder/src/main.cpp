@@ -21,6 +21,7 @@
 #include <core.h>
 #include <utils/optionlist.h>
 #include <utils/wav.h>
+#include <radio_interface.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -439,6 +440,17 @@ private:
         if (dbLvl.r > lvl.r) { lvl.r = dbLvl.r; }
     }
 
+    std::map<int, const char*> radioModeToString = {
+        { RADIO_IFACE_MODE_NFM, "NFM" },
+        { RADIO_IFACE_MODE_WFM, "WFM" },
+        { RADIO_IFACE_MODE_AM,  "AM"  },
+        { RADIO_IFACE_MODE_DSB, "DSB" },
+        { RADIO_IFACE_MODE_USB, "USB" },
+        { RADIO_IFACE_MODE_CW,  "CW"  },
+        { RADIO_IFACE_MODE_LSB, "LSB" },
+        { RADIO_IFACE_MODE_RAW, "RAW" }
+    };
+
     std::string genFileName(std::string templ, std::string type, std::string name) {
         // Get data
         time_t now = time(0);
@@ -457,6 +469,7 @@ private:
         char dayStr[128];
         char monStr[128];
         char yearStr[128];
+        const char* modeStr = "Unknown";
         sprintf(freqStr, "%.0lfHz", freq);
         sprintf(hourStr, "%02d", ltm->tm_hour);
         sprintf(minStr, "%02d", ltm->tm_min);
@@ -464,6 +477,11 @@ private:
         sprintf(dayStr, "%02d", ltm->tm_mday);
         sprintf(monStr, "%02d", ltm->tm_mon + 1);
         sprintf(yearStr, "%02d", ltm->tm_year + 1900);
+        if (core::modComManager.getModuleName(name) == "radio") {
+            int mode;
+            core::modComManager.callInterface(name, RADIO_IFACE_CMD_GET_MODE, NULL, &mode);
+            modeStr = radioModeToString[mode];
+        }
 
         // Replace in template
         templ = std::regex_replace(templ, std::regex("\\$t"), type);
@@ -474,6 +492,7 @@ private:
         templ = std::regex_replace(templ, std::regex("\\$d"), dayStr);
         templ = std::regex_replace(templ, std::regex("\\$M"), monStr);
         templ = std::regex_replace(templ, std::regex("\\$y"), yearStr);
+        templ = std::regex_replace(templ, std::regex("\\$r"), modeStr);
         return templ;
     }
 

@@ -1,3 +1,4 @@
+#define NOMINMAX
 #include <imgui.h>
 #include <utils/flog.h>
 #include <module.h>
@@ -12,6 +13,8 @@
 #include <time.h>
 #include "gui/smgui.h"
 #include "utils/usleep.h"
+#include <algorithm>
+#include <stdexcept>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -154,24 +157,30 @@ private:
         try {
             reader = new wav::Reader(fileSelect.path);
             sampleRate = reader->getSampleRate();
+            if (reader->getSampleRate() == 0) {
+                reader->close();
+                delete reader;
+                reader = NULL;
+                throw std::runtime_error("Sample rate may not be zero");
+            }
             core::setInputSampleRate(sampleRate);
             std::string filename = std::filesystem::path(fileSelect.path).filename().string();
             double newFrequency = getFrequency(filename);
             streamStartTime = getStartTime(filename);
             bool fineTune = gui::waterfall.containsFrequency(newFrequency);
-//                    auto prevFrequency = sigpath::vfoManager.getName();
+            //                    auto prevFrequency = sigpath::vfoManager.getName();
             centerFreq = newFrequency;
             centerFreqSet = true;
             tuner::tune(tuner::TUNER_MODE_IQ_ONLY, "", centerFreq);
             if (fineTune) {
                 // restore the fine tune. When working with file source and restarting the app, the fine tune is lost
-//                        tuner::tune(tuner::TUNER_MODE_NORMAL, "_current", prevFrequency);
+                //                        tuner::tune(tuner::TUNER_MODE_NORMAL, "_current", prevFrequency);
             }
             //gui::freqSelect.minFreq = _this->centerFreq - (_this->sampleRate/2);
             //gui::freqSelect.maxFreq = _this->centerFreq + (_this->sampleRate/2);
             //gui::freqSelect.limitFreq = true;
         }
-        catch (std::exception e) {
+        catch (std::exception &e) {
             flog::error("Error: {0}", e.what());
         }
     }
@@ -180,8 +189,8 @@ private:
 
     static void worker(void* ctx) {
         FileSourceModule* _this = (FileSourceModule*)ctx;
-        double sampleRate = _this->reader->getSampleRate();
-        int blockSize = sampleRate / 200.0f;
+        double sampleRate = std::max(_this->reader->getSampleRate(), (uint32_t)1);
+        int blockSize = std::min((int)(sampleRate / 200.0f), (int)STREAM_BUFFER_SIZE);
         int16_t* inBuf = new int16_t[blockSize * 2];
 
         long long samplesRead = 0;
@@ -215,8 +224,8 @@ private:
 
     static void floatWorker(void* ctx) {
         FileSourceModule* _this = (FileSourceModule*)ctx;
-        double sampleRate = _this->reader->getSampleRate();
-        int blockSize = sampleRate / 200.0f;
+        double sampleRate = std::max(_this->reader->getSampleRate(), (uint32_t)1);
+        int blockSize = std::min((int)(sampleRate / 200.0f), (int)STREAM_BUFFER_SIZE);
         dsp::complex_t* inBuf = new dsp::complex_t[blockSize];
 
         long long samplesRead = 0;
