@@ -2,6 +2,13 @@
 
 Newest entries are at the top.
 
+2023.09.17
+
+* Removed clicks when switching radio modes (e.g AM to SSB)
+* Frequency manager - non-overlapping rendering labels on the FFT
+* QSO Logging / spotting - added temporary frequency labels on FFT.
+* Android: added explicit permission request button in "Debug" section.
+
 2023.06.18
 
 * Added one-shot beacon (call CQ) transmit for WSPR/FT8/CW

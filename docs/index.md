@@ -41,6 +41,7 @@ read on below.
 * RBN/pskreporter/WSPRnet continuous monitoring for your own call (estimate your signal when tuning your antenna)
 * [QSO / SWL Logging](#qso-logging) allows to add log records with date/time/frequency/callsign/rst etc. Optimized for mobile.
   * single-button save of the audio recording of your QSO (wav file) up to 3 minutes long.
+  * spotted/worked callsigns are displayed on the fft (frequency manager - temporary records)
 * Saving of zoom parameters between sessions
 * Mouse wheel support on the sliders
 * Unicode support in fonts (Cyrillic), filenames and installation path (UTF-8), on Windows, too.
@@ -51,6 +52,7 @@ read on below.
 * [More display scaling factors](#more-display-scaling-factors). 
 * [Bandwidth change slider](#bandwidth-slider) to easily edit bandwidth on touch devices.
 * [TCI protocol](#tci-protocol) (basic), output only. Tested to work with MSHV software. 
+* Frequency manager: labels rendering is now not overlapped.
 * [Roadmap](#roadmap)
 
 ## Improved rendering performance
