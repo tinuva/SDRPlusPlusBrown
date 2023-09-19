@@ -52,7 +52,8 @@ read on below.
 * [More display scaling factors](#more-display-scaling-factors). 
 * [Bandwidth change slider](#bandwidth-slider) to easily edit bandwidth on touch devices.
 * [TCI protocol](#tci-protocol) (basic), output only. Tested to work with MSHV software. 
-* Frequency manager: labels rendering is now not overlapped.
+* [Frequency manager](#frequency-manager): labels rendering is now not overlapped.
+  * also for QSO spotting
 * [Roadmap](#roadmap)
 
 ## Improved rendering performance
@@ -227,6 +228,13 @@ Demand the TCI support from all other software you use!
 
 ![](tci-interface.jpg)
 
+## Frequency Manager
+
+Multi-line labels layout for overlapping frequency labels. Also, when doing QSO logging / spotting, it will also render properly.
+QSO labels are transient (not saved) - for this session only. They are bi-directional: clicking on label spotted earlier, 
+fills in the QSO dialog for logging. Logged callsigns are painted green. 
+
+![](freq_mgr_layout.jpg)
 
 ## Roadmap
 
