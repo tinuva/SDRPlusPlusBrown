@@ -391,7 +391,7 @@ static void discover(struct ifaddrs* iface, const struct sockaddr_in *fixed, boo
             }
             usleep(1500);
         }
-        flog::info("Finished scanning %s", interface_name);
+        flog::info("Finished scanning {}", interface_name);
     }
 
     // wait for receive thread to complete

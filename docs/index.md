@@ -114,6 +114,19 @@ Update 2023-06-18: in addition to UDP broadcast discovery, you can now specify d
 or, if it was not enough, you can even skip discovery and pretend it has been successfully discovered at given
 IP address (Hermes Lite 2).
 
+![](hermes_discovery.png)
+
+Discovery procedure:
+
+1) default: send broadcast UDP packet from each of the discovered network interfaces.
+2) if "probe ip" is specified, also send non-broadcast packet at this address.
+3) if "hardcode that IP" is on, pretend probe response is received for the IP address above and populate the device list as if the device has been discovered.
+4) if "full udp scan /24" is on, send UDP packet to each IP address inside each interface range, basically, broadcast done manually.
+
+All responses from device(s) are then collected in the device list above. This discovery routine has maximum discoverability powers. If your device is
+still not communicating, then either it was not properly set up with IP address via DHCP soon after device power on, or you have your OS network settings broken on the
+sdr++ side.
+
 ## Transmit mode
 
 Transmit mode is currently SSB-oriented. It supports microphone on desktop OS and built-in microphone on android. 
