@@ -42,6 +42,8 @@ public:
 
     int underflow = 0; // 1 = small underflow, 2 = full underflow
 
+    bool micInput = true;
+
     AudioSink(SinkManager::Stream* stream, std::string streamName) : spackerTracker("output stereo packer") {
         _stream = stream;
         _streamName = streamName;
@@ -58,6 +60,9 @@ public:
             config.conf[_streamName]["devices"] = json({});
         }
         device = config.conf[_streamName]["device"];
+        if (config.conf[_streamName].contains("micInput")) {
+            micInput = config.conf[_streamName]["micInput"];
+        }
         config.release(created);
 
         int count = audio.getDeviceCount();
@@ -216,6 +221,12 @@ public:
                 config.conf[_streamName]["devices"][devList[devId].name] = sampleRate;
                 config.release(true);
             }
+            if (ImGui::Checkbox("Mic input (restart needed)", &micInput)) {
+                config.acquire();
+                config.conf[_streamName]["micInput"] = micInput;
+                config.release(true);
+            }
+
         }
     }
 
@@ -243,7 +254,7 @@ private:
 
             try {
                 unsigned int microBuffer = bufferFrames / microFrames;
-                audio.openStream(&outputParameters, defaultInputDeviceId == outputParameters.deviceId ? &inputParameters : nullptr, RTAUDIO_FLOAT32, sampleRate, &microBuffer, &callback, this, &opts);
+                audio.openStream(&outputParameters, micInput && (defaultInputDeviceId == outputParameters.deviceId) ? &inputParameters : nullptr, RTAUDIO_FLOAT32, sampleRate, &microBuffer, &callback, this, &opts);
                 stereoPacker.setSampleCount((int)bufferFrames);
                 audio.startStream();
                 stereoPacker.start();
@@ -255,7 +266,7 @@ private:
 
             flog::info("RtAudio output stream open");
         }
-        if (SinkManager::getSecondaryStreamIndex(_streamName).second == 0) {
+        if (SinkManager::getSecondaryStreamIndex(_streamName).second == 0 && micInput) {
             if (defaultInputDeviceId != deviceIds[devId] && defaultInputDeviceId != -1) {
                 // input device differs from output
                 RtAudio::StreamOptions opts;
@@ -265,7 +276,7 @@ private:
                 unsigned int bufferFrames = sampleRate / 60 / microFrames;
 
                 try {
-                    flog::info("_this->microphone.writeBuf={}", (void*)microphone.writeBuf);
+//                    flog::info("_this->microphone.writeBuf={}", (void*)microphone.writeBuf);
                     audio2.openStream(nullptr, &inputParameters, RTAUDIO_FLOAT32, sampleRate, &bufferFrames, &microphoneCallback, this, &opts);
                     audio2.startStream();
                     flog::info("RtAudio2 input stream open");
@@ -280,6 +291,8 @@ private:
             sigpath::sinkManager.defaultInputAudio.start();
             //            microphone.setBufferSize(sampleRate / 60);
             //            flog::info("_this->microphone.writeBuf={} after setsize", (void*)microphone.writeBuf);
+        } else {
+            sigpath::sinkManager.defaultInputAudio.setInput(nullptr);
         }
         return true;
     }
