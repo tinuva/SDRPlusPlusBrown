@@ -13,8 +13,8 @@
 
 Supported hardware:
 
-* SDRs with Hermes Lite 2 protocol. I have two different models of this transcievers, 
-nothing special. Probably, older models and various modifications will work, too. However, there's nothing to control older model's built-in microphone/speaker. 
+* SDRs with Hermes Lite 2 protocol. I have two different models of this transcievers, nothing special. 
+Probably, older models and various modifications will work, too. However, there's nothing to control older model's built-in microphone/speaker. 
 
 If you want your hardware to be added, contact me or make code pull request.
 
@@ -95,9 +95,8 @@ screen of your phone.
 
 TRX layout differs from receiving layout: 
 
-* Left menu overlays the waterfall. It means, when left menu is active, waterfall is not resized, and while 
-  menu is active, touch events are disabled in waterfall. To navigate waterfall, close menu first.
 * On the right side there's area with buttons. Buttons control the transmitter.
+* QSO/End_QSO button enters/leaves the deeper phase of the QSO menus.
 * On the far right, there are two inertial encoders. Larger one is TUNE knob, at the bottom. Smaller one on top
   is the VOLUME / ZOOM / BRIGHTNESS knob. You are expected to scroll knobs with your fingers. 
 
@@ -129,11 +128,11 @@ running, you probably won't see the half of the screen, and see red error text i
 Buttons are:
 
 * "Lock" - locks the trequency knob. Because you use your fingers while talking, you sometimes want to
-  stay on the frequency.
+  stay on the frequency. Also, this mode activates (optional) QSO LOG entry dialog.
 * "Zoom/", "Volume/", "Brightness/" toggles the function of the upper encoder / knob.
 * "Audio Cfg" opens audio settings
 * "Soft tune" - generates sine wave. Press again to stop. The hardware tone generation of HL2 is not used. The amplitude of sine wave is controlled by "TX Soft PA". 
-* "TX" - transmit button. TX is on while finger is pressing. Microphone sounds are transmitted to the air. Note the hardware "Volume Up" button on Android also works as TX.
+* "TX" - transmit button (Android: use "Volume UP" only). TX is on while button is pressed in PTT manner (Short press toggles TX on/off). Microphone sounds then are transmitted to the air. 
 * "End QSO" - go back to the Search mode.
 
 On the top you see the oscilloscope of your audio input, as processed.
@@ -151,8 +150,7 @@ It slightly differs from what can be received over the air, but it mostly reflec
 PA enabled, the signal will be very weak but still visible.
 
 During the transmission, all sounds are muted. The Baseband NR threshold (software) and demodulator AGC state 
-are frozen to avoid their unneeded re-adaptation after reception is turned back on. Audio NR2 is not frozen 
-(work in progress). 
+are frozen to avoid their unneeded re-adaptation after reception is turned back on. 
 
 ### The pipeline
 
