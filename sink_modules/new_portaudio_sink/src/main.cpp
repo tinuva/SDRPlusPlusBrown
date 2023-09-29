@@ -133,6 +133,7 @@ public:
         // Close the stream
         Pa_CloseStream(devStream);
 
+
         running = false;
     }
 

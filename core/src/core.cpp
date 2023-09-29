@@ -536,7 +536,7 @@ int sdrpp_main(int argc, char* argv[]) {
     std::error_code ec;
     auto path = std::filesystem::current_path(ec);
     std::cout << "Current path = " << path << std::endl;
-    flog::info("Loading config from: {} (path {})",root);
+    flog::info("Loading config from: {} (path {})",root, path);
     core::configManager.setPath(root + "/config.json");
     core::configManager.load(defConfig);
     core::configManager.enableAutoSave();
