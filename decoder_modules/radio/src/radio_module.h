@@ -229,9 +229,9 @@ public:
 
 
 
-    void postInit() {}
+    void postInit() override {}
 
-    void enable() {
+    void enable() override {
         enabled = true;
         if (!vfo) {
             vfo = sigpath::vfoManager.createVFO(name, ImGui::WaterfallVFO::REF_CENTER, 0, 200000, 200000, 50000, 200000, false);
@@ -244,7 +244,7 @@ public:
         afChain.start();
     }
 
-    void disable() {
+    void disable() override {
         enabled = false;
         ifChain.stop();
         if (selectedDemod) { selectedDemod->stop(); }
@@ -253,7 +253,7 @@ public:
         vfo = NULL;
     }
 
-    bool isEnabled() {
+    bool isEnabled() override {
         return enabled;
     }
 

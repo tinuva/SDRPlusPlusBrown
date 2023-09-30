@@ -70,6 +70,24 @@ public:
         gui::mainWindow.onPlayStateChange.unbindHandler(&playStateHandler);
     }
 
+    std::string inputDeviceInfo = "Idle";
+    PaStream *microphonePaStream = nullptr;
+    dsp::stream<dsp::stereo_t> microphone = "new_portaudio_sink.microphone";
+    bool micInput = true;
+
+    static int microphoneCallback(const void *inputBuffer, void *outputBuffer,
+                                  unsigned long framesPerBuffer,
+                                  const PaStreamCallbackTimeInfo *timeInfo,
+                                  PaStreamCallbackFlags statusFlags,
+                                  void *userData) {
+        AudioSink *_this = (AudioSink*)userData;
+        for(int q=0; q<framesPerBuffer; q++) {
+            _this->microphone.writeBuf[q].l = _this->microphone.writeBuf[q].r = ((const float*)inputBuffer)[q];
+        }
+        _this->microphone.swap(framesPerBuffer);
+        return paContinue;
+    }
+
     void start() {
         if (running || selectedDevName.empty()) { return; }
 
@@ -113,11 +131,57 @@ public:
         // Start stream
         Pa_StartStream(devStream);
 
+
+        if (micInput) {
+            // microphone is here.
+            auto inputIndex = Pa_GetDefaultInputDevice();
+            if (inputIndex == paNoDevice) {
+                // no device
+            } else {
+
+                auto mdev = Pa_GetDeviceInfo(inputIndex);
+
+                inputDeviceInfo = "Input: " + std::string(mdev->name);
+                unsigned int bufferFrames = 48000 / 200;
+                err = Pa_OpenDefaultStream(&microphonePaStream, 1, 0, paFloat32, 48000, bufferFrames, microphoneCallback, this);
+                if (err != paNoError) {
+                    const char *errtxt = Pa_GetErrorText(err);
+                    inputDeviceInfo = std::string("Open: ") + errtxt;
+                    microphonePaStream = nullptr;
+                } else {
+                    err = Pa_StartStream(microphonePaStream);
+                    if (err != paNoError) {
+                        const char *errtxt = Pa_GetErrorText(err);
+                        inputDeviceInfo = std::string("Start: ") + errtxt;
+                        Pa_CloseStream(microphonePaStream);
+                        microphonePaStream = nullptr;
+                    } else {
+                        inputDeviceInfo = "Running: " + std::string(mdev->name);
+                    }
+                }
+            }
+        }
+        if (microphonePaStream) {
+            flog::info("sigpath::sinkManager.defaultInputAudio.init(microphone)");
+            sigpath::sinkManager.defaultInputAudio.setInput(&microphone);
+            sigpath::sinkManager.defaultInputAudio.start();
+        } else {
+            sigpath::sinkManager.defaultInputAudio.setInput(nullptr);
+        }
+
         running = true;
     }
 
     void stop() {
         if (!running || selectedDevName.empty()) { return; }
+
+        if (microphonePaStream) {
+            Pa_AbortStream(microphonePaStream);
+            Pa_CloseStream(microphonePaStream);
+            sigpath::sinkManager.defaultInputAudio.stop();
+            sigpath::sinkManager.defaultInputAudio.setInput(nullptr);
+            microphonePaStream = nullptr;
+        }
 
         // Send stop signal to the streams
         packer.out.stopReader();
@@ -134,6 +198,7 @@ public:
         Pa_CloseStream(devStream);
 
 
+        inputDeviceInfo = "Stopped";
         running = false;
     }
 
@@ -164,6 +229,12 @@ public:
                 config.release(true);
             }
         }
+        if (ImGui::Checkbox("Mic input (restart needed)", &micInput)) {
+            config.acquire();
+            config.conf[_streamName]["micInput"] = micInput;
+            config.release(true);
+        }
+        ImGui::Text("Mic Status: %s", inputDeviceInfo.c_str());
     }
 
     int devId = 0;
@@ -275,6 +346,7 @@ private:
             deviceNamesTxt += buffer;
             deviceNamesTxt += '\0';
         }
+
     }
 
     void selectDefault() {
@@ -311,6 +383,9 @@ private:
         config.acquire();
         if (!config.conf[_streamName]["devices"].contains(name)) {
             config.conf[_streamName]["devices"][name] = selectedDev.sampleRates[selectedDev.defaultSrId];
+        }
+        if (config.conf[_streamName].contains("micInput")) {
+            micInput = config.conf[_streamName]["micInput"];
         }
         config.release(true);
 

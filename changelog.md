@@ -2,6 +2,11 @@
 
 Newest entries are at the top.
 
+2023.09.30
+
+* fixed MacOS build/packagine, so it includes hermes, ft8, noise reduction and other Brown features. Note: ft8 is still having issues on mac.
+* added microphone input to portaudio driver, which is default on MacOS. 
+
 2023.09.17
 
 * Removed clicks when switching radio modes (e.g AM to SSB)
