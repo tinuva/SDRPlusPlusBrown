@@ -247,11 +247,11 @@ if (OPT_BUILD_NETWORK_SINK)
 add_subdirectory("sink_modules/network_sink")
 endif (OPT_BUILD_NETWORK_SINK)
 
-message("ZLO?")
-if (OPT_BUILD_NEW_PORTAUDIO_SINK)
-message("OPT_BUILD_NEW_PORTAUDIO_SINK")
-add_subdirectory("sink_modules/new_portaudio_sink")
-endif (OPT_BUILD_NEW_PORTAUDIO_SINK)
+if (NOT ANDROID)
+    if (OPT_BUILD_NEW_PORTAUDIO_SINK)
+    add_subdirectory("sink_modules/new_portaudio_sink")
+    endif (OPT_BUILD_NEW_PORTAUDIO_SINK)
+endif ()
 
 
 # Decoders
@@ -347,7 +347,7 @@ if(WIN32)
 endif()
 
 if(APPLE)
-    list(APPEND SDRPP_SOURCES "macos_init.m")
+    list(APPEND SDRPP_SOURCES "src/macos_init.m")
 endif()
 
 add_executable(sdrpp ${SDRPP_SOURCES})
