@@ -1,7 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
 
-static void doMacosInit() {
+static doMacosInit() {
     @autoreleasepool {
         switch ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio]) {
             case AVAuthorizationStatusAuthorized:
@@ -35,11 +35,8 @@ static void doMacosInit() {
         // The rest of your code
         NSLog(@"Hello, World!");
     }
-    return 0;
 }
 
-extern "C" {
-    void macosInit() {
-        doMacosInit();
-    }
+void macosInit() {
+    doMacosInit();
 }
