@@ -340,7 +340,18 @@ if (OPT_BUILD_NOISE_REDUCTION_LOGMMSE)
 add_subdirectory("misc_modules/noise_reduction_logmmse")
 endif (OPT_BUILD_NOISE_REDUCTION_LOGMMSE)
 
-add_executable(sdrpp "src/main.cpp" "win32/resources.rc")
+set(SDRPP_SOURCES "src/main.cpp")
+
+if(WIN32)
+    list(APPEND SDRPP_SOURCES "win32/resources.rc")
+endif()
+
+if(APPLE)
+    list(APPEND SDRPP_SOURCES "macos_init.m")
+endif()
+
+add_executable(sdrpp ${SDRPP_SOURCES})
+
 target_link_libraries(sdrpp PRIVATE sdrpp_core)
 
 # Compiler arguments
