@@ -352,6 +352,10 @@ endif()
 
 add_executable(sdrpp ${SDRPP_SOURCES})
 
+if(APPLE)
+    set_source_files_properties("src/macos_init.m" PROPERTIES COMPILE_FLAGS "-std=c99")
+endif()
+
 target_link_libraries(sdrpp PRIVATE sdrpp_core)
 
 # Compiler arguments
