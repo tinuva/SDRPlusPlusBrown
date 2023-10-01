@@ -354,6 +354,10 @@ add_executable(sdrpp ${SDRPP_SOURCES})
 
 if(APPLE)
     set_source_files_properties("src/macos_init.m" PROPERTIES COMPILE_FLAGS "-std=c99")
+    target_link_libraries(sdrpp
+            "-framework Foundation"
+            "-framework AVFoundation"
+            )   # it's all for permission requests..
 endif()
 
 target_link_libraries(sdrpp PRIVATE sdrpp_core)
