@@ -166,7 +166,6 @@ bundle_install_binary() {
         if [ ! -f $1/Contents/Frameworks/$DEP_NAME ]; then
             echo -n "installing ( $1 $1/Contents/Frameworks $DEP_PATH )"
             bundle_install_binary $1 $1/Contents/Frameworks $DEP_PATH
-        else
         fi
 
         echo " install_name_tool ( -change $DEP @rpath/$DEP_NAME $EXEC_DEST )"
