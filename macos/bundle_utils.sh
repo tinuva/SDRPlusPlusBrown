@@ -19,6 +19,7 @@ bundle_is_not_to_be_installed() {
     if [ "$1" = "CoreGraphics" ]; then echo 1; fi
     if [ "$1" = "CoreServices" ]; then echo 1; fi
     if [ "$1" = "Foundation" ]; then echo 1; fi
+    if [ "$1" = "AVFoundation" ]; then echo 1; fi
     if [ "$1" = "CoreAudio" ]; then echo 1; fi
     if [ "$1" = "AudioToolbox" ]; then echo 1; fi
     if [ "$1" = "AudioUnit" ]; then echo 1; fi
@@ -139,17 +140,23 @@ bundle_install_binary() {
     
     # Install dependencies and change path
     local DEPS=$(bundle_get_exec_deps $EXEC_DEST)
+    echo "Dependencies from exec: "
+    echo $DEPS
+    echo "Dependencies process: "
     echo "$DEPS" | while read -r DEP; do
         local DEP_NAME=$(basename $DEP)
+        echo -n " - $DEP_NAME "
 
         # Skip if this dep is blacklisted
         local NOT_TO_BE_INSTALLED=$(bundle_is_not_to_be_installed $DEP_NAME)
         if [ "$NOT_TO_BE_INSTALLED" = "1" ]; then
+            echo "skipping"
             continue
         fi
 
         # Skip if this dep is itself
         if [ "$DEP_NAME" = "$EXEC_NAME" ]; then
+            echo "skipping"
             continue
         fi
 
@@ -157,9 +164,12 @@ bundle_install_binary() {
 
         # If the dependency is not installed, install it
         if [ ! -f $1/Contents/Frameworks/$DEP_NAME ]; then
+            echo -n "installing ( $1 $1/Contents/Frameworks $DEP_PATH )"
             bundle_install_binary $1 $1/Contents/Frameworks $DEP_PATH
+        else
         fi
 
+        echo " install_name_tool ( -change $DEP @rpath/$DEP_NAME $EXEC_DEST )"
         # Fix path
         install_name_tool -change $DEP @rpath/$DEP_NAME $EXEC_DEST
     done
