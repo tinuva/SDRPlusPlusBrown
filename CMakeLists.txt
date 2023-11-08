@@ -1,15 +1,15 @@
 cmake_minimum_required(VERSION 3.13)
 project(sdrpp)
 
-#if(CMAKE_INSTALL_PREFIX MATCHES "^/usr")       # default prefix
-#    if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-#        set(CMAKE_INSTALL_PREFIX "/usr/local")
-#    else()
-#        set(CMAKE_INSTALL_PREFIX "/usr")
-#    endif()
-#else()
-#    # keep the prefix as user wants
-#endif()
+if(CMAKE_INSTALL_PREFIX MATCHES "^/usr")       # default prefix
+    if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        set(CMAKE_INSTALL_PREFIX "/usr/local")
+    else()
+        set(CMAKE_INSTALL_PREFIX "/usr")
+    endif()
+else()
+    # keep the prefix as user wants
+endif()
 #
 ## Configure toolchain for android
 #if (ANDROID)
@@ -147,7 +147,10 @@ add_subdirectory("source_modules/airspyhf_source")
 endif (OPT_BUILD_AIRSPYHF_SOURCE)
 
 if (OPT_BUILD_AUDIO_SOURCE)
+if(APPLE)
+else()
 add_subdirectory("source_modules/audio_source")
+endif ()
 endif (OPT_BUILD_AUDIO_SOURCE)
 
 if (OPT_BUILD_BLADERF_SOURCE)
@@ -236,7 +239,10 @@ add_subdirectory("sink_modules/android_audio_sink")
 endif (OPT_BUILD_ANDROID_AUDIO_SINK)
 
 if (OPT_BUILD_AUDIO_SINK)
-add_subdirectory("sink_modules/audio_sink")
+if(APPLE)
+else()
+        add_subdirectory("sink_modules/audio_sink")
+endif ()
 endif (OPT_BUILD_AUDIO_SINK)
 
 if (OPT_BUILD_PORTAUDIO_SINK)

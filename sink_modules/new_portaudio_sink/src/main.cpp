@@ -171,7 +171,7 @@ public:
         Pa_StartStream(devStream);
 
 
-        if (micInput) {
+        if (micInput && inputDevice.deviceNames.size() > 0) {
             // microphone is here.
             auto inputIndex = inputDevice.devices[inputDevice.deviceNames[inputDevice.devId]].id;
             if (inputIndex == paNoDevice) {
