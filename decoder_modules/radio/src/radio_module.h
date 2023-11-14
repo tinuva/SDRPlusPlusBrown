@@ -322,7 +322,8 @@ private:
 
         if (!_this->bandwidthLocked) {
             ImGui::LeftLabel("Bandwidth");
-            ImGui::SetNextItemWidth(200);
+            const ImVec2 width = ImGui::CalcTextSize("123456    +    -    ");
+            ImGui::SetNextItemWidth(width.x);
             if (ImGui::InputFloat(("##_radio_bw_" + _this->name).c_str(), &_this->bandwidth, 1, 100, "%.0f")) {
                 _this->bandwidth = std::clamp<float>(_this->bandwidth, _this->minBandwidth, _this->maxBandwidth);
                 _this->setBandwidth(_this->bandwidth);
