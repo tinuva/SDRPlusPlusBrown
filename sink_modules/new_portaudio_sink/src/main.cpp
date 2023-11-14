@@ -83,6 +83,9 @@ public:
         if (config.conf[_streamName].contains("micInput")) {
             micInput = config.conf[_streamName]["micInput"];
         }
+        if (config.conf[_streamName].contains("microphoneAllowAll")) {
+            microphoneAllowAll = config.conf[_streamName]["microphoneAllowAll"];
+        }
         std::string selected = config.conf[_streamName]["device"];
         std::string selectedIn = config.conf[_streamName]["device"+inputDevice.configSuffix];
         config.release(true);
@@ -113,6 +116,7 @@ public:
     PaStream *microphonePaStream = nullptr;
     dsp::stream<dsp::stereo_t> microphone = "new_portaudio_sink.microphone";
     bool micInput = true;
+    bool microphoneAllowAll = false;
 
     static int microphoneCallback(const void *inputBuffer, void *outputBuffer,
                                   unsigned long framesPerBuffer,
@@ -282,6 +286,13 @@ public:
             config.release(true);
         }
         if (micInput) {
+            /*
+            if (ImGui::Checkbox("List all devices (restart)", &microphoneAllowAll)) {
+                config.acquire();
+                config.conf[_streamName]["microphoneAllowAll"] = microphoneAllowAll;
+                config.release(true);
+            }
+             */
             renderDevCombo(inputDevice);
         }
         ImGui::Text("Mic Status: %s", inputDeviceInfo.c_str());
@@ -319,10 +330,9 @@ private:
 
         // Get number of devices
         int devCount = Pa_GetDeviceCount();
-        PaStreamParameters outputParams;
         char buffer[128];
 
-        auto populateDevices = [&](auto &d, const std::string &inout, bool isMicrophone) {
+        auto populateDevices = [&](auto &d, const std::string &inout, bool isMicrophone, bool microphoneAllowAll) {
             for (int i = 0; i < devCount; i++) {
                 AudioDevice_t dev;
 
@@ -333,7 +343,9 @@ private:
 
                 // Check if device is usable
                 if (isMicrophone) {
-                    if (dev.deviceInfo->maxInputChannels == 0) { continue; }
+                    if (!microphoneAllowAll) {
+                        if (dev.deviceInfo->maxInputChannels == 0) { continue; }
+                    }
                 } else {
                     if (dev.deviceInfo->maxOutputChannels == 0) { continue; }
                 }
@@ -344,21 +356,26 @@ private:
                 // Zero out output params
                 dev.params.device = i;
                 dev.params.sampleFormat = paFloat32;
+                auto inputParams = &dev.params;
+                auto outputParams = &dev.params;
                 if (isMicrophone) {
                     dev.params.suggestedLatency = std::min<PaTime>(AUDIO_LATENCY, dev.deviceInfo->defaultLowInputLatency);
+                    dev.params.channelCount = 1;
+                    outputParams = nullptr;
                 } else {
                     dev.params.suggestedLatency = std::min<PaTime>(AUDIO_LATENCY, dev.deviceInfo->defaultLowOutputLatency);
+                    dev.params.channelCount = std::min<int>(dev.deviceInfo->maxOutputChannels, 2);
+                    inputParams = nullptr;
                 }
-                dev.params.channelCount = std::min<int>(dev.deviceInfo->maxOutputChannels, 2);
                 dev.params.hostApiSpecificStreamInfo = NULL;
 
                 // List available sample rates
                 for (int sr = 12000; sr < 200000; sr += 12000) {
-                    if (Pa_IsFormatSupported(NULL, &dev.params, sr) != paFormatIsSupported) { continue; }
+                    if (Pa_IsFormatSupported(inputParams, outputParams, sr) != paFormatIsSupported) { continue; }
                     dev.sampleRates.push_back(sr);
                 }
                 for (int sr = 11025; sr < 192000; sr += 11025) {
-                    if (Pa_IsFormatSupported(NULL, &dev.params, sr) != paFormatIsSupported) { continue; }
+                    if (Pa_IsFormatSupported(inputParams, outputParams, sr) != paFormatIsSupported) { continue; }
                     dev.sampleRates.push_back(sr);
                 }
 
@@ -404,8 +421,8 @@ private:
             }
         };
 
-        populateDevices(outputDevice, "Play", false);
-        populateDevices(inputDevice, "Rec", true);
+        populateDevices(outputDevice, "Play", false, false);
+        populateDevices(inputDevice, "Rec", true, microphoneAllowAll);
 
     }
 
