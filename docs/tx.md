@@ -207,8 +207,28 @@ following way:
 * HL2 IP address is fixed, my router's DHCP server remembers and does not randomize addresses.
 * I created simple golang program (can be found in repo) that can run on my openwrt router, and it can proxy hermes 2 lite traffic on UDP 1024 port to the backend transceiver. It is not required in the above configuration, but still can be useful.
 
-I probably could also try the use of USB internet sharing (Phone->Router USB) to avoid occasional 
-WiFi interruptions, but did not do it yet. I got used to the wireless freedoms while laying on the sofa, and I can live with occasional glitches. 
+I also tried the use of USB internet sharing (Phone->Router USB) to avoid occasional 
+WiFi interruptions. However, I got used to the wireless freedoms while laying on the sofa, and I can live with occasional glitches in 
+this configuration.
+
+Really working configuration for USB (not wireless) connection is following:
+
+1) connect phone to the router that supports this function (take internet from phone over USB), openwrt-based routers with USB definitely do.
+2) connect HL2 to router via ethernet, too
+3) enable USB sharing on the android, router will be able to ping internet.
+4) however, router will prevent access to any its services from phone side, because phone is militarized zone from the router point of view. You need to configure router firewall to allow UDP 1024 port access on the RNDIS interface (or all interfaces)
+5) however, that is not enough, and you need to add port forwarding of port 1024 towards the hermes lite, on router.
+6) however, if you're more of experimental kind, then instead of p.5 you can try to use proxy written in go, it can compile for openwrt and work fine. You'll have to add it to startup, so it launches automatically.
+
+I wish you luck. The one who persists, will get the result.
+
+I am planning to enhance this proxy, to make smoother wifi connection. Problem with interrupting wifi
+is half-duplex nature of wifi. Currently, during transmit or receive, hermes protocol sends
+waterfall data and transmit data, in the two directions, always, all the time. 
+Proxy will reduce/eliminate one of the unused data streams during transmit/receive, thus
+reducing half-duplex issues of wifi that hopefully will make it better. Control streams will
+be simulated/replicated on proxy to eliminated drops, to maintain smooth software and hardware work.
+This smoothing will be controlled (turned on) by the operator optionally.
 
 ## Work in progress
 
