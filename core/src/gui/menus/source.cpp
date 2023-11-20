@@ -280,7 +280,8 @@ namespace sourcemenu {
         ImGui::Text("DXCC: %s", callsignFound.dxccname.c_str());
 
         ImGui::LeftLabel("My Grid");
-        ImGui::SetNextItemWidth(100 * style::uiScale);
+        auto gwSize = ImGui::CalcTextSize("WWWWW");
+        ImGui::SetNextItemWidth(gwSize.x);
         if (ImGui::InputText("##_my_grid", sigpath::iqFrontEnd.operatorLocation.data(), 8)) {
             sigpath::iqFrontEnd.operatorLocation.resize(strlen(sigpath::iqFrontEnd.operatorLocation.data()));
             core::configManager.acquire();
@@ -291,10 +292,8 @@ namespace sourcemenu {
 
         }
         ImGui::SameLine();
-        ImGui::Text("My Loc: ");
-        ImGui::SameLine();
         if (operatorLatLng.isValid()) {
-            ImGui::Text("%+02.5f %+02.5f", operatorLatLng.lat, operatorLatLng.lon);
+            ImGui::Text("%+02.2f %+02.2f", operatorLatLng.lat, operatorLatLng.lon);
         } else {
             ImGui::Text("Invalid");
         }
