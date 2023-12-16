@@ -4,6 +4,7 @@
 #include "http.h"
 #include <stdio.h>
 #include <random>
+#include <stdexcept>
 #include <utils/strings.h>
 #include <utils/flog.h>
 
