@@ -60,6 +60,7 @@ struct HL2Device {
     };
 
     ControlData deviceControl[50] = { 0 }; // multiple hardware registers here.
+    int deviceControlDirty[50] = { 0 }; // deviceControlDirty stuff
 
     const int SYNC0 = 0;
     const int SYNC1 = 1;
@@ -70,10 +71,10 @@ struct HL2Device {
     const int C3 = 6;
     const int C4 = 7;
 
-    const int SPEED_48K = 0x00;
-    const int SPEED_96K = 0x01;
-    const int SPEED_192K = 0x02;
-    const int SPEED_384K = 0x03;
+    static constexpr int SPEED_48K = 0x00;
+    static constexpr int SPEED_96K = 0x01;
+    static constexpr int SPEED_192K = 0x02;
+    static constexpr int SPEED_384K = 0x03;
 
 
 #define SYNC 0x7F
@@ -155,6 +156,10 @@ struct HL2Device {
         }
     }
 
+    bool isHL2Proxy() {
+        return discovered->hl2_protocol;
+    }
+
     bool isADCOverload() {
         return adc_overload;
     }
@@ -164,6 +169,7 @@ struct HL2Device {
         deviceControl[0xA].C4 = gain | 0b1000000;
         gain |= 0x40; // ptt is off ??
         secondControlIndex = 0xA;
+        deviceControlDirty[0xA] = 1;
     }
 
     void setHangLatency(unsigned char pttHangTime, unsigned char bufferLatencyMS) {
@@ -171,6 +177,7 @@ struct HL2Device {
         deviceControl[0x17].C2 = 0;
         deviceControl[0x17].C3 = pttHangTime;
         deviceControl[0x17].C4 = bufferLatencyMS;
+        deviceControlDirty[17] = 1;
     }
 
     void setFrequency(long long frequency) { // RX freq
@@ -178,6 +185,7 @@ struct HL2Device {
         deviceControl[0x02].C2 = frequency >> 16;
         deviceControl[0x02].C3 = frequency >> 8;
         deviceControl[0x02].C4 = frequency >> 0;
+        deviceControlDirty[0x02] = 1;
         if (txFrequency == 0) {
             txFrequency = frequency;
         }
@@ -185,24 +193,28 @@ struct HL2Device {
         deviceControl[0x01].C2 = txFrequency >> 16;
         deviceControl[0x01].C3 = txFrequency >> 8;
         deviceControl[0x01].C4 = txFrequency >> 0;
+        deviceControlDirty[0x01] = 1;
     }
 
     void setSoftwarePower(unsigned char power) { // power = 0..255 (however only 4 upper bits (31..28) are used)
         // soft power is used. Hard is max.
         deviceControl[0x09].C1 = hardwarePower & 0xF0;
         this->softwarePower = power;
+        deviceControlDirty[0x09] = 1;
     }
 
     void setHardwarePower(unsigned char power) { // power = 0..255 (however only 4 upper bits (31..28) are used)
         // soft power is used. Hard is max.
         deviceControl[0x09].C1 = power & 0xF0;
         this->hardwarePower = power;
+        deviceControlDirty[0x09] = 1;
     }
 
 
     void setPAEnabled(bool enabled) { // bit 19
         deviceControl[0x09].C2 &= ~0x08;
         deviceControl[0x09].C2 |= enabled ? 0x08 : 0x00;
+        deviceControlDirty[0x09] = 1;
     }
 
     void setTxFrequency(long long txFrequency) {
@@ -211,6 +223,7 @@ struct HL2Device {
         deviceControl[0x01].C2 = txFrequency >> 16;
         deviceControl[0x01].C3 = txFrequency >> 8;
         deviceControl[0x01].C4 = txFrequency >> 0;
+        deviceControlDirty[0x01] = 1;
     }
 
     float getSWR() {
@@ -263,12 +276,17 @@ struct HL2Device {
         else {
             deviceControl[0x9].C2 &= ~0x10;
         }
+        deviceControlDirty[0x09] = 1;
     }
 
     bool transmitMode = false;
+    long long transmitModeStart = 0;
+    long long transmitModeProducedIQData = 0;
 
     void setPTT(bool ptt) {
         transmitMode = ptt;
+        transmitModeStart = currentTimeMillis();
+        transmitModeProducedIQData = 0;
     }
 
     void doTuneActive(bool tune) {
@@ -280,6 +298,21 @@ struct HL2Device {
     void setDuplex(bool duplex) {
         deviceControl[0x0].C4 &= ~0b100;
         deviceControl[0x0].C4 |= duplex ? 0b100 : 0b000;
+        deviceControlDirty[0x0] = 0;
+    }
+
+    int getRxSampleRate() {
+        switch (deviceControl[0x0].C1 & 0x3) {
+        case SPEED_48K:
+            return 48000;
+        case SPEED_96K:
+            return 96000;
+        case SPEED_192K:
+            return 192000;
+        case SPEED_384K:
+            return 384000;
+        }
+        return 0;
     }
 
     void setRxSampleRate(int rx_sample_rate) {
@@ -298,11 +331,15 @@ struct HL2Device {
             deviceControl[0x0].C1 |= SPEED_384K;
             break;
         }
+        deviceControlDirty[0x00] = 1;
     }
+
+
 
     void setSevenRelays(int sevenRelays) {
         deviceControl[0x0].C2 &= 1;
         deviceControl[0x0].C2 |= sevenRelays << 1;
+        deviceControlDirty[0x0] = 1;
     }
 
     //    void setDuplex(bool on) {
@@ -365,7 +402,9 @@ struct HL2Device {
 
     StreamTracker sendTracker;
 
-    void prepareRequest(int sequence) {
+    // returns if has something to transmit
+    bool prepareRequest(int sequence) {
+        bool retval = transmitMode;
         //        0  1  2  3    4     5  6  7  8  9  10
         static int sendRegisters[] = { 0, 1, 2, 9, 0xA, 0x17, 9, 1, 2, 9, 2 };
         if (sequence > 10 || sequence < 0) {
@@ -375,7 +414,6 @@ struct HL2Device {
 
         memset(output_buffer, 0, sizeof(output_buffer));
 
-
         output_buffer[SYNC0] = SYNC;
         output_buffer[SYNC1] = SYNC;
         output_buffer[SYNC2] = SYNC;
@@ -384,6 +422,11 @@ struct HL2Device {
         output_buffer[C2] = deviceControl[0x00].C2;
         output_buffer[C3] = deviceControl[0x00].C3;
         output_buffer[C4] = deviceControl[0x00].C4;
+
+        if (deviceControlDirty[0]) {
+            deviceControlDirty[0] = false;
+            retval = true;
+        }
 
         maxAmp = 0;
 
@@ -403,6 +446,10 @@ struct HL2Device {
         output_buffer[512 + C2] = deviceControl[sendRegister].C2;
         output_buffer[512 + C3] = deviceControl[sendRegister].C3;
         output_buffer[512 + C4] = deviceControl[sendRegister].C4;
+        if (deviceControlDirty[sendRegister]) {
+            deviceControlDirty[sendRegister] = false;
+            retval = true;
+        }
 
         if (samplesToSend.isDataReady(63)) {
             samplesToSend.lock.lock();
@@ -416,6 +463,8 @@ struct HL2Device {
 
         // total 1024 bytes
         sigpath::averageTxSignalLevel.emit(maxAmp);
+
+        return retval;
     }
 
 
@@ -448,8 +497,6 @@ struct HL2Device {
     }
 
     void process_control_bytes() {
-
-
         switch ((control_in[0] >> 3) & 0x1F) {
         case 0:
             adc_overload = (control_in[1] & 0x01) == 0x01;
@@ -474,15 +521,11 @@ struct HL2Device {
             break;
         case 1: {
             exciter_power = ((control_in[1] & 0xFF) << 8) | (control_in[2] & 0xFF); // from Penelope or Hermes
-
             int adc = ((control_in[1] & 0xFF) << 8) | (control_in[2] & 0xFF);
-
             double this_temperature = (3.26 * ((double)adc / 4096.0) - 0.5) / 0.01;
             // Exponential moving average filter
             double alpha = 0.7;
             temperature = (alpha * this_temperature) + (1 - alpha) * temperature;
-
-
             alex_forward_power = ((control_in[3] & 0xFF) << 8) | (control_in[4] & 0xFF); // from Alex or Apollo
             break;
         }
@@ -502,6 +545,10 @@ struct HL2Device {
 
     void process_ozy_input_buffer(unsigned char* buffer) {
         int i;
+        // sync 0, 1, 2
+        // control 0, 1, 2, 3, 4
+        // iq_samples = (512 - 8) / ((receivers * 6) + 2);   // how samples are packed
+        // iq_samples * (0, 1, 2,    00 11 22   , 3 4)
         for (i = 0; i < 512; i++) {
             process_ozy_byte(buffer[i] & 0xFF);
         }
@@ -509,7 +556,6 @@ struct HL2Device {
 
     // receive
     void process_ozy_byte(int b) {
-        int i, j;
         switch (state) {
         case SYNC_0:
             if (b == SYNC) {
@@ -546,7 +592,7 @@ struct HL2Device {
             control_in[4] = b;
             process_control_bytes();
             nreceiver = 0;
-            iq_samples = (512 - 8) / ((receivers * 6) + 2);
+            iq_samples = (512 - 8) / ((receivers * 6) + 2);   // how samples are packed
             nsamples = 0;
             state++;
             break;
@@ -590,13 +636,6 @@ struct HL2Device {
             break;
         case MIC_SAMPLE_LOW:
             mic_sample |= (short)(b & 0xFF);
-            //                if(!radio->local_microphone) {
-            //                    mic_samples++;
-            //                    if(mic_samples>=mic_sample_divisor) { // reduce to 48000
-            //                        add_mic_sample(radio->transmitter,(float)mic_sample/32768.0);
-            //                        mic_samples=0;
-            //                    }
-            //                }
             nsamples++;
             if (nsamples == iq_samples) {
                 state = SYNC_0;
@@ -720,8 +759,7 @@ struct HL2Device {
                 returned++;
                 return;
             }
-        }
-        else {
+        } else {
 //            if (!logg) {
 //                logg = fopen("/tmp/trx.log.txt", "w");
 //            }
@@ -752,16 +790,35 @@ struct HL2Device {
             }
         }
         sent++;
-        prepareRequest(secondControlIndex++);
+        bool somethingToSend = prepareRequest(secondControlIndex++);
         if (secondControlIndex > 10) {
             secondControlIndex = 1;
         }
 
         lastSendTime = currentTimeMillis();
 
-        sendToEndpoint(0x2, output_buffer);
+        if (!somethingToSend && isHL2Proxy()) {
+            // for proxy mode, can avoid sending at all, when receive mode.
+        } else {
+            if (isHL2Proxy() && !transmitMode) {
+//                printf("Sending packet to proxy receive mode");
+            }
+            sendToEndpoint(0x2, output_buffer);
+        }
         auto afterSendTime = currentTimeMillis();
         if (transmitMode) {
+            if (isHL2Proxy()) {
+                // fill in dummy IP samples with needed frequency while transmitting
+                auto passed = afterSendTime - transmitModeStart;
+                auto neededData = (passed * getRxSampleRate()) / 1000;
+                auto toAdd = neededData - transmitModeProducedIQData;
+                if (toAdd > 0) {
+                    for (long long q = 0; q < toAdd; q++) {
+                        add_iq_samples(0, 0, 0);
+                    }
+                    transmitModeProducedIQData = neededData;
+                }
+            }
 //            fprintf(logg, "%s - SENT: %d,%d\n", logbuf, (int)(lastSendTime - ctm), (int)(afterSendTime - lastSendTime));
         }
         //        if (sent % 1000 == 0) {
@@ -920,6 +977,8 @@ struct HL2Device {
                         break;
                     case 2: // response to a discovery packet
                         fprintf(stderr, "unexepected discovery response when not in discovery mode\n");
+                        break;
+                    case 28: // HL2 proxy marker, ignore
                         break;
                     default:
                         fprintf(stderr, "unexpected packet type: 0x%02X\n", buffer[2]);

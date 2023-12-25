@@ -95,6 +95,7 @@ struct _DISCOVERED {
     int adcs;
     double frequency_min;
     double frequency_max;
+    bool hl2_protocol;
     union {
       struct network {
         unsigned char mac_address[6];

@@ -5,7 +5,7 @@ static doMacosInit() {
     @autoreleasepool {
         switch ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio]) {
             case AVAuthorizationStatusAuthorized:
-                NSLog(@"Already authorized");
+                NSLog(@"MACOS: Already authorized");
                 break;
 
             case AVAuthorizationStatusNotDetermined:
@@ -33,7 +33,7 @@ static doMacosInit() {
         }
 
         // The rest of your code
-        NSLog(@"Hello, World!");
+//        NSLog(@"Hello, World!");
     }
 }
 

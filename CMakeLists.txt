@@ -178,6 +178,7 @@ add_subdirectory("source_modules/perseus_source")
 endif (OPT_BUILD_PERSEUS_SOURCE)
 
 if (OPT_BUILD_PLUTOSDR_SOURCE)
+    message("Will build OPT_BUILD_PLUTOSDR_SOURCE")
 add_subdirectory("source_modules/plutosdr_source")
 endif (OPT_BUILD_PLUTOSDR_SOURCE)
 

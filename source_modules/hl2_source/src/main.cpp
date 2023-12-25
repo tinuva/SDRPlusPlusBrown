@@ -137,9 +137,12 @@ public:
             auto ip = discoveredToIp(discovered[i]);
 
             devListTxt += ip +" - " ;
-            if (discovered[i].device == DEVICE_HERMES_LITE2 || discovered[i].device == DEVICE_HERMES_LITE) {
-                devListTxt += std::to_string(discovered[i].supported_receivers)+" * ";
+            if (discovered[i].hl2_protocol) {
+                devListTxt += "^^";
             }
+//            if (discovered[i].device == DEVICE_HERMES_LITE2 || discovered[i].device == DEVICE_HERMES_LITE) {
+//                devListTxt += std::to_string(discovered[i].supported_receivers)+" * ";
+//            }
             devListTxt+=discovered[i].name;
 
             devListTxt += '\0';

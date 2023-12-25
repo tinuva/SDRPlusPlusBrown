@@ -249,10 +249,12 @@ static void discover(struct ifaddrs* iface, const struct sockaddr_in *fixed, boo
             flog::info("discovered: received {0} bytes from {}",bytes_read, std::string(inet_ntoa(addr.sin_addr)).c_str());
             if ((buffer[0] & 0xFF) == 0xEF && (buffer[1] & 0xFF) == 0xFE) {
                 int status = buffer[2] & 0xFF;
-                if (status == 2 || status == 3) {
+                if (status == 2 || status == 3 || status == 28) { // 28 == hl_proxy, extended command set
+                    bool isHL2Proxy = status == 28;
                     discoveredLock.lock();
                     if(devices<MAX_DEVICES) {
                         discovered[devices].protocol=PROTOCOL_1;
+                        discovered[devices].hl2_protocol = false;
                         version=buffer[9]&0xFF;
                         sprintf(discovered[devices].software_version,"%d",version);
                         switch(buffer[10]&0xFF) {
@@ -339,21 +341,40 @@ static void discover(struct ifaddrs* iface, const struct sockaddr_in *fixed, boo
                         discovered[devices].info.network.interface_length=sizeof(interface_addr);
                         strcpy(discovered[devices].info.network.interface_name,interface_name);
                         char buf[10000];
-                        sprintf(buf, "discovery: found device=%d software_version=%s status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
-                                discovered[devices].device,
-                                discovered[devices].software_version,
-                                discovered[devices].status,
-                                inet_ntoa(discovered[devices].info.network.address.sin_addr),
-                                discovered[devices].info.network.mac_address[0],
-                                discovered[devices].info.network.mac_address[1],
-                                discovered[devices].info.network.mac_address[2],
-                                discovered[devices].info.network.mac_address[3],
-                                discovered[devices].info.network.mac_address[4],
-                                discovered[devices].info.network.mac_address[5],
-                                discovered[devices].info.network.interface_name);
-                        flog::info("{0}",buf);
-                        devices++;
-                        localDevicesFound++;
+                        if (isHL2Proxy) {
+                            for(int q=0; q<devices; q++) {
+                                if (!memcmp(&discovered[q].info.network.address.sin_addr, &discovered[devices].info.network.address.sin_addr, sizeof(discovered[q].info.network.address.sin_addr))) {
+                                    discovered[q].hl2_protocol = true;
+                                }
+                            }
+                            // just update preceding device
+                        } else {
+                            bool found = false;
+                            for(int q=0; q<devices; q++) {
+                                if (!memcmp(&discovered[q].info.network.address.sin_addr, &discovered[devices].info.network.address.sin_addr, sizeof(discovered[q].info.network.address.sin_addr))) {
+                                    // already there; dropping duplicates
+                                    found = true;
+                                }
+                            }
+                            if (!found) {
+                                // new ip:port
+                                sprintf(buf, "discovery: found device=%d software_version=%s status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
+                                        discovered[devices].device,
+                                        discovered[devices].software_version,
+                                        discovered[devices].status,
+                                        inet_ntoa(discovered[devices].info.network.address.sin_addr),
+                                        discovered[devices].info.network.mac_address[0],
+                                        discovered[devices].info.network.mac_address[1],
+                                        discovered[devices].info.network.mac_address[2],
+                                        discovered[devices].info.network.mac_address[3],
+                                        discovered[devices].info.network.mac_address[4],
+                                        discovered[devices].info.network.mac_address[5],
+                                        discovered[devices].info.network.interface_name);
+                                flog::info("{0}", buf);
+                                devices++;
+                                localDevicesFound++;
+                            }
+                        }
                     }
                     discoveredLock.unlock();
                 }

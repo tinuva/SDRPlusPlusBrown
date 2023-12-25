@@ -755,7 +755,7 @@ namespace ImGui {
             }
         }
 
-        flog::info("Full waterfall update fb: {0} msec, full width: {1}, draw width: {2}", (int64_t)currentTimeMillis() - ctm, dataWidth, drawDataSize);
+//        flog::info("Full waterfall update fb: {0} msec, full width: {1}, draw width: {2}", (int64_t)currentTimeMillis() - ctm, dataWidth, drawDataSize);
         waterfallUpdate = true;
 
         for (int i = 0; i < WATERFALL_NUMBER_OF_SECTIONS; ++i) {
