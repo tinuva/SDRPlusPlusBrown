@@ -17,13 +17,15 @@ var lastClientReport = int64(0)
 var lastServerReport = int64(0)
 
 type TranscieverState struct {
-	transmit    bool
-	registers   [256][4]byte
-	knownregs   [256]bool
-	temperature float64
-	revpower    uint16
-	fwdpower    uint16
-	sendPackets [][]byte
+	transmit             bool
+	registers            [256][4]byte
+	knownregs            [256]bool
+	temperature          float64
+	revpower             uint16
+	fwdpower             uint16
+	sendPackets          [][]byte
+	snapshotPacketBuffer []byte
+	lowStateBits         byte
 }
 
 type ClientState struct {
@@ -35,6 +37,7 @@ type ClientState struct {
 	knownregs        [256]bool
 	lastClientPacket []byte
 	lastReceived     time.Time
+	lastSentTowards  time.Time
 	lastSentRegister int
 }
 
@@ -71,7 +74,8 @@ func (s *TranscieverState) updateStateFromUDP(udpData []byte) {
 
 func (s *TranscieverState) updateStateFromControl(control [5]byte) {
 	reg := (control[0] >> 3) & 0x1F
-	cin1, cin2, cin3, cin4 := control[1], control[1], control[1], control[1]
+	cin1, cin2, cin3, cin4 := control[1], control[2], control[3], control[4]
+	s.lowStateBits = control[0] & 0x7
 	if s.registers[reg][0] != cin1 || s.registers[reg][1] != cin2 || s.registers[reg][2] != cin3 || s.registers[reg][3] != cin4 {
 		s.registers[reg][0], s.registers[reg][1], s.registers[reg][2], s.registers[reg][3] = cin1, cin2, cin3, cin4
 		s.knownregs[reg] = true
@@ -97,13 +101,48 @@ func (s *TranscieverState) updateStateFromControl(control [5]byte) {
 			s.revpower = alex_reverse_power
 			if float64(prevrevpower)-float64(s.revpower) < 10 {
 				changed = false
+			} else {
+				log.Println("revpower reported=", s.revpower)
 			}
 		}
 		if changed {
-			log.Printf("TRX register: %x %x %x %x %x\n", reg, control[1], control[2], control[3], control[4])
+			//log.Printf("TRX register: %x %x %x %x %x\n", reg, control[1], control[2], control[3], control[4])
 		}
 	}
 
+}
+
+func (s *TranscieverState) CreateSnapshotPacket() []byte {
+	if s.snapshotPacketBuffer == nil {
+		s.snapshotPacketBuffer = make([]byte, 300) // it's basically only few regs
+	}
+	// will produce standard packet to 28 th endpoint
+	buf := s.snapshotPacketBuffer
+	buf[0] = 0xEF
+	buf[1] = 0xFE
+	buf[2] = 28
+	buf[3] = 6
+	buf[4] = 0
+	buf[5] = 0
+	buf[6] = 0
+	buf[7] = 0
+	buf[8] = 0x7F
+	buf[9] = 0x7F
+	buf[10] = 0x7F
+	dest := 11
+	for ix, r := range s.knownregs {
+		if r {
+			buf[dest+0] = s.lowStateBits | uint8(ix<<3)
+			buf[dest+1] = s.registers[ix][0]
+			buf[dest+2] = s.registers[ix][1]
+			buf[dest+3] = s.registers[ix][2]
+			buf[dest+4] = s.registers[ix][3]
+			dest += 5
+		}
+	}
+	buf[dest+0] = 0xFF // end marker
+	dest++
+	return buf[:dest]
 }
 
 func (s *ClientState) updateStateFromUDP(udpData []byte) {
@@ -178,6 +217,12 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 				// reply to incoming addr (client).
 				if clientState.transmit {
 					// don't send anything to the APP while transmitting
+					if time.Since(clientState.lastSentTowards) > 250*time.Millisecond {
+						snapshotPacket := transcieverState.CreateSnapshotPacket()
+						log.Println("Sent snapshot packet towards APP, len=", len(snapshotPacket))
+						_, err = frontend.WriteToUDP(snapshotPacket, &clientState.addr)
+						clientState.lastSentTowards = time.Now()
+					}
 				} else {
 					_, err = frontend.WriteToUDP(buffer[:n], &clientState.addr)
 				}

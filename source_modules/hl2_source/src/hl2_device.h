@@ -542,6 +542,24 @@ struct HL2Device {
         getSWR();
     }
 
+    void process_hl2_control_bytes(unsigned char *buffer) {
+        if (buffer[0] == 0x7F && buffer[1] == 0x7F && buffer[2] == 0x7F) { // masking kinda we invented it
+            auto scan = 3;
+            for(int count=0; count<10; count++) { // max cnt of registers from trx
+                if (buffer[scan] == 0xFF) {
+                    break;  // end of regs
+                }
+                control_in[0] = buffer[scan+0];
+                control_in[1] = buffer[scan+1];
+                control_in[2] = buffer[scan+2];
+                control_in[3] = buffer[scan+3];
+                control_in[4] = buffer[scan+4];
+                process_control_bytes();
+                scan += 5;
+            }
+        }
+    }
+
 
     void process_ozy_input_buffer(unsigned char* buffer) {
         int i;
@@ -978,7 +996,12 @@ struct HL2Device {
                     case 2: // response to a discovery packet
                         fprintf(stderr, "unexepected discovery response when not in discovery mode\n");
                         break;
-                    case 28: // HL2 proxy marker, ignore
+                    case 28: // HL2 proxy extension protocol
+                        ep = buffer[3] & 0xFF;
+                        switch(ep) {
+                        case 6: // same EP as usually
+                            process_hl2_control_bytes(buffer+8);
+                        }
                         break;
                     default:
                         fprintf(stderr, "unexpected packet type: 0x%02X\n", buffer[2]);
