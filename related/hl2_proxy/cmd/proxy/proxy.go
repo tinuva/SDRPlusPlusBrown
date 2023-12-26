@@ -72,7 +72,7 @@ func (self *MyLog) Fatal(x ...any) {
 	time.Sleep(100000 * time.Second)
 }
 
-func (s *TranscieverState) updateStateFromFrame(frame []byte) {
+func (s *TranscieverState) updateStateFromFrame(ctm time.Time, frame []byte) {
 	// wants 512 bytes in frame
 	if frame[0] == 0x7F && frame[1] == 0x7F && frame[2] == 0x7F {
 		// sync ok.
@@ -81,11 +81,11 @@ func (s *TranscieverState) updateStateFromFrame(frame []byte) {
 		//receivers := 1
 		// 8 bytes above (3=sync, 5=control.
 		//niq_samples := (512 - 8) / ((receivers * 6) + 2) // how samples are packed, so it's one sample size
-		s.updateStateFromControl(control)
+		s.updateStateFromControl(ctm, control)
 	}
 }
 
-func (s *TranscieverState) updateStateFromUDP(udpData []byte) {
+func (s *TranscieverState) updateStateFromUDP(ctm time.Time, udpData []byte) {
 	if udpData[0] == 0xEF && udpData[1] == 0xFE {
 		if udpData[2] == 2 || udpData[2] == 3 { // discovery response
 			logg.Println("TRX -> APP sent 28 code as information about proxy")
@@ -97,15 +97,18 @@ func (s *TranscieverState) updateStateFromUDP(udpData []byte) {
 		if udpData[2] == 1 { // iq data stream
 			endpoint := udpData[3]
 			if endpoint == 6 {
-				s.updateStateFromFrame(udpData[8 : 8+504])
-				s.updateStateFromFrame(udpData[520 : 520+504])
+				s.updateStateFromFrame(ctm, udpData[8:8+504])
+				s.updateStateFromFrame(ctm, udpData[520:520+504])
 			}
 		}
 	}
 }
 
-func (s *TranscieverState) getFillLevel() int {
-	timeSince := int(time.Since(s.fillLevelTime).Milliseconds()) * 1000 // microseconds
+func (s *TranscieverState) getFillLevel(ctm time.Time) int {
+	if s.fillLevel < 1 {
+		s.fillLevel = 0
+	}
+	timeSince := int(ctm.Sub(s.fillLevelTime).Microseconds() * 1000) // microseconds
 	samplesPerPacket := 2 * 63
 	sentRate := 48000
 	packetDuration := (1000000 * samplesPerPacket) / sentRate // microseconds
@@ -114,7 +117,7 @@ func (s *TranscieverState) getFillLevel() int {
 	return s.fillLevel - packetsTransmittedToAir + packetsAddedSinceReport
 }
 
-func (s *TranscieverState) updateStateFromControl(control [5]byte) {
+func (s *TranscieverState) updateStateFromControl(ctm time.Time, control [5]byte) {
 	reg := (control[0] >> 3) & 0x1F
 	s.lowStateBits = control[0] & 0x7
 	s.transmit = control[0]&0x1 != 0
@@ -132,7 +135,7 @@ func (s *TranscieverState) updateStateFromControl(control [5]byte) {
 			s.fillLevel = (int(msb) * 16) / 48
 		}
 		s.sentSinceFillLevelTime = 0
-		s.fillLevelTime = time.Now()
+		s.fillLevelTime = ctm
 	case 1:
 		//adc := ((uint16(control[1])) << 8) | (uint16(control[2]) & 0xFF)
 		//thisTemp := (3.26*(float64(adc)/4096.0) - 0.5) / 0.01
@@ -180,7 +183,7 @@ func (s *TranscieverState) CreateSnapshotPacket() []byte {
 	return buf[:dest]
 }
 
-func (s *ClientState) updateStateFromUDP(udpData []byte) {
+func (s *ClientState) updateStateFromUDP(ctm time.Time, udpData []byte) {
 	if udpData[0] == 0xEF && udpData[1] == 0xFE {
 		switch udpData[2] {
 		case 1: // iq data from APP
@@ -193,8 +196,8 @@ func (s *ClientState) updateStateFromUDP(udpData []byte) {
 			udpData[6] = byte((s.udpSendSequence + insertions) >> 8)
 			udpData[7] = byte(s.udpSendSequence + insertions)
 			if endpoint == 2 {
-				s.updateStateFromFrame(udpData[8 : 8+504])
-				s.updateStateFromFrame(udpData[520 : 520+504])
+				s.updateStateFromFrame(ctm, udpData[8:8+504])
+				s.updateStateFromFrame(ctm, udpData[520:520+504])
 				s.lastClientPacket = udpData
 			}
 		case 4: // start request from app
@@ -204,12 +207,12 @@ func (s *ClientState) updateStateFromUDP(udpData []byte) {
 	}
 }
 
-func (s *ClientState) updateStateFromFrame(frame []byte) {
+func (s *ClientState) updateStateFromFrame(ctm time.Time, frame []byte) {
 	if frame[0] == 0x7F && frame[1] == 0x7F && frame[2] == 0x7F {
 		newTransmit := frame[3]&0x01 == 1
 		if newTransmit != s.transmit {
 			s.transmit = newTransmit
-			s.transmitChangeTime = time.Now()
+			s.transmitChangeTime = ctm
 			if !newTransmit {
 				s.transmitFramesSentToTRX = 0
 			}
@@ -258,18 +261,20 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 		if err != nil {
 			logg.Fatal(err)
 		}
+		ctm := time.Now()
+		ctmMilli := ctm.UnixMilli()
 		if bytes.Equal(addr.IP, backendAddr.IP) {
 			// message from backend (trx)
 			if clientState.addr.Port != 0 {
-				transcieverState.updateStateFromUDP(buffer[:n])
+				transcieverState.updateStateFromUDP(ctm, buffer[:n])
 				// reply to incoming addr (client).
 				if clientState.transmit {
 					// don't send anything to the APP while transmitting
-					if time.Since(clientState.lastSentTowards) > 250*time.Millisecond {
+					if ctm.Sub(clientState.lastSentTowards) > 250*time.Millisecond {
 						snapshotPacket := transcieverState.CreateSnapshotPacket()
 						logg.Println("Sent snapshot packet towards APP, len=", len(snapshotPacket))
 						_, err = frontend.WriteToUDP(snapshotPacket, &clientState.addr)
-						clientState.lastSentTowards = time.Now()
+						clientState.lastSentTowards = ctm
 					}
 				} else {
 					_, err = frontend.WriteToUDP(buffer[:n], &clientState.addr)
@@ -278,10 +283,9 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 					_, err = frontend.WriteToUDP(pkt, &clientState.addr)
 				}
 				transcieverState.sendPackets = nil
-				tm := time.Now().UnixMilli()
-				if tm-lastServerReport > 1000 {
+				if ctmMilli-lastServerReport > 1000 {
 					logg.Printf("[%d] Sent message (%d) to client %s\n", serverCount, n, clientState.addr.String())
-					lastServerReport = tm
+					lastServerReport = ctmMilli
 				}
 				serverCount++
 			}
@@ -307,27 +311,27 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 					}()
 				}
 			}
-			clientState.updateStateFromUDP(buffer[:n])
+			clientState.updateStateFromUDP(ctm, buffer[:n])
 			clientCount++
 			sendToTrx(buffer[:n])
-			dt := time.Since(clientState.lastReceived)
-			clientState.lastReceived = time.Now()
+			dt := ctm.Sub(clientState.lastReceived)
+			clientState.lastReceived = ctm
 			if err != nil {
 				logg.Println(err)
 			}
-			tm := time.Now().UnixMilli()
-			if tm-lastClientReport > 1000 || (clientState.transmit && *verboseTxTiming) {
+			if ctmMilli-lastClientReport > 1000 || (clientState.transmit && *verboseTxTiming) {
 				logg.Printf("[%d] dt=%v tx=%v Relayed message (len=%d) from APP to TRX  %s\n", clientCount, dt, clientState.transmit, n, addr.String())
-				lastClientReport = tm
+				lastClientReport = ctmMilli
 			}
 		}
 
 		verboseSimu := true
-		timeToSimulateFromAPP := time.Since(clientState.lastReceived) > 300*time.Millisecond
+		timeToSimulateFromAPP := ctm.Sub(clientState.lastReceived) > 300*time.Millisecond
 		if clientState.transmit {
-			if transcieverState.fillLevel < *fillLevel && transcieverState.fillLevel >= 0 {
+			fl := transcieverState.getFillLevel(ctm)
+			if fl < *fillLevel && fl >= 0 {
 				timeToSimulateFromAPP = true
-				logg.Println("filling missing packet: queue len = ", transcieverState.fillLevel, "(", transcieverState.getFillLevel(), ")", " since ", time.Since(transcieverState.fillLevelTime))
+				logg.Println("filling missing packet: queue len = ", transcieverState.fillLevel, "(", transcieverState.getFillLevel(ctm), ")", " since ", ctm.Sub(transcieverState.fillLevelTime))
 				verboseSimu = false
 			}
 		}
@@ -371,7 +375,7 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 			clientState.lastClientPacket[520+7] = clientState.registers[clientState.lastSentRegister][3]
 
 			sendToTrx(clientState.lastClientPacket)
-			clientState.lastReceived = time.Now() // kinda received
+			clientState.lastReceived = ctm // kinda received
 			if verboseSimu {
 				logg.Println("Simulated client packet, newseq=", newSeq, " register=", clientState.lastSentRegister, ": error?=", err)
 			}
