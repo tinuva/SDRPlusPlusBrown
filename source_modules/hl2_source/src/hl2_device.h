@@ -198,23 +198,26 @@ struct HL2Device {
 
     void setSoftwarePower(unsigned char power) { // power = 0..255 (however only 4 upper bits (31..28) are used)
         // soft power is used. Hard is max.
+        auto old = deviceControl[0x09].C1;
         deviceControl[0x09].C1 = hardwarePower & 0xF0;
         this->softwarePower = power;
-        deviceControlDirty[0x09] = 1;
+        deviceControlDirty[0x09] = old != deviceControl[0x09].C1;
     }
 
     void setHardwarePower(unsigned char power) { // power = 0..255 (however only 4 upper bits (31..28) are used)
         // soft power is used. Hard is max.
+        auto old = deviceControl[0x09].C1;
         deviceControl[0x09].C1 = power & 0xF0;
         this->hardwarePower = power;
-        deviceControlDirty[0x09] = 1;
+        deviceControlDirty[0x09] = old != deviceControl[0x09].C1;
     }
 
 
     void setPAEnabled(bool enabled) { // bit 19
+        auto old = deviceControl[0x09].C2;
         deviceControl[0x09].C2 &= ~0x08;
         deviceControl[0x09].C2 |= enabled ? 0x08 : 0x00;
-        deviceControlDirty[0x09] = 1;
+        deviceControlDirty[0x09] = old != deviceControl[0x09].C2;
     }
 
     void setTxFrequency(long long txFrequency) {
@@ -270,13 +273,14 @@ struct HL2Device {
 
     // does not work; needs investigation; doing in software for now.
     void setTune(bool tune) {
+        auto old = deviceControl[0x9].C2;
         if (tune) {
             deviceControl[0x9].C2 |= 0x10; // bit 20
         }
         else {
             deviceControl[0x9].C2 &= ~0x10;
         }
-        deviceControlDirty[0x09] = 1;
+        deviceControlDirty[0x09] = old != deviceControl[0x9].C2;
     }
 
     bool transmitMode = false;

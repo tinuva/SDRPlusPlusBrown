@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -20,7 +22,6 @@ type TranscieverState struct {
 	transmit               bool
 	registers              [256][4]byte
 	knownregs              [256]bool
-	temperature            float64
 	revpower               uint16
 	fwdpower               uint16
 	sendPackets            [][]byte
@@ -28,7 +29,7 @@ type TranscieverState struct {
 	lowStateBits           byte
 	fillLevel              int
 	fillLevelTime          time.Time
-	sentSinceFillLevelTime int
+	sentSinceFillLevelTime int // towards TRX
 }
 
 type ClientState struct {
@@ -103,6 +104,16 @@ func (s *TranscieverState) updateStateFromUDP(udpData []byte) {
 	}
 }
 
+func (s *TranscieverState) getFillLevel() int {
+	timeSince := int(time.Since(s.fillLevelTime).Milliseconds()) * 1000 // microseconds
+	samplesPerPacket := 2 * 63
+	sentRate := 48000
+	packetDuration := (1000000 * samplesPerPacket) / sentRate // microseconds
+	packetsTransmittedToAir := timeSince / packetDuration
+	packetsAddedSinceReport := s.sentSinceFillLevelTime
+	return s.fillLevel - packetsTransmittedToAir + packetsAddedSinceReport
+}
+
 func (s *TranscieverState) updateStateFromControl(control [5]byte) {
 	reg := (control[0] >> 3) & 0x1F
 	s.lowStateBits = control[0] & 0x7
@@ -113,25 +124,25 @@ func (s *TranscieverState) updateStateFromControl(control [5]byte) {
 	case 0:
 		recovery := (control[3] & 0xC0) >> 6
 		if recovery == 3 {
-			s.fillLevel = 10000.0 // overflow
+			s.fillLevel = 10000 // overflow
 		} else if recovery == 2 {
 			s.fillLevel = -1 // underflow
 		} else {
 			msb := control[3] & 0b00111111
-			s.fillLevel = int(float64(msb) * 16.0 / 48.0) // 0..21
-			s.fillLevelTime = time.Now()
-			s.sentSinceFillLevelTime = 0
+			s.fillLevel = (int(msb) * 16) / 48
 		}
+		s.sentSinceFillLevelTime = 0
+		s.fillLevelTime = time.Now()
 	case 1:
-		adc := ((uint16(control[1])) << 8) | (uint16(control[2]) & 0xFF)
-		thisTemp := (3.26*(float64(adc)/4096.0) - 0.5) / 0.01
-		// Exponential moving average filter
-		alpha := 0.7
-		s.temperature = (alpha * thisTemp) + (1-alpha)*s.temperature
+		//adc := ((uint16(control[1])) << 8) | (uint16(control[2]) & 0xFF)
+		//thisTemp := (3.26*(float64(adc)/4096.0) - 0.5) / 0.01
+		//// Exponential moving average filter
+		//alpha := 0.7
+		//s.temperature = (alpha * thisTemp) + (1-alpha)*s.temperature
 	case 2:
-		alex_reverse_power := (uint16(control[1]) << 8) | uint16(control[2]) // from Alex or Apollo
+		//alex_reverse_power := (uint16(control[1]) << 8) | uint16(control[2]) // from Alex or Apollo
 		//AIN3 := (control_in[3] << 8) + control_in[4];                                 // from Pennelope or Hermes
-		s.revpower = alex_reverse_power
+		//s.revpower = alex_reverse_power
 	}
 
 }
@@ -247,7 +258,7 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 		if err != nil {
 			logg.Fatal(err)
 		}
-		if addr.IP.String() == backendAddr.IP.String() {
+		if bytes.Equal(addr.IP, backendAddr.IP) {
 			// message from backend (trx)
 			if clientState.addr.Port != 0 {
 				transcieverState.updateStateFromUDP(buffer[:n])
@@ -279,6 +290,22 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 			if !bytes.Equal(clientState.addr.IP, addr.IP) || clientState.addr.Port != addr.Port {
 				clientState = ClientState{}
 				clientState.addr = *addr
+				if *doCpuProfile {
+					cpuProfile, err := os.Create("cpu.pprof")
+					if err != nil {
+						panic(err)
+					}
+					if err := pprof.StartCPUProfile(cpuProfile); err != nil {
+						panic(err)
+					}
+					go func() {
+						time.Sleep(5 * time.Second)
+						pprof.StopCPUProfile()
+						cpuProfile.Close()
+						log.Println("ending cpu profile.")
+						os.Exit(0)
+					}()
+				}
 			}
 			clientState.updateStateFromUDP(buffer[:n])
 			clientCount++
@@ -295,11 +322,13 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 			}
 		}
 
+		verboseSimu := true
 		timeToSimulateFromAPP := time.Since(clientState.lastReceived) > 300*time.Millisecond
 		if clientState.transmit {
-			if transcieverState.fillLevel < 4 && transcieverState.fillLevel >= 0 {
+			if transcieverState.fillLevel < *fillLevel && transcieverState.fillLevel >= 0 {
 				timeToSimulateFromAPP = true
-				logg.Println("filling missing packet: queue len = ", transcieverState.fillLevel, " since ", time.Since(transcieverState.fillLevelTime))
+				logg.Println("filling missing packet: queue len = ", transcieverState.fillLevel, "(", transcieverState.getFillLevel(), ")", " since ", time.Since(transcieverState.fillLevelTime))
+				verboseSimu = false
 			}
 		}
 
@@ -343,12 +372,16 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 
 			sendToTrx(clientState.lastClientPacket)
 			clientState.lastReceived = time.Now() // kinda received
-			logg.Println("Simulated client packet, newseq=", newSeq, " register=", clientState.lastSentRegister, ": error?=", err)
+			if verboseSimu {
+				logg.Println("Simulated client packet, newseq=", newSeq, " register=", clientState.lastSentRegister, ": error?=", err)
+			}
 		}
 	}
 }
 
 var verboseTxTiming = flag.Bool("verbosetx", false, "Verbose log tx packets timings")
+var fillLevel = flag.Int("fill", 4, "fill level to start simulate filling")
+var doCpuProfile = flag.Bool("prof", false, "cpu profile few seconds of TRX->APP traffic")
 
 func main() {
 	logg.pipe = make(chan LogMessage, 10000)
@@ -364,6 +397,13 @@ func main() {
 			if ch.fatal {
 				os.Exit(1)
 			}
+		}
+	}()
+	go func() {
+		for {
+			prevServer, prevClient := serverCount, clientCount
+			time.Sleep(1 * time.Second)
+			logg.Println("Packet counts/1sec received: server: ", serverCount-prevServer, clientCount-prevClient)
 		}
 	}()
 	serverAddress := flag.String("hermes", "192.168.8.130:1024", "Hermes server address")
