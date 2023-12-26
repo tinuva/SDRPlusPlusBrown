@@ -3,9 +3,9 @@ package main
 import (
 	"bytes"
 	"flag"
-	"log"
-	"math"
+	"fmt"
 	"net"
+	"os"
 	"sync"
 	"time"
 )
@@ -17,28 +17,58 @@ var lastClientReport = int64(0)
 var lastServerReport = int64(0)
 
 type TranscieverState struct {
-	transmit             bool
-	registers            [256][4]byte
-	knownregs            [256]bool
-	temperature          float64
-	revpower             uint16
-	fwdpower             uint16
-	sendPackets          [][]byte
-	snapshotPacketBuffer []byte
-	lowStateBits         byte
+	transmit               bool
+	registers              [256][4]byte
+	knownregs              [256]bool
+	temperature            float64
+	revpower               uint16
+	fwdpower               uint16
+	sendPackets            [][]byte
+	snapshotPacketBuffer   []byte
+	lowStateBits           byte
+	fillLevel              int
+	fillLevelTime          time.Time
+	sentSinceFillLevelTime int
 }
 
 type ClientState struct {
-	addr             net.UDPAddr
-	udpSendSequence  uint32
-	udpInsertions    uint32 // added to sequence
-	transmit         bool
-	registers        [256][4]byte
-	knownregs        [256]bool
-	lastClientPacket []byte
-	lastReceived     time.Time
-	lastSentTowards  time.Time
-	lastSentRegister int
+	addr                    net.UDPAddr
+	udpSendSequence         uint32
+	udpInsertions           uint32 // added to sequence
+	transmit                bool
+	transmitChangeTime      time.Time
+	registers               [256][4]byte
+	knownregs               [256]bool
+	lastClientPacket        []byte
+	lastReceived            time.Time
+	lastSentTowards         time.Time
+	lastSentRegister        int
+	transmitFramesSentToTRX int // how many frames sent to trx since transmitChangeTime if transmitting
+}
+
+type LogMessage struct {
+	when  time.Time
+	what  string
+	fatal bool
+}
+
+type MyLog struct {
+	pipe chan LogMessage
+}
+
+var logg MyLog
+
+func (self *MyLog) Println(x ...any) {
+	self.pipe <- LogMessage{time.Now(), fmt.Sprintln(x...), false}
+}
+
+func (self *MyLog) Printf(f string, x ...any) {
+	self.pipe <- LogMessage{time.Now(), fmt.Sprintf(f, x...), false}
+}
+
+func (self *MyLog) Fatal(x ...any) {
+	self.pipe <- LogMessage{time.Now(), fmt.Sprintln(x...), true}
+	time.Sleep(100000 * time.Second)
 }
 
 func (s *TranscieverState) updateStateFromFrame(frame []byte) {
@@ -57,6 +87,7 @@ func (s *TranscieverState) updateStateFromFrame(frame []byte) {
 func (s *TranscieverState) updateStateFromUDP(udpData []byte) {
 	if udpData[0] == 0xEF && udpData[1] == 0xFE {
 		if udpData[2] == 2 || udpData[2] == 3 { // discovery response
+			logg.Println("TRX -> APP sent 28 code as information about proxy")
 			dup := make([]byte, len(udpData))
 			copy(dup, udpData)
 			dup[2] = 28 // indicates extended proxy (hl_2 proxy) presence.
@@ -74,40 +105,33 @@ func (s *TranscieverState) updateStateFromUDP(udpData []byte) {
 
 func (s *TranscieverState) updateStateFromControl(control [5]byte) {
 	reg := (control[0] >> 3) & 0x1F
-	cin1, cin2, cin3, cin4 := control[1], control[2], control[3], control[4]
 	s.lowStateBits = control[0] & 0x7
-	if s.registers[reg][0] != cin1 || s.registers[reg][1] != cin2 || s.registers[reg][2] != cin3 || s.registers[reg][3] != cin4 {
-		s.registers[reg][0], s.registers[reg][1], s.registers[reg][2], s.registers[reg][3] = cin1, cin2, cin3, cin4
-		s.knownregs[reg] = true
+	s.transmit = control[0]&0x1 != 0
+	s.knownregs[reg] = true
 
-		changed := true
-
-		switch reg {
-		case 1:
-			//exciter_power := ((uint16(cin1) << 8) | (uint16(cin2) & 0xFF); // from Penelope or Hermes
-			adc := ((uint16(cin1)) << 8) | (uint16(cin2) & 0xFF)
-			thisTemp := (3.26*(float64(adc)/4096.0) - 0.5) / 0.01
-			// Exponential moving average filter
-			alpha := 0.7
-			prevTemp := s.temperature
-			s.temperature = (alpha * thisTemp) + (1-alpha)*s.temperature
-			if math.Abs(prevTemp-s.temperature) < 1 {
-				changed = false
-			}
-		case 2:
-			alex_reverse_power := (uint16(cin1) << 8) | uint16(cin2) // from Alex or Apollo
-			//AIN3 := (control_in[3] << 8) + control_in[4];                                 // from Pennelope or Hermes
-			prevrevpower := s.revpower
-			s.revpower = alex_reverse_power
-			if float64(prevrevpower)-float64(s.revpower) < 10 {
-				changed = false
-			} else {
-				log.Println("revpower reported=", s.revpower)
-			}
+	switch reg {
+	case 0:
+		recovery := (control[3] & 0xC0) >> 6
+		if recovery == 3 {
+			s.fillLevel = 10000.0 // overflow
+		} else if recovery == 2 {
+			s.fillLevel = -1 // underflow
+		} else {
+			msb := control[3] & 0b00111111
+			s.fillLevel = int(float64(msb) * 16.0 / 48.0) // 0..21
+			s.fillLevelTime = time.Now()
+			s.sentSinceFillLevelTime = 0
 		}
-		if changed {
-			//log.Printf("TRX register: %x %x %x %x %x\n", reg, control[1], control[2], control[3], control[4])
-		}
+	case 1:
+		adc := ((uint16(control[1])) << 8) | (uint16(control[2]) & 0xFF)
+		thisTemp := (3.26*(float64(adc)/4096.0) - 0.5) / 0.01
+		// Exponential moving average filter
+		alpha := 0.7
+		s.temperature = (alpha * thisTemp) + (1-alpha)*s.temperature
+	case 2:
+		alex_reverse_power := (uint16(control[1]) << 8) | uint16(control[2]) // from Alex or Apollo
+		//AIN3 := (control_in[3] << 8) + control_in[4];                                 // from Pennelope or Hermes
+		s.revpower = alex_reverse_power
 	}
 
 }
@@ -163,7 +187,7 @@ func (s *ClientState) updateStateFromUDP(udpData []byte) {
 				s.lastClientPacket = udpData
 			}
 		case 4: // start request from app
-			log.Printf("START/STOP stream request from APP: %d %d ( source: %v )", udpData[3]&0x01, (udpData[3]&0x02)>>1, s.addr)
+			logg.Printf("START/STOP stream request from APP: %d %d ( source: %v )", udpData[3]&0x01, (udpData[3]&0x02)>>1, s.addr)
 			break
 		}
 	}
@@ -171,7 +195,14 @@ func (s *ClientState) updateStateFromUDP(udpData []byte) {
 
 func (s *ClientState) updateStateFromFrame(frame []byte) {
 	if frame[0] == 0x7F && frame[1] == 0x7F && frame[2] == 0x7F {
-		s.transmit = frame[3]&0x01 == 1
+		newTransmit := frame[3]&0x01 == 1
+		if newTransmit != s.transmit {
+			s.transmit = newTransmit
+			s.transmitChangeTime = time.Now()
+			if !newTransmit {
+				s.transmitFramesSentToTRX = 0
+			}
+		}
 		register := frame[3] >> 1
 		s.knownregs[register] = true
 		cin1 := frame[4]
@@ -191,7 +222,7 @@ func (s *ClientState) updateStateFromFrame(frame []byte) {
 			changed := true
 
 			if changed {
-				log.Printf("APP register: %x %x %x %x\n", register, frame[4], frame[5], frame[6])
+				logg.Printf("APP register: %x %x %x %x\n", register, frame[4], frame[5], frame[6])
 			}
 		}
 	}
@@ -205,10 +236,16 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 	var transcieverState TranscieverState
 	var clientState ClientState
 
+	sendToTrx := func(packet []byte) {
+		_, _ = frontend.WriteToUDP(packet, backend) // simulate to trx
+		clientState.transmitFramesSentToTRX++
+		transcieverState.sentSinceFillLevelTime++
+	}
+
 	for {
 		n, addr, err := frontend.ReadFromUDP(buffer)
 		if err != nil {
-			log.Fatal(err)
+			logg.Fatal(err)
 		}
 		if addr.IP.String() == backendAddr.IP.String() {
 			// message from backend (trx)
@@ -219,7 +256,7 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 					// don't send anything to the APP while transmitting
 					if time.Since(clientState.lastSentTowards) > 250*time.Millisecond {
 						snapshotPacket := transcieverState.CreateSnapshotPacket()
-						log.Println("Sent snapshot packet towards APP, len=", len(snapshotPacket))
+						logg.Println("Sent snapshot packet towards APP, len=", len(snapshotPacket))
 						_, err = frontend.WriteToUDP(snapshotPacket, &clientState.addr)
 						clientState.lastSentTowards = time.Now()
 					}
@@ -232,7 +269,7 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 				transcieverState.sendPackets = nil
 				tm := time.Now().UnixMilli()
 				if tm-lastServerReport > 1000 {
-					log.Printf("[%d] Sent message (%d) to client %s\n", serverCount, n, clientState.addr.String())
+					logg.Printf("[%d] Sent message (%d) to client %s\n", serverCount, n, clientState.addr.String())
 					lastServerReport = tm
 				}
 				serverCount++
@@ -245,18 +282,28 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 			}
 			clientState.updateStateFromUDP(buffer[:n])
 			clientCount++
-			_, err = frontend.WriteToUDP(buffer[:n], backend) // forward to trx
+			sendToTrx(buffer[:n])
+			dt := time.Since(clientState.lastReceived)
 			clientState.lastReceived = time.Now()
 			if err != nil {
-				log.Println(err)
+				logg.Println(err)
 			}
 			tm := time.Now().UnixMilli()
-			if tm-lastClientReport > 1000 {
-				log.Printf("[%d] Sent message (%d) to server from client %s\n", clientCount, n, addr.String())
+			if tm-lastClientReport > 1000 || (clientState.transmit && *verboseTxTiming) {
+				logg.Printf("[%d] dt=%v tx=%v Relayed message (len=%d) from APP to TRX  %s\n", clientCount, dt, clientState.transmit, n, addr.String())
 				lastClientReport = tm
 			}
 		}
-		if time.Since(clientState.lastReceived) > 300*time.Millisecond && clientState.lastClientPacket != nil {
+
+		timeToSimulateFromAPP := time.Since(clientState.lastReceived) > 300*time.Millisecond
+		if clientState.transmit {
+			if transcieverState.fillLevel < 4 && transcieverState.fillLevel >= 0 {
+				timeToSimulateFromAPP = true
+				logg.Println("filling missing packet: queue len = ", transcieverState.fillLevel, " since ", time.Since(transcieverState.fillLevelTime))
+			}
+		}
+
+		if timeToSimulateFromAPP && clientState.lastClientPacket != nil {
 			// client does not send anything. Maybe it knows we're hl2 proxy
 			// maybe nothing changed.
 			clientState.udpInsertions++
@@ -294,20 +341,37 @@ func handleFrontend(frontend *net.UDPConn, backend *net.UDPAddr, wg *sync.WaitGr
 			clientState.lastClientPacket[520+6] = clientState.registers[clientState.lastSentRegister][2]
 			clientState.lastClientPacket[520+7] = clientState.registers[clientState.lastSentRegister][3]
 
-			_, err = frontend.WriteToUDP(clientState.lastClientPacket, backend) // simulate to trx
-			clientState.lastReceived = time.Now()                               // kinda received
-			log.Println("Simulated client packet, newseq=", newSeq, " register=", clientState.lastSentRegister, ": error?=", err)
+			sendToTrx(clientState.lastClientPacket)
+			clientState.lastReceived = time.Now() // kinda received
+			logg.Println("Simulated client packet, newseq=", newSeq, " register=", clientState.lastSentRegister, ": error?=", err)
 		}
 	}
 }
 
+var verboseTxTiming = flag.Bool("verbosetx", false, "Verbose log tx packets timings")
+
 func main() {
+	logg.pipe = make(chan LogMessage, 10000)
+	go func() {
+		lastTime := time.Now()
+		for {
+			ch := <-logg.pipe
+			str := fmt.Sprintf("%02d:%02d:%02d.%03d (+%0.3f) %s",
+				ch.when.Hour(), ch.when.Minute(), ch.when.Second(),
+				ch.when.Nanosecond()/1000000, float64(ch.when.Sub(lastTime).Nanoseconds())/1000000.0, ch.what)
+			fmt.Print(str)
+			lastTime = ch.when
+			if ch.fatal {
+				os.Exit(1)
+			}
+		}
+	}()
 	serverAddress := flag.String("hermes", "192.168.8.130:1024", "Hermes server address")
 	clientAddress := flag.String("bind", ":1024", "Listen port for client connection")
 	flag.Parse()
 	if !flag.Parsed() {
 		flag.Usage()
-		log.Fatal("ERROR: unable to parse flags")
+		logg.Fatal("ERROR: unable to parse flags")
 	}
 
 	var wg sync.WaitGroup
@@ -315,29 +379,29 @@ func main() {
 	// Resolve server and client addresses
 	backendAddrx, err := net.ResolveUDPAddr("udp", *serverAddress)
 	if err != nil {
-		log.Fatal(err)
+		logg.Fatal(err)
 	}
 	backendAddr = *backendAddrx
 	frontendAddr, err := net.ResolveUDPAddr("udp", *clientAddress)
 	if err != nil {
-		log.Fatal(err)
+		logg.Fatal(err)
 	}
 
 	// Create the server and client connections
 	frontendConn, err := net.ListenUDP("udp", frontendAddr)
 	if err != nil {
-		log.Fatal(err)
+		logg.Fatal(err)
 	}
-	log.Println("Listening on frontend " + frontendAddr.String() + " (wanted: " + *clientAddress + ")")
+	logg.Println("Listening on frontend " + frontendAddr.String() + " (wanted: " + *clientAddress + ")")
 	defer frontendConn.Close()
 
 	backendConn, err := net.DialUDP("udp", nil, backendAddrx)
 	if err != nil {
-		log.Fatal(err)
+		logg.Fatal(err)
 	}
 	defer backendConn.Close()
 
-	log.Println("Proxy started...")
+	logg.Println("Proxy started...")
 
 	// Handle incoming connections in separate goroutines
 	wg.Add(2)
