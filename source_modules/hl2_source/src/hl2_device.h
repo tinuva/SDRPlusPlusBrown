@@ -288,6 +288,7 @@ struct HL2Device {
     long long transmitModeProducedIQData = 0;
 
     void setPTT(bool ptt) {
+        deviceControlDirty[0] = ptt != transmitMode;
         transmitMode = ptt;
         transmitModeStart = currentTimeMillis();
         transmitModeProducedIQData = 0;
