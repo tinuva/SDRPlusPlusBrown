@@ -40,7 +40,7 @@ void ConfigManager::load(json def, bool lock) {
         file >> conf;
         file.close();
     }
-    catch (std::exception e) {
+    catch (const std::exception e) {
         flog::error("Config file '{}' with size={} is corrupted ({}), resetting it", path, (int64_t)filesize, e.what());
         usleep(3000000);
         conf = def;

@@ -138,6 +138,26 @@ private:
                     delete _this->reader;
                 }
                 _this->openPathFromFileSelect();
+                try {
+                    _this->reader = new WavReader(_this->fileSelect.path);
+                    if (_this->reader->getSampleRate() == 0) {
+                        _this->reader->close();
+                        delete _this->reader;
+                        _this->reader = NULL;
+                        throw std::runtime_error("Sample rate may not be zero");
+                    }
+                    _this->sampleRate = _this->reader->getSampleRate();
+                    core::setInputSampleRate(_this->sampleRate);
+                    std::string filename = std::filesystem::path(_this->fileSelect.path).filename().string();
+                    _this->centerFreq = _this->getFrequency(filename);
+                    tuner::tune(tuner::TUNER_MODE_IQ_ONLY, "", _this->centerFreq);
+                    //gui::freqSelect.minFreq = _this->centerFreq - (_this->sampleRate/2);
+                    //gui::freqSelect.maxFreq = _this->centerFreq + (_this->sampleRate/2);
+                    //gui::freqSelect.limitFreq = true;
+                }
+                catch (const std::exception& e) {
+                    flog::error("Error: {}", e.what());
+                }
                 config.acquire();
                 config.conf["path"] = _this->fileSelect.path;
                 config.release(true);

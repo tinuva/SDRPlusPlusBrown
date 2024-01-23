@@ -1,4 +1,3 @@
-``
 # SDR++ (Brown fork), The bloat-free SDR software
 
 [Changelog](changelog.md)
@@ -34,4 +33,3 @@ Have an issue? Works worse than original? File an [issue](https://github.com/san
   
 Good luck.
 
-``

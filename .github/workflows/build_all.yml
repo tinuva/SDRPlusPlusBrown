@@ -34,8 +34,8 @@ jobs:
 
         - name: Patch Pothos with earlier libusb version
           working-directory: ${{runner.workspace}}
-          run: 7z x libusb.7z -olibusb_old ; rm "C:/Program Files/PothosSDR/bin/libusb-1.0.dll" ; cp "libusb_old/MS64/dll/libusb-1.0.dll" "C:/Program Files/PothosSDR/bin/"
-
+          run: 7z x libusb.7z -olibusb_old ; rm "C:/Program Files/PothosSDR/bin/libusb-1.0.dll" ; cp "libusb_old/MS64/dll/libusb-1.0.dll" "C:/Program Files/PothosSDR/bin/" ; rm "C:/Program Files/PothosSDR/lib/libusb-1.0.lib" ; cp "libusb_old/MS64/dll/libusb-1.0.lib" "C:/Program Files/PothosSDR/lib/"
+ 
         - name: Download SDRPlay API
           run: Invoke-WebRequest -Uri "https://drive.google.com/uc?id=12UHPMwkfa67A11QZDmpCT4iwHnyJHWuu&confirm=t" -OutFile ${{runner.workspace}}/SDRPlay.zip
 
@@ -64,7 +64,7 @@ jobs:
           run: git clone https://github.com/thestk/rtaudio ; cd rtaudio ; git checkout 2f2fca4502d506abc50f6d4473b2836d24cfb1e3 ; mkdir build ; cd build ; cmake .. ; cmake --build . --config Release ; cmake --install .
 
         - name: Install libperseus-sdr
-          run: git clone https://github.com/AlexandreRouma/libperseus-sdr ; cd libperseus-sdr ; mkdir build ; cd build ; cmake .. "-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake" ; cmake --build . --config Release  ; mkdir "C:/Program Files/PothosSDR/include/perseus-sdr" ; cp Release/perseus-sdr.dll "C:/Program Files/PothosSDR/bin" ; cp Release/perseus-sdr.lib "C:/Program Files/PothosSDR/bin" ; cd .. ; xcopy "src" "C:/Program Files/PothosSDR/include/perseus-sdr"
+          run: git clone https://github.com/AlexandreRouma/libperseus-sdr ; cd libperseus-sdr ; mkdir build ; cd build ; cmake "-DLIBUSB_LIBRARIES=C:/Program Files/PothosSDR/lib/libusb-1.0.lib" "-DLIBUSB_INCLUDE_DIRS=C:/Program Files/PothosSDR/include/libusb-1.0" .. "-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake" ; cmake --build . --config Release  ; mkdir "C:/Program Files/PothosSDR/include/perseus-sdr" ; cp Release/perseus-sdr.dll "C:/Program Files/PothosSDR/bin" ; cp Release/perseus-sdr.lib "C:/Program Files/PothosSDR/bin" ; cd .. ; xcopy "src" "C:/Program Files/PothosSDR/include/perseus-sdr"
 
         - name: Prepare CMake
           working-directory: ${{runner.workspace}}/build
@@ -93,7 +93,7 @@ jobs:
 
 
     build_macos:
-      runs-on: macos-11
+      runs-on: macos-latest
 
       steps:
         - uses: actions/checkout@v3
@@ -109,29 +109,29 @@ jobs:
           run: HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 brew install pkg-config libusb fftw glfw airspy airspyhf portaudio hackrf libbladerf codec2 zstd autoconf automake libtool && pip3 install mako
 
         - name: Install volk
-          run: git clone --recursive https://github.com/gnuradio/volk && cd volk && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j3 && sudo make install && cd ../../
+          run: git clone --recursive https://github.com/gnuradio/volk && cd volk && mkdir build && cd build && cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DCMAKE_BUILD_TYPE=Release .. && make -j3 && sudo make install && cd ../../
 
         - name: Install SDRplay API
           run: curl https://www.sdrplay.com/software/SDRplay_RSP_API-MacOSX-3.07.3.pkg > sdrplay.pkg && sudo installer -pkg sdrplay.pkg -target /
 
         - name: Install libiio
-          run: wget https://github.com/analogdevicesinc/libiio/archive/refs/tags/v0.25.zip && 7z x v0.25.zip && cd libiio-0.25 && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j3 && sudo make install && cd ../../
+          run: wget https://github.com/analogdevicesinc/libiio/archive/refs/tags/v0.25.zip && 7z x v0.25.zip && cd libiio-0.25 && mkdir build && cd build && cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DCMAKE_BUILD_TYPE=Release .. && make -j3 && sudo make install && cd ../../
 
         - name: Install libad9361
-          run: git clone https://github.com/analogdevicesinc/libad9361-iio && cd libad9361-iio && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j3 && sudo make install && cd ../../
+          run: git clone https://github.com/analogdevicesinc/libad9361-iio && cd libad9361-iio && mkdir build && cd build && cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DCMAKE_BUILD_TYPE=Release .. && make -j3 && sudo make install && cd ../../
 
         - name: Install LimeSuite
-          run: git clone https://github.com/myriadrf/LimeSuite && cd LimeSuite && mkdir builddir && cd builddir && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j3 && sudo make install && cd ../../
+          run: git clone https://github.com/myriadrf/LimeSuite && cd LimeSuite && mkdir builddir && cd builddir && cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DCMAKE_BUILD_TYPE=Release .. && make -j3 && sudo make install && cd ../../
 
         - name: Install libperseus
           run: git clone https://github.com/Microtelecom/libperseus-sdr && cd libperseus-sdr && autoreconf -i && ./configure --prefix=/usr/local && make && make install && cd ..
 
         - name: Install more recent librtlsdr
-          run: git clone https://github.com/osmocom/rtl-sdr && cd rtl-sdr && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j3 LIBRARY_PATH=$(pkg-config --libs-only-L libusb-1.0 | sed 's/\-L//') && sudo make install && cd ../../
+          run: git clone https://github.com/osmocom/rtl-sdr && cd rtl-sdr && mkdir build && cd build && cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DCMAKE_BUILD_TYPE=Release .. && make -j3 LIBRARY_PATH=$(pkg-config --libs-only-L libusb-1.0 | sed 's/\-L//') && sudo make install && cd ../../
 
         - name: Prepare CMake
           working-directory: ${{runner.workspace}}/build
-          run: cmake $GITHUB_WORKSPACE -DOPT_BUILD_PLUTOSDR_SOURCE=ON -DOPT_BUILD_SOAPY_SOURCE=OFF -DOPT_BUILD_BLADERF_SOURCE=ON -DOPT_BUILD_SDRPLAY_SOURCE=ON -DOPT_BUILD_LIMESDR_SOURCE=ON -DOPT_BUILD_AUDIO_SINK=OFF -DOPT_BUILD_PORTAUDIO_SINK=ON -DOPT_BUILD_NEW_PORTAUDIO_SINK=ON -DOPT_BUILD_M17_DECODER=ON -DOPT_BUILD_PERSEUS_SOURCE=ON -DOPT_BUILD_AUDIO_SOURCE=OFF -DUSE_BUNDLE_DEFAULTS=ON -DCMAKE_BUILD_TYPE=Release
+          run: cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 $GITHUB_WORKSPACE -DOPT_BUILD_PLUTOSDR_SOURCE=ON -DOPT_BUILD_SOAPY_SOURCE=OFF -DOPT_BUILD_BLADERF_SOURCE=ON -DOPT_BUILD_SDRPLAY_SOURCE=ON -DOPT_BUILD_LIMESDR_SOURCE=ON -DOPT_BUILD_AUDIO_SINK=OFF -DOPT_BUILD_PORTAUDIO_SINK=ON -DOPT_BUILD_NEW_PORTAUDIO_SINK=ON -DOPT_BUILD_M17_DECODER=ON -DOPT_BUILD_PERSEUS_SOURCE=ON -DOPT_BUILD_AUDIO_SOURCE=OFF -DUSE_BUNDLE_DEFAULTS=ON -DCMAKE_BUILD_TYPE=Release
 
         - name: Build
           working-directory: ${{runner.workspace}}/build
