@@ -585,7 +585,7 @@ private:
     }
     float getTransmitPower() override {
         return device->fwd;
-//        device->getSWR();
+//        device->updateSWR();
 //        return device->fwd+device->rev;
     }
 

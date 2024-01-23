@@ -403,12 +403,14 @@ static void discover(struct ifaddrs* iface, const struct sockaddr_in *fixed, boo
         flog::error("discover: sendto (broadcast/direct) failed for discovery_socket\n");
     }
     if (scanIP) {
+        to_addr = *((sockaddr_in *)iface->ifa_addr);
+        to_addr.sin_port = htons(1024);
         unsigned char *ipv4 = (unsigned char *) &to_addr.sin_addr.s_addr;
-        flog::info("Scanning interface %s:  %d.%d.%d.1 - %d.%d.%d.254..", interface_name, ipv4[0], ipv4[1], ipv4[2]);
+        flog::info("Scanning interface {}:  {}.{}.{}.1 - .254..", interface_name, ipv4[0], ipv4[1], ipv4[2]);
         for (int q = 1; q <= 254; q++) {
             ipv4[3] = q;
             if (sendto(discovery_socket, (char *) buffer, 63, 0, (struct sockaddr *) &to_addr, sizeof(to_addr)) < 0) {
-                flog::error("discover: sendto (scan) failed for discovery_socket\n");
+                flog::error("discover: sendto (scan) failed for discovery_socket: {}.{}.{}.{}: errno={}", ipv4[0], ipv4[1], ipv4[2], ipv4[3], errno);
             }
             usleep(1500);
         }

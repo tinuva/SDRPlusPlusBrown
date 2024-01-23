@@ -116,7 +116,7 @@ struct HL2Device {
     int alex_forward_power;
     int alex_reverse_power;
     float swr = 1;
-    float fwd = 0, rev = 0; // real ones, calculated in getSWR()
+    float fwd = 0, rev = 0; // real ones, calculated in updateSWR()
     double temperature;
 
     unsigned char output_buffer[1024];
@@ -229,7 +229,7 @@ struct HL2Device {
         deviceControlDirty[0x01] = 1;
     }
 
-    float getSWR() {
+    void updateSWR() {
         auto constant1 = 3.3;
         auto constant2 = 1.4;
         auto fwd_cal_offset = 6;
@@ -254,21 +254,25 @@ struct HL2Device {
             rev = (v1 * v1) / constant2;
         }
 
-        double this_swr = (1 + sqrt(rev / fwd)) / (1 - sqrt(rev / fwd));
-        if (this_swr < 0.0) this_swr = 1.0;
+        if (isHL2Proxy()) {
+            // comes directly from proxy
+        } else {
+            double this_swr = (1 + sqrt(rev / fwd)) / (1 - sqrt(rev / fwd));
+            if (this_swr < 0.0) this_swr = 1.0;
 
-        if (fwd < 0.05) {
-            swr = 1;
-        }
-        else {
-            if (isnan(swr) || isinf(swr)) {
-                swr = 1; // fix previous value
+            if (fwd < 0.05) {
+                swr = 1;
             }
-            // Exponential moving average filter
-            double alpha = 0.7;
-            swr = (alpha * this_swr) + (1 - alpha) * swr;
+            else {
+                if (isnan(swr) || isinf(swr)) {
+                    swr = 1; // fix previous value
+                }
+                // Exponential moving average filter
+                double alpha = 0.7;
+                swr = (alpha * this_swr) + (1 - alpha) * swr;
+            }
         }
-        return swr;
+//        printf("SWR: %f - %f %f - %d %d\n", swr, fwd, rev, alex_forward_power, alex_reverse_power);
     }
 
     // does not work; needs investigation; doing in software for now.
@@ -542,9 +546,12 @@ struct HL2Device {
             AIN4 = (control_in[1] << 8) + control_in[2]; // from Pennelope or Hermes
             AIN6 = (control_in[3] << 8) + control_in[4]; // from Pennelope or Hermes
             break;
+        case 28:
+            swr = (float)control_in[1] / 10.0f;
+            break;
         }
 
-        getSWR();
+        updateSWR();
     }
 
     void process_hl2_control_bytes(unsigned char *buffer) {
@@ -757,6 +764,7 @@ struct HL2Device {
 
     long long psnd;
     long long lastSendTime = 0;
+    long long lastProxySendTime = 0;
     long long lastReceiveTime = 0;
 
     FILE* logg = nullptr;
@@ -820,13 +828,11 @@ struct HL2Device {
 
         lastSendTime = currentTimeMillis();
 
-        if (!somethingToSend && isHL2Proxy()) {
-            // for proxy mode, can avoid sending at all, when receive mode.
+        if (!somethingToSend && isHL2Proxy() && lastSendTime - lastProxySendTime < 2000) {
+            // for proxy mode, can avoid sending at all, when receive mode, during next 2000 seconds
         } else {
-            if (isHL2Proxy() && !transmitMode) {
-//                printf("Sending packet to proxy receive mode");
-            }
             sendToEndpoint(0x2, output_buffer);
+            lastProxySendTime = lastSendTime;
         }
         auto afterSendTime = currentTimeMillis();
         if (transmitMode) {
