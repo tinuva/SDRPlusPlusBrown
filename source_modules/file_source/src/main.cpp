@@ -139,7 +139,7 @@ private:
                 }
                 _this->openPathFromFileSelect();
                 try {
-                    _this->reader = new WavReader(_this->fileSelect.path);
+                    _this->reader = new wav::Reader(_this->fileSelect.path);
                     if (_this->reader->getSampleRate() == 0) {
                         _this->reader->close();
                         delete _this->reader;
