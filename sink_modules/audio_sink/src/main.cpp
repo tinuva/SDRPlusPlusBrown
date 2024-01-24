@@ -106,6 +106,7 @@ public:
                     audio.closeStream();
                     info.outputChannels = 2;
                 }
+#endif
                 if (info.outputChannels == 0) { continue; }
                 if (info.isDefaultOutput) { defaultOutputDevId = devList.size(); }
                 devList.push_back(info);
