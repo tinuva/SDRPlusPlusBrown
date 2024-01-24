@@ -150,7 +150,7 @@ namespace core {
         res.terminated = true;
         res.wstatus = wstatus;
 //        flog::info("FORKSERVER, sending pid death: {}", q);
-        write(forkResult[1], &res, sizeof(res));
+        (void)write(forkResult[1], &res, sizeof(res));
 #endif
     }
 
@@ -235,7 +235,7 @@ namespace core {
                     if (err < 0) {
                         perror("exec");
                     }
-                    write(1, "\nBefore process exit\n", strlen("\nBefore process exit\n"));
+                    (void)write(1, "\nBefore process exit\n", strlen("\nBefore process exit\n"));
                     close(0);
                     close(1);
                     close(2);
