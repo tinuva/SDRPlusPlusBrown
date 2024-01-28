@@ -405,7 +405,7 @@ namespace websocket {
                     char reason[128] = { 0 };
                     if (pl_len >= 2) {
                         status_code = be16toh(*(uint16_t*)data);
-                        uint64_t reason_len = std::min(sizeof(reason) - 1, pl_len - 2);
+                        uint64_t reason_len = std::min<uint64_t>(sizeof(reason) - 1, pl_len - 2);
                         memcpy(reason, data + 2, reason_len);
                         reason[reason_len] = 0;
                     }
@@ -547,12 +547,12 @@ namespace websocket {
                                 accept_checked = true;
                             }
                             else if (key_len == 22 && !memcmp(data, "Sec-WebSocket-Protocol", 22) && resp_protocol_size > 0) {
-                                uint32_t cp_len = std::min(resp_protocol_size - 1, val_len);
+                                uint32_t cp_len = std::min<uint32_t>(resp_protocol_size - 1, val_len);
                                 memcpy(resp_protocol, val, cp_len);
                                 resp_protocol[cp_len] = 0;
                             }
                             else if (key_len == 24 && !memcmp(data, "Sec-WebSocket-Extensions", 24) && resp_extensions_size > 0) {
-                                uint32_t cp_len = std::min(resp_extensions_size - 1, val_len);
+                                uint32_t cp_len = std::min<uint32_t>(resp_extensions_size - 1, val_len);
                                 memcpy(resp_extensions, val, cp_len);
                                 resp_extensions[cp_len] = 0;
                             }
