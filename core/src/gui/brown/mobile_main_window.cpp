@@ -1224,7 +1224,7 @@ struct QSOAudioRecorder {
     }
 
     void incomingRadio(dsp::stereo_t *pStereo, int i) {
-        if (recordRadio) {
+        if (recordRadio  && displaymenu::transcieverLayout == displaymenu::TRAL_SSB_FIRST) {
             std::lock_guard g(qsoAudioRecordingBufferMutex);
             qsoAudioRecordingBuffer.insert(qsoAudioRecordingBuffer.end(), pStereo, pStereo + i);
             if (qsoAudioRecordingBuffer.size() > MAX_SECONDS_SIZE * trxAudioSampleRate) {
@@ -1235,7 +1235,7 @@ struct QSOAudioRecorder {
     }
 
     void incomingMic(dsp::stereo_t *pStereo, int i) {
-        if (!recordRadio) {
+        if (!recordRadio && displaymenu::transcieverLayout == displaymenu::TRAL_SSB_FIRST) {
             std::lock_guard g(qsoAudioRecordingBufferMutex);
             qsoAudioRecordingBuffer.insert(qsoAudioRecordingBuffer.end(), pStereo, pStereo + i);
             if (qsoAudioRecordingBuffer.size() > MAX_SECONDS_SIZE * trxAudioSampleRate) {
