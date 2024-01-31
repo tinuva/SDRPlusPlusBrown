@@ -331,7 +331,7 @@ namespace dsp {
                     ALLOC_AND_CHECK(worker1c, size1, "afnr point 0.1")
                     unsigned long nsize = worker1c->size() - limit;
                     char buf[100];
-                    sprintf(buf, "afnr point 0.2 size = %lld curr=%lld",(long long)nsize, (long long)worker1c->size());
+                    snprintf(buf, sizeof(buf), "afnr point 0.2 size = %lld curr=%lld",(long long)nsize, (long long)worker1c->size());
                     worker1c->resize(nsize);
                     size1 = nsize;
                     ALLOC_AND_CHECK(worker1c, size1, buf)

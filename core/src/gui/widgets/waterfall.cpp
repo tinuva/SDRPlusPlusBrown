@@ -83,16 +83,16 @@ inline double findBestRange(double bandwidth, int maxSteps) {
 inline void printAndScale(double freq, char* buf) {
     double freqAbs = fabs(freq);
     if (freqAbs < 1000) {
-        sprintf(buf, "%.6g", freq);
+        snprintf(buf, 20, "%.6g", freq);
     }
     else if (freqAbs < 1000000) {
-        sprintf(buf, "%.6lgK", freq / 1000.0);
+        snprintf(buf, 20, "%.6lgK", freq / 1000.0);
     }
     else if (freqAbs < 1000000000) {
-        sprintf(buf, "%.6lgM", freq / 1000000.0);
+        snprintf(buf, 20, "%.6lgM", freq / 1000000.0);
     }
     else if (freqAbs < 1000000000000) {
-        sprintf(buf, "%.6lgG", freq / 1000000000.0);
+        snprintf(buf, 20, "%.6lgG", freq / 1000000000.0);
     }
 }
 
@@ -928,12 +928,14 @@ namespace ImGui {
             fftHeight = widgetSize.y - (50.0f * style::uiScale);
         }
         dataWidth = widgetSize.x - (60.0f * style::uiScale);
+        flog::info("onresize: dataWidth={} wsx={}", (int)dataWidth, widgetSize.x);
 
         if (waterfallVisible) {
             // Raw FFT resize
             fftLines = std::min<int>(fftLines, waterfallHeight) - 1;
             if (rawFFTs != NULL) {
                 if (currentFFTLine != 0) {
+                    flog::info("onresize: currentFFTLine={} rawFFTSize={}", currentFFTLine, rawFFTSize);
                     float* tempWF = new float[currentFFTLine * rawFFTSize];
                     int moveCount = lastWaterfallHeight - currentFFTLine;
                     memcpy(tempWF, rawFFTs, currentFFTLine * rawFFTSize * sizeof(float));
@@ -975,6 +977,7 @@ namespace ImGui {
             delete[] waterfallFb;
             // allocate extra rows, will be used to create continuous pixels for textures
             const int sz = dataWidth * (waterfallHeight + 128);
+            flog::info("onresize: waterfallHeight={} sz={}", waterfallHeight, sz);
             waterfallFb = new uint32_t[sz];
             memset(waterfallFb, 0, sz * sizeof(uint32_t));
 
@@ -1633,7 +1636,9 @@ namespace ImGui {
         }
         waterfallVisible = true;
         onResize();
-        memset(rawFFTs, 0, waterfallHeight * rawFFTSize * sizeof(float));
+        size_t length = waterfallHeight * rawFFTSize * sizeof(float);
+        flog::info("rawFFTS: {}, length {}", (void*)rawFFTs, (int)length);
+        memset(rawFFTs, 0, length);
         updateWaterfallFb();
     }
 

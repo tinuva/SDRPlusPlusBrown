@@ -91,8 +91,8 @@ namespace vfo_color_menu {
                 vfo->color = IM_COL32((int)roundf(r * 255), (int)roundf(g * 255), (int)roundf(b * 255), 50);
                 hue += delta;
                 core::configManager.acquire();
-                char buf[16];
-                sprintf(buf, "#%02X%02X%02X", (int)roundf(r * 255), (int)roundf(g * 255), (int)roundf(b * 255));
+                char buf[24];
+                snprintf(buf, sizeof(buf), "#%02X%02X%02X", (int)roundf(r * 255), (int)roundf(g * 255), (int)roundf(b * 255));
                 core::configManager.conf["vfoColors"][name] = buf;
                 core::configManager.release(true);
             }

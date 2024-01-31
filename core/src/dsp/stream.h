@@ -39,11 +39,8 @@ namespace dsp {
         stream() {
             static int streamCount = 0;
             int sc = streamCount++;
-            sprintf((char*)originBuf, "stream %d", sc);
+            snprintf((char*)originBuf, sizeof(originBuf), "stream %d", sc);
             this->origin = &originBuf[0];
-            if (sc == 51) {
-                printf("Here stream 51\n");
-            }
             initBuffers();
         }
         stream(const char *origin) : stream() {

@@ -580,7 +580,7 @@ namespace dsp {
 
         inline std::string ftos(float x) {
             char buf[100];
-            sprintf(buf, "%1.5f", x);
+            snprintf(buf, sizeof(buf), "%1.5f", x);
             return std::string(buf);
         }
 

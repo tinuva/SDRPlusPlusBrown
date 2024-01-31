@@ -21,7 +21,7 @@ void AudioPlayer::draw() {
             end = data->size() / (float)sampleRate;
         }
         char formatt[100];
-        sprintf(formatt, "%%.1f / %.1f seconds", end);
+        snprintf(formatt, sizeof(formatt), "%%.1f / %.1f seconds", end);
         if (ImGui::SliderFloat("", &position, 0, end, formatt)) {
             dataPosition = position * sampleRate;
             if (dataPosition >= data->size()) {

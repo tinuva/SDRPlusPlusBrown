@@ -5,6 +5,10 @@
 #include "command_args.h"
 #include <atomic>
 
+#ifdef __APPLE__
+#define GL_SILENCE_DEPRECATION
+#endif
+
 
 namespace core {
     SDRPP_EXPORT ConfigManager configManager;

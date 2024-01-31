@@ -265,7 +265,8 @@ public:
         statusSeporters.emplace_back(rep);
     }
     void unregisterStatusReporter(StatusReporter *rep) {
-        std::remove(statusSeporters.begin(), statusSeporters.end(), rep);
+        auto iter = std::remove(statusSeporters.begin(), statusSeporters.end(), rep);
+        statusSeporters.erase(iter, statusSeporters.end());
     }
 
     bool getIqDataInAudio();

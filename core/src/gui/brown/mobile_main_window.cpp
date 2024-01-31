@@ -1150,11 +1150,15 @@ struct QSOAudioRecorder {
     dsp::routing::Splitter<dsp::stereo_t> *audioInProcessed;
 
     void init(dsp::routing::Splitter<dsp::stereo_t> *audioInProcessed) {
+        flog::info("Init insider QSOAudioRecorder");
         this->audioInProcessed = audioInProcessed;
         auto names = sigpath::sinkManager.getStreamNames();
+        flog::info("Init insider QSOAudioRecorder p.2 ");
         if (!names.empty()) {
             // Select the stream
+            flog::info("Init insider QSOAudioRecorder p.3");
             radioStream = sigpath::sinkManager.bindStream(boundStream = names[0]);
+            flog::info("Init insider QSOAudioRecorder p.4");
             if (!radioStream) {
                 return;
             }
@@ -1731,7 +1735,7 @@ void MobileMainWindow::draw() {
     int statusLineDY = ImGui::GetCursorPosY();
     ImGui::PushFont(style::mediumFont);
     static char statusBuf[1024];
-    sprintf(statusBuf, "%s | REC: %03d sec", this->submodeToggle.upperText.c_str(), (int) (this->pvt->audioRecorder.qsoAudioRecordingBuffer.size() / trxAudioSampleRate));
+    snprintf(statusBuf, sizeof(statusBuf), "%s | REC: %03d sec", this->submodeToggle.upperText.c_str(), (int) (this->pvt->audioRecorder.qsoAudioRecordingBuffer.size() / trxAudioSampleRate));
     for (auto st: statusSeporters) {
         auto s = st->reportStatus();
         if (!s.empty()) {
@@ -1968,7 +1972,7 @@ void MobileMainWindow::draw() {
     const ImVec2 childRegion = ImVec2(defaultButtonsWidth, intButtonHeight - vertPadding);
     for (auto b = 0; b < NBUTTONS; b++) {
         char chi[100];
-        sprintf(chi, "mob_button_%d", b);
+        snprintf(chi, sizeof(chi), "mob_button_%d", b);
         if (this->qsoMode == VIEW_DEFAULT && false) {
             // align from top
             ImGui::SetCursorPos(buttonsStart + ImVec2{0, buttonsSpaceY - float(nButtonsDefault - b) * (childRegion.y + vertPadding)});
@@ -2299,7 +2303,7 @@ void MobileMainWindow::draw() {
         }
         auto bandwidthk = vfo->bandwidth / 1000.0;
         char fmt[32];
-        sprintf(fmt, "%0.1f", bandwidthk);
+        snprintf(fmt, sizeof(fmt), "%0.1f", bandwidthk);
         //        if (bandwidthk == floor(bandwidthk)) {
         //            sprintf(fmt, "%0.0f", bandwidthk);
         //        } else {
