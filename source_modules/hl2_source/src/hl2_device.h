@@ -345,7 +345,8 @@ struct HL2Device {
 
 
 
-    void setSevenRelays(int sevenRelays) {
+    // by default, in original hermes lite, 160 band is 1 << 1, 80 band is 2 << 1, 40 band is 4 << 1 etc.
+    void setSevenRelays(int sevenRelays) {  // sevenRelays is 7-bit value (low bits).
         deviceControl[0x0].C2 &= 1;
         deviceControl[0x0].C2 |= sevenRelays << 1;
         deviceControlDirty[0x0] = 1;

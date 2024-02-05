@@ -14,6 +14,7 @@
 
 #include "hl2_device.h"
 #include "utils/stream_tracker.h"
+#include "bandconfig.h"
 
 #define CONCAT(a, b) ((std::string(a) + (b)).c_str())
 
@@ -58,6 +59,8 @@ public:
         handler.tuneHandler = tune;
         handler.stream = &stream;
 
+        initBands();
+
 
         config.acquire();
         std::string devSerial = config.conf["device"];
@@ -71,6 +74,7 @@ public:
         if (config.conf.contains("directIP")) {
             directIP = config.conf["directIP"];
         }
+        loadBandsConfig(config);
         config.release();
 
         refresh();
@@ -244,7 +248,7 @@ private:
     std::vector<dsp::complex_t> incomingBuffer;
 
     StreamTracker hermesSamples;
-    bool showStaticIp = false;
+    bool showMore = false;
     bool directIP = false;
     bool scanIP = true;
     char staticIp[20]={0};
@@ -320,10 +324,21 @@ private:
         sigpath::transmitter = nullptr;
     }
 
+
+    void updateBandRelays() {
+        if (device) {
+            auto istx = this->getTXStatus();
+            auto bits = getBitsForBand(tunedFrequency, istx);
+            device->setSevenRelays(bits);
+        }
+    }
+
     static void tune(double freq, void* ctx) {
         auto* _this = (HermesLite2SourceModule*)ctx;
         if (_this->device) {
             _this->device->setFrequency((int)freq);
+            _this->tunedFrequency = (int)freq;
+            _this->updateBandRelays();
         }
         flog::info("HermerList2SourceModule '{0}': Tune: {1}!", _this->name, freq);
     }
@@ -350,11 +365,11 @@ private:
         uiLock.unlock();
         SmGui::SameLine();
         SmGui::FillWidth();
-        if (SmGui::Button("Methods")) {
-            showStaticIp = !showStaticIp;
+        if (SmGui::Button("More")) {
+            showMore = !showMore;
         }
 
-        if (showStaticIp) {
+        if (showMore) {
             SmGui::LeftLabel("Probe IP:");
             SmGui::SameLine();
             SmGui::FillWidth();
@@ -372,6 +387,10 @@ private:
                 config.acquire();
                 config.conf["scanIP"] = scanIP;
                 config.release(true);
+            }
+
+            if (bandsEditor(config)) {
+                updateBandRelays();
             }
 
         }
@@ -430,16 +449,17 @@ private:
                 config.release(true);
             }
         }
+        /*
         for(int q=0; q<6; q++) {
             char strr[100];
             switch(q) {
-            case 0: sprintf(strr, "=160"); break;
-            case 1: sprintf(strr, "=80"); break;
-            case 2: sprintf(strr, "=40"); break;
-            case 3: sprintf(strr, "=20"); break;
-            case 4: sprintf(strr, "=15"); break;
-            case 5: sprintf(strr, "=10"); break;
-            default: sprintf(strr, "???"); break;
+            case 0: snprintf(strr, sizeof(strr), "=160"); break;
+            case 1: snprintf(strr, sizeof(strr), "=80"); break;
+            case 2: snprintf(strr, sizeof(strr), "=40"); break;
+            case 3: snprintf(strr, sizeof(strr), "=20"); break;
+            case 4: snprintf(strr, sizeof(strr), "=15"); break;
+            case 5: snprintf(strr, sizeof(strr), "=10"); break;
+            default: snprintf(strr, sizeof(strr), "???"); break;
             }
             if (q >=0) {
                 if (SmGui::RadioButton(strr, sevenRelays[q])) {
@@ -467,7 +487,9 @@ private:
             if (q != 5 && q != 2) {
                 SmGui::SameLine();
             }
-        }
+            */
+
+        //}
 
     }
 
@@ -487,6 +509,7 @@ private:
     std::vector<uint32_t> sampleRateList;
     std::string sampleRateListTxt;
     std::shared_ptr<HL2Device> device;
+    int tunedFrequency = 0;
 
 
     int getInputStreamFramerate() override {
@@ -495,6 +518,7 @@ private:
     void setTransmitStatus(bool status) override {
         device->setTune(false);
         device->setPTT(status);
+        updateBandRelays();
 
     }
     void setTransmitStream(dsp::stream<dsp::complex_t>* astream) override {
