@@ -52,7 +52,7 @@ public:
         stereoPacker.init(_stream->sinkOut, 512);
 
 #if RTAUDIO_VERSION_MAJOR >= 6
-        audio.setErrorCallback(&errorCallback);
+        audio.setErrorCallback(&reportErrorsAsException);
 #endif
 
         bool created = false;

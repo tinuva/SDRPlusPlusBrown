@@ -96,6 +96,65 @@ inline void printAndScale(double freq, char* buf) {
     }
 }
 
+inline void doZoom(int offset, int width, int inSize, int outSize, float* in, float* out) {
+    // NOTE: REMOVE THAT SHIT, IT'S JUST A HACKY FIX
+    if (width > 524288) {
+        width = 524288;
+    }
+    if (offset < 0) {
+        flog::warn("Offset is negative: {}", offset);
+        offset = 0;
+    }
+
+    float factor = (float)width / (float)outSize;
+
+    int sFactor = (int)ceilf(factor);
+    float id = offset;
+    float maxVal, maxVal1, maxVal2, maxVal3, maxVal4, maxVal5, maxVal6, maxVal7, maxVal8, maxVal9, maxVal10, maxVal11, maxVal12, maxVal13, maxVal14, maxVal15;
+    int sId;
+    for (int i = 0; i < outSize; i++) {
+        maxVal = -INFINITY;
+        maxVal1 = -INFINITY;
+        maxVal2 = -INFINITY;
+        maxVal3 = -INFINITY;
+        maxVal4 = -INFINITY;
+        maxVal5 = -INFINITY;
+        maxVal6 = -INFINITY;
+        maxVal7 = -INFINITY;
+        // more than 8 is not worth it
+        sId = (int)id;
+        int uFactor = (sId + sFactor > inSize) ? inSize - sId : sFactor;
+
+        constexpr int N = 8;
+        auto uFactorN = (((int)uFactor) / N) * N;
+        int j;
+        for (j = 0; j < uFactorN; j+=N) {
+            maxVal = std::max<float>(maxVal, in[sId + j]);
+            maxVal1 = std::max<float>(maxVal1, in[sId + j + 1]);
+            maxVal2 = std::max<float>(maxVal2, in[sId + j + 2]);
+            maxVal3 = std::max<float>(maxVal3, in[sId + j + 3]);
+            maxVal4 = std::max<float>(maxVal4, in[sId + j + 4]);
+            maxVal5 = std::max<float>(maxVal5, in[sId + j + 5]);
+            maxVal6 = std::max<float>(maxVal6, in[sId + j + 6]);
+            maxVal7 = std::max<float>(maxVal7, in[sId + j + 7]);
+        }
+        maxVal = std::max<float>(maxVal, maxVal1);
+        maxVal = std::max<float>(maxVal, maxVal2);
+        maxVal = std::max<float>(maxVal, maxVal3);
+        maxVal = std::max<float>(maxVal, maxVal4);
+        maxVal = std::max<float>(maxVal, maxVal5);
+        maxVal = std::max<float>(maxVal, maxVal6);
+        maxVal = std::max<float>(maxVal, maxVal7);
+        for (; j < uFactor; j++) {
+            maxVal = std::max<float>(maxVal, in[sId + j]);
+        }
+
+        out[i] = maxVal;
+        id += factor;
+    }
+}
+
+
 namespace ImGui {
 
     WaterFall::WaterFall() {
@@ -699,6 +758,17 @@ namespace ImGui {
                 waterfallFbIndex = (waterfallFbHeadRowIndex * dataWidth) % totalNumberOfPixels;
             }
 
+//            for (int i = 0; i < count; i++) {
+//                drawDataSize = (viewBandwidth / wholeBandwidth) * rawFFTSize;
+//                drawDataStart = (((double)rawFFTSize / 2.0) * (offsetRatio + 1)) - (drawDataSize / 2);
+//                doZoom(drawDataStart, drawDataSize, rawFFTSize, dataWidth, &rawFFTs[((i + currentFFTLine) % waterfallHeight) * rawFFTSize], tempData);
+//                for (int j = 0; j < dataWidth; j++) {
+//                    pixel = (std::clamp<float>(tempData[j], waterfallMin, waterfallMax) - waterfallMin) / dataRange;
+//                    waterfallFb[(i * dataWidth) + j] = waterfallPallet[(int)(pixel * (WATERFALL_RESOLUTION - 1))];
+//                }
+//            }
+
+
             if (count != 0) {
                 int NTHREADS = 4;
 
@@ -720,7 +790,7 @@ namespace ImGui {
                         auto td = tempdata.data();
                         auto waterfallFbIndexLocal = wfi % totalNumberOfPixels;
                         for (int i = ii; i < ii + cnt; i++) {
-                            doZoom(drawDataStart, drawDataSize, dataWidth, &rawFFTs[((i + currentFFTLine) % waterfallHeight) * rawFFTSize], td);
+                            doZoom(drawDataStart, drawDataSize, rawFFTSize, dataWidth, &rawFFTs[((i + currentFFTLine) % waterfallHeight) * rawFFTSize], td);
                             for (int j = 0; j < dataWidth; j++) {
                                 auto pixel = (std::clamp<float>(td[j], waterfallMin, waterfallMax) - waterfallMin) / dataRange;
                                 if (waterfallFbIndexLocal >= totalNumberOfPixels) {
@@ -1097,7 +1167,7 @@ namespace ImGui {
         int drawDataStart = (((double)rawFFTSize / 2.0) * (offsetRatio + 1)) - (drawDataSize / 2);
 
         if (waterfallVisible) {
-            doZoom(drawDataStart, drawDataSize, dataWidth, &rawFFTs[currentFFTLine * rawFFTSize], latestFFT);
+            doZoom(drawDataStart, drawDataSize, rawFFTSize, dataWidth, &rawFFTs[currentFFTLine * rawFFTSize], latestFFT);
 
             waterfallHeadSectionHeight++;
             if (waterfallHeadSectionHeight > waterfallMaxSectionHeight) {
@@ -1127,7 +1197,7 @@ namespace ImGui {
             waterfallUpdate = true;
         }
         else {
-            doZoom(drawDataStart, drawDataSize, dataWidth, rawFFTs, latestFFT);
+            doZoom(drawDataStart, drawDataSize, rawFFTSize, dataWidth, rawFFTs, latestFFT);
             fftLines = 1;
         }
 
@@ -1673,64 +1743,6 @@ namespace ImGui {
 
     bool WaterFall::containsFrequency(double d) {
         return d >= getCenterFrequency() - getBandwidth()/2 && d <= getCenterFrequency() + getBandwidth()/2;
-    }
-
-    void WaterFall::doZoom(int offset, int width, int outWidth, float* data, float* out) const {
-        // NOTE: REMOVE THAT SHIT, IT'S JUST A HACKY FIX
-        if (width > 524288) {
-            width = 524288;
-        }
-        if (offset < 0) {
-            flog::warn("Offset is negative: {}", offset);
-            offset = 0;
-        }
-
-        float factor = (float)width / (float)outWidth;
-
-        int sFactor = (int)ceilf(factor);
-        float id = offset;
-        float maxVal, maxVal1, maxVal2, maxVal3, maxVal4, maxVal5, maxVal6, maxVal7, maxVal8, maxVal9, maxVal10, maxVal11, maxVal12, maxVal13, maxVal14, maxVal15;
-        int sId;
-        for (int i = 0; i < outWidth; i++) {
-            maxVal = -INFINITY;
-            maxVal1 = -INFINITY;
-            maxVal2 = -INFINITY;
-            maxVal3 = -INFINITY;
-            maxVal4 = -INFINITY;
-            maxVal5 = -INFINITY;
-            maxVal6 = -INFINITY;
-            maxVal7 = -INFINITY;
-            // more than 8 is not worth it
-            sId = (int)id;
-            int uFactor = (sId + sFactor > rawFFTSize) ? rawFFTSize - sId : sFactor;
-
-            constexpr int N = 8;
-            auto uFactorN = (((int)uFactor) / N) * N;
-            int j;
-            for (j = 0; j < uFactorN; j+=N) {
-                maxVal = std::max<float>(maxVal, data[sId + j]);
-                maxVal1 = std::max<float>(maxVal1, data[sId + j + 1]);
-                maxVal2 = std::max<float>(maxVal2, data[sId + j + 2]);
-                maxVal3 = std::max<float>(maxVal3, data[sId + j + 3]);
-                maxVal4 = std::max<float>(maxVal4, data[sId + j + 4]);
-                maxVal5 = std::max<float>(maxVal5, data[sId + j + 5]);
-                maxVal6 = std::max<float>(maxVal6, data[sId + j + 6]);
-                maxVal7 = std::max<float>(maxVal7, data[sId + j + 7]);
-            }
-            maxVal = std::max<float>(maxVal, maxVal1);
-            maxVal = std::max<float>(maxVal, maxVal2);
-            maxVal = std::max<float>(maxVal, maxVal3);
-            maxVal = std::max<float>(maxVal, maxVal4);
-            maxVal = std::max<float>(maxVal, maxVal5);
-            maxVal = std::max<float>(maxVal, maxVal6);
-            maxVal = std::max<float>(maxVal, maxVal7);
-            for (; j < uFactor; j++) {
-                maxVal = std::max<float>(maxVal, data[sId + j]);
-            }
-
-            out[i] = maxVal;
-            id += factor;
-        }
     }
 
     WaterFall::~WaterFall() {

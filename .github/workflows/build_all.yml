@@ -18,8 +18,13 @@ jobs:
         runs-on: windows-latest
 
         steps:
+<<<<<<< HEAD
         - uses: actions/checkout@v3
 
+=======
+        - uses: actions/checkout@v4
+        
+>>>>>>> upstream/master
         - name: Create Build Environment
           run: cmake -E make_directory ${{runner.workspace}}/build
 
@@ -79,7 +84,7 @@ jobs:
           run: '&($Env:GITHUB_WORKSPACE + "/make_windows_package.ps1") ./build ($Env:GITHUB_WORKSPACE + "/root")'
 
         - name: Save Archive
-          uses: actions/upload-artifact@v3
+          uses: actions/upload-artifact@v4
           with:
               name: sdrpp_windows_x64
               path: ${{runner.workspace}}/sdrpp_windows_x64.zip
@@ -87,6 +92,7 @@ jobs:
         - name: Update Nightly
           run: gh release upload rolling ${{runner.workspace}}/sdrpp_windows_x64.zip -R ${{github.repository}} --clobber 
 
+<<<<<<< HEAD
         - name: Update Stable
           if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_windows_x64.zip -R ${{github.repository}} --clobber 
@@ -98,6 +104,11 @@ jobs:
       steps:
         - uses: actions/checkout@v3
 
+=======
+        steps:
+        - uses: actions/checkout@v4
+        
+>>>>>>> upstream/master
         - name: Create Build Environment
           run: cmake -E make_directory ${{runner.workspace}}/build
 
@@ -112,7 +123,11 @@ jobs:
           run: git clone --recursive https://github.com/gnuradio/volk && cd volk && mkdir build && cd build && cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DCMAKE_BUILD_TYPE=Release .. && make -j3 && sudo make install && cd ../../
 
         - name: Install SDRplay API
+<<<<<<< HEAD
           run: curl https://www.sdrplay.com/software/SDRplay_RSP_API-MacOSX-3.07.3.pkg > sdrplay.pkg && sudo installer -pkg sdrplay.pkg -target /
+=======
+          run: wget https://www.sdrplay.com/software/SDRplayAPI-macos-installer-universal-3.12.1.pkg && sudo installer -pkg SDRplayAPI-macos-installer-universal-3.12.1.pkg -target /
+>>>>>>> upstream/master
 
         - name: Install libiio
           run: wget https://github.com/analogdevicesinc/libiio/archive/refs/tags/v0.25.zip && 7z x v0.25.zip && cd libiio-0.25 && mkdir build && cd build && cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DCMAKE_BUILD_TYPE=Release .. && make -j3 && sudo make install && cd ../../
@@ -142,7 +157,7 @@ jobs:
           run: cd $GITHUB_WORKSPACE && sh make_macos_bundle.sh ${{runner.workspace}}/build ./SDR++.app && zip -r ${{runner.workspace}}/sdrpp_macos_intel.zip SDR++.app
 
         - name: Save Archive
-          uses: actions/upload-artifact@v3
+          uses: actions/upload-artifact@v4
           with:
             name: sdrpp_macos_intel
             path: ${{runner.workspace}}/sdrpp_macos_intel.zip
@@ -159,7 +174,7 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@v4
 
         - name: Create Docker Image
           run: cd $GITHUB_WORKSPACE/docker_builds/debian_buster && docker build . --tag sdrpp_build
@@ -171,19 +186,32 @@ jobs:
           working-directory: ${{runner.workspace}}
           run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_debian_buster_amd64.deb
 
+<<<<<<< HEAD
         - name: Update Nightly
           run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_buster_amd64.deb -R ${{github.repository}} --clobber
 
         - name: Update Stable
           if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_debian_buster_amd64.deb -R ${{github.repository}} --clobber
+=======
+        - name: Save Deb Archive
+          uses: actions/upload-artifact@v4
+          with:
+              name: sdrpp_debian_buster_amd64
+              path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+>>>>>>> upstream/master
 
     build_debian_bullseye:
         runs-on: ubuntu-latest
 
         steps:
+<<<<<<< HEAD
         - uses: actions/checkout@v3
 
+=======
+        - uses: actions/checkout@v4
+        
+>>>>>>> upstream/master
         - name: Create Docker Image
           run: cd $GITHUB_WORKSPACE/docker_builds/debian_bullseye && docker build . --tag sdrpp_build
 
@@ -194,18 +222,31 @@ jobs:
           working-directory: ${{runner.workspace}}
           run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_debian_bullseye_amd64.deb
 
+<<<<<<< HEAD
         - name: Update Nightly
           run: gh release upload rolling ${{runner.workspace}}/sdrpp_debian_bullseye_amd64.deb -R ${{github.repository}} --clobber
         - name: Update Stable
           if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_debian_bullseye_amd64.deb -R ${{github.repository}} --clobber
+=======
+        - name: Save Deb Archive
+          uses: actions/upload-artifact@v4
+          with:
+              name: sdrpp_debian_bullseye_amd64
+              path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+>>>>>>> upstream/master
 
     build_debian_bookworm:
         runs-on: ubuntu-latest
 
         steps:
+<<<<<<< HEAD
         - uses: actions/checkout@v3
 
+=======
+        - uses: actions/checkout@v4
+        
+>>>>>>> upstream/master
         - name: Create Docker Image
           run: cd $GITHUB_WORKSPACE/docker_builds/debian_bookworm && docker build . --tag sdrpp_build
 
@@ -217,7 +258,7 @@ jobs:
           run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_debian_bookworm_amd64.deb
 
         - name: Save Deb Archive
-          uses: actions/upload-artifact@v3
+          uses: actions/upload-artifact@v4
           with:
             name: sdrpp_debian_bookworm_amd64
             path: ${{runner.workspace}}/sdrpp_debian_bookworm_amd64.deb
@@ -228,13 +269,39 @@ jobs:
           if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_debian_bookworm_amd64.deb -R ${{github.repository}} --clobber
 
+<<<<<<< HEAD
+=======
+        steps:
+        - uses: actions/checkout@v4
+        
+        - name: Create Docker Image
+          run: cd $GITHUB_WORKSPACE/docker_builds/debian_sid && docker build . --tag sdrpp_build
+
+        - name: Run Container
+          run: docker run --name build -v $GITHUB_WORKSPACE:/root/SDRPlusPlus --env BUILD_NO="-$GITHUB_RUN_NUMBER" sdrpp_build /root/do_build.sh
+
+        - name: Recover Deb Archive
+          working-directory: ${{runner.workspace}}
+          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./
+
+        - name: Save Deb Archive
+          uses: actions/upload-artifact@v4
+          with:
+              name: sdrpp_debian_sid_amd64
+              path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+>>>>>>> upstream/master
 
     build_ubuntu_focal:
         runs-on: ubuntu-latest
 
         steps:
+<<<<<<< HEAD
         - uses: actions/checkout@v3
 
+=======
+        - uses: actions/checkout@v4
+        
+>>>>>>> upstream/master
         - name: Create Docker Image
           run: cd $GITHUB_WORKSPACE/docker_builds/ubuntu_focal && docker build . --tag sdrpp_build
 
@@ -246,7 +313,7 @@ jobs:
           run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_ubuntu_focal_amd64.deb
 
         - name: Save Deb Archive
-          uses: actions/upload-artifact@v3
+          uses: actions/upload-artifact@v4
           with:
               name: sdrpp_ubuntu_focal_amd64
               path: ${{runner.workspace}}/sdrpp_ubuntu_focal_amd64.deb
@@ -261,9 +328,15 @@ jobs:
     build_ubuntu_jammy:
       runs-on: ubuntu-latest
 
+<<<<<<< HEAD
       steps:
         - uses: actions/checkout@v3
 
+=======
+        steps:
+        - uses: actions/checkout@v4
+        
+>>>>>>> upstream/master
         - name: Create Docker Image
           run: cd $GITHUB_WORKSPACE/docker_builds/ubuntu_jammy && docker build . --tag sdrpp_build
 
@@ -275,10 +348,37 @@ jobs:
           run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_ubuntu_jammy_amd64.deb
 
         - name: Save Deb Archive
-          uses: actions/upload-artifact@v3
+          uses: actions/upload-artifact@v4
           with:
+<<<<<<< HEAD
             name: sdrpp_ubuntu_jammy_amd64
             path: ${{runner.workspace}}/sdrpp_ubuntu_jammy_amd64.deb
+=======
+              name: sdrpp_ubuntu_jammy_amd64
+              path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+    
+    build_ubuntu_mantic:
+        runs-on: ubuntu-latest
+
+        steps:
+        - uses: actions/checkout@v4
+        
+        - name: Create Docker Image
+          run: cd $GITHUB_WORKSPACE/docker_builds/ubuntu_mantic && docker build . --tag sdrpp_build
+
+        - name: Run Container
+          run: docker run --name build -v $GITHUB_WORKSPACE:/root/SDRPlusPlus --env BUILD_NO="-$GITHUB_RUN_NUMBER" sdrpp_build /root/do_build.sh
+
+        - name: Recover Deb Archive
+          working-directory: ${{runner.workspace}}
+          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./
+
+        - name: Save Deb Archive
+          uses: actions/upload-artifact@v4
+          with:
+              name: sdrpp_ubuntu_mantic_amd64
+              path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+>>>>>>> upstream/master
 
         - name: Update Nightly
           run: gh release upload rolling ${{runner.workspace}}/sdrpp_ubuntu_jammy_amd64.deb -R ${{github.repository}} --clobber
@@ -286,13 +386,39 @@ jobs:
           if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_ubuntu_jammy_amd64.deb -R ${{github.repository}} --clobber
 
+<<<<<<< HEAD
+=======
+        steps:
+        - uses: actions/checkout@v4
+
+        - name: Create Build Environment
+          run: rm -rf ${{runner.workspace}}/build && cmake -E make_directory ${{runner.workspace}}/build
+        
+        - name: Prepare CMake
+          working-directory: ${{runner.workspace}}/build
+          run: cmake $GITHUB_WORKSPACE -DOPT_BUILD_BLADERF_SOURCE=ON -DOPT_BUILD_LIMESDR_SOURCE=ON -DOPT_BUILD_SDRPLAY_SOURCE=ON -DOPT_BUILD_NEW_PORTAUDIO_SINK=ON -DOPT_BUILD_M17_DECODER=ON -DOPT_BUILD_USRP_SOURCE=ON -DOPT_BUILD_PERSEUS_SOURCE=ON
+
+        - name: Build
+          working-directory: ${{runner.workspace}}/build
+          run: make VERBOSE=1 -j3
+
+        - name: Create Dev Archive
+          working-directory: ${{runner.workspace}}
+          run: sh $GITHUB_WORKSPACE/make_debian_package.sh ./build 'libfftw3-dev, libglfw3-dev, libvolk2-dev, librtaudio-dev' && mv sdrpp_debian_amd64.deb sdrpp_debian_armhf.deb
+        
+        - name: Save Deb Archive
+          uses: actions/upload-artifact@v4
+          with:
+              name: sdrpp_raspios_bullseye_armhf
+              path: ${{runner.workspace}}/sdrpp_debian_armhf.deb
+>>>>>>> upstream/master
 
     build_android:
         runs-on: ubuntu-latest
         # toggle build
 
         steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@v4
 
         - name: Fetch container
           working-directory: ${{runner.workspace}}
@@ -310,11 +436,51 @@ jobs:
           run: docker cp build:/root/SDRPlusPlus/android/app/build/outputs/apk/debug/app-debug.apk ./ && mv app-debug.apk sdrpp.apk
 
         - name: Save APK
-          uses: actions/upload-artifact@v3
+          uses: actions/upload-artifact@v4
           with:
               name: sdrpp_android
               path: ${{runner.workspace}}/sdrpp.apk
 
+<<<<<<< HEAD
+=======
+    create_full_archive:
+        needs: ['build_windows', 'build_macos', 'build_debian_buster', 'build_debian_bullseye', 'build_debian_bookworm', 'build_debian_sid', 'build_ubuntu_focal', 'build_ubuntu_jammy', 'build_ubuntu_mantic', 'build_raspios_bullseye_armhf', 'build_android']
+        runs-on: ubuntu-latest
+
+        steps:
+        - name: Download All Builds
+          uses: actions/download-artifact@v4
+
+        - name: Create Archive
+          run: >
+            mkdir sdrpp_all && 
+            mv sdrpp_windows_x64/sdrpp_windows_x64.zip sdrpp_all/ && 
+            mv sdrpp_macos_intel/sdrpp_macos_intel.zip sdrpp_all/ && 
+            mv sdrpp_debian_buster_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_debian_buster_amd64.deb && 
+            mv sdrpp_debian_bullseye_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_debian_bullseye_amd64.deb && 
+            mv sdrpp_debian_bookworm_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_debian_bookworm_amd64.deb && 
+            mv sdrpp_debian_sid_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_debian_sid_amd64.deb && 
+            mv sdrpp_ubuntu_focal_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_ubuntu_focal_amd64.deb &&
+            mv sdrpp_ubuntu_jammy_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_ubuntu_jammy_amd64.deb &&
+            mv sdrpp_ubuntu_mantic_amd64/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_ubuntu_mantic_amd64.deb &&
+            mv sdrpp_raspios_bullseye_armhf/sdrpp_debian_armhf.deb sdrpp_all/sdrpp_raspios_bullseye_armhf.deb &&
+            mv sdrpp_android/sdrpp.apk sdrpp_all/sdrpp.apk
+
+        - uses: actions/upload-artifact@v4
+          with:
+            name: sdrpp_all
+            path: sdrpp_all/
+
+    update_nightly_release:
+        needs: [create_full_archive]
+        runs-on: ubuntu-latest
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+
+        steps:
+        - name: Download All Builds
+          uses: actions/download-artifact@v4
+
+>>>>>>> upstream/master
         - name: Update Nightly
           run: gh release upload rolling ${{runner.workspace}}/sdrpp.apk -R ${{github.repository}} --clobber
         - name: Update Stable
@@ -325,7 +491,7 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@v4
 
         - name: Install codespell
           run: sudo apt update -y && sudo apt install -y codespell
@@ -337,7 +503,12 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
+<<<<<<< HEAD
         - uses: actions/checkout@v3
 
+=======
+        - uses: actions/checkout@v4
+        
+>>>>>>> upstream/master
         - name: Run check_clang_format
           run: cd $GITHUB_WORKSPACE && chmod +x ./check_clang_format.sh && ./check_clang_format.sh || true

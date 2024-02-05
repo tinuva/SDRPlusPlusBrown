@@ -97,16 +97,6 @@ namespace ImGui {
         float* getFFTBuffer();
         void pushFFT();
 
-        /**
-         *
-         * @param offset
-         * @param width             size of input buffer (data)
-         * @param outWidth          size of output buffer (out)
-         * @param data              input data to scale
-         * @param out               output buffer to write scaled data to
-         */
-        inline void doZoom(int offset, int width, int outWidth, float* data, float* out) const;
-
         void updatePallette(float colors[][3], int colorCount);
         void updatePalletteFromArray(float* colors, int colorCount);
 
