@@ -4,6 +4,7 @@
 #include "../rds_demod.h"
 #include <gui/widgets/symbol_diagram.h>
 #include <fstream>
+#include <utils/optionlist.h>
 #include "../rds.h"
 
 namespace demod {

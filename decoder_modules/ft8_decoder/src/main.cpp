@@ -504,13 +504,13 @@ public:
                 char modeString[10];
                 switch(incoming.mode) {
                 case DM_FT8:
-                    sprintf(modeString, "FT8");
+                    snprintf(modeString, sizeof modeString, "FT8");
                     break;
                 case DM_FT4:
-                    sprintf(modeString, "FT4");
+                    snprintf(modeString, sizeof modeString, "FT4");
                     break;
                 default:
-                    sprintf(modeString, "???");
+                    snprintf(modeString, sizeof modeString, "???");
                     break;
                 }
                 auto band = atof(incoming.frequencyBand.c_str());   // band in mhz
@@ -846,7 +846,7 @@ public:
 
     void postInit() {}
 
-    void enable() {
+    void enable() override  {
         if (!enabled) {
             std::for_each(allDecoders.begin(), allDecoders.end(), [](auto& d) { d->bind(); });
             enabled = true;
@@ -854,7 +854,7 @@ public:
         }
     }
 
-    void disable() {
+    void disable() override {
 
         if (enabled) {
             std::for_each(allDecoders.begin(), allDecoders.end(), [](auto& d) { d->unbind(); });
@@ -863,7 +863,7 @@ public:
         }
     }
 
-    bool isEnabled() {
+    bool isEnabled() override {
         return enabled;
     }
 
@@ -1319,9 +1319,9 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
                 tm* ltm = std::gmtime(&blocktimeUnix);
 
                 char buf[100];
-                sprintf(buf, "%02d%02d%02d_%02d%02d%02d", ltm->tm_year % 100, ltm->tm_mon + 1, ltm->tm_mday, ltm->tm_hour, ltm->tm_min, ltm->tm_sec);
+                snprintf(buf, sizeof buf, "%02d%02d%02d_%02d%02d%02d", ltm->tm_year % 100, ltm->tm_mon + 1, ltm->tm_mday, ltm->tm_hour, ltm->tm_min, ltm->tm_sec);
                 decodedResult.decodedBlock = buf;
-                sprintf(buf, "%0.3f", (previousCenterOffset - USB_BANDWIDTH) / 1000000.0);
+                snprintf(buf, sizeof buf,  "%0.3f", (previousCenterOffset - USB_BANDWIDTH) / 1000000.0);
                 decodedResult.frequencyBand = buf;
 
                 // (random() % 100) / 100.0;

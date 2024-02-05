@@ -199,7 +199,7 @@ struct QString {
         }
         if (*this->str == "%1") {
             char buf[100];
-            sprintf(buf, "%d", v);
+            snprintf(buf, sizeof buf, "%d", v);
             return QString(buf);
         }
         abort(); //
@@ -218,9 +218,9 @@ struct QString {
         }
 
         if (base == 10) {
-            sprintf(buf, "%%%s%dd", pred, width);
+            snprintf(buf, sizeof buf, "%%%s%dd", pred, width);
         } else if (base == 16) {
-            sprintf(buf, "%%%s%dx", pred, width);
+            snprintf(buf, sizeof buf, "%%%s%dx", pred, width);
         } else {
             abort();
         }
