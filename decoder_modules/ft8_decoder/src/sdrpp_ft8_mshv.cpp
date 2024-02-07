@@ -172,6 +172,7 @@ void doDecode(const char *mode, const char *path, int threads, std::function<voi
             });
             std::cout << "Time taken: " << currentTimeMillis() - ctm << " ms" << std::endl;
             std::cout << "DECODE_EOF" << std::endl;
+            std::cout << "DECODE_EOF" << std::endl;
             fflush(stdout);
         }
     } catch (std::runtime_error &e) {

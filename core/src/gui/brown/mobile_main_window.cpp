@@ -1718,7 +1718,7 @@ void MobileMainWindow::draw() {
     ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(menuWidth, 0));
     ImVec2 waterfallRegion = ImVec2(ImGui::GetContentRegionAvail().x - encoderWidth - buttonsWidth, ImGui::GetContentRegionAvail().y - statusHeight);
 
-    lockWaterfallControls = (qsoMode != VIEW_DEFAULT && modeToggle.upperText == "CW") || !encoder.enabled;
+    lockWaterfallControls |= (qsoMode != VIEW_DEFAULT && modeToggle.upperText == "CW") || !encoder.enabled;
     if (!bottomWindows.empty()) {
         waterfallRegion.y -= bottomWindows[0].size.y;
     }

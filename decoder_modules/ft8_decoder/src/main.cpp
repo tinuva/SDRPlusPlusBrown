@@ -827,9 +827,8 @@ public:
     void drawDebugMenu(ImGuiContext *gctx) {
         ImGui::LeftLabel("Remove FT8 WAVs");
         ImGui::FillWidth();
-        if (ImGui::Checkbox("##keep_ft8_wavs", &removeFiles)) {
-        }
-
+        ImGui::Checkbox("##keep_ft8_wavs", &removeFiles);
+        ImGui::Text("ft8en %d onfreq %d", allDecoders[0]->mod->enabled, allDecoders[0]->onTheFrequency);
     }
 
 

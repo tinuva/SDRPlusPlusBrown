@@ -74,11 +74,11 @@ struct KiwiSDRClient {
                 start = msg.substr(0, 3);
             }
             if (start == "MSG") {
-                flog::info("=> BIN/MSG: {} text: {}", (int64_t)msg.size(), msg);
+//                flog::info("=> BIN/MSG: {} text: {}", (int64_t)msg.size(), msg);
             }
             else if (start == "SND") {
                 if ((outCount++) % 50 == 0) {
-                    flog::info("=> SND (each 50 packets)");
+//                    flog::info("=> SND (each 50 packets)");
                 }
                 //                flog::info("{} Got sound: bytes={} )", (int64_t)currentTimeMillis(), (int64_t)msg.size());
                 long long int ctm = currentTimeMillis();

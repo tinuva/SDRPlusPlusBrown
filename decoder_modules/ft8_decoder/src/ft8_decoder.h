@@ -226,26 +226,28 @@ namespace dsp {
                     progress = "open...";
                     auto hdl = open(outPath.c_str(), O_RDONLY);
                     progress = "opened.";
-                    char rdbuf[10000];
+                    char rdbuf[30000];
                     if (hdl > 0) {
                         int nrd = read(hdl, rdbuf, sizeof(rdbuf) - 1);
                         progress = "freaded";
                         if (nrd > 0) {
-                            rdbuf[10000 - 1] = 0;
+                            rdbuf[sizeof rdbuf - 1] = 0;
                             rdbuf[nrd] = 0;
                             std::vector<std::string> thisResult;
                             progress = "split...";
                             splitString(rdbuf, "\n", [&](const std::string& p) {
-                                if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT") == 0 || p.find("ERROR") == 0 || p.find("DECODE_EOF")) {
+                                if (p.find("FT8_OUT") == 0 || p.find("FT4_OUT") == 0 || p.find("ERROR") == 0 || p.find("DECODE_EOF") == 0) {
                                     thisResult.emplace_back(p);
                                 }
                             });
                             progress = "split ok";
+                            flog::info("ft8 read bytes: {} split {}", nrd, (int)thisResult.size());
                             for (int q = nsent; q < thisResult.size(); q++) {
                                 std::vector<std::string> singleBroken;
                                 progress = "split small";
                                 splitStringV(thisResult[q], "\t", singleBroken);
                                 progress = "split small ok";
+                                flog::info("ft8 from decoder: {}", thisResult[q]);
                                 std::vector<std::string> selected;
                                 // FT8_OUT	1675635874870	30	{0}	120000	{1}	-19	{2}	0.2	{3}	775	{4}	SQ9KWU DL1PP -14	{5}	? 0	{6}	0.1	{7}	1975
                                 if (singleBroken.size() > 18) {
@@ -269,6 +271,8 @@ namespace dsp {
                                     progress = "post-err-callback";
                                 }
                                 if (singleBroken.size() >= 1 && singleBroken[0] == "DECODE_EOF") {
+                                    flog::info("DECODE_EOF");
+                                    finished = true;
                                     selected.emplace_back("DECODE_EOF");
                                     progress = "pre-eof-callback";
                                     callback(DMS_FT8, selected, progress);
@@ -289,6 +293,7 @@ namespace dsp {
                 }
                 if (finished) {
                     progress = "finishing..";
+                    flog::info("FT8 - finished");
 //                    flog::info("Breaking the loop for {}", mode);
                     break;
                 }
@@ -384,6 +389,8 @@ namespace dsp {
                 std::filesystem::remove(wavPath);
                 std::filesystem::remove(outPath);
                 std::filesystem::remove(errPath);
+            } else {
+                flog::info("keeping WAV file: {}", wavPath);
             }
 
             return;
