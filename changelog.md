@@ -4,7 +4,7 @@ Newest entries are at the top.
 
 2024.02.05
 
-* Hermes Lite 2 driver: added configuration for band filters per band.
+* Hermes Lite 2 driver: added configuration for band filters per band. Automatic band switching.
 * Merged recent changes from upstream.
 
 2023.11.28
