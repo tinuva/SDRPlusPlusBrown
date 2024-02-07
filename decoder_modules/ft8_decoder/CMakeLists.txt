@@ -60,7 +60,6 @@ elseif (ANDROID)
     target_include_directories(sdrpp_ft8_mshv PUBLIC
             ${SDR_KIT_ROOT}/${ANDROID_ABI}/include
             )
-    message("Here volk")
     target_link_libraries(sdrpp_ft8_mshv PUBLIC
             ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libvolk.so
             ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3f.so
@@ -105,9 +104,9 @@ foreach (TGT IN LISTS TARGETS)
     if (MSVC)
         target_compile_options(${TGT} PRIVATE /std:c++17 /EHsc)
     elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        target_compile_options(${TGT} PRIVATE -std=c++17 -Wno-unused-command-line-argument -undefined dynamic_lookup)
+        target_compile_options(${TGT} PRIVATE -std=c++17 -O3 -Wno-unused-command-line-argument -undefined dynamic_lookup)
     else ()
-        target_compile_options(${TGT} PRIVATE -std=c++17)
+        target_compile_options(${TGT} PRIVATE -std=c++17 -O3)
     endif ()
 endforeach ()
 

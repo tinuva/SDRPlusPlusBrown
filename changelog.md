@@ -2,6 +2,11 @@
 
 Newest entries are at the top.
 
+2024.02.05
+
+* Hermes Lite 2 driver: added configuration for band filters per band.
+* Merged recent changes from upstream.
+
 2023.11.28
 
 * added rtlsdr v4 library to the android driver core.
