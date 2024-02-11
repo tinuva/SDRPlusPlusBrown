@@ -32,6 +32,13 @@
 #include <gui/tuner.h>
 #include <dsp/buffer/buffer.h>
 
+#ifdef __ANDROID__
+namespace backend {
+    extern void doPermissionsDialogs();
+    extern std::string getBatteryLevel();
+}
+#endif
+
 void MainWindow::init() {
     LoadingScreen::show("Initializing UI");
     gui::waterfall.init();
@@ -644,6 +651,12 @@ void MainWindow::draw() {
 
     ImGui::NextColumn();
     ImGui::BeginChild("WaterfallControls");
+#ifdef __ANDROID__
+    if (displaymenu::showBattery) {
+        displaymenu::currentBatteryLevel = backend::getBatteryLevel();
+        ImGui::Text("B%s%%", displaymenu::currentBatteryLevel.c_str());
+    }
+#endif
 
     static int sliderDynamicAdjustmentY = 0;
 
@@ -908,12 +921,6 @@ void MainWindow::removeBottomWindow(std::string name) {
         }
     }
 }
-
-#ifdef __ANDROID__
-namespace backend {
-    extern void doPermissionsDialogs();
-}
-#endif
 
 void MainWindow::drawDebugMenu() {
     if (ImGui::CollapsingHeader("Debug")) {

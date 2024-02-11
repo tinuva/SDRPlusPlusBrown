@@ -482,6 +482,10 @@ namespace backend {
         return callStringGetter("getAppDir");
     }
 
+    std::string getBatteryLevel() {
+        return callStringGetter("getBatteryLevel");
+    }
+
     std::string getCacheDir() {
         return callStringGetter("getThisCacheDir");
     }

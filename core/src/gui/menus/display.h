@@ -11,6 +11,8 @@ namespace displaymenu {
     extern float displayDensity;
 #endif
     extern Event<ImGuiContext *> onDisplayDraw;
+    extern bool showBattery;
+    extern std::string currentBatteryLevel;
 
     extern enum TranscieverLayout {
         TRAL_NONE = 0,

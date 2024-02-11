@@ -13,6 +13,8 @@
 namespace displaymenu {
     bool showWaterfall;
     bool fullWaterfallUpdate = true;
+    bool showBattery = true;
+    std::string currentBatteryLevel = "?";
     int colorMapId = 0;
     std::vector<std::string> colorMapNames;
     std::string colorMapNamesTxt = "";
@@ -99,6 +101,10 @@ namespace displaymenu {
 
         fullWaterfallUpdate = core::configManager.conf["fullWaterfallUpdate"];
         gui::waterfall.setFullWaterfallUpdate(fullWaterfallUpdate);
+
+        if (core::configManager.conf.contains("showBattery")) {
+            showBattery = core::configManager.conf["showBattery"];
+        }
 
         fftSizeId = 3;
         int fftSize = core::configManager.conf["fftSize"];
@@ -193,6 +199,14 @@ namespace displaymenu {
             core::configManager.conf["fullWaterfallUpdate"] = fullWaterfallUpdate;
             core::configManager.release(true);
         }
+#ifdef __ANDROID__
+        if (ImGui::Checkbox("Show Battery##_sdrpp", &showBattery)) {
+            gui::waterfall.setFullWaterfallUpdate(fullWaterfallUpdate);
+            core::configManager.acquire();
+            core::configManager.conf["showBattery"] = showBattery;
+            core::configManager.release(true);
+        }
+#endif
 
         if (ImGui::Checkbox("Lock Menu Order##_sdrpp", &gui::menu.locked)) {
             core::configManager.acquire();

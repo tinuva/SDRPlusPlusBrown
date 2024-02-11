@@ -1,6 +1,7 @@
 package org.sdrppbrown.sdrppbrown
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NativeActivity
 import android.app.PendingIntent
 import android.app.PendingIntent.FLAG_MUTABLE
@@ -21,6 +22,7 @@ import android.hardware.usb.UsbManager
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.net.Uri
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -315,7 +317,30 @@ class MainActivity : NativeActivity(), SensorEventListener {
 
         super.onCreate(savedInstanceState)
 
+
+        registerReceiver(this.batteryBroadcastReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+
+
         proceedWithPermissions();
+    }
+
+    var batteryStatusStr: String = "?";
+
+    private val batteryBroadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+        @SuppressLint("SetTextI18n")
+        override fun onReceive(context: Context?, batteryStatus: Intent) {
+            val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+
+            // Handle cases when valid level isn't available
+            if (level == -1 || scale == -1) {
+                batteryStatusStr = "??"
+                return
+            }
+
+            val batteryPercentage = level / scale.toFloat() * 100.0f
+            batteryStatusStr = String.format("%d", batteryPercentage.toInt())
+        }
     }
 
     public fun httpGet(url: String): String {
@@ -460,6 +485,11 @@ class MainActivity : NativeActivity(), SensorEventListener {
         createIfDoesntExist(fdir + "/modules");
 
         return fdir;
+    }
+
+    fun getBatteryLevel(): String {
+        // Register for battery updates
+        return batteryStatusStr;
     }
 
 
