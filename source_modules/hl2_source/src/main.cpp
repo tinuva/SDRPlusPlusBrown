@@ -409,6 +409,27 @@ private:
             afterRefresh = nullptr;
         }
 
+        if (running) { SmGui::EndDisabled(); }
+        bool overload = device && device->isADCOverload();
+        if (overload) {
+            SmGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
+        }
+        SmGui::LeftLabel("ADC Gain");
+        if (overload) {
+            SmGui::PopStyleColor(1);
+        }
+        SmGui::SameLine();
+        //        SmGui::SetNextItemWidth(100);
+        if (SmGui::SliderInt(("##_radio_agc_gain_" + name).c_str(), &adcGain, -12, +48, SmGui::FMT_STR_INT_DB)) {
+            if (device) {
+                device->setADCGain(adcGain);
+                config.acquire();
+                config.conf["devices"][selectedSerStr]["adcGain"] = adcGain;
+                config.release(true);
+            }
+        }
+
+        if (running) { SmGui::BeginDisabled(); }
         if (ImGui::CollapsingHeader("HL2 advanced discovery")) {
             SmGui::LeftLabel("Probe IP:");
             SmGui::SameLine();
@@ -429,6 +450,7 @@ private:
                 config.release(true);
             }
         }
+        if (running) { SmGui::EndDisabled(); }
 
         if (ImGui::CollapsingHeader("HL2 bands config")) {
             if (bandsEditor(config)) {
@@ -439,7 +461,7 @@ private:
         if (ImGui::CollapsingHeader("HL2 power calibrate")) {
             if (ImGui::SliderInt("nominal PWR", &nominalPower, 5, 100, "%d W") ||
                 ImGui::SliderInt("red zone %", &redZoneExtraPercent, 20, 100, " + %d %%") ||
-                ImGui::SliderFloat("PWR calibrate", &powerADCScalingFactor, -2, +2, "10 ^ %.01f")) //
+                ImGui::SliderFloat("PWR calibrate", &powerADCScalingFactor, -2, +2, "10 ^ %.2f")) //
             {
                 config.acquire();
                 config.conf["nominalPower"] = nominalPower;
@@ -450,25 +472,6 @@ private:
         }
 
 
-        if (running) { SmGui::EndDisabled(); }
-        bool overload = device && device->isADCOverload();
-        if (overload) {
-            SmGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
-        }
-        SmGui::LeftLabel("ADC Gain");
-        if (overload) {
-            SmGui::PopStyleColor(1);
-        }
-        SmGui::SameLine();
-        //        SmGui::SetNextItemWidth(100);
-        if (SmGui::SliderInt(("##_radio_agc_gain_" + name).c_str(), &adcGain, -12, +48, SmGui::FMT_STR_INT_DB)) {
-            if (device) {
-                device->setADCGain(adcGain);
-                config.acquire();
-                config.conf["devices"][selectedSerStr]["adcGain"] = adcGain;
-                config.release(true);
-            }
-        }
         /*
         for(int q=0; q<6; q++) {
             char strr[100];
@@ -625,14 +628,14 @@ private:
         return device->transmitMode;
     }
     float getTransmitPower() override {
-        return device->fwd * powerADCScalingFactor;
+        return device->fwd * pow(10, powerADCScalingFactor);
         //        device->updateSWR();
         //        return device->fwd+device->rev;
     }
 
 public:
     float getReflectedPower() override {
-        return device->rev * powerADCScalingFactor;
+        return device->rev * pow(10, powerADCScalingFactor);
     }
 
     float getTransmitSWR() override {
