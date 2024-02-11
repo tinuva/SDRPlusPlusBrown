@@ -214,7 +214,7 @@ namespace ImGui {
             window->DrawList->AddLine(ImVec2(fftAreaMin.x, roundf(yPos)),
                                       ImVec2(fftAreaMax.x, roundf(yPos)),
                                       IM_COL32(50, 50, 50, 255), style::uiScale);
-            sprintf(buf, "%d", (int)line);
+            snprintf(buf, sizeof buf, "%d", (int)line);
             ImVec2 txtSz = ImGui::CalcTextSize(buf);
             window->DrawList->AddText(ImVec2(fftAreaMin.x - txtSz.x - textVOffset, roundf(yPos - (txtSz.y / 2.0))), text, buf);
         }

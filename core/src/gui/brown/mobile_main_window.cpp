@@ -1637,7 +1637,7 @@ void MobileMainWindow::draw() {
     }
 
     gui::waterfall.alwaysDrawLine = false;
-    ImGuiIO &io = ImGui::GetIO();
+    ImGuiIO& io = ImGui::GetIO();
     if (displaymenu::transcieverLayout == 0) {
         shouldInitialize = true;
         MainWindow::draw();
@@ -1657,14 +1657,14 @@ void MobileMainWindow::draw() {
          */
     }
     gui::waterfall.alwaysDrawLine = true;
-    ImGui::WaterfallVFO *vfo = nullptr; // gets initialized below
+    ImGui::WaterfallVFO* vfo = nullptr; // gets initialized below
     this->preDraw(&vfo);
 
     ImGui::Begin("Main", nullptr, WINDOW_FLAGS);
 
     ImVec4 textCol = ImGui::GetStyleColorVec4(ImGuiCol_Text);
     ImVec2 btnSize(30 * style::uiScale, 30 * style::uiScale);
-    ImGui::PushID((int) ImGui::GetID("sdrpp_menu_btn"));
+    ImGui::PushID((int)ImGui::GetID("sdrpp_menu_btn"));
     if (ImGui::ImageButton(icons::MENU, btnSize, ImVec2(0, 0), ImVec2(1, 1), 5, ImVec4(0, 0, 0, 0), textCol) || ImGui::IsKeyPressed(ImGuiKey_Menu, false)) {
         showMenu = !showMenu;
         core::configManager.acquire();
@@ -1683,14 +1683,14 @@ void MobileMainWindow::draw() {
     float buttonsWidth = defaultButtonsWidth;
     float statusHeight = 100;
     switch (qsoMode) {
-        case VIEW_QSO:
-            buttonsWidth = 600;
-            break;
-        case VIEW_CONFIG:
-            buttonsWidth = style::baseFont->FontSize * 25;
-            break;
-        default:
-            break;
+    case VIEW_QSO:
+        buttonsWidth = 600;
+        break;
+    case VIEW_CONFIG:
+        buttonsWidth = style::baseFont->FontSize * 25;
+        break;
+    default:
+        break;
     }
     buttonsWidth *= buttonsWidthScale;
     defaultButtonsWidth *= buttonsWidthScale;
@@ -1709,7 +1709,8 @@ void MobileMainWindow::draw() {
 
     if (showMenu) {
         menuWidth = core::configManager.conf["menuWidth"];
-    } else {
+    }
+    else {
         menuWidth = 0;
     }
 
@@ -1723,7 +1724,7 @@ void MobileMainWindow::draw() {
         waterfallRegion.y -= bottomWindows[0].size.y;
     }
     ImGui::BeginChildEx("Waterfall", ImGui::GetID("sdrpp_waterfall"), waterfallRegion, false, 0);
-//    auto waterfallStart = ImGui::GetCursorPos();
+    //    auto waterfallStart = ImGui::GetCursorPos();
     gui::waterfall.draw();
     onWaterfallDrawn.emit(GImGui);
     ImGui::EndChild();
@@ -1735,7 +1736,13 @@ void MobileMainWindow::draw() {
     int statusLineDY = ImGui::GetCursorPosY();
     ImGui::PushFont(style::mediumFont);
     static char statusBuf[1024];
-    snprintf(statusBuf, sizeof(statusBuf), "%s | REC: %03d sec", this->submodeToggle.upperText.c_str(), (int) (this->pvt->audioRecorder.qsoAudioRecordingBuffer.size() / trxAudioSampleRate));
+    statusBuf[0] = 0;
+#ifdef __ANDROID__
+    if (displaymenu::showBattery) {
+        snprintf(statusBuf + strlen(statusBuf), sizeof(statusBuf) - strlen(statusBuf), "BATT %s %% |", displaymenu::currentBatteryLevel.c_str());
+    }
+#endif
+    snprintf(statusBuf + strlen(statusBuf), sizeof(statusBuf) - strlen(statusBuf), "%s | REC: %03d sec", this->submodeToggle.upperText.c_str(), (int) (this->pvt->audioRecorder.qsoAudioRecordingBuffer.size() / trxAudioSampleRate));
     for (auto st: statusSeporters) {
         auto s = st->reportStatus();
         if (!s.empty()) {
@@ -2471,6 +2478,9 @@ MobileMainWindow::MobileMainWindow() : MainWindow(),
     audioWaterfall = std::make_shared<SubWaterfall>(trxAudioSampleRate, 5000, "Audio Heard");
 }
 
+int mwedit;
+long long lastMwEdit = 0;
+
 void MobileMainWindow::init() {
 
 
@@ -2490,6 +2500,7 @@ void MobileMainWindow::init() {
 
 
     displaymenu::onDisplayDraw.bindHandler(&displayDrawHandler);
+    mwedit = menuWidth;
     displayDrawHandler.handler = [](ImGuiContext *ctx, void *data) {
         MobileMainWindow *_this = (MobileMainWindow *) data;
         if (ImGui::Checkbox("Show Audio Waterfall##_sdrpp", &_this->drawAudioWaterfall)) {
@@ -2502,8 +2513,21 @@ void MobileMainWindow::init() {
         }
         ImGui::LeftLabel("TX Panel Width");
         ImGui::FillWidth();
-        if (ImGui::SliderFloat("##mmw_buttons_width", &_this->buttonsWidthScale, 0.3, 3)) {
+        if (ImGui::SliderFloat("##txpanelw", &_this->buttonsWidthScale, 0.3, 3)) {
             setConfig("buttonsWidthScale", _this->buttonsWidthScale);
+        }
+
+        ImGui::LeftLabel("Menu Width");
+        ImGui::FillWidth();
+
+        if (ImGui::SliderInt("##menuw", &mwedit, 10, 500)) {
+            lastMwEdit = currentTimeMillis();
+        }
+
+        if (lastMwEdit != 0 && currentTimeMillis() - lastMwEdit > 2000) {
+            _this->menuWidth = mwedit;
+            lastMwEdit = 0;
+            setConfig("menuWidth", _this->menuWidth);
         }
     };
     displayDrawHandler.ctx = this;
@@ -3331,16 +3355,16 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO *) {
 
         //        if (ImGui::Checkbox("PostPro(SSB)", &this->postprocess)) {
         //        }
-        if (false) {
-            int fillLevel = (int) sigpath::transmitter->getFillLevel();
-            if (fillLevel <= 1 && sigpath::transmitter->getTXStatus()) {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
-            }
-            ImGui::Text("TX Queue Size: %d", fillLevel);
-            if (fillLevel <= 1 && sigpath::transmitter->getTXStatus()) {
-                ImGui::PopStyleColor();
-            }
-        }
+//        if (false) {
+//            int fillLevel = (int) sigpath::transmitter->getFillLevel();
+//            if (fillLevel <= 1 && sigpath::transmitter->getTXStatus()) {
+//                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
+//            }
+//            ImGui::Text("TX Queue Size: %d", fillLevel);
+//            if (fillLevel <= 1 && sigpath::transmitter->getTXStatus()) {
+//                ImGui::PopStyleColor();
+//            }
+//        }
         ImGui::Checkbox("PA enable |", &this->enablePA);
         sigpath::transmitter->setPAEnabled(this->enablePA);
         float swr = sigpath::transmitter->getTransmitSWR();
@@ -3355,7 +3379,17 @@ void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO *) {
 
         ImGui::Text("FWD PWR: %.1f", rtmax(lastForward)); // below 10w will - not jump.
         ImGui::SameLine();
-        draw_db_gauge(ImGui::GetContentRegionAvail().x, rtmax(lastForward), 0, 0, 10, 5, 1);
+
+        int tickLevel ;
+        if (sigpath::transmitter->getRedZone() <= 10) {
+            tickLevel = 1;
+        } else if (sigpath::transmitter->getRedZone() <= 40) {
+            tickLevel = 5;
+        } else {
+            tickLevel = 10;
+        }
+
+        draw_db_gauge(ImGui::GetContentRegionAvail().x, rtmax(lastForward), 0, 0, sigpath::transmitter->getRedZone(), sigpath::transmitter->getNormalZone(), tickLevel);
 
         ImGui::Text("TX Soft PA:");
         ImGui::SameLine();

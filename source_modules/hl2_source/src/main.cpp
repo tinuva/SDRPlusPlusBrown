@@ -1,6 +1,6 @@
 
 #ifdef _WIN32
-#define _WINSOCKAPI_    // stops windows.h including winsock.h
+#define _WINSOCKAPI_ // stops windows.h including winsock.h
 #endif
 
 #include <imgui.h>
@@ -18,7 +18,7 @@
 
 #define CONCAT(a, b) ((std::string(a) + (b)).c_str())
 
-SDRPP_MOD_INFO {
+SDRPP_MOD_INFO{
     /* Name:            */ "hl2_source",
     /* Description:     */ "Hermes Lite 2 module for SDR++",
     /* Author:          */ "sannysanoff",
@@ -28,9 +28,9 @@ SDRPP_MOD_INFO {
 
 ConfigManager config;
 
-//const char* AGG_MODES_STR = "Off\0Low\0High\0";
+// const char* AGG_MODES_STR = "Off\0Low\0High\0";
 
-std::string discoveredToIp(DISCOVERED &d) {
+std::string discoveredToIp(DISCOVERED& d) {
     char str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &(d.info.network.address.sin_addr), str, INET_ADDRSTRLEN);
     return str;
@@ -41,9 +41,12 @@ class HermesLite2SourceModule : public ModuleManager::Instance, public Transmitt
     int adcGain = 0;
     bool sevenRelays[10]{};
 
-public:
+    int nominalPower = 5;
+    int redZoneExtraPercent = 100;
+    float powerADCScalingFactor = 0.0f;
 
-    explicit HermesLite2SourceModule(const std::string &name) : hermesSamples("hermes samples") {
+public:
+    explicit HermesLite2SourceModule(const std::string& name) : hermesSamples("hermes samples") {
 
         this->name = name;
         memset(sevenRelays, 0, sizeof(sevenRelays));
@@ -74,14 +77,24 @@ public:
         if (config.conf.contains("directIP")) {
             directIP = config.conf["directIP"];
         }
+//        int nominalPower = 5;
+//        int redZoneExtraPercent = 100;
+//        float powerADCScalingFactor = 1.0f;
+        if (config.conf.contains("nominalPower")) {
+            nominalPower = config.conf["nominalPower"];
+        }
+        if (config.conf.contains("redZoneExtraPercent")) {
+            redZoneExtraPercent = config.conf["redZoneExtraPercent"];
+        }
+        if (config.conf.contains("powerADCScalingFactor")) {
+            powerADCScalingFactor = config.conf["powerADCScalingFactor"];
+        }
         loadBandsConfig(config);
         config.release();
 
         refresh();
         sigpath::sourceManager.registerSource("Hermes Lite 2", &handler);
         selectFirst();
-
-
     }
 
     ~HermesLite2SourceModule() {
@@ -89,10 +102,10 @@ public:
         sigpath::sourceManager.unregisterSource("Hermes Lite 2");
     }
 
-    void postInit()  override  {}
+    void postInit() override {}
 
 
-    void enable()  override {
+    void enable() override {
         enabled = true;
     }
 
@@ -100,13 +113,13 @@ public:
         enabled = false;
     }
 
-    bool isEnabled()  override {
+    bool isEnabled() override {
         return enabled;
     }
 
     bool refreshing = false;
     std::mutex uiLock;
-    std::function <void()> afterRefresh;
+    std::function<void()> afterRefresh;
 
     void refresh() {
 
@@ -114,7 +127,8 @@ public:
         devices = 0;
         try {
             protocol1_discovery(staticIp, scanIP);
-        } catch (std::exception &e) {
+        }
+        catch (std::exception& e) {
             flog::error("Error while discovering devices: %s", e.what());
             refreshing = false;
             return;
@@ -123,14 +137,14 @@ public:
             discovered[devices].info.network.address.sin_addr.s_addr = inet_addr(staticIp);
             discovered[devices].info.network.address.sin_port = htons(1024);
             discovered[devices].protocol = 1;
-            strcpy(discovered[0].name,"(direct) Hermes Lite V2");
+            strcpy(discovered[0].name, "(direct) Hermes Lite V2");
             discovered[devices].device = DEVICE_HERMES_LITE2;
             // HL2 send max supported receveirs in discovery response.
-            discovered[devices].supported_receivers=1;
-            discovered[devices].supported_transmitters=1;
-            discovered[devices].adcs=1;
-            discovered[devices].frequency_min=0.0;
-            discovered[devices].frequency_max=30720000.0;
+            discovered[devices].supported_receivers = 1;
+            discovered[devices].supported_transmitters = 1;
+            discovered[devices].adcs = 1;
+            discovered[devices].frequency_min = 0.0;
+            discovered[devices].frequency_max = 30720000.0;
             devices++;
         }
 
@@ -140,14 +154,14 @@ public:
         for (int i = 0; i < devices; i++) {
             auto ip = discoveredToIp(discovered[i]);
 
-            devListTxt += ip +" - " ;
+            devListTxt += ip + " - ";
             if (discovered[i].hl2_protocol) {
                 devListTxt += "^^";
             }
-//            if (discovered[i].device == DEVICE_HERMES_LITE2 || discovered[i].device == DEVICE_HERMES_LITE) {
-//                devListTxt += std::to_string(discovered[i].supported_receivers)+" * ";
-//            }
-            devListTxt+=discovered[i].name;
+            //            if (discovered[i].device == DEVICE_HERMES_LITE2 || discovered[i].device == DEVICE_HERMES_LITE) {
+            //                devListTxt += std::to_string(discovered[i].supported_receivers)+" * ";
+            //            }
+            devListTxt += discovered[i].name;
 
             devListTxt += '\0';
         }
@@ -161,7 +175,7 @@ public:
         }
     }
 
-    void selectByIP(const std::string &ipAddr) {
+    void selectByIP(const std::string& ipAddr) {
 
         selectedIP = ipAddr;
 
@@ -171,7 +185,7 @@ public:
         sampleRateList.push_back(96000);
         sampleRateList.push_back(192000);
         sampleRateList.push_back(384000);
-        for(auto sr: sampleRateList) {
+        for (auto sr : sampleRateList) {
             sampleRateListTxt += std::to_string(sr);
             sampleRateListTxt += '\0';
         }
@@ -189,7 +203,7 @@ public:
 
         // Load sample rate
         srId = 0;
-//        sampleRate = sampleRateList[3];
+        //        sampleRate = sampleRateList[3];
         if (config.conf["devices"][selectedSerStr].contains("sampleRate")) {
             int selectedSr = config.conf["devices"][selectedSerStr]["sampleRate"];
             for (int i = 0; i < sampleRateList.size(); i++) {
@@ -204,7 +218,7 @@ public:
         memset(sevenRelays, 0, sizeof(sevenRelays));
         if (config.conf["devices"][selectedSerStr].contains("sevenRelays")) {
             int q = config.conf["devices"][selectedSerStr]["sevenRelays"];
-            if (q >=0) {
+            if (q >= 0) {
                 sevenRelays[q] = true;
             }
         }
@@ -214,24 +228,23 @@ public:
         }
 
         // Load Gains
-//        if (config.conf["devices"][selectedSerStr].contains("agcMode")) {
-//            agcMode = config.conf["devices"][selectedSerStr]["agcMode"];
-//        }
-//        if (config.conf["devices"][selectedSerStr].contains("lna")) {
-//            hfLNA = config.conf["devices"][selectedSerStr]["lna"];
-//        }
-//        if (config.conf["devices"][selectedSerStr].contains("attenuation")) {
-//            atten = config.conf["devices"][selectedSerStr]["attenuation"];
-//        }
+        //        if (config.conf["devices"][selectedSerStr].contains("agcMode")) {
+        //            agcMode = config.conf["devices"][selectedSerStr]["agcMode"];
+        //        }
+        //        if (config.conf["devices"][selectedSerStr].contains("lna")) {
+        //            hfLNA = config.conf["devices"][selectedSerStr]["lna"];
+        //        }
+        //        if (config.conf["devices"][selectedSerStr].contains("attenuation")) {
+        //            atten = config.conf["devices"][selectedSerStr]["attenuation"];
+        //        }
 
         config.release(created);
 
-//        airspyhf_close(dev);
+        //        airspyhf_close(dev);
         this->menuSelected(this);
     }
 
 private:
-
     static void menuSelected(void* ctx) {
         auto* _this = (HermesLite2SourceModule*)ctx;
         if (_this->sampleRate >= 48000) {
@@ -251,31 +264,30 @@ private:
     bool showMore = false;
     bool directIP = false;
     bool scanIP = true;
-    char staticIp[20]={0};
+    char staticIp[20] = { 0 };
 
     void incomingSample(double i, double q) {
-        incomingBuffer.emplace_back(dsp::complex_t{(float)q, (float)i});
-        if (incomingBuffer.size() >= 512-8) {
-//            hermesSamples.add(incomingBuffer.size());
+        incomingBuffer.emplace_back(dsp::complex_t{ (float)q, (float)i });
+        if (incomingBuffer.size() >= 512 - 8) {
+            //            hermesSamples.add(incomingBuffer.size());
             memcpy(stream.writeBuf, incomingBuffer.data(), incomingBuffer.size() * sizeof(dsp::complex_t));
             stream.swap((int)incomingBuffer.size());
             incomingBuffer.clear();
-
         }
-
     }
 
     static void start(void* ctx) {
         auto* _this = (HermesLite2SourceModule*)ctx;
         if (_this->running) {
-            return; }
+            return;
+        }
         if (_this->selectedIP.empty()) {
             flog::error("Tried to start HL2 source with null serial");
             return;
         }
 
         _this->device.reset();
-        for(int i=0; i<devices; i++) {
+        for (int i = 0; i < devices; i++) {
             if (_this->selectedIP == discoveredToIp(discovered[i])) {
                 _this->device = std::make_shared<HL2Device>(discovered[i], [=](double i, double q) {
                     static auto lastCtm = currentTimeMillis();
@@ -285,7 +297,7 @@ private:
                         if (lastCtm < currentTimeMillis() - 1000) {
                             static auto lastLastTotalCount = 0LL;
                             auto nowCtm = currentTimeMillis();
-//                            std::cout << "HL2: Speed: IQ pairs/sec: ~ " << (totalCount - lastLastTotalCount) * 1000 / (nowCtm - lastCtm) << std::endl;
+                            //                            std::cout << "HL2: Speed: IQ pairs/sec: ~ " << (totalCount - lastLastTotalCount) * 1000 / (nowCtm - lastCtm) << std::endl;
                             lastLastTotalCount = totalCount;
                             lastCtm = nowCtm;
                         }
@@ -293,13 +305,12 @@ private:
                     _this->incomingSample(i, q);
                 });
             }
-
         }
 
         if (_this->device) {
             _this->device->setRxSampleRate(_this->sampleRate);
             _this->device->setADCGain(_this->adcGain);
-            for(int q=0; q<6; q++) {
+            for (int q = 0; q < 6; q++) {
                 if (_this->sevenRelays[q]) {
                     _this->device->setSevenRelays(1 << q);
                 }
@@ -351,7 +362,7 @@ private:
     void menuHandler() {
         if (running) { SmGui::BeginDisabled(); }
 
-//        SmGui::SetNextItemWidth(100);
+        //        SmGui::SetNextItemWidth(100);
         uiLock.lock();
         if (SmGui::Combo(CONCAT("##_hl2_dev_sel_", name), &devId, devListTxt.c_str())) {
             selectByIP(discoveredToIp(discovered[devId]));
@@ -363,13 +374,42 @@ private:
             }
         }
         uiLock.unlock();
-        SmGui::SameLine();
-        SmGui::FillWidth();
-        if (SmGui::Button("More")) {
-            showMore = !showMore;
+
+        auto updateSampleRate = [&](int srid) {
+            sampleRate = (int)sampleRateList[srId];
+            core::setInputSampleRate(sampleRate);
+            if (!selectedSerStr.empty()) {
+                config.acquire();
+                config.conf["devices"][selectedSerStr]["sampleRate"] = sampleRate;
+                config.release(true);
+            }
+        };
+        if (SmGui::Combo(CONCAT("##_hl2_sr_sel_", name), &srId, sampleRateListTxt.c_str())) {
+            updateSampleRate(srId);
         }
 
-        if (showMore) {
+        SmGui::SameLine();
+        SmGui::FillWidth();
+        SmGui::ForceSync();
+        if (SmGui::Button(CONCAT(refreshing ? "[Refreshing..]##_hl2_refr_" : "Refresh##_hl2_refr_", name))) {
+            if (!refreshing) {
+                std::thread refreshThread([&]() {
+                    refresh();
+                    afterRefresh = [&]() {
+                        if (devices > 0) {
+                            selectFirst();
+                        }
+                    };
+                });
+                refreshThread.detach();
+            }
+        }
+        if (afterRefresh) {
+            afterRefresh();
+            afterRefresh = nullptr;
+        }
+
+        if (ImGui::CollapsingHeader("HL2 advanced discovery")) {
             SmGui::LeftLabel("Probe IP:");
             SmGui::SameLine();
             SmGui::FillWidth();
@@ -388,47 +428,27 @@ private:
                 config.conf["scanIP"] = scanIP;
                 config.release(true);
             }
+        }
 
+        if (ImGui::CollapsingHeader("HL2 bands config")) {
             if (bandsEditor(config)) {
                 updateBandRelays();
             }
-
         }
 
-        auto updateSampleRate = [&](int srid) {
-            sampleRate = (int)sampleRateList[srId];
-            core::setInputSampleRate(sampleRate);
-            if (!selectedSerStr.empty()) {
+        if (ImGui::CollapsingHeader("HL2 power calibrate")) {
+            if (ImGui::SliderInt("nominal PWR", &nominalPower, 5, 100, "%d W") ||
+                ImGui::SliderInt("red zone %", &redZoneExtraPercent, 20, 100, " + %d %%") ||
+                ImGui::SliderFloat("PWR calibrate", &powerADCScalingFactor, -2, +2, "10 ^ %.01f")) //
+            {
                 config.acquire();
-                config.conf["devices"][selectedSerStr]["sampleRate"] = sampleRate;
+                config.conf["nominalPower"] = nominalPower;
+                config.conf["redZoneExtraPercent"] = redZoneExtraPercent;
+                config.conf["powerADCScalingFactor"] = powerADCScalingFactor;
                 config.release(true);
             }
-
-        };
-        if (SmGui::Combo(CONCAT("##_hl2_sr_sel_", name), &srId, sampleRateListTxt.c_str())) {
-            updateSampleRate(srId);
         }
 
-        SmGui::SameLine();
-        SmGui::FillWidth();
-        SmGui::ForceSync();
-        if (SmGui::Button(CONCAT(refreshing ? "[Refreshing..]##_hl2_refr_": "Refresh##_hl2_refr_", name))) {
-            if (!refreshing) {
-                std::thread refreshThread([&]() {
-                    refresh();
-                    afterRefresh = [&]() {
-                        if (devices > 0) {
-                            selectFirst();
-                        }
-                    };
-                });
-                refreshThread.detach();
-            }
-        }
-        if (afterRefresh) {
-            afterRefresh();
-            afterRefresh = nullptr;
-        }
 
         if (running) { SmGui::EndDisabled(); }
         bool overload = device && device->isADCOverload();
@@ -440,7 +460,7 @@ private:
             SmGui::PopStyleColor(1);
         }
         SmGui::SameLine();
-//        SmGui::SetNextItemWidth(100);
+        //        SmGui::SetNextItemWidth(100);
         if (SmGui::SliderInt(("##_radio_agc_gain_" + name).c_str(), &adcGain, -12, +48, SmGui::FMT_STR_INT_DB)) {
             if (device) {
                 device->setADCGain(adcGain);
@@ -490,7 +510,6 @@ private:
             */
 
         //}
-
     }
 
     std::string name;
@@ -519,7 +538,6 @@ private:
         device->setTune(false);
         device->setPTT(status);
         updateBandRelays();
-
     }
     void setTransmitStream(dsp::stream<dsp::complex_t>* astream) override {
         std::thread([this, astream]() {
@@ -537,12 +555,12 @@ private:
                 }
                 readSamples += rd;
                 nreads++;
-                for(int q=0; q<rd; q++) {
+                for (int q = 0; q < rd; q++) {
                     buffer.push_back(astream->readBuf[q]);
                     if (buffer.size() == 63) {
                         addedBlocks++;
                         if (addedBlocks % 1000 == 0) {
-//                            flog::info("Added {} blocks to tx buffer, rd samples {}  ndreads {}", addedBlocks, readSamples, nreads);
+                            //                            flog::info("Added {} blocks to tx buffer, rd samples {}  ndreads {}", addedBlocks, readSamples, nreads);
                         }
                         device->samplesToSend.fillFrom(buffer.data(), 63);
                         buffer.clear();
@@ -554,7 +572,6 @@ private:
     }
     void setTransmitSoftwareGain(unsigned char gain) override {
         device->setSoftwarePower(gain);
-
     }
     void setTransmitFrequency(int freq) override {
         device->setTxFrequency(freq);
@@ -608,22 +625,27 @@ private:
         return device->transmitMode;
     }
     float getTransmitPower() override {
-        return device->fwd;
-//        device->updateSWR();
-//        return device->fwd+device->rev;
+        return device->fwd * powerADCScalingFactor;
+        //        device->updateSWR();
+        //        return device->fwd+device->rev;
     }
 
 public:
     float getReflectedPower() override {
-        return device->rev;
+        return device->rev * powerADCScalingFactor;
     }
 
-private:
     float getTransmitSWR() override {
         return device->swr;
     }
+    int getNormalZone() override {
+        return nominalPower;
+    }
+    int getRedZone() override {
+        return int(nominalPower * ((100 + redZoneExtraPercent) / 100.0));
+    }
 
-    float getFillLevel() override {
+    float getFillLevel() {
         return (float)device->fill_level;
     }
 
@@ -637,10 +659,10 @@ MOD_EXPORT void _INIT_() {
 #ifdef WIN32
     int iResult;
 
-// Initialize Winsock
+    // Initialize Winsock
     WSADATA wsaData;
 
-    iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+    iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != 0) {
         flog::error("WSAStartup failed: %d\n", iResult);
         exit(1);

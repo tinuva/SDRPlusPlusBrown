@@ -39,7 +39,8 @@ struct Transmitter {
     virtual float getTransmitPower() = 0;
     virtual float getReflectedPower() = 0;
     virtual float getTransmitSWR() = 0;
-    virtual float getFillLevel() = 0;
+    virtual int getNormalZone() = 0;   // e.g. 5w
+    virtual int getRedZone() = 0;  // e.g. 10w, always greater than normal zone
     virtual std::string &getTransmitterName() = 0;
 
 };
