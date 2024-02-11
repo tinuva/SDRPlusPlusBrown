@@ -124,7 +124,7 @@ namespace vfo_color_menu {
                 vfo->color = IM_COL32((int)roundf(col.x * 255), (int)roundf(col.y * 255), (int)roundf(col.z * 255), 50);
                 core::configManager.acquire();
                 char buf[16];
-                sprintf(buf, "#%02X%02X%02X", (int)roundf(col.x * 255), (int)roundf(col.y * 255), (int)roundf(col.z * 255));
+                snprintf(buf, sizeof buf, "#%02X%02X%02X", (int)roundf(col.x * 255), (int)roundf(col.y * 255), (int)roundf(col.z * 255));
                 core::configManager.conf["vfoColors"][name] = buf;
                 core::configManager.release(true);
             }

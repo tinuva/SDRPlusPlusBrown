@@ -453,7 +453,7 @@ private:
         if (running) { SmGui::EndDisabled(); }
 
         if (ImGui::CollapsingHeader("HL2 bands config")) {
-            if (bandsEditor(config)) {
+            if (bandsEditor(config, running && getTXStatus(), tunedFrequency)) {
                 updateBandRelays();
             }
         }

@@ -1,3 +1,4 @@
+
 #include <gui/menus/display.h>
 #include <imgui.h>
 #include <gui/gui.h>
@@ -14,6 +15,7 @@ namespace displaymenu {
     bool showWaterfall;
     bool fullWaterfallUpdate = true;
     bool showBattery = true;
+    bool showClock = true;
     std::string currentBatteryLevel = "?";
     int colorMapId = 0;
     std::vector<std::string> colorMapNames;
@@ -104,6 +106,9 @@ namespace displaymenu {
 
         if (core::configManager.conf.contains("showBattery")) {
             showBattery = core::configManager.conf["showBattery"];
+        }
+        if (core::configManager.conf.contains("showClock")) {
+            showClock = core::configManager.conf["showClock"];
         }
 
         fftSizeId = 3;
@@ -207,6 +212,12 @@ namespace displaymenu {
             core::configManager.release(true);
         }
 #endif
+        if (ImGui::Checkbox("Show Clock##_sdrpp", &showClock)) {
+            gui::waterfall.setFullWaterfallUpdate(fullWaterfallUpdate);
+            core::configManager.acquire();
+            core::configManager.conf["showClock"] = showClock;
+            core::configManager.release(true);
+        }
 
         if (ImGui::Checkbox("Lock Menu Order##_sdrpp", &gui::menu.locked)) {
             core::configManager.acquire();

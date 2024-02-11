@@ -44,6 +44,7 @@ public:
     Event<std::string> onSourceUnregistered;
     Event<double> onTuneChanged;
     Event<double> onRetune;
+    int secondsAdjustment;
 
 private:
     std::map<std::string, SourceHandler*> sources;

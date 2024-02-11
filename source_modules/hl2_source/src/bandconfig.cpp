@@ -91,7 +91,7 @@ void saveBandsConfig(ConfigManager &config) {
 }
 
 // returns if some change happened
-bool renderCheckboxes(ConfigManager &manager, AllBands &bands, int blockOffset) {
+bool renderCheckboxes(ConfigManager &manager, AllBands &bands, int blockOffset, int currentFreq) {
     bool retval = false;
     for (auto &b : bands.values) {
         bool bits[8];
@@ -112,7 +112,15 @@ bool renderCheckboxes(ConfigManager &manager, AllBands &bands, int blockOffset) 
             }
             SmGui::SameLine();
         }
+        bool shouldPop = false;
+        if (currentFreq >= b.lowRange && currentFreq < b.highRange) {
+            SmGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0, 1.0f));
+            shouldPop = true;
+        }
         SmGui::Text(b.label.c_str());
+        if (shouldPop) {
+            SmGui::PopStyleColor(1);
+        }
     }
     return retval;
 }
@@ -127,12 +135,12 @@ int getBitsForBand(int frequency, bool tx) {
     return 0;
 }
 
-bool bandsEditor(ConfigManager &config) {
+bool bandsEditor(ConfigManager &config, bool isTx, int currentFreq) {
     SmGui::Text("Bands relays config");
     SmGui::Text("RX mode:");
-    auto changed = renderCheckboxes(config, rxBands, 1);
+    auto changed = renderCheckboxes(config, rxBands, 1, (!isTx) ? currentFreq: -1);
     SmGui::Text("TX mode:");
-    changed |= renderCheckboxes(config, txBands, 2);
+    changed |= renderCheckboxes(config, txBands, 2, (isTx) ? currentFreq: -1);
     return changed;
 }
 

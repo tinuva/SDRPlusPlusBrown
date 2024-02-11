@@ -241,7 +241,7 @@ namespace dsp {
                                 }
                             });
                             progress = "split ok";
-                            flog::info("ft8 read bytes: {} split {}", nrd, (int)thisResult.size());
+//                            flog::info("ft8 read bytes: {} split {}", nrd, (int)thisResult.size());
                             for (int q = nsent; q < thisResult.size(); q++) {
                                 std::vector<std::string> singleBroken;
                                 progress = "split small";

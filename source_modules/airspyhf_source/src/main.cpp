@@ -102,7 +102,7 @@ public:
 
         char buf[1024];
         for (int i = 0; i < n; i++) {
-            sprintf(buf, "%016" PRIX64, serials[i]);
+            snprintf(buf, sizeof buf, "%016" PRIX64, serials[i]);
             devList.push_back(serials[i]);
             devListTxt += buf;
             devListTxt += '\0';

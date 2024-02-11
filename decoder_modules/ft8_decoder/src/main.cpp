@@ -340,45 +340,7 @@ struct SingleDecoder {
     virtual void destroy();
     virtual double getBlockDuration() = 0;
 
-    void handleIFData(const std::vector<dsp::stereo_t>& data) {
-        long long int curtime = sigpath::iqFrontEnd.getCurrentStreamTime();
-        double blockNumber = floor((curtime / 1000.0) / getBlockDuration());
-        if (blockNumber != prevBlockNumber) {
-            flog::info("handleIFdata new block ({}) : {} ", getModeString(), blockNumber);
-            if (fullBlock) {
-                bool shouldStartProcessing = true;
-                std::shared_ptr<std::vector<dsp::stereo_t>> processingBlock;
-                processingBlock = fullBlock;
-                int currentlyRunning = blockProcessorsRunning.load();
-                if (currentlyRunning > 0) {
-                    shouldStartProcessing = false;
-                    flog::info("blockProcessorsRunning ({}) not starting: {}", getModeString(), currentlyRunning);
-
-                }
-                if (shouldStartProcessing) {
-                    // no processing is done.
-                    if (processingBlock->size() / VFO_SAMPLE_RATE > getBlockDuration()+1 || processingBlock->size() / VFO_SAMPLE_RATE <= getBlockDuration()-2) {
-                        flog::info("Block size ({}) is not matching: {}, curtime={}",
-                                     getModeString(),
-                                     (int64_t)(processingBlock->size() / VFO_SAMPLE_RATE),
-                                     (int64_t)curtime);
-                        processingBlock.reset(); // clear for new one
-                    } else {
-                        // block size is ok.
-                        startBlockProcessing(processingBlock, prevBlockNumber, vfoOffset + gui::waterfall.getCenterFrequency());
-                    }
-                }
-                fullBlock.reset();
-            }
-            prevBlockNumber = blockNumber;
-        }
-        if (!fullBlock) {
-            fullBlock = std::make_shared<std::vector<dsp::stereo_t>>();
-            fullBlock->reserve((getBlockDuration() + 1) * VFO_SAMPLE_RATE);
-        }
-        fullBlock->insert(std::end(*fullBlock), std::begin(data), std::end(data));
-        //        flog::info("{} Got {} samples: {}", blockNumber, data.size(), data[0].l);
-    }
+    void handleIFData(const std::vector<dsp::stereo_t>& data);
 
     void startBlockProcessing(const std::shared_ptr<std::vector<dsp::stereo_t>>& block, int blockNumber, int originalOffset);
 
@@ -1451,4 +1413,45 @@ MOD_EXPORT void _DELETE_INSTANCE_(void* instance) {
 MOD_EXPORT void _END_() {
     config.disableAutoSave();
     config.save();
+}
+
+
+void SingleDecoder::handleIFData(const std::vector<dsp::stereo_t>& data) {
+    long long int curtime = sigpath::iqFrontEnd.getCurrentStreamTime() ;
+    double blockNumber = floor((curtime / 1000.0) / getBlockDuration());
+    if (blockNumber != prevBlockNumber) {
+        flog::info("handleIFdata new block ({}) : {} ", getModeString(), blockNumber);
+        if (fullBlock) {
+            bool shouldStartProcessing = true;
+            std::shared_ptr<std::vector<dsp::stereo_t>> processingBlock;
+            processingBlock = fullBlock;
+            int currentlyRunning = blockProcessorsRunning.load();
+            if (currentlyRunning > 0) {
+                shouldStartProcessing = false;
+                flog::info("blockProcessorsRunning ({}) not starting: {}", getModeString(), currentlyRunning);
+
+            }
+            if (shouldStartProcessing) {
+                // no processing is done.
+                if (processingBlock->size() / VFO_SAMPLE_RATE > getBlockDuration()+1 || processingBlock->size() / VFO_SAMPLE_RATE <= getBlockDuration()-2) {
+                    flog::info("Block size ({}) is not matching: {}, curtime={}",
+                               getModeString(),
+                               (int64_t)(processingBlock->size() / VFO_SAMPLE_RATE),
+                               (int64_t)curtime);
+                    processingBlock.reset(); // clear for new one
+                } else {
+                    // block size is ok.
+                    startBlockProcessing(processingBlock, prevBlockNumber, vfoOffset + gui::waterfall.getCenterFrequency());
+                }
+            }
+            fullBlock.reset();
+        }
+        prevBlockNumber = blockNumber;
+    }
+    if (!fullBlock) {
+        fullBlock = std::make_shared<std::vector<dsp::stereo_t>>();
+        fullBlock->reserve((getBlockDuration() + 1) * VFO_SAMPLE_RATE);
+    }
+    fullBlock->insert(std::end(*fullBlock), std::begin(data), std::end(data));
+    //        flog::info("{} Got {} samples: {}", blockNumber, data.size(), data[0].l);
 }

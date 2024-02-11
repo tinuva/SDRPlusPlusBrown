@@ -12,6 +12,7 @@ namespace displaymenu {
 #endif
     extern Event<ImGuiContext *> onDisplayDraw;
     extern bool showBattery;
+    extern bool showClock;
     extern std::string currentBatteryLevel;
 
     extern enum TranscieverLayout {

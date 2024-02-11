@@ -69,6 +69,8 @@ public:
     std::string operatorCallsign; // callsign assigned to radio.
     std::string operatorLocation; // maidenhead
 
+    int secondsAdjustment = 0;  // adjust for ft8 decode when local time mismatches
+
 
 protected:
     std::atomic<long long> _currentStreamTime = 0; // unix time millis. 0 means realtime, otherwise simulated time.

@@ -2,7 +2,6 @@
 #include <imgui.h>
 #include <gui/gui.h>
 #include <core.h>
-#include <gui/main_window.h>
 #include <gui/style.h>
 #include <signal_path/signal_path.h>
 #include <utils/cty.h>
@@ -157,6 +156,10 @@ namespace sourcemenu {
         std::copy(opcs.begin(), opcs.end(), operatorCallsignRaw);
         callsignFound = utils::globalCty.findCallsign(operatorCallsignRaw);
 
+        if (core::configManager.conf.contains("secondsAdjustment")) {
+            sigpath::iqFrontEnd.secondsAdjustment = core::configManager.conf["secondsAdjustment"];
+        }
+
         sigpath::iqFrontEnd.operatorCallsign.reserve(30);
         if (callsignFound.dxccname != "") {
             sigpath::iqFrontEnd.operatorCallsign = operatorCallsignRaw;
@@ -297,6 +300,13 @@ namespace sourcemenu {
         } else {
             ImGui::Text("Invalid");
         }
+
+        if (ImGui::SliderInt("Time correction", &sigpath::iqFrontEnd.secondsAdjustment, -15, 15, "%d sec")) {
+            core::configManager.acquire();
+            core::configManager.conf["secondsAdjustment"] = sigpath::iqFrontEnd.secondsAdjustment;
+            core::configManager.release(true);
+        }
+
 
     }
 }

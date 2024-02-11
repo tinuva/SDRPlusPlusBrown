@@ -338,5 +338,5 @@ long long IQFrontEnd::getCurrentStreamTime() {
     if (ctm == 0) {
         ctm = currentTimeMillis();
     }
-    return ctm;
+    return ctm + secondsAdjustment * 1000L;
 }
