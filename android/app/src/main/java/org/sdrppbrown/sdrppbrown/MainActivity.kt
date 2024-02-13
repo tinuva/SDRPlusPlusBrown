@@ -23,6 +23,7 @@ import android.media.AudioManager
 import android.media.ToneGenerator
 import android.net.Uri
 import android.os.BatteryManager
+import android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -59,6 +60,7 @@ class MainActivity : NativeActivity(), SensorEventListener {
     public var SDR_PID: Int = -1;
     public var SDR_FD: Int = -1;
     public var density: Float = 1.0f;
+    var batteryManager: BatteryManager? = null;
 
     private val usbReceiver = object : BroadcastReceiver() {
         var devList: HashMap<String, UsbDevice> = HashMap<String, UsbDevice>();
@@ -320,7 +322,7 @@ class MainActivity : NativeActivity(), SensorEventListener {
 
         registerReceiver(this.batteryBroadcastReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
-
+        batteryManager = getSystemService(BATTERY_SERVICE) as BatteryManager
         proceedWithPermissions();
     }
 
@@ -488,8 +490,8 @@ class MainActivity : NativeActivity(), SensorEventListener {
     }
 
     fun getBatteryLevel(): String {
-        // Register for battery updates
-        return batteryStatusStr;
+        return batteryManager?.getIntProperty(BATTERY_PROPERTY_CAPACITY)?.toString()?:"n/a";
+//        return batteryStatusStr;
     }
 
 

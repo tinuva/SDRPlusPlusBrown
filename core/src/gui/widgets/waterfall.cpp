@@ -1140,7 +1140,7 @@ namespace ImGui {
         if (bandplan != NULL && bandplanVisible) {
             drawBandPlan();
         }
-        if (displaymenu::showClock) {
+        if (displaymenu::showClock && !quiet) {
             auto streamTime = sigpath::iqFrontEnd.getCurrentStreamTime();
             const time_t epochTime = streamTime / 1000;
 

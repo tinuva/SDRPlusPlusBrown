@@ -5,6 +5,7 @@
 #include <gui/gui.h>
 #include <imgui_internal.h>
 #include <imgui.h>
+#include <implot/implot.h>
 #include <cstdio>
 #include <thread>
 #include <algorithm>
@@ -40,6 +41,7 @@ float trxAudioSampleRate = 48000;
 
 const char *RecordCallCQPopup = "Record CallCQ";
 const char *TxModePopup = "TX/RX Mode Select";
+const char * ScanSWRPopup = "Scan SWR";
 const char *LogBookEntryPopup = "Logbook Entry";
 const char *LogBookDetailsPopup = "Logbook Details";
 
@@ -1264,6 +1266,18 @@ struct QSOAudioRecorder {
     }
 };
 
+struct ScanningSWRData {
+    constexpr static long long SCAN_STEP_TIME = 50LL;
+    int scanDelta;
+    int scanLoFrequency, scanHiFrequency, scanCurrentFrequency;
+    long long nextScanStepTime;
+    int returnFrequency;
+    std::vector<float> swrAccumulated;
+    std::vector<float> scannedFrequency;
+    std::vector<float> scannedSWR;
+    bool canPlotChart;
+};
+
 struct MobileMainWindowPrivate {
     MobileMainWindow *pub;
 
@@ -1273,6 +1287,8 @@ struct MobileMainWindowPrivate {
     int logbookDetailsEditIndex = -1;
     QSORecord editableRecord;
     std::vector<dsp::stereo_t> callCq;
+
+    ScanningSWRData ssdata;
 
     MobileMainWindowPrivate() : player("main_window_qso_record_player"), callCQlayer("call_cq_preview") {
     }
@@ -1904,7 +1920,7 @@ void MobileMainWindow::draw() {
     auto vertPadding = ImGui::GetStyle().WindowPadding.y;
 
 
-    MobileButton *buttonsDefault[] = {&this->qsoButton, &this->zoomToggle, &this->modeToggle, /*&this->autoWaterfall,*/ &this->audioConfigToggle, &this->smallWheelFunction /*&this->bandUp, &this->bandDown, &this->submodeToggle,*/ };
+    MobileButton *buttonsDefault[] = {&this->qsoButton, &this->modeToggle, /*&this->autoWaterfall,*/ &this->audioConfigToggle, &this->smallWheelFunction /*&this->bandUp, &this->bandDown, &this->submodeToggle,*/ };
     MobileButton *buttonsQso[] = {&this->endQsoButton,
 #ifndef __ANDROID__
                                   &this->txButton, // on android, volume button works as PTT
@@ -2068,25 +2084,6 @@ void MobileMainWindow::draw() {
 
     ImGui::End();
 
-    auto makeZoom = [&](int selectedIndex) {
-        zoomToggle.upperText = zooms[selectedIndex].first;
-        updateWaterfallZoomBandwidth(zooms[selectedIndex].second);
-        double wfBw = gui::waterfall.getBandwidth();
-        auto nbw = wfBw;
-        if (zooms[selectedIndex].second != 0) {
-            nbw = zooms[selectedIndex].second;
-        }
-        if (nbw > wfBw) {
-            nbw = wfBw;
-        }
-        gui::waterfall.setViewBandwidth(nbw);
-        if (vfo) {
-            gui::waterfall.setViewOffset(vfo->centerOffset); // center vfo on screen
-        }
-    };
-    if (this->zoomToggle.isLongPress()) {
-        makeZoom(0);
-    }
     if (this->callCQ.isLongPress()) {
         if (!ImGui::IsPopupOpen(RecordCallCQPopup)) {
             ImGui::OpenPopup(RecordCallCQPopup);
@@ -2096,13 +2093,28 @@ void MobileMainWindow::draw() {
         gui::waterfall.autoRange();
     }
     if (pressedButton == &this->callCQ) {
-        if (sigpath::transmitter && !qsoPanel->transmitting) {
-            if (!pvt->callCQlayer.playing) {
-                auto root = (std::string) core::args["root"];
-                pvt->callCQlayer.loadFile(root + "/call_cq.wav");
-                pvt->beginPlay();
-            } else {
+        if (sigpath::transmitter) {
+            flog::info("transmitting: {} cq playing: {}", qsoPanel->transmitting, pvt->callCQlayer.playing);
+            if (!qsoPanel->transmitting && !pvt->callCQlayer.playing) {
+                auto root = (std::string)core::args["root"];
+                if (pvt->callCQlayer.loadFile(root + "/call_cq.wav")) {
+                    pvt->beginPlay();
+                }
+            } else if (qsoPanel->transmitting && pvt->callCQlayer.playing) {
                 pvt->callCQlayer.stopPlaying();
+            } else if (qsoPanel->transmitting && qsoPanel->audioInToTransmitter->tuneFrequency != 0) {
+                // tune in progress
+                this->pvt->ssdata.scanLoFrequency = (int)(currentFreq - 150000);
+                this->pvt->ssdata.scanHiFrequency = (int)(currentFreq + 150000);
+                this->pvt->ssdata.scanCurrentFrequency = this->pvt->ssdata.scanLoFrequency;
+                this->pvt->ssdata.nextScanStepTime = currentTimeMillis() + ScanningSWRData::SCAN_STEP_TIME;
+                this->pvt->ssdata.scanDelta = (this->pvt->ssdata.scanHiFrequency - this->pvt->ssdata.scanLoFrequency) / (5000 / ScanningSWRData::SCAN_STEP_TIME);
+                this->pvt->ssdata.scannedSWR.clear();
+                this->pvt->ssdata.scannedFrequency.clear();
+                this->pvt->ssdata.canPlotChart = false;
+                sigpath::transmitter->setTransmitFrequency(this->pvt->ssdata.scanCurrentFrequency);
+                ImGui::OpenPopup(ScanSWRPopup);
+
             }
         }
     }
@@ -2144,17 +2156,6 @@ void MobileMainWindow::draw() {
             this->encoder.enabled = true;
         }
     }
-    if (pressedButton == &this->zoomToggle) {
-        int selectedIndex = -1;
-        for (auto q = 0; q < zooms.size(); q++) {
-            if (zooms[q].first == zoomToggle.upperText) {
-                selectedIndex = q;
-                break;
-            }
-        }
-        selectedIndex = int((selectedIndex + 1) % zooms.size());
-        makeZoom(selectedIndex);
-    }
 
     if (pressedButton == &this->modeToggle) {
         ImGui::OpenPopup(TxModePopup);
@@ -2185,16 +2186,7 @@ void MobileMainWindow::draw() {
 //    qsoPanel->setModeSubmode(modeToggle.upperText, submodeToggle.upperText);
     if (sigpath::transmitter && qsoPanel->triggerTXOffEvent <= 0) { // transiver exists, and TX is not in handing off state
         if (pressedButton == &this->softTune) {
-            if (qsoPanel->audioInToTransmitter) {
-                // tuning, need to stop
-                qsoPanel->handleTxButton(vfo, false, true, &qsoPanel->audioInProcessed);
-#define SOFT_TUNE_LABEL "SoftTune"
-                pressedButton->buttonText = SOFT_TUNE_LABEL;
-            } else {
-                // need to start
-                qsoPanel->handleTxButton(vfo, true, true, &qsoPanel->audioInProcessed);
-                pressedButton->buttonText = "Tuning..";
-            }
+            this->softTunePressed(vfo);
         }
         bool txPressed = txStateByButton || txButton.currentlyPressed || ((ImGui::IsKeyDown(ImGuiKey_VolumeUp) || ImGui::IsKeyDown(ImGuiKey_Insert)) && (qsoMode == VIEW_QSO || (qsoMode == VIEW_CONFIG && prevMode == VIEW_QSO)));
         if (txStateByButton && txButton.buttonText != "TX ON") {
@@ -2242,7 +2234,7 @@ void MobileMainWindow::draw() {
     }
 
     this->logbookDetailsPopup();
-
+    this->scanSWRPopup(vfo);
 
     if (ImGui::BeginPopupModal(TxModePopup, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImVec2 screenSize = io.DisplaySize;
@@ -2453,9 +2445,21 @@ const std::string &MobileMainWindow::getBand(int frequency) {
     return empty;
 }
 
+void MobileMainWindow::softTunePressed(ImGui::WaterfallVFO *vfo) {
+    if (qsoPanel->audioInToTransmitter) {
+        // tuning, need to stop
+        qsoPanel->handleTxButton(vfo, false, true, &qsoPanel->audioInProcessed);
+#define SOFT_TUNE_LABEL "SoftTune"
+        this->softTune.buttonText = SOFT_TUNE_LABEL;
+    } else {
+        // need to start
+        qsoPanel->handleTxButton(vfo, true, true, &qsoPanel->audioInProcessed);
+        this->softTune.buttonText = "Tuning..";
+    }
+}
+
 
 MobileMainWindow::MobileMainWindow() : MainWindow(),
-                                       zoomToggle("custom", "Zoom"),
                                        smallWheelFunction("", smallWheelFunctionName(0)),
                                        audioConfigToggle("", "Audio Cfg"),
                                        autoWaterfall("", "Waterfall!"),
@@ -2495,6 +2499,8 @@ void MobileMainWindow::init() {
     getConfig("showAudioWaterfall", drawAudioWaterfall);
     getConfig("logbookPopupPosition_x", logbookPopupPosition.x);
     getConfig("logbookPopupPosition_y", logbookPopupPosition.y);
+    getConfig("scanSWRPosition_x", scanSWRPopupPosition.x);
+    getConfig("scanSWRPosition_y", scanSWRPopupPosition.y);
     getConfig("buttonsWidthScale", buttonsWidthScale);
     getConfig("encoderWidth", encoderWidth);
 
@@ -2618,6 +2624,65 @@ void MobileMainWindow::updateDXInfo() {
     }
 }
 
+void MobileMainWindow::scanSWRPopup(ImGui::WaterfallVFO *vfo) {
+    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize * 0.5, ImGuiCond_Always);
+
+    bool renderPopup = ImGui::BeginPopupModal(ScanSWRPopup, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    if (renderPopup) {
+        if (!(ImGui::GetWindowPos().x == scanSWRPopupPosition.x && ImGui::GetWindowPos().y == scanSWRPopupPosition.y)) {
+            scanSWRPopupPosition = ImGui::GetWindowPos();
+            setConfig("scanSWRPosition_x", scanSWRPopupPosition.x);
+            setConfig("scanSWRPosition_y", scanSWRPopupPosition.y);
+        }
+
+        ImGui::Text("Scanning SWR:");
+
+        pvt->ssdata.swrAccumulated.emplace_back(sigpath::transmitter->getTransmitSWR());
+
+        if (currentTimeMillis() > pvt->ssdata.nextScanStepTime && qsoPanel->transmitting) {
+            float minn = 20.0;
+            for(auto q: pvt->ssdata.swrAccumulated) {
+                if (q < minn) {
+                    minn = q;
+                }
+            }
+            pvt->ssdata.swrAccumulated.clear();
+            pvt->ssdata.scannedFrequency.emplace_back(pvt->ssdata.scanCurrentFrequency);
+            pvt->ssdata.scannedSWR.emplace_back(minn);
+            pvt->ssdata.nextScanStepTime = currentTimeMillis() + pvt->ssdata.SCAN_STEP_TIME;
+            pvt->ssdata.scanCurrentFrequency += pvt->ssdata.scanDelta;
+            if (pvt->ssdata.scanCurrentFrequency > pvt->ssdata.scanHiFrequency) {
+                this->softTunePressed(vfo); // stop scanning
+                pvt->ssdata.canPlotChart = true;
+            } else {
+                sigpath::transmitter->setTransmitFrequency(pvt->ssdata.scanCurrentFrequency);
+            }
+        }
+        if (pvt->ssdata.canPlotChart) {
+            if (ImPlot::BeginPlot("SWR Plots")) {
+                ImPlot::SetupAxes("freq", "swr");
+                ImPlot::SetupAxisFormat(ImAxis_X1, [] (double value, char* buff, int size, void* user_data)->int {
+                    int v = (int)value;
+                    snprintf(buff, (size_t)size, "%d", v);
+                    return strlen(buff);
+                }); // Tell ImPlot to use the format function
+                ImPlot::PlotLine("swr", pvt->ssdata.scannedFrequency.data(), pvt->ssdata.scannedSWR.data(), pvt->ssdata.scannedSWR.size());
+                ImPlot::EndPlot();
+            }
+        }
+
+
+        if (doFingerButton("Cancel")) {
+            pvt->player.stopPlaying();
+            ImGui::CloseCurrentPopup();
+        }
+
+
+
+        ImGui::EndPopup();
+    }
+}
+
 void MobileMainWindow::logbookDetailsPopup() {
     bool renderPopup = ImGui::BeginPopupModal(LogBookDetailsPopup, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     if (renderPopup) {
@@ -2626,8 +2691,6 @@ void MobileMainWindow::logbookDetailsPopup() {
             setConfig("logbookPopupPosition_x", logbookPopupPosition.x);
             setConfig("logbookPopupPosition_y", logbookPopupPosition.y);
         }
-
-        ImGuiIO &io = ImGui::GetIO();
 
         ImGui::Text("QSO data entered:");
         QSORecord &record = qsoRecords[pvt->logbookDetailsEditIndex];
@@ -2729,6 +2792,7 @@ void MobileMainWindowPrivate::recordCallCQPopup() {
             }
             ImGui::CloseCurrentPopup();
         }
+        ImGui::EndPopup();
     }
 }
 

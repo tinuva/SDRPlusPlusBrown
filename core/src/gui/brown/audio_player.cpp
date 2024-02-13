@@ -22,7 +22,9 @@ void AudioPlayer::draw() {
         }
         char formatt[100];
         snprintf(formatt, sizeof(formatt), "%%.1f / %.1f seconds", end);
-        if (ImGui::SliderFloat("", &position, 0, end, formatt)) {
+        char idS[100];
+        snprintf(idS, sizeof idS, "##player_%s", id.c_str());
+        if (ImGui::SliderFloat(idS, &position, 0, end, formatt)) {
             dataPosition = position * sampleRate;
             if (dataPosition >= data->size()) {
                 dataPosition = (int64_t)data->size() - 4096;
@@ -104,11 +106,12 @@ void AudioPlayer::startPlaying() {
     }
 
 }
-void AudioPlayer::loadFile(const std::string& path) {
+bool AudioPlayer::loadFile(const std::string& path) {
     this->data = &this->dataOwn;
     wav::Reader reader(path);
     if (!reader.isValid()) {
         error = "WAV read error: "+reader.error;
+        return false;
     } else {
         this->sampleRate = reader.getSampleRate();
         std::vector<dsp::stereo_t> buffer;
@@ -124,6 +127,7 @@ void AudioPlayer::loadFile(const std::string& path) {
                 break;
             }
         }
+        return !buffer.empty();
     }
 
 }

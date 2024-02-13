@@ -17,6 +17,7 @@ Thanks and due respect to:
 * logmmse/python authors for their great [work](https://github.com/wilsonchingg/logmmse).
 * OMLSA authors for their great [idea](https://github.com/yuzhouhe2000/OMLSA-IMCRA) and [implementation](https://github.com/xiaochunxin/OMLSA-MCRA).
 * imgui-notify author for his great [work](https://github.com/patrickcjk/imgui-notify)
+* implot author for his great [work](https://github.com/epezent/implot/)
 
 ## Feedback
 

@@ -955,7 +955,7 @@ private:
 
     void transmitCW(int frequency) {
         char buf[1024];
-        sprintf(buf, "CQ CQ DE %s %s K", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorCallsign.c_str());
+        snprintf(buf, sizeof buf, "CQ CQ DE %s %s K", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorCallsign.c_str());
         const std::string morse = " " +convertToMorseCode(buf)+ " " ;
 
         auto ditDuration = 60 * 1000 / (50 * gui::mainWindow.cwWPM);

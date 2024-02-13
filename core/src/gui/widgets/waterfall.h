@@ -176,6 +176,7 @@ namespace ImGui {
         std::map<std::string, WaterfallVFO*> vfos;
         std::string selectedVFO = "";
         bool selectedVFOChanged = false;
+        bool quiet = false;
 
         struct FFTRedrawArgs {
             ImVec2 min;

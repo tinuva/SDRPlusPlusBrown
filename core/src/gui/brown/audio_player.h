@@ -26,7 +26,7 @@ struct AudioPlayer {
         splitter.init(&outStream);
         splitter.bindStream(&splitterOut);
     }
-    void loadFile(const std::string &path);
+    bool loadFile(const std::string &path);
     void setData(std::vector<dsp::stereo_t> *data, uint32_t sampleRate);
     void draw();
     void startPlaying();

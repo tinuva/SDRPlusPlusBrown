@@ -111,6 +111,7 @@ SubWaterfall::SubWaterfall(int sampleRate, int wfrange, const std::string & lbl)
     pvt->lbl = lbl;
     pvt->hiFreq = wfrange;
     pvt->waterfall.WATERFALL_NUMBER_OF_SECTIONS = 5;
+    pvt->waterfall.quiet = true;
     pvt->fftSize = pvt->hiFreq / pvt->waterfallRate;
     pvt->waterfall.setRawFFTSize(pvt->fftSize);
     pvt->waterfall.setBandwidth(2 * pvt->hiFreq);

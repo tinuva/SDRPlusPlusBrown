@@ -170,8 +170,8 @@ public:
                     //                    ImGui::SetCursorScreenPos(ImVec2(origin.x + posX, origin.y + ImGui::GetTextLineHeight()));
                     //                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%.2f", maxValue);
                 }
+                ImGui::EndChild();
             }
-            ImGui::End();
         }
 
         void draw() {
@@ -179,7 +179,7 @@ public:
                 stop();
             }
             if (!started) {
-                ImGui::TextUnformatted(loc.c_str());
+//                ImGui::TextUnformatted(loc.c_str());
                 if (peaks.empty()) {
                     ImGui::TextUnformatted(("KiwiSDR: " + url).c_str());
                     ImGui::TextUnformatted("Auto STOP in 15 sec");
@@ -221,10 +221,10 @@ public:
                     const ImVec2 savePos = ImGui::GetCursorPos();
                     //                        ImGui::TextUnformatted("Inside child");
                     wf->draw();
-                    ImGui::SetCursorPos(savePos);
-                    doRightText(url);
-                    doRightText(loc);
-                    doRightText(client->connectionStatus);
+//                    ImGui::SetCursorPos(savePos);
+//                    doRightText(url);
+//                    doRightText(loc);
+//                    doRightText(client->connectionStatus);
                     ImGui::EndChild();
                 }
             }

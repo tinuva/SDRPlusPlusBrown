@@ -250,7 +250,7 @@ private:
             }
             else {
                 char buf[1024];
-                sprintf(buf, "%s [%08X]", deviceTypesStr[client->devInfo.DeviceType], client->devInfo.DeviceSerial);
+                snprintf(buf, sizeof buf, "%s [%08X]", deviceTypesStr[client->devInfo.DeviceType], client->devInfo.DeviceSerial);
                 devRef = std::string(buf);
 
                 config.acquire();

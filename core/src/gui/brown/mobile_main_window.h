@@ -66,7 +66,6 @@ class MobileMainWindow : public MainWindow {
 public:
     TheEncoder encoder;
     TheEncoder smallEncoder;
-    MobileButton zoomToggle;
     MobileButton autoWaterfall;
     MobileButton audioConfigToggle;
     MobileButton smallWheelFunction;
@@ -215,14 +214,6 @@ public:
         { "2M_SSTV", 144550 }
     };
 
-    std::vector<std::pair<std::string, float>> zooms = {
-        {"Full", 0.0},
-        {"100 KHz", 100000},
-        {"50 KHz", 50000},
-        {"25 KHz", 250000},
-        {"10 KHz", 10000},
-        {"3 KHz", 3000},
-    };
     MobileMainWindow();
     void draw() override;
     void init() override;
@@ -245,8 +236,10 @@ public:
 
 
     ImVec2 logbookPopupPosition = ImVec2(0, 0);
+    ImVec2 scanSWRPopupPosition = ImVec2(0, 0);
     void logbookEntryPopup(int frequency);
     void logbookDetailsPopup();
+    void scanSWRPopup(ImGui::WaterfallVFO *vfo);
 
     void maybeTransmit(std::shared_ptr<std::vector<dsp::stereo_t>> sharedPtr, std::function<void()> txStart, std::function<void()> txEnd);
 
@@ -275,4 +268,5 @@ public:
     void maybeAddBookmark(std::string dx, double frequency, std::string submode, double bandwidth, bool worked);
 
     std::string maybeFindBookmark(double d, std::string basicString, double d1);
+    void softTunePressed(ImGui::WaterfallVFO *vfo);
 };
