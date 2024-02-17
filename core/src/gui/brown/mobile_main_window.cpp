@@ -1755,6 +1755,7 @@ void MobileMainWindow::draw() {
     statusBuf[0] = 0;
 #ifdef __ANDROID__
     if (displaymenu::showBattery) {
+        displaymenu::currentBatteryLevel = backend::getBatteryLevel();
         snprintf(statusBuf + strlen(statusBuf), sizeof(statusBuf) - strlen(statusBuf), "BATT %s %% |", displaymenu::currentBatteryLevel.c_str());
     }
 #endif

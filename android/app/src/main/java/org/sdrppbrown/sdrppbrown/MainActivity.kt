@@ -197,17 +197,20 @@ class MainActivity : NativeActivity(), SensorEventListener {
     }
 
     fun proceedWithPermissions() {
-
+        Log.w("SDR++", "PERM: Proceed with permissions...")
         if (REQUIRED_PERMISSIONS.all {
             ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
         }) {
+            Log.w("SDR++", "PERM: All REQUIRED_PERMISSIONS passed..")
             this.permissionsPassed.add(PERMISSION_REQUEST_CODE);
         }
         if (permissionsPassed.contains(PERMISSION_REQUEST_CODE)) {
+            Log.w("SDR++", "PERM: Requesting REQUIRED_PERMISSIONS..")
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSION_REQUEST_CODE);
             return;
         }
         if (!permissionsPassed.contains(PERMISSION_REQUEST_CODE+1)) {
+            Log.w("SDR++", "PERM: Requesting USB permissions..")
             // USB stuff
             usbManager = getSystemService(USB_SERVICE) as UsbManager;
             val filter = IntentFilter(ACTION_USB_PERMISSION)
@@ -215,13 +218,13 @@ class MainActivity : NativeActivity(), SensorEventListener {
 
 
             // Get permission for all USB devices
-            usbReceiver.devList = usbManager!!.getDeviceList();
-//        Log.w("SDR++", "Dev list size: " + devList.size.toString())
+            usbReceiver.devList = usbManager!!.deviceList;
+            Log.w("SDR++", "PERM: Dev list size: " + usbReceiver.devList.size.toString())
 
             val permissionIntent = makeUsbPermissionIntent()
 
             for ((name, dev) in usbReceiver.devList) {
-                Log.w("SDR++", "Dev list item: $name $dev")
+                Log.w("SDR++", "PERM: Dev list item: $name $dev")
                 val prodName = dev.productName?.toUpperCase(Locale.US) ?: ""
                 if (prodName.indexOf("Network") != -1
                     || prodName.indexOf("LAN") != -1
@@ -230,28 +233,32 @@ class MainActivity : NativeActivity(), SensorEventListener {
                 )
                 // ignore LAN device.
                     continue
+                Log.w("SDR++", "PERM: Req USB perm: $dev")
                 usbManager!!.requestPermission(dev, permissionIntent);
                 return
             }
+            Log.w("SDR++", "PERM: End req all USB perm:")
             permissionsPassed.add(PERMISSION_REQUEST_CODE+1)
         }
 
         if (!permissionsPassed.contains(PERMISSION_REQUEST_CODE+2)) {
             // filesystem crap
+            Log.w("SDR++", "PERM: Req ext storage.. testing")
             val externalStorageDirectory = Environment.getExternalStorageDirectory()
             val testFile = File(externalStorageDirectory, "sdrppbrown.test")
-            Log.w("SDR++", "Trying Test file: $testFile")
+            Log.w("SDR++", "PERM Trying Test file: $testFile")
             var success = false;
             try {
                 testFile.delete()
                 success = testFile.createNewFile()
             } catch (e: java.lang.Exception) {
-                Log.w("SDR++", "Test file create: Exception: ${e.message}")
+                Log.w("SDR++", "PERM Test file create: Exception: ${e.message}")
                 // no luck
             }
             if (success) {
                 testFile.delete()
             } else {
+                Log.w("SDR++", "PERM: Requesting ext storage.")
                 val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
                 val uri: Uri = Uri.fromParts("package", packageName, null)
                 intent.data = uri
@@ -275,10 +282,12 @@ class MainActivity : NativeActivity(), SensorEventListener {
         grantResults: IntArray
     ) {
         if (requestCode > PERMISSION_REQUEST_CODE && requestCode < PERMISSION_REQUEST_CODE + 10) {
+            Log.w("SDR++", "PERM: got perm response: $requestCode", )
             this.permissionsPassed.add(requestCode);
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (autoPermissionProceed) {
+            Log.w("SDR++", "PERM: auto proceed", )
             proceedWithPermissions();
         }
     }

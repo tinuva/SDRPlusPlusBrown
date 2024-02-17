@@ -14,6 +14,8 @@
 
 #define MAX_COMMAND_LENGTH 8192
 
+
+
 SDRPP_MOD_INFO{
     /* Name:            */ "tci_server",
     /* Description:     */ "Implementing TCI",
@@ -28,7 +30,7 @@ enum {
 };
 
 static const char* initStr = "2023/01/21 15:15:48 < protocol:esdr,1.6;\n"
-                             "2023/01/21 15:15:48 < device:SDR++;\n"
+                             "2023/01/21 15:15:48 < device:SDRPlusPlusBrown;\n"
                              "2023/01/21 15:15:48 < receive_only:false;\n"
                              "2023/01/21 15:15:48 < trx_count:1;\n"
                              "2023/01/21 15:15:48 < channels_count:2;\n"

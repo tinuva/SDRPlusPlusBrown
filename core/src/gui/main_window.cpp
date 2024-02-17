@@ -32,12 +32,6 @@
 #include <gui/tuner.h>
 #include <dsp/buffer/buffer.h>
 
-#ifdef __ANDROID__
-namespace backend {
-    extern void doPermissionsDialogs();
-    extern std::string getBatteryLevel();
-}
-#endif
 
 void MainWindow::init() {
     LoadingScreen::show("Initializing UI");

@@ -62,6 +62,31 @@ inline uint64_t htobe64(uint64_t host_64bits) {
 #endif
 
 
+#ifdef __APPLE__
+
+#include <libkern/OSByteOrder.h>
+
+uint64_t htobe64(uint64_t value) {
+    return OSSwapHostToBigInt64(value);
+}
+
+uint16_t be16toh(uint16_t value) {
+    return OSSwapBigToHostInt16(value);
+}
+
+uint64_t be64toh(uint64_t value) {
+    return OSSwapBigToHostInt64(value);
+}
+
+uint32_t be32toh(uint32_t value) {
+    return OSSwapBigToHostInt32(value);
+}
+
+uint16_t htobe16(uint16_t z) {
+    return htons(z);
+}
+#endif
+
 namespace websocket {
 
     template <uint32_t RecvBufSize>
