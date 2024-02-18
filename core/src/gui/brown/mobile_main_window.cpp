@@ -3018,81 +3018,91 @@ void QSOPanel::startAudioPipeline() {
 
         while (true) {
             int rd = audioIn.read();
-            //            flog::info("audioIn.read() = {}", rd);
+
             if (rd < 0) {
                 flog::info("Breaking the tx audio in loop");
                 break;
             }
-            configPanel->rawInDecibels.addSamples(audioIn.readBuf, rd);
-            if (configPanel->lowPass != prevLowPass) {
-                dsp::taps::free(lopassTaps);
-                lopassTaps = dsp::taps::lowPass0<float>(configPanel->lowPass, 200, trxAudioSampleRate);
-                lopass.setTaps(lopassTaps);
-                prevLowPass = configPanel->lowPass;
+
+            bool mustProcess = gui::mainWindow.qsoMode == MobileMainWindow::VIEW_CONFIG || this->transmitting || displaymenu::showMicHistogram;
+
+            if (mustProcess) {
+
+                configPanel->rawInDecibels.addSamples(audioIn.readBuf, rd);
+                if (configPanel->lowPass != prevLowPass) {
+                    dsp::taps::free(lopassTaps);
+                    lopassTaps = dsp::taps::lowPass0<float>(configPanel->lowPass, 200, trxAudioSampleRate);
+                    lopass.setTaps(lopassTaps);
+                    prevLowPass = configPanel->lowPass;
+                }
+                if (configPanel->highPass != prevHighPass) {
+                    dsp::taps::free(hipassTaps);
+                    hipassTaps = dsp::taps::highPass0<dsp::complex_t>(configPanel->highPass, 300, trxAudioSampleRate);
+                    hipass.setTaps(hipassTaps);
+                    prevHighPass = configPanel->highPass;
+                }
+                configPanel->s2m.process(rd, audioIn.readBuf, configPanel->s2m.out.writeBuf);
             }
-            if (configPanel->highPass != prevHighPass) {
-                dsp::taps::free(hipassTaps);
-                hipassTaps = dsp::taps::highPass0<dsp::complex_t>(configPanel->highPass, 300, trxAudioSampleRate);
-                hipass.setTaps(hipassTaps);
-                prevHighPass = configPanel->highPass;
-            }
-            configPanel->s2m.process(rd, audioIn.readBuf, configPanel->s2m.out.writeBuf);
 
             audioIn.flush();
 
-            configPanel->r2c.process(rd, configPanel->s2m.out.writeBuf, configPanel->r2c.out.writeBuf);
+            if (mustProcess) {
+                configPanel->r2c.process(rd, configPanel->s2m.out.writeBuf, configPanel->r2c.out.writeBuf);
 
-            if (configPanel->hissAdd) {
-                configPanel->highPassForS.process(rd, configPanel->r2c.out.writeBuf, configPanel->highPassForS.out.writeBuf);
-                configPanel->xlatorForS.process(rd, configPanel->highPassForS.out.writeBuf, configPanel->xlatorForS.out.writeBuf);
-                for (int q = 0; q < rd; q++) {
-                    //                    r2c.out.writeBuf[q] = xlatorForS.out.writeBuf[q];
-                    configPanel->r2c.out.writeBuf[q] = configPanel->r2c.out.writeBuf[q] * 0.5 + (configPanel->xlatorForS.out.writeBuf[q] * 2.5);
+                if (configPanel->hissAdd) {
+                    configPanel->highPassForS.process(rd, configPanel->r2c.out.writeBuf, configPanel->highPassForS.out.writeBuf);
+                    configPanel->xlatorForS.process(rd, configPanel->highPassForS.out.writeBuf, configPanel->xlatorForS.out.writeBuf);
+                    for (int q = 0; q < rd; q++) {
+                        //                    r2c.out.writeBuf[q] = xlatorForS.out.writeBuf[q];
+                        configPanel->r2c.out.writeBuf[q] = configPanel->r2c.out.writeBuf[q] * 0.5 + (configPanel->xlatorForS.out.writeBuf[q] * 2.5);
+                    }
                 }
-            }
 
 
-            hipass.process(rd, configPanel->r2c.out.writeBuf, hipass.out.writeBuf);
-            configPanel->highPassDecibels.addSamples(hipass.out.writeBuf, rd);
+                hipass.process(rd, configPanel->r2c.out.writeBuf, hipass.out.writeBuf);
+                configPanel->highPassDecibels.addSamples(hipass.out.writeBuf, rd);
 
-            if (configPanel->doEqualize) {
-                configPanel->equalizer.process(rd, hipass.out.writeBuf, configPanel->equalizer.out.writeBuf);
-                auto mult = pow(10, configPanel->compAmp / 20);
-                for (int i = 0; i < rd; i++) {
-                    configPanel->equalizer.out.writeBuf[i] *= mult;
+                if (configPanel->doEqualize) {
+                    configPanel->equalizer.process(rd, hipass.out.writeBuf, configPanel->equalizer.out.writeBuf);
+                    auto mult = pow(10, configPanel->compAmp / 20);
+                    for (int i = 0; i < rd; i++) {
+                        configPanel->equalizer.out.writeBuf[i] *= mult;
+                    }
                 }
-            } else {
-                memcpy(configPanel->equalizer.out.writeBuf, hipass.out.writeBuf, rd * sizeof(dsp::complex_t));
-            }
-            configPanel->equalizerDecibels.addSamples(configPanel->equalizer.out.writeBuf, rd);
-            if (configPanel->doFreqMaim) {
-                configPanel->freqMaim.process(rd, configPanel->equalizer.out.writeBuf, configPanel->freqMaim.out.writeBuf);
-            } else {
-                memcpy(configPanel->freqMaim.out.writeBuf, configPanel->equalizer.out.writeBuf, rd * sizeof(dsp::complex_t));
-            }
-            configPanel->c2r.process(rd, configPanel->freqMaim.out.writeBuf, configPanel->c2r.out.writeBuf);
-            configPanel->agc.process(rd, configPanel->c2r.out.writeBuf, configPanel->agc.out.writeBuf);
-            configPanel->agcDecibels.addSamples(configPanel->agc.out.writeBuf, rd);
-            configPanel->m2s.process(rd, configPanel->agc.out.writeBuf, configPanel->m2s.out.writeBuf);
-            configPanel->afnr->process(configPanel->m2s.out.writeBuf, rd, configPanel->afnr->out.writeBuf, rd);
-            configPanel->nrDecibels.addSamples(configPanel->afnr->out.writeBuf, rd);
-            if (configPanel->micSql) {
-                squelch.setLevel(configPanel->micSqlLevel);
-                squelch.process(rd, configPanel->afnr->out.writeBuf, configPanel->afnr->out.writeBuf);
-            }
-            lopass.process(rd, configPanel->afnr->out.writeBuf, audioProcessedOut.writeBuf);
-            if (rd > 0) {
-                configPanel->outDecibels.addSamples(audioProcessedOut.writeBuf, rd);
-            }
-            if (rd != 0) {
-                count += rd;
-                int64_t since = currentTimeMillis() - start;
-                if (since == 0) {
-                    since = 1;
+                else {
+                    memcpy(configPanel->equalizer.out.writeBuf, hipass.out.writeBuf, rd * sizeof(dsp::complex_t));
                 }
-                //                flog::info("audioInProcessedIn.swap({}), samples/sec {}, count {} since {}", rd, count * 1000/since, count, since);
-                if (!audioProcessedOut.swap(rd)) {
-                    break;
+                configPanel->equalizerDecibels.addSamples(configPanel->equalizer.out.writeBuf, rd);
+                if (configPanel->doFreqMaim) {
+                    configPanel->freqMaim.process(rd, configPanel->equalizer.out.writeBuf, configPanel->freqMaim.out.writeBuf);
+                }
+                else {
+                    memcpy(configPanel->freqMaim.out.writeBuf, configPanel->equalizer.out.writeBuf, rd * sizeof(dsp::complex_t));
+                }
+                configPanel->c2r.process(rd, configPanel->freqMaim.out.writeBuf, configPanel->c2r.out.writeBuf);
+                configPanel->agc.process(rd, configPanel->c2r.out.writeBuf, configPanel->agc.out.writeBuf);
+                configPanel->agcDecibels.addSamples(configPanel->agc.out.writeBuf, rd);
+                configPanel->m2s.process(rd, configPanel->agc.out.writeBuf, configPanel->m2s.out.writeBuf);
+                configPanel->afnr->process(configPanel->m2s.out.writeBuf, rd, configPanel->afnr->out.writeBuf, rd);
+                configPanel->nrDecibels.addSamples(configPanel->afnr->out.writeBuf, rd);
+                if (configPanel->micSql) {
+                    squelch.setLevel(configPanel->micSqlLevel);
+                    squelch.process(rd, configPanel->afnr->out.writeBuf, configPanel->afnr->out.writeBuf);
+                }
+                lopass.process(rd, configPanel->afnr->out.writeBuf, audioProcessedOut.writeBuf);
+                if (rd > 0) {
+                    configPanel->outDecibels.addSamples(audioProcessedOut.writeBuf, rd);
+                }
+                if (rd != 0) {
+                    count += rd;
+                    int64_t since = currentTimeMillis() - start;
+                    if (since == 0) {
+                        since = 1;
+                    }
+                    //                flog::info("audioInProcessedIn.swap({}), samples/sec {}, count {} since {}", rd, count * 1000/since, count, since);
+                    if (!audioProcessedOut.swap(rd)) {
+                        break;
+                    }
                 }
             }
         }
