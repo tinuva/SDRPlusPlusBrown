@@ -46,7 +46,7 @@ struct KiwiSDRClient {
         wsClient.onDisconnected = [&]() {
             connected = false;
             this->onDisconnected();
-            sprintf(connectionStatus, "Disconnected");
+            snprintf(connectionStatus, sizeof connectionStatus, "Disconnected");
         };
 
         wsClient.onConnected = [&]() {
@@ -93,7 +93,7 @@ struct KiwiSDRClient {
                 while (!times.empty() && times.front() < ctm - 2000) {
                     times.erase(times.begin());
                 }
-                sprintf(connectionStatus, "Receiving. %d KB/sec (%d)", (lastSecondCount * ((int)msg.size())) / 1024, lastSecondCount);
+                snprintf(connectionStatus, sizeof connectionStatus, "Receiving. %d KB/sec (%d)", (lastSecondCount * ((int)msg.size())) / 1024, lastSecondCount);
                 int IQ_HEADER_SIZE = 20;
                 int REAL_HEADER_SIZE = 10;
                 if (currentModulation == TUNE_REAL && msg.size() == 1024 + REAL_HEADER_SIZE) { // REAL data
@@ -105,7 +105,7 @@ struct KiwiSDRClient {
                     }
 
                     int16_t* ptr = (int16_t*)scan;
-                    sprintf(connectionStatus, "Storing real..");
+                    snprintf(connectionStatus, sizeof connectionStatus, "Storing real..");
                     iqDataLock.lock();
                     for (int z = 0; z < 512; z++) {
                         int16_t* iqsample = &ptr[z];
@@ -117,7 +117,7 @@ struct KiwiSDRClient {
                         iqData.erase(iqData.begin(), iqData.begin() + 200);
                     }
                     iqDataLock.unlock();
-                    sprintf(connectionStatus, "Cont Recv. %d KB/sec (%d)", (lastSecondCount * ((int)msg.size())) / 1024, lastSecondCount);
+                    snprintf(connectionStatus, sizeof connectionStatus, "Cont Recv. %d KB/sec (%d)", (lastSecondCount * ((int)msg.size())) / 1024, lastSecondCount);
                 }
                 if (currentModulation == TUNE_IQ && msg[3] == 0x08 && msg.size() == 2048 + IQ_HEADER_SIZE) { // IQ data
                     auto scan = msg.data();
@@ -159,12 +159,12 @@ struct KiwiSDRClient {
                 if (msg.size() >= 70) {
                     char buf[100];
                     for (int q = 3; q < 30; q++) {
-                        sprintf(buf, "%02x ", (unsigned char)msg[q]);
+                        snprintf(buf, sizeof buf,"%02x ", (unsigned char)msg[q]);
                         start += buf;
                     }
                     start += "... ";
                     for (int q = -20; q < 0; q++) {
-                        sprintf(buf, "%02x ", (unsigned char)msg[msg.size() - 1 + q]);
+                        snprintf(buf, sizeof buf,"%02x ", (unsigned char)msg[msg.size() - 1 + q]);
                         start += buf;
                     }
                 }

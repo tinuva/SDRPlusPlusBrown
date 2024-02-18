@@ -75,7 +75,7 @@ public:
             lms_device_t* dev = NULL;
             LMS_Open(&dev, devList[i], NULL);
             const lms_dev_info_t* info = LMS_GetDeviceInfo(dev);
-            sprintf(buf, "%s [%" PRIX64 "]", info->deviceName, info->boardSerialNumber);
+            snprintf(buf, sizeof buf, "%s [%" PRIX64 "]", info->deviceName, info->boardSerialNumber);
             LMS_Close(dev);
 
             devNames.push_back(buf);
@@ -123,7 +123,7 @@ public:
         channelCount = LMS_GetNumChannels(dev, false);
         char buf[32];
         for (int i = 0; i < channelCount; i++) {
-            sprintf(buf, "CH %d", i + 1);
+            snprintf(buf, sizeof buf, "CH %d", i + 1);
             channelNamesTxt += buf;
             channelNamesTxt += '\0';
         }
@@ -284,13 +284,13 @@ private:
     std::string getBandwdithScaled(double bw) {
         char buf[1024];
         if (bw >= 1000000.0) {
-            sprintf(buf, "%.1lfMHz", bw / 1000000.0);
+            snprintf(buf, sizeof buf, "%.1lfMHz", bw / 1000000.0);
         }
         else if (bw >= 1000.0) {
-            sprintf(buf, "%.1lfKHz", bw / 1000.0);
+            snprintf(buf, sizeof buf, "%.1lfKHz", bw / 1000.0);
         }
         else {
-            sprintf(buf, "%.1lfHz", bw);
+            snprintf(buf, sizeof buf, "%.1lfHz", bw);
         }
         return std::string(buf);
     }

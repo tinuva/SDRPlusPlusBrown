@@ -752,19 +752,19 @@ namespace websocket {
                             memcpy(wskey + 24, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11", 36);
                             char accept_str[32];
                             accept_str[sha1base64((uint8_t*)wskey, 24 + 36, accept_str)] = 0;
-                            resp_len = sprintf(resp,
+                            resp_len = snprintf(resp, sizeof resp,
                                                "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: "
                                                "Upgrade\r\nSec-WebSocket-Accept: %s\r\n",
                                                accept_str);
                         }
                         else {
-                            resp_len = sprintf(resp, "HTTP/1.1 403 Forbidden\r\nSec-WebSocket-Version: 13\r\n");
+                            resp_len = snprintf(resp, sizeof resp, "HTTP/1.1 403 Forbidden\r\nSec-WebSocket-Version: 13\r\n");
                         }
                         if (resp_wsprotocol[0])
-                            resp_len += sprintf(resp + resp_len, "Sec-WebSocket-Protocol: %s\r\n", resp_wsprotocol);
+                            resp_len += snprintf(resp + resp_len, sizeof resp - resp_len, "Sec-WebSocket-Protocol: %s\r\n", resp_wsprotocol);
                         if (resp_wsextensions[0])
-                            resp_len += sprintf(resp + resp_len, "Sec-WebSocket-Extensions: %s\r\n", resp_wsextensions);
-                        resp_len += sprintf(resp + resp_len, "\r\n");
+                            resp_len += snprintf(resp + resp_len, sizeof resp - resp_len, "Sec-WebSocket-Extensions: %s\r\n", resp_wsextensions);
+                        resp_len += snprintf(resp + resp_len, sizeof resp - resp_len, "\r\n");
                         conn.conn.write((uint8_t*)resp, resp_len);
                         handler->onWSConnected(conn, request_uri, host, origin[0] ? origin : nullptr, wsprotocol[0] ? wsprotocol : nullptr,
                                                wsextensions[0] ? wsextensions : nullptr, resp_wsprotocol, ValueBufSize, resp_wsextensions, ValueBufSize);

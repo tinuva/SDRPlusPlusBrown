@@ -81,7 +81,7 @@ namespace dsp {
             instanceCount = _cnt++;
 #ifdef __linux__
             char fname[256];
-            sprintf(fname, "/tmp/omlsa_in_%d.raw", instanceCount);
+            snprintf(fname, sizeof fname, "/tmp/omlsa_in_%d.raw", instanceCount);
 //            dumpIn = fopen(fname, "wb");
 #endif
         }

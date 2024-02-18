@@ -77,7 +77,7 @@ public:
         for (const auto& devAddr : devList) {
             std::string serial = devAddr["serial"];
             std::string model = devAddr.has_key("product") ? devAddr["product"] : devAddr["type"];
-            sprintf(buf, "USRP %s [%s]", model.c_str(), serial.c_str());
+            snprintf(buf, sizeof buf, "USRP %s [%s]", model.c_str(), serial.c_str());
             devices.define(serial, buf, devAddr);
         }
     }
@@ -108,7 +108,7 @@ public:
         auto subdevs = dev->get_rx_subdev_spec();
         for (int i = 0; i < subdevs.size(); i++) {
             std::string slot = subdevs[i].db_name;
-            sprintf(buf, "%s [%s]", dev->get_rx_subdev_name(i).c_str(), slot.c_str());
+            snprintf(buf, sizeof buf, "%s [%s]", dev->get_rx_subdev_name(i).c_str(), slot.c_str());
             channels.define(buf, buf, buf);
         }
 
@@ -238,7 +238,7 @@ private:
         //     sprintf(buf, "%.1lfKHz", bw / 1000.0);
         // }
         // else {
-            sprintf(buf, "%.1lfHz", bw);
+        snprintf(buf, sizeof buf, "%.1lfHz", bw);
         //}
         return std::string(buf);
     }

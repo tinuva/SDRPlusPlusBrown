@@ -391,7 +391,7 @@ private:
                 int srId = 0;
                 int _48kId = -1;
                 for (auto sr : dev.sampleRates) {
-                    sprintf(buffer, "%d", (int)sr);
+                    snprintf(buffer, sizeof buffer, "%d", (int)sr);
                     dev.sampleRatesTxt += buffer;
                     dev.sampleRatesTxt += '\0';
 
@@ -413,7 +413,7 @@ private:
             }
 #endif
                 // Create device name and save to list
-                sprintf(buffer, "%d. %s: [%s] %s", i, inout.c_str(), apiName.c_str(), dev.deviceInfo->name);
+                snprintf(buffer, sizeof buffer, "%d. %s: [%s] %s", i, inout.c_str(), apiName.c_str(), dev.deviceInfo->name);
                 d.devices[buffer] = dev;
                 d.deviceNames.push_back(buffer);
                 d.deviceNamesTxt += buffer;

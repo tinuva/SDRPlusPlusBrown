@@ -105,7 +105,7 @@ void QString::append(const char* s) {
     if (str->size() + strlen(s) > sizeof(buf) - 1) {
         abort();
     }
-    sprintf(buf, "%s%s", str->c_str(), s);
+    snprintf(buf, sizeof buf, "%s%s", str->c_str(), s);
     str = std::make_shared<std::string>(buf);
 
     mutated();
@@ -136,7 +136,7 @@ void QString::prepend(const char* s) {
     if (str->size() + strlen(s) > sizeof(buf) - 1) {
         abort();
     }
-    sprintf(buf, "%s%s", s, str->c_str());
+    snprintf(buf, sizeof buf, "%s%s", s, str->c_str());
     str = std::make_shared<std::string>(buf);
     mutated();
     verify();
@@ -146,7 +146,7 @@ void QString::append(char s) {
     if (str->size() + 1 > sizeof(buf) - 1) {
         abort();
     }
-    sprintf(buf, "%s%c", str->c_str(), s);
+    snprintf(buf, sizeof buf, "%s%c", str->c_str(), s);
     str = std::make_shared<std::string>(buf);
     mutated();
     verify();

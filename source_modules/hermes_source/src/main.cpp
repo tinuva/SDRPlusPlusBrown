@@ -80,8 +80,8 @@ private:
         devices.clear();
         auto devList = hermes::discover();
         for (auto& d : devList) {
-            sprintf(mac, "%02X%02X%02X%02X%02X%02X", d.mac[0], d.mac[1], d.mac[2], d.mac[3], d.mac[4], d.mac[5]);
-            sprintf(buf, "Hermes-Lite 2 [%s]", mac);
+            snprintf(mac, sizeof mac, "%02X%02X%02X%02X%02X%02X", d.mac[0], d.mac[1], d.mac[2], d.mac[3], d.mac[4], d.mac[5]);
+            snprintf(buf, sizeof buf, "Hermes-Lite 2 [%s]", mac);
             devices.define(mac, buf, d);
         }
     }

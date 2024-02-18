@@ -256,7 +256,7 @@ static void discover(struct ifaddrs* iface, const struct sockaddr_in *fixed, boo
                         discovered[devices].protocol=PROTOCOL_1;
                         discovered[devices].hl2_protocol = false;
                         version=buffer[9]&0xFF;
-                        sprintf(discovered[devices].software_version,"%d",version);
+                        snprintf(discovered[devices].software_version,sizeof discovered[devices].software_version, "%d",version);
                         switch(buffer[10]&0xFF) {
                             case OLD_DEVICE_METIS:
                                 discovered[devices].device=DEVICE_METIS;
@@ -358,7 +358,7 @@ static void discover(struct ifaddrs* iface, const struct sockaddr_in *fixed, boo
                             }
                             if (!found) {
                                 // new ip:port
-                                sprintf(buf, "discovery: found device=%d software_version=%s status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
+                                snprintf(buf, sizeof buf, "discovery: found device=%d software_version=%s status=%d address=%s (%02X:%02X:%02X:%02X:%02X:%02X) on %s",
                                         discovered[devices].device,
                                         discovered[devices].software_version,
                                         discovered[devices].status,

@@ -186,7 +186,7 @@ public:
             if (sampleRates[i] == defaultSr) {
                 defaultId = i;
             }
-            sprintf(buf, "%d", sampleRates[i]);
+            snprintf(buf, sizeof buf, "%d", sampleRates[i]);
             sampleRatesTxt += buf;
             sampleRatesTxt += '\0';
         }

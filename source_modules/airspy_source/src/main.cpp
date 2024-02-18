@@ -87,7 +87,7 @@ public:
 
         char buf[1024];
         for (int i = 0; i < n; i++) {
-            sprintf(buf, "%016" PRIX64, serials[i]);
+            snprintf(buf, sizeof buf, "%016" PRIX64, serials[i]);
             devList.push_back(serials[i]);
             devListTxt += buf;
             devListTxt += '\0';
@@ -115,7 +115,7 @@ public:
     void selectByString(std::string serial) {
         char buf[1024];
         for (int i = 0; i < devList.size(); i++) {
-            sprintf(buf, "%016" PRIX64, devList[i]);
+            snprintf(buf, sizeof buf, "%016" PRIX64, devList[i]);
             std::string str = buf;
             if (serial == str) {
                 selectBySerial(devList[i]);
@@ -135,7 +135,7 @@ public:
 #endif
             if (err != 0) {
                 char buf[1024];
-                sprintf(buf, "%016" PRIX64, serial);
+                snprintf(buf, sizeof buf, "%016" PRIX64, serial);
                 flog::error("Could not open Airspy {0}", buf);
                 selectedSerial = 0;
                 return;
@@ -143,7 +143,7 @@ public:
         }
         catch (const std::exception& e) {
             char buf[1024];
-            sprintf(buf, "%016" PRIX64, serial);
+            snprintf(buf, sizeof buf, "%016" PRIX64, serial);
             flog::error("Could not open Airspy {}", buf);
         }
         selectedSerial = serial;
@@ -161,7 +161,7 @@ public:
         }
 
         char buf[1024];
-        sprintf(buf, "%016" PRIX64, serial);
+        snprintf(buf, sizeof buf, "%016" PRIX64, serial);
         selectedSerStr = std::string(buf);
 
         // Load config here
@@ -235,13 +235,13 @@ private:
     std::string getBandwdithScaled(double bw) {
         char buf[1024];
         if (bw >= 1000000.0) {
-            sprintf(buf, "%.1lfMHz", bw / 1000000.0);
+            snprintf(buf, sizeof buf, "%.1lfMHz", bw / 1000000.0);
         }
         else if (bw >= 1000.0) {
-            sprintf(buf, "%.1lfKHz", bw / 1000.0);
+            snprintf(buf, sizeof buf, "%.1lfKHz", bw / 1000.0);
         }
         else {
-            sprintf(buf, "%.1lfHz", bw);
+            snprintf(buf, sizeof buf, "%.1lfHz", bw);
         }
         return std::string(buf);
     }
@@ -272,7 +272,7 @@ private:
 #endif
         if (err != 0) {
             char buf[1024];
-            sprintf(buf, "%016" PRIX64, _this->selectedSerial);
+            snprintf(buf, sizeof buf, "%016" PRIX64, _this->selectedSerial);
             flog::error("Could not open Airspy {0}", buf);
             return;
         }

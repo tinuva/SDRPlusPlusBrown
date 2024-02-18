@@ -112,8 +112,8 @@ public:
             // Create entry
             char serial[128];
             char buf[128];
-            sprintf(serial, "%05d", (int)prodId.sn);
-            sprintf(buf, "Perseus %d.%d [%s]", (int)prodId.hwver, (int)prodId.hwrel, serial);
+            snprintf(serial, sizeof serial, "%05d", (int)prodId.sn);
+            snprintf(buf, sizeof buf, "Perseus %d.%d [%s]", (int)prodId.hwver, (int)prodId.hwrel, serial);
             devList.define(serial, buf, i);
 
             // Close device
@@ -220,13 +220,13 @@ private:
     std::string getBandwdithScaled(double bw) {
         char buf[1024];
         if (bw >= 1000000.0) {
-            sprintf(buf, "%.1lfMHz", bw / 1000000.0);
+            snprintf(buf, sizeof buf, "%.1lfMHz", bw / 1000000.0);
         }
         else if (bw >= 1000.0) {
-            sprintf(buf, "%.1lfKHz", bw / 1000.0);
+            snprintf(buf, sizeof buf, "%.1lfKHz", bw / 1000.0);
         }
         else {
-            sprintf(buf, "%.1lfHz", bw);
+            snprintf(buf, sizeof buf, "%.1lfHz", bw);
         }
         return std::string(buf);
     }

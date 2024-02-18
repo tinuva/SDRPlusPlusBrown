@@ -208,7 +208,7 @@ public:
         channelNamesTxt = "";
         char buf[32];
         for (int i = 0; i < channelCount; i++) {
-            sprintf(buf, "RX %d", i + 1);
+            snprintf(buf, sizeof buf, "RX %d", i + 1);
             channelNamesTxt += buf;
             channelNamesTxt += '\0';
         }
@@ -322,13 +322,13 @@ private:
     std::string getBandwdithScaled(double bw) {
         char buf[1024];
         if (bw >= 1000000.0) {
-            sprintf(buf, "%.1lfMHz", bw / 1000000.0);
+            snprintf(buf, sizeof buf, "%.1lfMHz", bw / 1000000.0);
         }
         else if (bw >= 1000.0) {
-            sprintf(buf, "%.1lfKHz", bw / 1000.0);
+            snprintf(buf, sizeof buf, "%.1lfKHz", bw / 1000.0);
         }
         else {
-            sprintf(buf, "%.1lfHz", bw);
+            snprintf(buf, sizeof buf, "%.1lfHz", bw);
         }
         return std::string(buf);
     }

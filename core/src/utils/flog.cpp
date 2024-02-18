@@ -195,61 +195,61 @@ namespace flog {
 
     std::string __toString__(int8_t value) {
         char buf[8];
-        sprintf(buf, "%" PRId8, value);
+        snprintf(buf, sizeof buf, "%" PRId8, value);
         return buf;
     }
 
     std::string __toString__(int16_t value) {
         char buf[16];
-        sprintf(buf, "%" PRId16, value);
+        snprintf(buf, sizeof buf, "%" PRId16, value);
         return buf;
     }
 
     std::string __toString__(int32_t value) {
         char buf[32];
-        sprintf(buf, "%" PRId32, value);
+        snprintf(buf, sizeof buf, "%" PRId32, value);
         return buf;
     }
 
     std::string __toString__(int64_t value) {
         char buf[64];
-        sprintf(buf, "%" PRId64, value);
+        snprintf(buf, sizeof buf, "%" PRId64, value);
         return buf;
     }
 
     std::string __toString__(uint8_t value) {
         char buf[8];
-        sprintf(buf, "%" PRIu8, value);
+        snprintf(buf, sizeof buf, "%" PRIu8, value);
         return buf;
     }
 
     std::string __toString__(uint16_t value) {
         char buf[16];
-        sprintf(buf, "%" PRIu16, value);
+        snprintf(buf, sizeof buf, "%" PRIu16, value);
         return buf;
     }
 
     std::string __toString__(uint32_t value) {
         char buf[32];
-        sprintf(buf, "%" PRIu32, value);
+        snprintf(buf, sizeof buf, "%" PRIu32, value);
         return buf;
     }
 
     std::string __toString__(uint64_t value) {
         char buf[64];
-        sprintf(buf, "%" PRIu64, value);
+        snprintf(buf, sizeof buf, "%" PRIu64, value);
         return buf;
     }
 
     std::string __toString__(float value) {
         char buf[256];
-        sprintf(buf, "%f", value);
+        snprintf(buf, sizeof buf, "%f", value);
         return buf;
     }
 
     std::string __toString__(double value) {
         char buf[256];
-        sprintf(buf, "%lf", value);
+        snprintf(buf, sizeof buf, "%lf", value);
         return buf;
     }
 
@@ -259,12 +259,12 @@ namespace flog {
 
     std::string __toString__(const void* value) {
         char buf[32];
-        sprintf(buf, "0x%p", value);
+        snprintf(buf, sizeof buf, "0x%p", value);
         return buf;
     }
     std::string __toString__(void* value) {
         char buf[32];
-        sprintf(buf, "0x%p", value);
+        snprintf(buf, sizeof buf, "0x%p", value);
         return buf;
     }
 }

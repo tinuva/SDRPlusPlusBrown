@@ -188,7 +188,7 @@ namespace dsp {
             strcpy(mydta->args[4], "--mode");
             strcpy(mydta->args[5], mode.c_str());
             strcpy(mydta->args[6], "--threads");
-            sprintf(mydta->args[7], "%d", nthreads);
+            snprintf(mydta->args[7], sizeof mydta->args[7], "%d", nthreads);
             mydta->nargs = 8;
             strcpy(mydta->errPath, errPath.c_str());
             strcpy(mydta->outPath, outPath.c_str());

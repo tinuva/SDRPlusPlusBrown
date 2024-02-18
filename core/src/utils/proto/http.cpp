@@ -151,7 +151,7 @@ namespace net::http {
         net::http::RequestHeader rqhdr(net::http::METHOD_POST, parsed.path+"?"+parsed.query, parsed.host);
 
         char lenBuf[16];
-        sprintf(lenBuf, "%zu", formData.size());
+        snprintf(lenBuf, sizeof lenBuf, "%zu", formData.size());
         rqhdr.setField("Content-Length", lenBuf);
         rqhdr.setField("Content-Type", "application/x-www-form-urlencoded");
 //        rqhdr.setField("Origin", "https://www.wsprnet.org");
@@ -376,7 +376,7 @@ namespace net::http {
 
     std::string ResponseHeader::serializeStartLine() {
         char buf[1024];
-        sprintf(buf, "%d %s", (int)statusCode, statusString.c_str());
+        snprintf(buf, sizeof buf, "%d %s", (int)statusCode, statusString.c_str());
         return buf;
     }
 
@@ -390,7 +390,7 @@ namespace net::http {
 
     std::string ChunkHeader::serialize() {
         char buf[64];
-        sprintf(buf, "%" PRIX64 "\r\n", length);
+        snprintf(buf, sizeof buf, "%" PRIX64 "\r\n", (unsigned long long)length);
         return buf;
     }
 

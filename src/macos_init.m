@@ -1,7 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
 
-static doMacosInit() {
+static void doMacosInit() {
     @autoreleasepool {
         switch ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio]) {
             case AVAuthorizationStatusAuthorized:

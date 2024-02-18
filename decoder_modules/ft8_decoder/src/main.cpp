@@ -805,7 +805,7 @@ public:
         gui::menu.removeEntry(name);
     }
 
-    void postInit() {}
+    void postInit() override {}
 
     void enable() override  {
         if (!enabled) {

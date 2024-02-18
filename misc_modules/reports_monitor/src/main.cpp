@@ -467,7 +467,7 @@ public:
     std::string reportStatus() override {
         std::lock_guard g(reportsMutex);
         char buf[100];
-        sprintf(buf, "RPTS: %03zu", reports.size());
+        snprintf(buf, sizeof buf, "RPTS: %03zu", reports.size());
         return buf;
     }
 
@@ -682,10 +682,10 @@ private:
                     if (report.distance > 0) {
                         static int charMaxWidth = -1;
                         if (charMaxWidth < 0) {
-                            sprintf(buf, "88888 km");
+                            snprintf(buf, sizeof buf, "88888 km");
                             charMaxWidth = ImGui::CalcTextSize(buf).x;
                         }
-                        sprintf(buf, "%d km", report.distance);
+                        snprintf(buf, sizeof buf, "%d km", report.distance);
                         float textWidth = ImGui::CalcTextSize(buf).x;
                         ImGui::Dummy(ImVec2(charMaxWidth - textWidth, 0));
                         ImGui::SameLine();
@@ -698,7 +698,7 @@ private:
                     ImGui::TableSetColumnIndex(col++);
 
                     if (report.decibel > 0) {
-                        sprintf(buf, "%d", (int)report.decibel);
+                        snprintf(buf, sizeof buf, "%d", (int)report.decibel);
                         float textWidth = ImGui::CalcTextSize(buf).x;
                         ImGui::Dummy(ImVec2(ImGui::GetContentRegionAvail().x - textWidth, 0));
                         ImGui::SameLine();
@@ -737,7 +737,7 @@ private:
             ImGui::EndDisabled();
             return rv;
         } else {
-            sprintf(buf, "@ %0.4f MHz", frequency/1e6);
+            snprintf(buf, sizeof buf, "@ %0.4f MHz", frequency/1e6);
             x[0] += buf;
             auto rv = doFingerButton(joinStringV("\n", x));
             return rv;
@@ -800,7 +800,7 @@ private:
         ImGui::BeginDisabled(noCallsign);
         char boo[200];
         for(auto &s: allServices) {
-            sprintf(boo, "%s (%d): %s", net::to_string(s->source).c_str(), s->displayCount, s->status.c_str());
+            snprintf(boo, sizeof boo, "%s (%d): %s", net::to_string(s->source).c_str(), s->displayCount, s->status.c_str());
             doServiceButton(boo, *s);
             s->displayCount = 0;
         }
@@ -831,7 +831,7 @@ private:
         auto disabled = noCallsign || !sigpath::transmitter || sigpath::transmitter->getTXStatus() || !gui::mainWindow.canTransmit();
         ImGui::BeginDisabled(disabled);
         char buf[1024];
-        sprintf(buf, "CW TX:\nCQ CQ DE %s %s K", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorCallsign.c_str());
+        snprintf(buf, sizeof buf, "CW TX:\nCQ CQ DE %s %s K", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorCallsign.c_str());
         if (doTXButtonAtFrequency(buf, gui::freqSelect.frequency)) {
             transmitCW(gui::freqSelect.frequency);
         }
@@ -846,11 +846,11 @@ private:
         }
         if (ft8) {
             int freq = ft8->getCurrentFrequency("WSPR");
-            sprintf(buf, "WSPR TX:\n5W power, %s", sigpath::iqFrontEnd.operatorLocation.substr(0, 4).c_str());
+            snprintf(buf, sizeof buf, "WSPR TX:\n5W power, %s", sigpath::iqFrontEnd.operatorLocation.substr(0, 4).c_str());
             if (doTXButtonAtFrequency("WSPR TX:\n5W power", freq)) {
                 transmitWSPR(freq);
             }
-            sprintf(buf, "FT8 TX:\nCQ %s %s", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorLocation.substr(0, 4).c_str());
+            snprintf(buf, sizeof buf, "FT8 TX:\nCQ %s %s", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorLocation.substr(0, 4).c_str());
             freq = ft8->getCurrentFrequency("FT8");
             if (doTXButtonAtFrequency(buf, freq)) {
                 transmitFT8(freq);

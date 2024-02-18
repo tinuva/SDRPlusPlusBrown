@@ -3151,9 +3151,9 @@ void DecoderFt8::ft8_decode(double *dd,int c_dd,double f0a,double f0b,double fqs
 
 void DecoderFt8::EmitDecodedTextFt(QStringList lst) {
     char buf[1000] ="";
-    sprintf(buf+strlen(buf), "FT8_OUT\t%lld\t%02d", currentTimeMillis(), outCount++);
+    snprintf(buf+strlen(buf), sizeof buf - strlen(buf), "FT8_OUT\t%lld\t%02d", currentTimeMillis(), outCount++);
     for(int i=0; i<lst.count(); i++) {
-        sprintf(buf + strlen(buf), "\t{%d}\t%s", i, lst[i].str->c_str());
+        snprintf(buf + strlen(buf), sizeof buf - strlen(buf), "\t{%d}\t%s", i, lst[i].str->c_str());
 //        std::cout << "{" << i << "}" << lst[i].str->c_str() << " ";
     }
     strcat(buf,"\n");
