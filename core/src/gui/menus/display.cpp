@@ -14,6 +14,7 @@
 namespace displaymenu {
     bool showWaterfall;
     bool showFFT = true;
+    bool showMicHistogram = false;
     bool fullWaterfallUpdate = true;
     bool showBattery = true;
     bool showClock = true;
@@ -99,6 +100,9 @@ namespace displaymenu {
     void init() {
         if (core::configManager.conf.contains("showFFT")) {
             showFFT = core::configManager.conf["showFFT"];
+        }
+        if (core::configManager.conf.contains("showMicHistogram")) {
+            showMicHistogram = core::configManager.conf["showMicHistogram"];
         }
         showWaterfall = core::configManager.conf["showWaterfall"];
         showWaterfall ? gui::waterfall.showWaterfall() : gui::waterfall.hideWaterfall();

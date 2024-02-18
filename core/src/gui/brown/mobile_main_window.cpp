@@ -2515,6 +2515,13 @@ void MobileMainWindow::init() {
     displaymenu::onDisplayDraw.bindHandler(&displayDrawHandler);
     mwedit = menuWidth;
     displayDrawHandler.handler = [](ImGuiContext *ctx, void *data) {
+
+        if (ImGui::Checkbox("Show Mic FFT##_sdrpp", &displaymenu::showMicHistogram)) {
+            core::configManager.acquire();
+            core::configManager.conf["showMicHistogram"] = displaymenu::showMicHistogram;
+            core::configManager.release(true);
+        }
+
         MobileMainWindow *_this = (MobileMainWindow *) data;
         if (ImGui::Checkbox("Show Audio Waterfall##_sdrpp", &_this->drawAudioWaterfall)) {
             setConfig("showAudioWaterfall", _this->drawAudioWaterfall);
@@ -3397,7 +3404,9 @@ void MobileMainWindow::maybeAddBookmark(const std::string dx, double frequency, 
 void QSOPanel::draw(float _currentFreq, ImGui::WaterfallVFO *) {
     this->currentFreq = _currentFreq;
     currentFFTBufferMutex.lock();
-    this->drawHistogram();
+    if (displaymenu::showMicHistogram) {
+        this->drawHistogram();
+    }
     float mx = 10 * log10(this->maxSignal.load());
     if (mx > maxTxSignalPeak || maxTxSignalPeakTime < currentTimeMillis() - 500) {
         maxTxSignalPeak = mx;
