@@ -89,17 +89,17 @@ public:
         gui::waterfall.onInputProcess.unbindHandler(&inputHandler);
     }
 
-    void postInit() {}
+    void postInit() override {}
 
-    void enable() {
+    void enable() override {
         enabled = true;
     }
 
-    void disable() {
+    void disable() override {
         enabled = false;
     }
 
-    bool isEnabled() {
+    bool isEnabled() override {
         return enabled;
     }
 

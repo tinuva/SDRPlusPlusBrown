@@ -50,11 +50,22 @@ namespace dsp::routing {
             this->hook = _hook;
         }
 
+        long long workedCount = 0; // this is to enable cascade stop Reader.
+
         int run() {
 //            flog::info("Splitter {} reading from {}", origin, base_type::_in->origin);
             int count = base_type::_in->read();
 //            flog::info("Splitter {} got from {}: {}", origin, base_type::_in->origin, count);
-            if (count < 0) { return -1; }
+            if (count < 0) {
+                if (workedCount > 0) {              // don't during init and various reconnections
+                    for (const auto& stream : streams) {
+                        stream->stopReader();           // this is for clean shutdown. NOT TESTED WELL YET.
+                    }
+                }
+                return -1;
+            }
+
+            workedCount += count;
 
             for (const auto& stream : streams) {
                 memcpy(stream->writeBuf, base_type::_in->readBuf, count * sizeof(T));
