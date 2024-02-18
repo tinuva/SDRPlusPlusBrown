@@ -267,7 +267,6 @@ namespace backend {
         while (true) {
             int out_events;
             struct android_poll_source* out_data;
-            auto ctm = currentTimeNanos() / 1000;
 
             while (ALooper_pollAll(0, NULL, &out_events, (void**)&out_data) >= 0) {
                 // Process one event
@@ -301,6 +300,7 @@ namespace backend {
                 ShowSoftKeyboardInput();
                 WantTextInputLast = io.WantTextInput;
 
+                auto ctm = currentTimeNanos() / 1000;
                 // Render
                 beginFrame();
                 
@@ -314,9 +314,7 @@ namespace backend {
                 ctm = currentTimeNanos() / 1000 - ctm;
                 lastDrawTimeBackend = ctm - lastDrawTime; // only glfw time.
 
-            }
-
-            else {
+            } else {
                 std::this_thread::sleep_for(std::chrono::milliseconds(30));
             }
         }
