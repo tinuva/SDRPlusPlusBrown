@@ -1,6 +1,6 @@
 #pragma once
 
-#include "arrays.h"
+#include "utils/arrays.h"
 #include "math.h"
 #include "bgnoise.h"
 #include <array>
@@ -83,8 +83,8 @@ namespace dsp {
                 int len2;
                 FloatArray win;
                 int nFFT;
-                Arg<fftwPlan> forwardPlan;
-                Arg<fftwPlan> reversePlan;
+                Arg<FFTPlan> forwardPlan;
+                Arg<FFTPlan> reversePlan;
                 float aa = 0.98;
                 float mu = 0.98;
                 float ksi_min;
@@ -349,7 +349,8 @@ namespace dsp {
                 auto xfinal = npzeros(Nframes * params->len2);
                 auto noise_mean = npzeros(params->nFFT);
                 for (int j = 0; j < params->Slen * noise_frames; j += params->Slen) {
-                    auto noise = npabsolute(npfftfft((muleach(params->win, nparange(x, j, j + params->Slen))), params->forwardPlan));
+                    npfftfft((muleach(params->win, nparange(x, j, j + params->Slen))), params->forwardPlan);
+                    auto noise = npabsolute(params->forwardPlan->getOutput());
                     params->add_noise_history(noise);
                     noise_mean = addeach(noise_mean, noise);
                 }
@@ -386,7 +387,8 @@ namespace dsp {
                 for (int k = 0; k < Nframes * params->len2; k += params->len2) {
                     ALLOC_AND_CHECK(x, sz, "logmmse_all point 1")
                     auto insign = muleach(params->win, nparange(x, k, k + params->Slen));
-                    auto spec = npfftfft(insign, params->forwardPlan);
+                    npfftfft(insign, params->forwardPlan);
+                    auto spec = params->forwardPlan->getOutput();
                     auto sig = npabsolute(spec);
                     ALLOC_AND_CHECK(x, sz, "logmmse_all point 2")
                     auto sigD = sig->data();
@@ -426,7 +428,8 @@ namespace dsp {
                     params->Xk_prev = muleach(sig, sig);
                     auto hwmulspec = muleach(hw, spec);
                     ALLOC_AND_CHECK(x, sz, "logmmse_all point 16")
-                    auto xi_w0 = npfftfft(hwmulspec, params->reversePlan);
+                    npfftfft(hwmulspec, params->reversePlan);
+                    auto xi_w0 = params->reversePlan->getOutput();
                     ALLOC_AND_CHECK(x, sz, "logmmse_all point 17")
                     auto final = addeach(params->x_old, nparange(xi_w0, 0, params->len1));
                     ALLOC_AND_CHECK(x, sz, "logmmse_all point 18")

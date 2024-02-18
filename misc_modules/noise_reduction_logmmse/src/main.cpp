@@ -9,7 +9,6 @@
 #include <imgui/imgui_internal.h>
 #include <vector>
 #include <gui/widgets/snr_meter.h>
-#include "logmmse_math.h"
 #include "signal_path/signal_path.h"
 #include <radio_interface.h>
 #include "if_nr.h"

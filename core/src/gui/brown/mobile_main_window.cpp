@@ -21,7 +21,7 @@
 #include <gui/tuner.h>
 #include <gui/brown/small_waterfall.h>
 #include "../../../decoder_modules/radio/src/radio_module.h"
-#include "../../../misc_modules/noise_reduction_logmmse/src/arrays.h"
+#include "utils/arrays.h"
 #include "../../../misc_modules/noise_reduction_logmmse/src/af_nr.h"
 #include "../../../misc_modules/frequency_manager/src/frequency_manager.h"
 #include "../dsp/convert/stereo_to_mono.h"
@@ -560,7 +560,7 @@ struct AudioFFTForDisplay : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
     std::vector<dsp::stereo_t> inputData;
     float &FREQUENCY = trxAudioSampleRate;
     const int FRAMERATE = 60;
-    Arg<fftwPlan> plan;
+    Arg<FFTPlan> plan;
     const int windowSize = FREQUENCY / FRAMERATE;
     ComplexArray inputArray;
     FloatArray hanningWin;
@@ -628,7 +628,8 @@ struct AudioFFTForDisplay : dsp::Processor<dsp::stereo_t, dsp::complex_t> {
             //                flog::info("in qsopanel: {}", sbuf);
             //            }
             auto inputMul = muleach(hanningWin, inputArray);
-            auto result = dsp::arrays::npfftfft(inputMul, plan);
+            dsp::arrays::npfftfft(inputMul, plan);
+            auto result = plan->getOutput();
             std::copy(result->begin(), result->end(), this->out.writeBuf);
             this->out.swap((int) result->size());
             //            flog::info("input data size: {} erase {}", inputData.size(), result->size());
@@ -947,8 +948,8 @@ struct Equalizer : public dsp::Processor<dsp::complex_t, dsp::complex_t> {
 
 struct FreqMaim : public dsp::Processor<dsp::complex_t, dsp::complex_t> {
 
-    Arg<fftwPlan> forward;
-    Arg<fftwPlan> backward;
+    Arg<FFTPlan> forward;
+    Arg<FFTPlan> backward;
     int nbuckets = 512;
 
     FreqMaim() : dsp::Processor<dsp::complex_t, dsp::complex_t>() {
@@ -966,8 +967,10 @@ struct FreqMaim : public dsp::Processor<dsp::complex_t, dsp::complex_t> {
             for (int i = 0; i < nbuckets; ++i) {
                 (*ina)[i] = buffer[i];
             }
-            auto outa = npfftfft(ina, forward);
-            auto rev = npfftfft(outa, backward);
+            npfftfft(ina, forward);
+            auto outa = forward->getOutput();
+            npfftfft(outa, backward);
+            auto rev = backward->getOutput();
             for (int i = 0; i < nbuckets; ++i) {
                 out[i] = (*rev)[i];
                 out[i] *= (float) nbuckets;
@@ -1444,6 +1447,7 @@ bool MobileButton::draw() {
     //    }
     ImGui::PopFont();
 
+
     return retval;
 }
 
@@ -1635,6 +1639,7 @@ static TransientBookmarkManager *getTransientBookmarkManager() {
 
 void MobileMainWindow::draw() {
 
+    auto ctm = currentTimeNanos();
     updateAudioWaterfallPipeline();
 
     if (auto radio = getRadioModule()) {
@@ -2330,6 +2335,8 @@ void MobileMainWindow::draw() {
         }
         ImGui::EndPopup();
     }
+    extern int64_t lastDrawTime;
+    lastDrawTime = (currentTimeNanos()  - ctm) / 1000;
 
 }
 
@@ -2513,6 +2520,9 @@ void MobileMainWindow::init() {
         if (ImGui::Checkbox("Show Audio Waterfall##_sdrpp", &_this->drawAudioWaterfall)) {
             setConfig("showAudioWaterfall", _this->drawAudioWaterfall);
         }
+        ImGui::LeftLabel("GL frame sleep ms");
+        ImGui::FillWidth();
+        ImGui::SliderInt("##_gl_frame_sleep_", &glSleepTime, 0, 200);
         ImGui::LeftLabel("Wheel Width");
         ImGui::FillWidth();
         if (ImGui::SliderInt("##mmw_wheel_width", &_this->encoderWidth, 15, 200)) {

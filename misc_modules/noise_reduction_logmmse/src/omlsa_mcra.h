@@ -1,6 +1,6 @@
 #pragma once
 
-#include "arrays.h"
+#include "utils/arrays.h"
 #include "math.h"
 #include "bgnoise.h"
 #include <array>

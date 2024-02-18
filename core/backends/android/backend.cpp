@@ -18,6 +18,8 @@
 #include <gui/menus/theme.h>
 #include <filesystem>
 #include <implot/implot.h>
+#include <gui/menus/display.h>
+#include <utils/usleep.h>
 
 // Credit to the ImGui android OpenGL3 example for a lot of this code!
 
@@ -252,6 +254,9 @@ namespace backend {
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         eglSwapBuffers(_EglDisplay, _EglSurface);
+        if (glSleepTime != 0) {
+            usleep(glSleepTime * 1000);
+        }
     }
 
     // No screen pos to detect
@@ -262,6 +267,7 @@ namespace backend {
         while (true) {
             int out_events;
             struct android_poll_source* out_data;
+            auto ctm = currentTimeNanos() / 1000;
 
             while (ALooper_pollAll(0, NULL, &out_events, (void**)&out_data) >= 0) {
                 // Process one event
@@ -304,7 +310,12 @@ namespace backend {
                     gui::mainWindow.draw();
                 }
                 render();
+
+                ctm = currentTimeNanos() / 1000 - ctm;
+                lastDrawTimeBackend = ctm - lastDrawTime; // only glfw time.
+
             }
+
             else {
                 std::this_thread::sleep_for(std::chrono::milliseconds(30));
             }

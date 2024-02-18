@@ -91,9 +91,10 @@ void MainWindow::init() {
     gui::waterfall.setBandwidth(8000000);
     gui::waterfall.setViewBandwidth(8000000);
 
-    fft_in = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
-    fft_out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
-    fftwPlan = fftwf_plan_dft_1d(fftSize, fft_in, fft_out, FFTW_FORWARD, FFTW_ESTIMATE);
+    //waterfallPlan = dsp::arrays::allocateFFTWPlan(false, fftSize);
+//    fft_in = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
+//    fft_out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
+//    fftwPlanImplFFTW = fftwf_plan_dft_1d(fftSize, fft_in, fft_out, FFTW_FORWARD, FFTW_ESTIMATE);
 
     sigpath::iqFrontEnd.init(&dummyStream, 8000000, true, 1, false, 1024, 20.0, IQFrontEnd::FFTWindow::NUTTALL, acquireFFTBuffer, releaseFFTBuffer, this);
     sigpath::iqFrontEnd.start();
@@ -428,7 +429,9 @@ void MainWindow::drawUpperLine(ImGui::WaterfallVFO* vfo) {
 
 }
 
-int64_t lastDrawTime = 0;
+long long lastDrawTime = 0;
+long long lastDrawTimeBackend = 0;
+int glSleepTime = 0;
 
 void MainWindow::ShowLogWindow() {
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize * 0.8, ImGuiCond_FirstUseEver);
@@ -492,7 +495,7 @@ void MainWindow::ShowLogWindow() {
 }
 
 void MainWindow::draw() {
-    auto ctm = currentTimeMillis();
+    auto ctm = currentTimeNanos();
     ImGui::WaterfallVFO* vfo;
     this->preDraw(&vfo);
     ImGui::Begin("Main", NULL, WINDOW_FLAGS);
@@ -740,7 +743,7 @@ void MainWindow::draw() {
         credits::show();
     }
 
-    lastDrawTime = currentTimeMillis() - ctm;
+    lastDrawTime = (currentTimeNanos() - ctm)/1000;
 
 }
 
@@ -918,8 +921,9 @@ void MainWindow::removeBottomWindow(std::string name) {
 
 void MainWindow::drawDebugMenu() {
     if (ImGui::CollapsingHeader("Debug")) {
-        ImGui::Text("Frame time: %.3f ms/frame", ImGui::GetIO().DeltaTime * 1000.0f);
-        ImGui::Text("Real draw time: %lld ms", (long long)lastDrawTime);
+        float deltaTimeSec = ImGui::GetIO().DeltaTime;
+        ImGui::Text("Frame time: %.3f ms/frame", deltaTimeSec * 1000.0f);
+        ImGui::Text("Draw time: imgui:%lld glwf:%lld us busy=%d%%", lastDrawTime, lastDrawTimeBackend, (int)((double)(lastDrawTime+lastDrawTimeBackend)*100.0/ (deltaTimeSec*1e6)));
         ImGui::Text("Framerate: %.1f FPS", ImGui::GetIO().Framerate);
         ImGui::Text("Center Frequency: %.0f Hz", gui::waterfall.getCenterFrequency());
         ImGui::Text("Source name: %s", sourceName.c_str());

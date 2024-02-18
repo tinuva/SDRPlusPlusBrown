@@ -11,6 +11,7 @@
 #include "../dsp/math/conjugate.h"
 #include <fftw3.h>
 #include "utils/event.h"
+#include "utils/arrays.h"
 #include <atomic>
 
 class IQFrontEnd {
@@ -121,8 +122,9 @@ protected:
     // Processing data
     int _nzFFTSize;
     float* fftWindowBuf;
-    fftwf_complex *fftInBuf, *fftOutBuf;
-    fftwf_plan fftwPlan;
+//    fftwf_complex *fftInBuf, *fftOutBuf;
+//    fftwf_plan fftwPlanImplFFTW;
+    dsp::arrays::Arg<dsp::arrays::FFTPlan> fftPlan;
     float* fftDbOut;
 
     double effectiveSr;

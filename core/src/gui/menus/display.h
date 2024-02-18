@@ -3,6 +3,10 @@
 #include "utils/event.h"
 #include <imgui/imgui.h>
 
+extern long long lastDrawTimeBackend;
+extern long long lastDrawTime;
+extern int glSleepTime;
+
 namespace displaymenu {
     void init();
     void draw(void* ctx);
@@ -13,6 +17,7 @@ namespace displaymenu {
     extern Event<ImGuiContext *> onDisplayDraw;
     extern bool showBattery;
     extern bool showClock;
+    extern bool showFFT;
     extern std::string currentBatteryLevel;
 
     extern enum TranscieverLayout {

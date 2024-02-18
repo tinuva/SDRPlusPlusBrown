@@ -3,7 +3,7 @@
 #include <dsp/stream.h>
 #include <dsp/types.h>
 #include <dsp/processor.h>
-#include "arrays.h"
+#include "utils/arrays.h"
 #include "logmmse.h"
 
 namespace dsp {

@@ -193,11 +193,11 @@ struct KiwiSDRClient {
         switch (mod) {
         case Modulation::TUNE_IQ:
             currentModulation = mod;
-            sprintf(buf, "SET mod=iq low_cut=-7000 high_cut=7000 freq=%0.3f", freq / 1000.0);
+            snprintf(buf, sizeof buf, "SET mod=iq low_cut=-7000 high_cut=7000 freq=%0.3f", freq / 1000.0);
             break;
         case Modulation::TUNE_REAL:
             currentModulation = mod;
-            sprintf(buf, "SET mod=usb low_cut=0 high_cut=8000 freq=%0.3f", (freq - 3000) / 1000.0);
+            snprintf(buf, sizeof(buf), "SET mod=usb low_cut=0 high_cut=8000 freq=%0.3f", (freq - 3000) / 1000.0);
             break;
         }
         wsClient.sendString(buf);

@@ -174,7 +174,7 @@ public:
 //signals:
     void EmitDecodetTextFt(QStringList lst) {
         char buf[1000] ="";
-        sprintf(buf+strlen(buf), "FT4_OUT\t%lld\t%02d", currentTimeMillis(), outCount++);
+        snprintf(buf+strlen(buf), sizeof(buf)-strlen(buf), "FT4_OUT\t%lld\t%02d", currentTimeMillis(), outCount++);
         for(int i=0; i<lst.count(); i++) {
             sprintf(buf + strlen(buf), "\t{%d}\t%s", i, lst[i].str->c_str());
             //        std::cout << "{" << i << "}" << lst[i].str->c_str() << " ";

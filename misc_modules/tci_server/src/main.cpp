@@ -145,7 +145,7 @@ public:
                 this->server.connectionsLock.unlock();
                 static int count;
                 audioDataStream.flush();
-                if (count++ % 2000 == 0) {
+                if (count++ % 10000 == 1) {
                     flog::info("....stream data exists...");
                 }
             }

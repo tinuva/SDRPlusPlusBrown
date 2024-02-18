@@ -38,6 +38,11 @@ endif (OPT_BACKEND_ANDROID)
 # Add code to dyn lib
 add_library(sdrpp_core SHARED ${SRC} ${BACKEND_SRC})
 
+if(APPLE)
+    target_link_libraries(sdrpp_core PUBLIC "-framework Accelerate")
+endif()
+
+
 # Set compiler options
 target_compile_options(sdrpp_core PRIVATE ${SDRPP_COMPILER_FLAGS})
 

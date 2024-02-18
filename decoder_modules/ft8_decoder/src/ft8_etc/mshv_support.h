@@ -224,15 +224,15 @@ struct QString {
         } else {
             abort();
         }
-        sprintf(buf2, buf, val);
+        snprintf(buf2, sizeof(buf2), buf, val);
         return std::string(buf2);
     }
 
     [[nodiscard]] QString arg(double v, int width, char fmt, int prec, QChar fill = ' ') const {
         char buf[10];
         char buf2[100];
-        sprintf(buf, "%%%d.%d%c", width, prec, fmt);
-        sprintf(buf2, buf, v);
+        snprintf(buf, sizeof buf, "%%%d.%d%c", width, prec, fmt);
+        snprintf(buf2, sizeof buf2, buf, v);
         return std::string(buf2);
     }
 

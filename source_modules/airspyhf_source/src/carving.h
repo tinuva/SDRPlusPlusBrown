@@ -4,7 +4,7 @@
 #include <utils/flog.h>
 #include <dsp/types.h>
 #include <dsp/processor.h>
-#include "../../misc_modules/noise_reduction_logmmse/src/arrays.h"
+#include "utils/arrays.h"
 
 namespace dsp {
 
@@ -36,6 +36,7 @@ namespace dsp {
         }
 
         std::vector<dsp::complex_t> inputBuffer;
+        ComplexArray part;
 
         int process(dsp::complex_t *in, int count, dsp::complex_t *out){
             int nwritten = 0;
@@ -46,14 +47,19 @@ namespace dsp {
             int cutPlace = _inSampleRate / 2 - diff / 2;
             while (inputBuffer.size() >= _inSampleRate) {
                 std::copy(inputBuffer.begin(), inputBuffer.begin() + _inSampleRate, _inArr->begin());
-                ComplexArray buckets = npfftfft(_inArr, forward);
+                npfftfft(_inArr, forward);
+                auto buckets = forward->getOutput();
                 inputBuffer.erase(inputBuffer.begin(), inputBuffer.begin() + _inSampleRate);
                 //                dumpArr_(buckets);
-                buckets->erase(buckets->begin() + cutPlace, buckets->begin() + cutPlace + diff);
+                if (!part) {
+                    part = npzeros_c(diff);
+                }
+                std::copy(buckets->begin() + cutPlace, buckets->begin() + cutPlace + diff, part->begin());
+//                buckets->erase(buckets->begin() + cutPlace, buckets->begin() + cutPlace + diff);
                 //                dumpArr_(buckets);
-                auto stream = npfftfft(buckets, backward);
-                memcpy(out + nwritten, stream->data(), stream->size() * sizeof(dsp::complex_t));
-                nwritten += stream->size();
+                npfftfft(part, backward);
+                memcpy(out + nwritten, backward->getOutput()->data(), backward->getOutput()->size() * sizeof(dsp::complex_t));
+                nwritten += backward->getOutput()->size();
             }
             return nwritten;
         }
@@ -89,8 +95,8 @@ namespace dsp {
     private:
         int _inSampleRate;
         int _outSampleRate;
-        Arg<fftwPlan> forward;
-        Arg<fftwPlan> backward;
+        Arg<FFTPlan> forward;
+        Arg<FFTPlan> backward;
         ComplexArray _inArr;
     };
 

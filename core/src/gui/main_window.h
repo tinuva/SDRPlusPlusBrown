@@ -6,6 +6,7 @@
 #include <signal_path/vfo_manager.h>
 #include <string>
 #include <utils/event.h>
+#include <utils/arrays.h>
 #include <mutex>
 #include <gui/tuner.h>
 
@@ -58,8 +59,9 @@ protected:
     // FFT Variables
     int fftSize = 8192 * 8;
     std::mutex fft_mtx;
-    fftwf_complex *fft_in, *fft_out;
-    fftwf_plan fftwPlan;
+//    fftwf_complex *fft_in, *fft_out;
+//    fftwf_plan fftwPlanImplFFTW;
+    //dsp::arrays::Arg<dsp::arrays::fftwPlanImplFFTW> waterfallPlan;
 
     // GUI Variables
     bool firstMenuRender = true;

@@ -12,6 +12,9 @@
 #include <stb_image.h>
 #include <stb_image_resize.h>
 #include <gui/gui.h>
+#include <gui/menus/display.h>
+#include <utils/usleep.h>
+
 
 namespace backend {
     const char* OPENGL_VERSIONS_GLSL[] = {
@@ -88,7 +91,7 @@ namespace backend {
 
         // Create window with graphics context
         monitor = glfwGetPrimaryMonitor();
-        window = glfwCreateWindow(winWidth, winHeight, "SDR++ v" VERSION_STR " (Built at " __TIME__ ", " __DATE__ ")", NULL, NULL);
+        window = glfwCreateWindow(winWidth, winHeight, "SDR++Brown v" VERSION_STR " (Built at " __TIME__ ", " __DATE__ ")", NULL, NULL);
         if (window == NULL)
             return 1;
         glfwMakeContextCurrent(window);
@@ -215,10 +218,18 @@ namespace backend {
         glViewport(0, 0, display_w, display_h);
         glClearColor(gui::themeManager.clearColor.x, gui::themeManager.clearColor.y, gui::themeManager.clearColor.z, gui::themeManager.clearColor.w);
         glClear(GL_COLOR_BUFFER_BIT);
+        auto ctm = currentTimeNanos() / 1000;
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        ctm = currentTimeNanos() / 1000 - ctm;
+        lastDrawTimeBackend = ctm; // only glfw time.
 
         glfwSwapInterval(vsync);
         glfwSwapBuffers(window);
+
+        if (glSleepTime != 0) {
+            usleep(glSleepTime * 1000);
+        }
+
     }
 
     void getMouseScreenPos(double& x, double& y) {
@@ -234,10 +245,13 @@ namespace backend {
     int renderLoop() {
         // Main loop
         while (!glfwWindowShouldClose(window)) {
+
+
             glfwPollEvents();
 
             beginFrame();
             
+
             if (_maximized != maximized) {
                 _maximized = maximized;
                 core::configManager.acquire();
@@ -288,6 +302,8 @@ namespace backend {
             }
 
             render();
+
+
         }
 
         return 0;

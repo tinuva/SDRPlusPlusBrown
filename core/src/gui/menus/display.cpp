@@ -13,6 +13,7 @@
 
 namespace displaymenu {
     bool showWaterfall;
+    bool showFFT = true;
     bool fullWaterfallUpdate = true;
     bool showBattery = true;
     bool showClock = true;
@@ -66,7 +67,20 @@ namespace displaymenu {
                               "8192\0"
                               "4096\0"
                               "2048\0"
-                              "1024\0";
+                              "1024\0"
+#ifdef __APPLE__
+                            "524288 ACCEL\0"
+                            "262144 ACCEL\0"
+                            "131072 ACCEL\0"
+                            "65536 ACCEL\0"
+                            "32768 ACCEL\0"
+                            "16384 ACCEL\0"
+                            "8192 ACCEL\0"
+                            "4096 ACCEL\0"
+                            "2048 ACCEL\0"
+                            "1024 ACCEL\0"
+#endif
+        ;
 
     int fftSizeId = 0;
 
@@ -83,6 +97,9 @@ namespace displaymenu {
     }
 
     void init() {
+        if (core::configManager.conf.contains("showFFT")) {
+            showFFT = core::configManager.conf["showFFT"];
+        }
         showWaterfall = core::configManager.conf["showWaterfall"];
         showWaterfall ? gui::waterfall.showWaterfall() : gui::waterfall.hideWaterfall();
         std::string colormapName = core::configManager.conf["colorMap"];
@@ -113,13 +130,19 @@ namespace displaymenu {
 
         fftSizeId = 3;
         int fftSize = core::configManager.conf["fftSize"];
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < std::size(FFTSizes); i++) {
             if (fftSize == FFTSizes[i]) {
                 fftSizeId = i;
                 break;
             }
         }
-        sigpath::iqFrontEnd.setFFTSize(FFTSizes[fftSizeId]);
+        auto accel = core::configManager.conf.contains("fftAccel") && core::configManager.conf["fftAccel"];
+        if (accel) {
+            fftSizeId += std::size(FFTSizes);
+        }
+
+        enableAcceleratedFFT = accel;
+        sigpath::iqFrontEnd.setFFTSize(FFTSizes[fftSizeId % std::size(FFTSizes)]);
 
         fftRate = core::configManager.conf["fftRate"];
         sigpath::iqFrontEnd.setFFTRate(fftRate);
@@ -195,6 +218,12 @@ namespace displaymenu {
             showWaterfall ? gui::waterfall.showWaterfall() : gui::waterfall.hideWaterfall();
             core::configManager.acquire();
             core::configManager.conf["showWaterfall"] = showWaterfall;
+            core::configManager.release(true);
+        }
+        ImGui::SameLine();
+        if (ImGui::Checkbox("Show FFT##_sdrpp", &showFFT)) {
+            core::configManager.acquire();
+            core::configManager.conf["showFFT"] = showFFT;
             core::configManager.release(true);
         }
 
@@ -292,12 +321,28 @@ namespace displaymenu {
         }
 
         ImGui::LeftLabel("FFT Size");
-        ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
+        auto textSize8888  =  ImGui::CalcTextSize("88888888");
+        ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX() - textSize8888.x);
         if (ImGui::Combo("##sdrpp_fft_size", &fftSizeId, FFTSizesStr)) {
-            sigpath::iqFrontEnd.setFFTSize(FFTSizes[fftSizeId]);
+            enableAcceleratedFFT = fftSizeId >= std::size(FFTSizes);
+            sigpath::iqFrontEnd.setFFTSize(FFTSizes[fftSizeId % std::size(FFTSizes)]);
             core::configManager.acquire();
-            core::configManager.conf["fftSize"] = FFTSizes[fftSizeId];
+            core::configManager.conf["fftSize"] = FFTSizes[fftSizeId % std::size(FFTSizes)];
+            core::configManager.conf["fftAccel"] = fftSizeId >= std::size(FFTSizes);
             core::configManager.release(true);
+        }
+
+        {
+            ImGui::SameLine();
+            static auto lastFFTReportTime = currentTimeMillis();
+            static long long lastFFTReport = 0;
+            auto ctm = currentTimeMillis();
+            if (ctm - lastFFTReportTime > 1000) {
+                lastFFTReportTime += 1000;
+                lastFFTReport = fftCumulativeTime;
+                fftCumulativeTime = 0;
+            }
+            ImGui::Text("%lld ms/s", lastFFTReport);
         }
 
         ImGui::LeftLabel("FFT Window");

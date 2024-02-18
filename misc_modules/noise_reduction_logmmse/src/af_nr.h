@@ -9,7 +9,7 @@
 #include <math.h>
 #include <gui/gui.h>
 #include <signal_path/signal_path.h>
-#include "arrays.h"
+#include "utils/arrays.h"
 #include "logmmse.h"
 #include "omlsa_mcra.h"
 #include "utils/stream_tracker.h"

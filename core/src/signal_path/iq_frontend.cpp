@@ -10,9 +10,9 @@ IQFrontEnd::~IQFrontEnd() {
     if (!_init) { return; }
     stop();
     dsp::buffer::free(fftWindowBuf);
-    fftwf_destroy_plan(fftwPlan);
-    fftwf_free(fftInBuf);
-    fftwf_free(fftOutBuf);
+//    fftwf_destroy_plan(fftwPlanImplFFTW);
+//    fftwf_free(fftInBuf);
+//    fftwf_free(fftOutBuf);
 }
 
 void IQFrontEnd::init(dsp::stream<dsp::complex_t>* in, double sampleRate, bool buffering, int decimRatio, bool dcBlocking, int fftSize, double fftRate, FFTWindow fftWindow, float* (*acquireFFTBuffer)(void* ctx), void (*releaseFFTBuffer)(void* ctx), void* fftCtx) {
@@ -59,12 +59,16 @@ void IQFrontEnd::init(dsp::stream<dsp::complex_t>* in, double sampleRate, bool b
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::nuttall(i, _nzFFTSize); }
     }
 
-    fftInBuf = (fftwf_complex*)fftwf_malloc(_fftSize * sizeof(fftwf_complex));
-    fftOutBuf = (fftwf_complex*)fftwf_malloc(_fftSize * sizeof(fftwf_complex));
-    fftwPlan = fftwf_plan_dft_1d(_fftSize, fftInBuf, fftOutBuf, FFTW_FORWARD, FFTW_ESTIMATE);
+//    fftInBuf = (fftwf_complex*)fftwf_malloc(_fftSize * sizeof(fftwf_complex));
+//    fftOutBuf = (fftwf_complex*)fftwf_malloc(_fftSize * sizeof(fftwf_complex));
+//    fftwPlanImplFFTW = fftwf_plan_dft_1d(_fftSize, fftInBuf, fftOutBuf, FFTW_FORWARD, FFTW_ESTIMATE);
+    //    fft_in = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
+    //    fft_out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
+    //    fftwPlanImplFFTW = fftwf_plan_dft_1d(fftSize, fft_in, fft_out, FFTW_FORWARD, FFTW_ESTIMATE);
+    fftPlan = dsp::arrays::allocateFFTWPlan(false, _fftSize);
 
     // Clear the rest of the FFT input buffer
-    dsp::buffer::clear(fftInBuf, _fftSize - _nzFFTSize, _nzFFTSize);
+    dsp::buffer::clear(fftPlan->getInput()->data(), _fftSize - _nzFFTSize, _nzFFTSize);
 
     split.bindStream(&fftIn);
     split.origin = "iqfrontent.split";
@@ -257,17 +261,18 @@ void IQFrontEnd::handler(dsp::complex_t* data, int count, void* ctx) {
     IQFrontEnd* _this = (IQFrontEnd*)ctx;
 
     // Apply window
-    volk_32fc_32f_multiply_32fc((lv_32fc_t*)_this->fftInBuf, (lv_32fc_t*)data, _this->fftWindowBuf, _this->_nzFFTSize);
+    volk_32fc_32f_multiply_32fc((lv_32fc_t*)_this->fftPlan->getInput()->data(), (lv_32fc_t*)data, _this->fftWindowBuf, _this->_nzFFTSize);
 
     // Execute FFT
-    fftwf_execute(_this->fftwPlan);
+    dsp::arrays::npfftfft(_this->fftPlan->getInput(), _this->fftPlan);
+//    fftwf_execute(_this->fftwPlanImplFFTW);
 
     // Aquire buffer
     float* fftBuf = _this->_acquireFFTBuffer(_this->_fftCtx);
 
     // Convert the complex output of the FFT to dB amplitude
     if (fftBuf) {
-        volk_32fc_s32f_power_spectrum_32f(fftBuf, (lv_32fc_t*)_this->fftOutBuf, _this->_fftSize, _this->_fftSize);
+        volk_32fc_s32f_power_spectrum_32f(fftBuf, (lv_32fc_t*)_this->fftPlan->getOutput()->data(), _this->_fftSize, _this->_fftSize);
     }
 
     // Release buffer
@@ -299,14 +304,10 @@ void IQFrontEnd::updateFFTPath(bool updateWaterfall) {
     }
 
     // Update FFT plan
-    fftwf_free(fftInBuf);
-    fftwf_free(fftOutBuf);
-    fftInBuf = (fftwf_complex*)fftwf_malloc(_fftSize * sizeof(fftwf_complex));
-    fftOutBuf = (fftwf_complex*)fftwf_malloc(_fftSize * sizeof(fftwf_complex));
-    fftwPlan = fftwf_plan_dft_1d(_fftSize, fftInBuf, fftOutBuf, FFTW_FORWARD, FFTW_ESTIMATE);
+    fftPlan = dsp::arrays::allocateFFTWPlan(false, _fftSize);
 
     // Clear the rest of the FFT input buffer
-    dsp::buffer::clear(fftInBuf, _fftSize - _nzFFTSize, _nzFFTSize);
+    dsp::buffer::clear(fftPlan->getInput()->data(), _fftSize - _nzFFTSize, _nzFFTSize);
 
     // Update waterfall (TODO: This is annoying, it makes this module non testable and will constantly clear the waterfall for any reason)
     if (updateWaterfall) { gui::waterfall.setRawFFTSize(_fftSize); }
