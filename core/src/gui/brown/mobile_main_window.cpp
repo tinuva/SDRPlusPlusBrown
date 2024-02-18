@@ -2335,7 +2335,6 @@ void MobileMainWindow::draw() {
         }
         ImGui::EndPopup();
     }
-    extern int64_t lastDrawTime;
     lastDrawTime = (currentTimeNanos()  - ctm) / 1000;
 
 }
