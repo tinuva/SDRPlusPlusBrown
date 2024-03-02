@@ -2,6 +2,17 @@
 
 Newest entries are at the top.
 
+2024.03.01
+
+* Reduced trx parts which are not relevant during receive mode (was: microphone full processing)
+* Macos: speed up FFT, check new modes in "FFT Window Size"
+* Other performance improvements: option to reduce framerate, switch off oscilloscope. 
+* Oscilloscope made simpler (and faster)
+* Added battery indicator on display, added time display (todo: fix collision with RDS)
+* Added preliminary SWR scan + results plotting (Hermes Lite 2)
+* SDR View cleanup (removed mostly all text)
+* Merged recent changes from upstream.
+
 2024.02.05
 
 * Hermes Lite 2 driver: added configuration for band filters per band. Automatic band switching.

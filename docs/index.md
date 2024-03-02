@@ -44,6 +44,7 @@ read on below.
   * spotted/worked callsigns are displayed on the fft (frequency manager - temporary records)
 * Saving of zoom parameters between sessions
 * Mouse wheel support on the sliders
+* Optimized FFT on Macos using vDSP in Accelerate framework
 * Unicode support in fonts (Cyrillic), filenames and installation path (UTF-8), on Windows, too.
 * For Airspy HF+, added Fill-In option which cuts edge sides of the spectrum which are attenuated (low passed) by hardware.
 * When replaying WAV file, shows the timestamp, matching the factual time of the recording.
