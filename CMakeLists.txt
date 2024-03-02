@@ -384,11 +384,6 @@ if(APPLE)
     set_source_files_properties("src/macos_init.m" PROPERTIES COMPILE_FLAGS "-std=c99")
 endif()
 
-if (MSVC)
-add_executable(sdrpp "src/main.cpp" "win32/resources.rc")
-else ()
-add_executable(sdrpp "src/main.cpp")
-endif ()
 
 
 target_link_libraries(sdrpp PRIVATE ${SDRPP_LIBS})
