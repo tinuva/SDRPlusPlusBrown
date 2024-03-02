@@ -9,6 +9,7 @@ extern int glSleepTime;
 
 namespace displaymenu {
     void init();
+    void checkKeybinds();
     void draw(void* ctx);
     extern bool phoneLayout;
 #ifdef __ANDROID__

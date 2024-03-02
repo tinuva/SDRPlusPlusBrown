@@ -194,10 +194,24 @@ namespace displaymenu {
         uiScaleId = uiScales.valueId(style::uiScale);
     }
 
+    void setWaterfallShown(bool shown) {
+        showWaterfall = shown;
+        showWaterfall ? gui::waterfall.showWaterfall() : gui::waterfall.hideWaterfall();
+        core::configManager.acquire();
+        core::configManager.conf["showWaterfall"] = showWaterfall;
+        core::configManager.release(true);
+    }
+
+
+    void checkKeybinds() {
+        if (ImGui::IsKeyPressed(ImGuiKey_Home, false)) {
+            setWaterfallShown(!showWaterfall);
+        }
+    }
+
 
     void draw(void* ctx) {
         float menuWidth = ImGui::GetContentRegionAvail().x;
-        bool homePressed = ImGui::IsKeyPressed(ImGuiKey_Home, false);
         if (ImGui::Checkbox("Small screen / thick fingers##_sdrpp", &phoneLayout)) {
             core::configManager.acquire();
             core::configManager.conf["smallScreen"] = phoneLayout;
@@ -217,12 +231,8 @@ namespace displaymenu {
             core::configManager.release(true);
         }
 
-        if (ImGui::Checkbox("Show Waterfall##_sdrpp", &showWaterfall) || homePressed) {
-            if (homePressed) { showWaterfall = !showWaterfall; }
-            showWaterfall ? gui::waterfall.showWaterfall() : gui::waterfall.hideWaterfall();
-            core::configManager.acquire();
-            core::configManager.conf["showWaterfall"] = showWaterfall;
-            core::configManager.release(true);
+        if (ImGui::Checkbox("Show Waterfall##_sdrpp", &showWaterfall)) {
+            setWaterfallShown(showWaterfall);
         }
         ImGui::SameLine();
         if (ImGui::Checkbox("Show FFT##_sdrpp", &showFFT)) {

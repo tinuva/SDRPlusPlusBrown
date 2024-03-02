@@ -39,6 +39,7 @@ option(OPT_BUILD_FILE_SOURCE "Wav file source" ON)
 option(OPT_BUILD_HACKRF_SOURCE "Build HackRF Source Module (Dependencies: libhackrf)" ON)
 option(OPT_BUILD_HERMES_SOURCE "Build Hermes Source Module (no dependencies required)" ON)
 option(OPT_BUILD_LIMESDR_SOURCE "Build LimeSDR Source Module (Dependencies: liblimesuite)" OFF)
+option(OPT_BUILD_NETWORK_SOURCE "Build Network Source Module (no dependencies required)" ON)
 option(OPT_BUILD_PERSEUS_SOURCE "Build Perseus Source Module (Dependencies: libperseus-sdr)" OFF)
 option(OPT_BUILD_PLUTOSDR_SOURCE "Build PlutoSDR Source Module (Dependencies: libiio, libad9361)" ON)
 option(OPT_BUILD_RFSPACE_SOURCE "Build RFspace Source Module (no dependencies required)" ON)
@@ -69,7 +70,7 @@ option(OPT_BUILD_M17_DECODER "Build the M17 decoder module (Dependencies: codec2
 option(OPT_BUILD_FT8_DECODER "Build the FT8 decoder module" ON)
 option(OPT_BUILD_DSDCC_DECODER "Build the DSDCC decoder module" OFF)
 option(OPT_BUILD_METEOR_DEMODULATOR "Build the meteor demodulator module (no dependencies required)" ON)
-option(OPT_BUILD_PAGER_DECODER "Build the pager decoder module (no dependencies required)" OFF)
+option(OPT_BUILD_PAGER_DECODER "Build the pager decoder module (no dependencies required)" ON)
 option(OPT_BUILD_RADIO "Main audio modulation decoder (AM, FM, SSB, etc...)" ON)
 option(OPT_BUILD_WEATHER_SAT_DECODER "Build the HRPT decoder module (no dependencies required)" OFF)
 
@@ -174,6 +175,10 @@ endif (OPT_BUILD_HERMES_SOURCE)
 if (OPT_BUILD_LIMESDR_SOURCE)
 add_subdirectory("source_modules/limesdr_source")
 endif (OPT_BUILD_LIMESDR_SOURCE)
+
+if (OPT_BUILD_NETWORK_SOURCE)
+add_subdirectory("source_modules/network_source")
+endif (OPT_BUILD_NETWORK_SOURCE)
 
 if (OPT_BUILD_PERSEUS_SOURCE)
 add_subdirectory("source_modules/perseus_source")
@@ -378,6 +383,13 @@ if(APPLE)
     list(APPEND SDRPP_LIBS "-framework AVFoundation")
     set_source_files_properties("src/macos_init.m" PROPERTIES COMPILE_FLAGS "-std=c99")
 endif()
+
+if (MSVC)
+add_executable(sdrpp "src/main.cpp" "win32/resources.rc")
+else ()
+add_executable(sdrpp "src/main.cpp")
+endif ()
+
 
 target_link_libraries(sdrpp PRIVATE ${SDRPP_LIBS})
 

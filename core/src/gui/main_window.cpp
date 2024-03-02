@@ -566,6 +566,8 @@ void MainWindow::draw() {
         }
     }
 
+    // Process menu keybinds
+    displaymenu::checkKeybinds();
 
     // Left Column
     if (showMenu) {
