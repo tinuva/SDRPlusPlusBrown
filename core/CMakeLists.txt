@@ -22,11 +22,13 @@ list(FILTER SRC EXCLUDE REGEX "sdrpp_ft8_mshv_main.cpp" )
 
 add_definitions(-DSDRPP_IS_CORE)
 add_definitions(-DFLOG_ANDROID_TAG="SDR++")
-add_compile_options(-Wno-deprecated-declarations)
 
-if (MSVC)
+if(MSVC)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-endif ()
+    add_compile_options(/wd4996)
+else()
+    add_compile_options(-Wno-deprecated-declarations)
+endif()
 
 # Configure backend sources
 if (OPT_BACKEND_GLFW)
@@ -41,7 +43,9 @@ endif (OPT_BACKEND_ANDROID)
 add_library(sdrpp_core SHARED ${SRC} ${BACKEND_SRC})
 
 if(APPLE)
+    target_link_libraries(sdrpp_core PUBLIC "-framework CoreFoundation")
     target_link_libraries(sdrpp_core PUBLIC "-framework Accelerate")
+    set_target_properties(sdrpp_core PROPERTIES LINK_FLAGS "-Wl,-F/Library/Frameworks")
 endif()
 
 
