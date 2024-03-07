@@ -170,7 +170,7 @@ jobs:
           run: brew update
 
         - name: Install dependencies
-          
+
           run: HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 brew install pkg-config libusb fftw glfw airspy airspyhf portaudio hackrf libbladerf codec2 zstd autoconf automake libtool && pip3 install mako
 
         - name: Install volk

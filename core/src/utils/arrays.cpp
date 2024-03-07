@@ -1,7 +1,6 @@
 
 #include <utils/arrays.h>
 #include <fftw3.h>
-#include <volk/volk.h>
 
 #ifdef __APPLE__
 #include <Accelerate/Accelerate.h>
