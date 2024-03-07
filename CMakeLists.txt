@@ -377,10 +377,11 @@ add_executable(sdrpp ${SDRPP_SOURCES})
 set(SDRPP_LIBS "sdrpp_core")
 
 if(APPLE)
-    set_source_files_properties("src/macos_init.m" PROPERTIES COMPILE_FLAGS "-std=c99")
     list(APPEND SDRPP_LIBS "-framework Foundation")
     list(APPEND SDRPP_LIBS "-framework AVFoundation")
+    list(APPEND SDRPP_LIBS "-framework Accelerate")
     set_source_files_properties("src/macos_init.m" PROPERTIES COMPILE_FLAGS "-std=c99")
+    set_target_properties(sdrpp PROPERTIES LINK_FLAGS "-Wl,-F/System/Library/Frameworks")
 endif()
 
 
