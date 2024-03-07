@@ -44,7 +44,8 @@ add_library(sdrpp_core SHARED ${SRC} ${BACKEND_SRC})
 
 if(APPLE)
     target_link_libraries(sdrpp_core PUBLIC "-framework CoreFoundation")
-    target_link_libraries(sdrpp_core PUBLIC "-framework Accelerate")
+    find_library(ACCELERATE_FRAMEWORK Accelerate REQUIRED)
+    target_link_libraries(sdrpp_core PUBLIC ${ACCELERATE_FRAMEWORK})
     set_target_properties(sdrpp_core PROPERTIES LINK_FLAGS "-Wl,-F/System/Library/Frameworks")
 endif()
 
