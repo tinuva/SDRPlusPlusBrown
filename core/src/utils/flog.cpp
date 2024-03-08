@@ -36,10 +36,10 @@ namespace flog {
 #define COLOR_WHITE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
     const WORD TYPE_COLORS[_TYPE_COUNT] = {
         FOREGROUND_GREEN | FOREGROUND_BLUE,
-        FOREGROUND_GREEN,
-        FOREGROUND_RED | FOREGROUND_GREEN,
-        FOREGROUND_RED
-    };
+                FOREGROUND_GREEN | FOREGROUND_INTENSITY,                  // Bright green
+                FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY, // Bright yellow
+                FOREGROUND_RED | FOREGROUND_INTENSITY                     // Bright red
+        };
 #else
 #define COLOR_WHITE "\x1B[0m"
     const char* TYPE_COLORS[_TYPE_COUNT] = {
@@ -159,17 +159,25 @@ namespace flog {
             HANDLE conHndl = GetStdHandle(wOutStream);
             if (!conHndl || conHndl == INVALID_HANDLE_VALUE) { return; }
 
+            static CONSOLE_SCREEN_BUFFER_INFO console_info { 0 };
+            static WORD bg = 0;
+            if (console_info.wAttributes == 0) {
+                GetConsoleScreenBufferInfo (conHndl, &console_info);
+                bg = (console_info.wAttributes & ~7);
+            }
+
+
             // Print beginning of log line
-            SetConsoleTextAttribute(conHndl, COLOR_WHITE);
+            SetConsoleTextAttribute(conHndl, bg | COLOR_WHITE);
             fprintf(outStream, "[%02d/%02d/%02d %02d:%02d:%02d.%03d] [", nowc->tm_mday, nowc->tm_mon + 1, nowc->tm_year + 1900, nowc->tm_hour, nowc->tm_min, nowc->tm_sec, 0);
 
             // Switch color to the log color, print log type and 
-            SetConsoleTextAttribute(conHndl, TYPE_COLORS[type]);
+            SetConsoleTextAttribute(conHndl, bg | TYPE_COLORS[type]);
             fputs(TYPE_STR[type], outStream);
             
 
             // Switch back to default color and print rest of log string
-            SetConsoleTextAttribute(conHndl, COLOR_WHITE);
+            SetConsoleTextAttribute(conHndl, bg | COLOR_WHITE);
             fprintf(outStream, "] %s\n", out.c_str());
 #elif defined(__ANDROID__)
             // Print format string
