@@ -93,7 +93,7 @@ private:
         config.acquire();
         
         bool afnr = false;
-        if (config.conf.contains("AF_NR_"+instanceName)) afnr = config.conf["AF_NR_"+instanceName];
+        // if (config.conf.contains("AF_NR_"+instanceName)) afnr = config.conf["AF_NR_"+instanceName];
         auto frequency = 10;
         if (config.conf.contains("AF_NRF_"+instanceName)) frequency = config.conf["AF_NRF_"+instanceName];
 
@@ -228,6 +228,7 @@ private:
 //        if (mustShowTooltip("IFNR"))
 //            ImGui::SetTooltip("Algorithm running on full bandwidth. High CPU usage! Good for SSB/AM/CW only.");
 
+        /*
         for(auto [k, v] : afnrProcessors) {
             if (ImGui::Checkbox(("Audio NR "+k+"##_radio_logmmse_nr_" + k).c_str(), &v->allowed)) {
                 actuateAFNR();
@@ -235,8 +236,6 @@ private:
                 config.conf["AF_NR_"+k] = v->allowed;
                 config.release(true);
             }
-//            if (mustShowTooltip("AFNR"+k))
-//                ImGui::SetTooltip("Noise reduction over the audio frequency.");
             ImGui::SameLine();
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
             if (ImGui::SliderInt(("##_radio_logmmse_wf" + k).c_str(), &v->afnrBandwidth, 1, 48, "%d KHz")) {
@@ -246,6 +245,7 @@ private:
                 config.release(true);
             }
         }
+        */
         for(auto [k, v] : afnrProcessors2) {
             if (ImGui::Checkbox(("Audio NR2 "+k+"##_radio_omlsa_nr_" + k).c_str(), &v->allowed)) {
                 actuateAFNR();
