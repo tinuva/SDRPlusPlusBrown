@@ -27,9 +27,19 @@ SDRPP_MOD_INFO{
 ConfigManager config;
 
 static bool rtaudioCallbackError;
+
+#if !defined(RTAUDIO_VERSION_MAJOR) || RTAUDIO_VERSION_MAJOR < 6
+
+static void rtaudioCallback(RtAudioError::Type type, const std::string& errorText) { {
+    rtaudioCallbackError = true;
+}
+
+#else
 static void rtaudioCallback(int type, const std::string& errorText) {
     rtaudioCallbackError = true;
 }
+
+#endif
 
 
 class AudioSink : SinkManager::Sink {
