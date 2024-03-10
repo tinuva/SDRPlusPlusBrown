@@ -30,7 +30,7 @@ static bool rtaudioCallbackError;
 
 #if !defined(RTAUDIO_VERSION_MAJOR) || RTAUDIO_VERSION_MAJOR < 6
 
-static void rtaudioCallback(RtAudioError::Type type, const std::string& errorText) { {
+static void rtaudioCallback(RtAudioError::Type type, const std::string& errorText) {
     rtaudioCallbackError = true;
 }
 
