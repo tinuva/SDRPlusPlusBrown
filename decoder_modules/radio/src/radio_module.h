@@ -210,9 +210,9 @@ public:
             return;
         auto index = pos - _this->streamNames.begin();
         auto stream = _this->streams[index];
-        if (_this->enabled) {
-            stream->stop();
-        }
+        // if (_this->enabled) {
+        //     stream->stop();
+        // }
         _this->afsplitter.unbindStream(stream->getInput());
         //        stream->init(&srChangeHandler, audioSampleRate);
         _this->streams.erase(_this->streams.begin()+index);
@@ -224,7 +224,7 @@ public:
         if (iter != streamz.end()) {
             streamz.erase(iter);
         }
-        core::configManager.release();
+        core::configManager.release(true);
     }
 
 

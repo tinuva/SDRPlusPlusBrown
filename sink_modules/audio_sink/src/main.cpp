@@ -26,10 +26,12 @@ SDRPP_MOD_INFO{
 
 ConfigManager config;
 
+#if RTAUDIO_VERSION_MAJOR >= 6
 static bool rtaudioCallbackError;
-static void rtaudioCallback(RtAudioError::Type type, const std::string& errorText) {
+static void rtaudioCallback(int type, const std::string& errorText) {
     rtaudioCallbackError = true;
 }
+#endif
 
 
 class AudioSink : SinkManager::Sink {
@@ -285,8 +287,11 @@ private:
                 audio.startStream();
                 stereoPacker.start();
             }
-            catch (const RtAudioError& e) {
-                flog::error("Could not open audio device: {}", e.getMessage());
+            catch (const std::runtime_error& e) {
+                flog::error("Could not open audio device: {}", e.what());
+                return false;
+            } catch (...) {
+                flog::error("Could not open audio device. generic exception");
                 return false;
             }
 
@@ -307,8 +312,11 @@ private:
                     audio2.startStream();
                     flog::info("RtAudio2 input stream open");
                 }
-                catch (RtAudioError& e) {
-                    flog::error("Could not open INPUT audio device: {}", e.getMessage());
+                catch (const std::runtime_error& e) {
+                    flog::error("Could not open INPUT audio device: {}", e.what());
+                    return false;
+                } catch (...) {
+                    flog::error("Could not open audio device. generic exception");
                     return false;
                 }
             }
@@ -317,8 +325,6 @@ private:
             sigpath::sinkManager.defaultInputAudio.start();
             //            microphone.setBufferSize(sampleRate / 60);
             //            flog::info("_this->microphone.writeBuf={} after setsize", (void*)microphone.writeBuf);
-        } else {
-            sigpath::sinkManager.defaultInputAudio.setInput(nullptr);
         }
         return true;
     }
@@ -328,10 +334,12 @@ private:
 
     void doStop() {
         flog::info("Stopping RtAudio stream:  {}", _streamName);
-
-        sigpath::sinkManager.defaultInputAudio.stop();
-        flog::info("sigpath::sinkManager.defaultInputAudio.setInput(nullptr)");
-        sigpath::sinkManager.defaultInputAudio.setInput(nullptr);
+        bool isPrimary = SinkManager::getSecondaryStreamIndex(_streamName).second == 0;
+        if (isPrimary && micInput) {
+            sigpath::sinkManager.defaultInputAudio.stop();
+            flog::info("sigpath::sinkManager.defaultInputAudio.setInput(nullptr)");
+            sigpath::sinkManager.defaultInputAudio.setInput(nullptr);
+        }
 
         //        s2m.stop();
         //        monoPacker.stop();

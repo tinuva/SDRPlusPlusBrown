@@ -247,10 +247,7 @@ add_subdirectory("sink_modules/android_audio_sink")
 endif (OPT_BUILD_ANDROID_AUDIO_SINK)
 
 if (OPT_BUILD_AUDIO_SINK)
-if(APPLE)
-else()
-        add_subdirectory("sink_modules/audio_sink")
-endif ()
+add_subdirectory("sink_modules/audio_sink")
 endif (OPT_BUILD_AUDIO_SINK)
 
 if (OPT_BUILD_PORTAUDIO_SINK)

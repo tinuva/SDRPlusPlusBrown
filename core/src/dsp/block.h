@@ -108,14 +108,14 @@ namespace dsp {
                 out->clearWriteStop();
             }
         }
-    
-        void acquire() {
-            ctrlMtx.lock();
-        }
-
-        void release() {
-            ctrlMtx.unlock();
-        }
+        //
+        // void acquire() {
+        //     ctrlMtx.lock();
+        // }
+        //
+        // void release() {
+        //     ctrlMtx.unlock();
+        // }
 
         void registerInput(untyped_stream* inStream) {
             if (inputs.size() == 1 && inStream) {
