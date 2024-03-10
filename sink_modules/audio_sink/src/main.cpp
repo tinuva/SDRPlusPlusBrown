@@ -206,14 +206,6 @@ public:
     void menuHandler() {
         float menuWidth = ImGui::GetContentRegionAvail().x;
 
-        /*
-        if (underflow == 1) {
-            menuWidth -= style::baseFont->FontSize;
-        }
-        if (underflow == 2) {
-            menuWidth -= style::baseFont->FontSize;
-        }
-        */
         ImGui::SetNextItemWidth(menuWidth);
         if (ImGui::Combo(("##_audio_sink_dev_" + _streamName).c_str(), &devId, txtDevList.c_str())) {
             selectById(devId);
@@ -234,6 +226,10 @@ public:
                 config.acquire();
                 config.conf[_streamName]["devices"][devList[devId].name] = sampleRate;
                 config.release(true);
+            }
+            if (underflow != 0) {
+                ImGui::SameLine();
+                ImGui::Text("Underflow %d", underflow);
             }
             if (ImGui::Checkbox("Mic input (restart needed)", &micInput)) {
                 config.acquire();
