@@ -2,6 +2,10 @@
 
 Newest entries are at the top.
 
+2024.04.03
+
+* Android only: added Audio Device selection (both mic and playback).
+ 
 2024.03.01
 
 * Reduced trx parts which are not relevant during receive mode (was: microphone full processing)
