@@ -506,7 +506,17 @@ namespace backend {
         return callStringGetter("getDisplayDensityStr");
     }
 
+    std::string getAudioSinkIds() {
+        return callStringGetter("getAudioSinkIds");
+    }
 
+    std::string getAudioSourceIds() {
+        return callStringGetter("getAudioSourceIds");
+    }
+
+    std::string scanAudioDevices() {
+        return callStringGetter("scanAudioDevices");
+    }
 
     const std::vector<DevVIDPID> AIRSPY_VIDPIDS = {
         { 0x1d50, 0x60a1 }
