@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.NativeActivity
 import android.app.PendingIntent
 import android.app.PendingIntent.FLAG_MUTABLE
+import android.bluetooth.BluetoothSocket.TYPE_SCO
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -368,6 +369,21 @@ class MainActivity : NativeActivity(), SensorEventListener {
 
     fun getAudioSinkIds() = _audioSinkIds;
     fun getAudioSourceIds() = _audioSourceIds;
+
+    fun startBtSco() : String {
+        audioManager.isBluetoothScoOn = true
+        audioManager.startBluetoothSco()
+        audioManager.isMicrophoneMute = false;
+        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        return "OK";
+    }
+
+    fun stopBtSco() : String {
+        audioManager.isBluetoothScoOn = false
+        audioManager.stopBluetoothSco()
+        audioManager.mode = AudioManager.MODE_NORMAL;
+        return "OK";
+    }
 
     var batteryStatusStr: String = "?";
 

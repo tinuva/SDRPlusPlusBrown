@@ -303,17 +303,30 @@ public:
 private:
     dsp::stream<dsp::stereo_t> microphone;
 
+    bool isBtSco = false;
+
     void restartMicrophoneStream() {
         // Create stream builder
         AAudioStreamBuilder *builder;
+        isBtSco = sources[selectedSourceIndex].typeString == audioDeviceTypes[TYPE_BLUETOOTH_SCO];
+        flog::info("INFO restartMicrophoneStream: isBtSco={}", std::to_string(isBtSco));
         aaudio_result_t result = AAudio_createStreamBuilder(&builder);
         if (result == 0) {
             // Set stream options
-            if (this->useRawInput) {
-                AAudioStreamBuilder_setInputPreset(builder, AAUDIO_INPUT_PRESET_VOICE_PERFORMANCE);
-            } else {
+            if (isBtSco) {
+                backend::startBtSco();
+            }
+            if (false && isBtSco) {
                 AAudioStreamBuilder_setInputPreset(builder,
                                                    AAUDIO_INPUT_PRESET_VOICE_COMMUNICATION);
+            } else {
+                if (this->useRawInput) {
+                    AAudioStreamBuilder_setInputPreset(builder,
+                                                       AAUDIO_INPUT_PRESET_VOICE_PERFORMANCE);
+                } else {
+                    AAudioStreamBuilder_setInputPreset(builder,
+                                                       AAUDIO_INPUT_PRESET_VOICE_COMMUNICATION);
+                }
             }
             auto deviceId = sources[selectedSourceIndex].enumId;
             if (deviceId != -1) {
@@ -435,6 +448,9 @@ private:
             usleep(200000);
             streamWMutex.lock();
             AAudioStream_close(streamW);
+            if (isBtSco) {
+                backend::stopBtSco();
+            }
             streamWMutex.unlock();
             usleep(200000);
             streamWMutex.lock();
@@ -504,6 +520,8 @@ private:
         std::vector<dsp::stereo_t> samplesBuffer;
         samplesBuffer.resize(bufferSize);
         int nInBuffer = 0;
+        long long lastReport = 0;
+        long long totalRead = 0;
         while (true) {
             if (nInBuffer < bufferSize && streamW != nullptr) {
                 streamWMutex.lock();
@@ -517,6 +535,13 @@ private:
                     break;
                 }
                 nInBuffer += rd;
+                totalRead+= rd;
+                auto ctm = currentTimeMillis();
+                if (ctm > lastReport + 1000) {
+                    lastReport = ctm;
+                    flog::info("Got data from microphone: {}", std::to_string(totalRead));
+                    totalRead = 0;
+                }
             }
 /*
             static int counter = 0;
@@ -579,13 +604,19 @@ private:
         auto thiz = (AudioSink *)userData;
         if (error == AAUDIO_ERROR_DISCONNECTED){
             if (currentTimeMillis() - thiz->scheduledStreamRestart > 1000) { // not scheduled restart
+                flog::info("INFO errorCallback with AAUDIO_ERROR_DISCONNECTED unplanned");
                 std::thread thr(&AudioSink::restart, thiz);
                 thr.detach();
+            } else {
+                flog::info("INFO errorCallback with AAUDIO_ERROR_DISCONNECTED, planned");
             }
+        } else {
+            flog::info("INFO errorCallback with {}", std::to_string(error));
         }
     }
 
     void restart() {
+        flog::info("INFO android audio: restart()");
         if (running) { doStop(); }
         if (running) { doStart(); }
     }

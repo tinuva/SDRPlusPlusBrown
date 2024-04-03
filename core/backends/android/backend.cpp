@@ -518,6 +518,14 @@ namespace backend {
         return callStringGetter("scanAudioDevices");
     }
 
+    std::string startBtSco() {
+        return callStringGetter("startBtSco");
+    }
+
+    std::string stopBtSco() {
+        return callStringGetter("stopBtSco");
+    }
+
     const std::vector<DevVIDPID> AIRSPY_VIDPIDS = {
         { 0x1d50, 0x60a1 }
     };

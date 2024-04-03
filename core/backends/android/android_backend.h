@@ -21,6 +21,8 @@ namespace backend {
     std::string getAudioSinkIds();
     std::string getAudioSourceIds();
     std::string scanAudioDevices();
+    std::string startBtSco();
+    std::string stopBtSco();
 
     void doPermissionsDialogs();
     std::string getBatteryLevel();
