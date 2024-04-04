@@ -410,7 +410,7 @@ private:
             else if (sampleRate <= 256001) cutoff = 40;
             else if (sampleRate <= 384001) cutoff = 50;
             else if (sampleRate <= 768001) cutoff = 60;
-            else cutoff = 70;
+            else cutoff = 80;
             int reduced = sampleRate - 2*cutoff*1000; // cut 40 khz from both sides
             return reduced / sampleRate;
         } else {

@@ -50,7 +50,7 @@ read on below.
 * When replaying WAV file, shows the timestamp, matching the factual time of the recording.
 * [KiwiSDR support](#kiwisdr-support) (12 KHz bandwidth)
 * [Multiple output audio devices support](#multiple-output-audio-devices-support). Also, possibility to output to the left or right channel only.
-* Android Audio Device selection.
+* Android Audio Device selection (bluetooth/external headset supported in QSO).
 * [More display scaling factors](#more-display-scaling-factors). Android: Forced landscape mode, thicker sliders.
 * [Bandwidth change slider](#bandwidth-slider) to easily edit bandwidth on touch devices.
 * [TCI protocol](#tci-protocol) (basic), output only. Tested to work with MSHV software. 
