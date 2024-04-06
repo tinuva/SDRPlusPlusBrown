@@ -32,6 +32,7 @@ public:
         //TODO: Make module tune on source select change (in sdrpp_core)
 
         uiGains = new float[1];
+        txtExtraDeviceArgs[0] = 0;
 
         refresh();
 
@@ -131,6 +132,13 @@ private:
         }
     }
 
+    SoapySDR::Kwargs makeEffectiveDeviceArgs() {
+        auto res = devArgs;
+        auto kwArgs = SoapySDR::KwargsFromString(extraDeviceArgs);
+        res.merge(kwArgs);
+        return res;
+    }
+
     void selectDevice(std::string name) {
         if (devList.size() == 0) {
             devId = -1;
@@ -153,7 +161,27 @@ private:
             return;
         }
 
-        SoapySDR::Device* dev = SoapySDR::Device::make(devArgs);
+        extraDeviceArgs.clear();
+        txtExtraDeviceArgs[0] = 0;
+        config.acquire();
+        if (config.conf["devices"].contains(name)) {
+            if (config.conf["devices"][name].contains("extraDeviceArgs")) {
+                extraDeviceArgs = config.conf["devices"][name]["extraDeviceArgs"];
+                strcpy(txtExtraDeviceArgs, extraDeviceArgs.c_str());
+            }
+        }
+        config.release();
+
+        auto effectiveDeviceArgs = makeEffectiveDeviceArgs();
+        SoapySDR::Device* dev;
+        try {
+            dev = SoapySDR::Device::make(effectiveDeviceArgs);
+        }
+        catch (const std::exception& e) {
+            flog::error("SoapyModule '{0}': Could not make SoapySDR device: {1}", this->name, e.what());
+            devId = -1;
+            return;
+        }
 
         antennaList = dev->listAntennas(SOAPY_SDR_RX, channelId);
         txtAntennaList = "";
@@ -210,6 +238,8 @@ private:
 
         hasAgc = dev->hasGainMode(SOAPY_SDR_RX, channelId);
 
+        settings = dev->getSettingInfo();
+
         SoapySDR::Device::unmake(dev);
 
         config.acquire();
@@ -248,6 +278,11 @@ private:
             else {
                 selectSampleRate(sampleRates[0]);
             }
+            if (config.conf["devices"][name].contains("settings")) {
+                for (auto& [key, value] : config.conf["devices"][name]["settings"].items()) {
+                    configSettings[key] = value;
+                }
+            }
         }
         else {
             uiAntennaId = 0;
@@ -268,6 +303,7 @@ private:
 
     void saveCurrent() {
         json conf;
+        conf["extraDeviceArgs"] = extraDeviceArgs;
         conf["sampleRate"] = sampleRate;
         conf["antenna"] = uiAntennaId;
         int i = 0;
@@ -279,6 +315,15 @@ private:
             conf["bandwidth"] = uiBandwidthId;
         if (hasAgc) {
             conf["agc"] = agc;
+        }
+        if (running) {
+            for (const SoapySDR::ArgInfo& argInfo : settings) {
+                std::string val = dev->readSetting(argInfo.key);
+                ;
+                if (val != argInfo.value) { // only save non-default values
+                    conf["settings"][argInfo.key] = val;
+                }
+            }
         }
         config.acquire();
         config.conf["devices"][devArgs["label"]] = conf;
@@ -307,7 +352,14 @@ private:
             return;
         }
 
-        _this->dev = SoapySDR::Device::make(_this->devArgs);
+        auto effectiveDeviceArgs = _this->makeEffectiveDeviceArgs();
+        try {
+            _this->dev = SoapySDR::Device::make(effectiveDeviceArgs);
+        }
+        catch (const std::exception& e) {
+            flog::error("SoapyModule '{0}': Could not make SoapySDR device: {1}", _this->name, e.what());
+            return;
+        }
 
         _this->dev->setSampleRate(SOAPY_SDR_RX, _this->channelId, _this->sampleRate);
 
@@ -328,6 +380,10 @@ private:
         for (auto gain : _this->gainList) {
             _this->dev->setGain(SOAPY_SDR_RX, _this->channelId, gain, _this->uiGains[i]);
             i++;
+        }
+
+        for (auto& [key, value] : _this->configSettings) {
+            _this->dev->writeSetting(key, value);
         }
 
         _this->dev->setFrequency(SOAPY_SDR_RX, _this->channelId, _this->freq);
@@ -401,6 +457,13 @@ private:
             _this->selectDevice(config.conf["device"]);
         }
 
+        SmGui::LeftLabel("Device Args");
+        SmGui::FillWidth();
+        if (SmGui::InputText(CONCAT("##_device_args_", _this->name), _this->txtExtraDeviceArgs, 255)) {
+            _this->extraDeviceArgs = std::string(_this->txtExtraDeviceArgs);
+            _this->saveCurrent();
+        }
+
         if (_this->running) { SmGui::EndDisabled(); }
 
         if (_this->antennaList.size() > 1) {
@@ -441,7 +504,7 @@ private:
         int i = 0;
         char buf[128];
         for (auto gain : _this->gainList) {
-            snprintf(buf, sizeof buf, "%s gain", gain.c_str());
+            sprintf(buf, "%s gain", gain.c_str());
             SmGui::LeftLabel(buf);
             // ImGui::SetCursorPosX(gainNameLen);
             // ImGui::SetNextItemWidth(menuWidth - gainNameLen);
@@ -474,6 +537,92 @@ private:
                 }
                 _this->saveCurrent();
             }
+        }
+
+        for (const SoapySDR::ArgInfo& argInfo : _this->settings) {
+            if (!_this->running)
+                break;
+
+            std::string guiName = (std::string("##_soapy_arg_") + _this->name + "_" + argInfo.key).c_str();
+
+            if (argInfo.type != SoapySDR::ArgInfo::Type::BOOL) {
+                // only SmGui::Checkbox has a label, the rest need a separate one
+                SmGui::LeftLabel(argInfo.name.c_str());
+                SmGui::FillWidth();
+            }
+
+            if (!argInfo.options.empty() && argInfo.type != SoapySDR::ArgInfo::Type::BOOL) {
+                std::string currentVal = _this->dev->readSetting(argInfo.key);
+                std::string labels;
+                int selectedIdx = 0;
+                bool hasNames = argInfo.options.size() == argInfo.optionNames.size();
+                for (int i = 0; i != argInfo.options.size(); ++i) {
+                    labels += hasNames ? argInfo.optionNames[i] : argInfo.options[i];
+                    labels += '\0';
+                    if (currentVal == argInfo.options[i]) {
+                        selectedIdx = i;
+                    }
+                }
+
+                if (SmGui::Combo(guiName.c_str(), &selectedIdx, labels.c_str())) {
+                    _this->dev->writeSetting(argInfo.key, argInfo.options[selectedIdx]);
+                    _this->saveCurrent();
+                }
+            }
+            else if (argInfo.type == SoapySDR::ArgInfo::Type::BOOL) {
+                auto val = _this->dev->readSetting<bool>(argInfo.key);
+                if (SmGui::Checkbox((argInfo.name + guiName).c_str(), &val)) {
+                    _this->dev->writeSetting<>(argInfo.key, val);
+                    _this->saveCurrent();
+                }
+            }
+            else if (argInfo.type == SoapySDR::ArgInfo::Type::INT) {
+                auto val = _this->dev->readSetting<int>(argInfo.key);
+                if (argInfo.range.minimum() != argInfo.range.maximum()) { // not an empty range
+                    if (SmGui::SliderInt((argInfo.units + guiName).c_str(), &val, argInfo.range.minimum(), argInfo.range.maximum(), SmGui::FMT_STR_INT_DEFAULT)) {
+                        _this->dev->writeSetting<>(argInfo.key, val);
+                        _this->saveCurrent();
+                    }
+                }
+                else {
+                    if (SmGui::InputInt((argInfo.units + guiName).c_str(), &val)) {
+                        _this->dev->writeSetting<>(argInfo.key, val);
+                        _this->saveCurrent();
+                    }
+                }
+            }
+            else if (argInfo.type == SoapySDR::ArgInfo::Type::FLOAT) {
+                auto val = _this->dev->readSetting<float>(argInfo.key);
+                if (argInfo.range.minimum() != argInfo.range.maximum()) { // not an empty range
+                    if (SmGui::SliderFloatWithSteps((argInfo.units + guiName).c_str(), &val, argInfo.range.minimum(), argInfo.range.maximum(), argInfo.range.step(), SmGui::FMT_STR_FLOAT_DEFAULT)) {
+                        _this->dev->writeSetting<>(argInfo.key, val);
+                        _this->saveCurrent();
+                    }
+                }
+                else {
+                    if (SmGui::SliderFloat((argInfo.units + guiName).c_str(), &val, 0, 100, SmGui::FMT_STR_FLOAT_DEFAULT)) {
+                        _this->dev->writeSetting<>(argInfo.key, val);
+                        _this->saveCurrent();
+                    }
+                }
+            }
+            else if (argInfo.type == SoapySDR::ArgInfo::Type::STRING) {
+                auto val = _this->dev->readSetting<std::string>(argInfo.key);
+                val.copy(_this->stringSettingVal, sizeof(_this->stringSettingVal));
+                if (SmGui::InputText((argInfo.units + guiName).c_str(), _this->stringSettingVal, sizeof(_this->stringSettingVal) - 1, SmGui::FMT_STR_FLOAT_DEFAULT)) {
+                    _this->dev->writeSetting<>(argInfo.key, _this->stringSettingVal);
+                    _this->saveCurrent();
+                }
+            }
+            else {
+                flog::warn("Unknown Soapy argument type: {0} for {1} ({2})", static_cast<int>(argInfo.type), argInfo.key.c_str(), argInfo.name.c_str());
+                continue;
+            }
+
+            /* TODO: Add check for serverMode (SmGui instead of ImGui) to prevent crashing the server.
+            if (!argInfo.description.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                ImGui::SetTooltip("%s", argInfo.description.c_str());
+            } */
         }
     }
 
@@ -513,6 +662,7 @@ private:
     float* uiGains;
     int channelCount = 1;
     int channelId = 0;
+    std::string extraDeviceArgs;
     int uiAntennaId = 0;
     std::vector<std::string> antennaList;
     std::string txtAntennaList;
@@ -521,6 +671,10 @@ private:
     int uiBandwidthId = 0;
     std::vector<float> bandwidthList;
     std::string txtBwList;
+    SoapySDR::ArgInfoList settings;
+    char stringSettingVal[1024];
+    std::unordered_map<std::string, std::string> configSettings;
+    char txtExtraDeviceArgs[256];
 };
 
 MOD_EXPORT void _INIT_() {
