@@ -4,6 +4,12 @@
 #include <stdexcept>
 #include <atomic>
 
+#ifndef WIN32
+#include <arpa/inet.h>
+#else
+#include <ws2tcpip.h>
+#endif
+
 void logDebugMessage(const char *msg) {
     flog::info("logDebugMessage: {}", msg);
 }
@@ -163,6 +169,13 @@ namespace net {
         readQueueCnd.notify_all();
     }
 
+    std::string ConnClass::getPeerName() {
+        char ipStr[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &(remoteAddr.sin_addr), ipStr, INET_ADDRSTRLEN);
+        unsigned short port = ntohs(remoteAddr.sin_port);
+        return std::string(ipStr) + ":" + std::to_string(port);
+    }
+
     void ConnClass::writeAsync(int count, uint8_t* buf) {
         if (!connectionOpen) { return; }
         // Create entry
@@ -257,8 +270,14 @@ namespace net {
             throw std::runtime_error("Could not bind socket");
             return NULL;
         }
-
-        return Conn(new ConnClass(_sock));
+        struct sockaddr_in guestRemoteAddr; // sockaddr
+#ifdef WIN32
+        int guestRemoteAddrLen = sizeof(guestRemoteAddr);
+#else
+        socklen_t guestRemoteAddrLen = sizeof(guestRemoteAddr);
+#endif
+        getpeername(_sock, (struct sockaddr*)&guestRemoteAddr, &guestRemoteAddrLen);
+        return Conn(new ConnClass(_sock, guestRemoteAddr));
     }
 
     void ListenerClass::acceptAsync(void (*handler)(Conn conn, void* ctx), void* ctx) {

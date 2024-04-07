@@ -20,6 +20,7 @@ Thanks and due respect to:
 * OMLSA authors for their great [idea](https://github.com/yuzhouhe2000/OMLSA-IMCRA) and [implementation](https://github.com/xiaochunxin/OMLSA-MCRA).
 * imgui-notify author for his great [work](https://github.com/patrickcjk/imgui-notify)
 * implot author for his great [work](https://github.com/epezent/implot/)
+* alexander-sholohov (github) for his work on soapy_sdr module.
 
 ## Feedback
 

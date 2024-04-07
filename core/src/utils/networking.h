@@ -54,6 +54,7 @@ namespace net {
         bool write(int count, uint8_t* buf);
         void readAsync(int count, uint8_t* buf, void (*handler)(int count, uint8_t* buf, void* ctx), void* ctx, bool enforceSize = true);
         void writeAsync(int count, uint8_t* buf);
+        std::string getPeerName();
 
     private:
         void readWorker();

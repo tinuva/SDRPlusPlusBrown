@@ -171,7 +171,7 @@ namespace server {
     void _clientHandler(net::Conn conn, void* ctx) {
         // Reject if someone else is already connected
         if (client && client->isOpen()) {
-            flog::info("REJECTED Connection from {0}:{1}, another client is already connected.", "TODO", "TODO");
+            flog::info("REJECTED Connection from {0}, another client is already connected.", conn->getPeerName());
             
             // Issue a disconnect command to the client
             uint8_t buf[sizeof(PacketHeader) + sizeof(CommandHeader)];
@@ -192,7 +192,7 @@ namespace server {
             return;
         }
 
-        flog::info("Connection from {0}:{1}", "TODO", "TODO");
+        flog::info("Connection from {0}", conn->getPeerName());
         client = std::move(conn);
         client->readAsync(sizeof(PacketHeader), rbuf, _packetHandler, NULL);
 
@@ -247,7 +247,16 @@ namespace server {
         }
 
         // Write to network
-        if (client && client->isOpen()) { client->write(bb_pkt_hdr->size, bbuf); }
+        if (client) {
+            if (client->isOpen()) {
+                client->write(bb_pkt_hdr->size, bbuf);
+            } else {
+                sigpath::sourceManager.stop();
+                running = false;
+                client.reset();
+                flog::error("Client is gone, stopping SDR.");
+            }
+        }
     }
 
     void setInput(dsp::stream<dsp::complex_t>* stream) {
