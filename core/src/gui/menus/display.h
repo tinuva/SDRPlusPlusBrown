@@ -19,6 +19,7 @@ namespace displaymenu {
     extern bool showBattery;
     extern bool showClock;
     extern bool showFFT;
+    extern bool showFFTShadows;
     extern bool showMicHistogram;
     extern std::string currentBatteryLevel;
 

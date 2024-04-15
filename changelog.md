@@ -2,6 +2,13 @@
 
 Newest entries are at the top.
 
+2024.04.07
+
+* SDR++ server: client disconnection is detected, stream is stopped. Client IP address is logged properly.
+* soapysdr sources: merged work of @alexander-sholohov with extended UI config of soapy sdr sources.
+* bluetooth mic / playback on android is working ok
+* airspy hf+ fixed/made it properly: fill-in option 
+ 
 2024.04.03
 
 * Android only: added Audio Device selection (both mic and playback).
