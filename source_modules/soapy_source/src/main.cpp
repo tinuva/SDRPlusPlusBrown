@@ -8,11 +8,16 @@
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Modules.hpp>
 #include <SoapySDR/Logger.hpp>
+#include <SoapySDR/Version.hpp>
 #include <core.h>
 #include <gui/style.h>
 #include <gui/smgui.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
+
+#if defined(SOAPY_SDR_API_VERSION) && (SOAPY_SDR_API_VERSION >= 0x00080000)
+#define ENABLE_SOAPYSDR_RUNTIME_SETTINGS
+#endif
 
 SDRPP_MOD_INFO{
     /* Name:            */ "soapy_source",
@@ -238,7 +243,9 @@ private:
 
         hasAgc = dev->hasGainMode(SOAPY_SDR_RX, channelId);
 
+#ifdef ENABLE_SOAPYSDR_RUNTIME_SETTINGS
         settings = dev->getSettingInfo();
+#endif
 
         SoapySDR::Device::unmake(dev);
 
@@ -316,6 +323,7 @@ private:
         if (hasAgc) {
             conf["agc"] = agc;
         }
+#ifdef ENABLE_SOAPYSDR_RUNTIME_SETTINGS
         if (running) {
             for (const SoapySDR::ArgInfo& argInfo : settings) {
                 std::string val = dev->readSetting(argInfo.key);
@@ -325,6 +333,7 @@ private:
                 }
             }
         }
+#endif
         config.acquire();
         config.conf["devices"][devArgs["label"]] = conf;
         config.release(true);
@@ -539,6 +548,7 @@ private:
             }
         }
 
+#ifdef ENABLE_SOAPYSDR_RUNTIME_SETTINGS
         for (const SoapySDR::ArgInfo& argInfo : _this->settings) {
             if (!_this->running)
                 break;
@@ -624,6 +634,7 @@ private:
                 ImGui::SetTooltip("%s", argInfo.description.c_str());
             } */
         }
+#endif
     }
 
     static void _worker(SoapyModule* _this) {
@@ -671,7 +682,9 @@ private:
     int uiBandwidthId = 0;
     std::vector<float> bandwidthList;
     std::string txtBwList;
+#ifdef ENABLE_SOAPYSDR_RUNTIME_SETTINGS
     SoapySDR::ArgInfoList settings;
+#endif
     char stringSettingVal[1024];
     std::unordered_map<std::string, std::string> configSettings;
     char txtExtraDeviceArgs[256];
