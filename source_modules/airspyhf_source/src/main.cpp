@@ -285,7 +285,7 @@ private:
         airspyhf_start(_this->openDev, callback, _this);
 
         _this->running = true;
-        flog::info("AirspyHFSourceModule '{0}': Start!", _this->name);
+        flog::info("AirspyHFSourceModule '{0}': Start! Samplerate = {}", _this->name, _this->sampleRateList[_this->srId]);
     }
 
     static void stop(void* ctx) {
@@ -400,6 +400,7 @@ private:
 
     static void updateSampleRate(AirspyHFSourceModule *_this) {
         core::setInputSampleRate(_this->sampleRate * _this->narrowSamplerate());
+        flog::info("AirspyHFSourceModule '{0}': updateSampleRate: {1} -> {2}", _this->name, _this->sampleRate, _this->sampleRate * _this->narrowSamplerate());
         _this->carving.setSampleRates(_this->sampleRate, _this->sampleRate * _this->narrowSamplerate());
     }
 

@@ -16,7 +16,12 @@ namespace SmGui {
         { FMT_STR_FLOAT_DB_NO_DECIMAL, "%.0f dB" },
         { FMT_STR_FLOAT_DB_ONE_DECIMAL, "%.1f dB" },
         { FMT_STR_FLOAT_DB_TWO_DECIMAL, "%.2f dB" },
-        { FMT_STR_FLOAT_DB_THREE_DECIMAL, "%.3f dB" }
+        { FMT_STR_FLOAT_DB_THREE_DECIMAL, "%.3f dB" },
+
+        { FMT_STR_WATTS_INT,"%d W" },
+        { FMT_STR_PLUS_INT_PERCENT, " + %d %%" },
+        { FMT_STR_TEN_POWER_FLOAT, "10 ^ %.2f" },
+
     };
 
     DrawList* rdl = NULL;
@@ -594,6 +599,17 @@ namespace SmGui {
             return true;
         }
         return false;
+    }
+
+    bool CollapsingHeader(const char *label) {
+        if (!serverMode) { return ImGui::CollapsingHeader(label); }
+        if (rdl) {
+            rdl->pushStep(DRAW_STEP_COLLAPSING_HEADER, forceSyncForNext);
+            rdl->pushString(label);
+            forceSyncForNext = false;
+        }
+        // always open in server mode.
+        return true;
     }
 
     bool SliderFloatWithSteps(const char *label, float *v, float v_min, float v_max, float v_step, FormatString display_format) {

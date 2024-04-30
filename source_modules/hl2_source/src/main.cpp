@@ -430,7 +430,7 @@ private:
         }
 
         if (running) { SmGui::BeginDisabled(); }
-        if (ImGui::CollapsingHeader("HL2 advanced discovery")) {
+        if (SmGui::CollapsingHeader("HL2 advanced discovery")) {
             SmGui::LeftLabel("Probe IP:");
             SmGui::SameLine();
             SmGui::FillWidth();
@@ -452,16 +452,16 @@ private:
         }
         if (running) { SmGui::EndDisabled(); }
 
-        if (ImGui::CollapsingHeader("HL2 bands config")) {
+        if (SmGui::CollapsingHeader("HL2 bands config")) {
             if (bandsEditor(config, running && getTXStatus(), tunedFrequency)) {
                 updateBandRelays();
             }
         }
 
-        if (ImGui::CollapsingHeader("HL2 power calibrate")) {
-            if (ImGui::SliderInt("nominal PWR", &nominalPower, 5, 100, "%d W") ||
-                ImGui::SliderInt("red zone %", &redZoneExtraPercent, 20, 100, " + %d %%") ||
-                ImGui::SliderFloat("PWR calibrate", &powerADCScalingFactor, -2, +2, "10 ^ %.2f")) //
+        if (SmGui::CollapsingHeader("HL2 power calibrate")) {
+            if (SmGui::SliderInt("nominal PWR", &nominalPower, 5, 100, SmGui::FMT_STR_WATTS_INT) || // "%d W"
+                SmGui::SliderInt("red zone %", &redZoneExtraPercent, 20, 100, SmGui::FMT_STR_PLUS_INT_PERCENT) || // " + %d %%"
+                SmGui::SliderFloat("PWR calibrate", &powerADCScalingFactor, -2, +2, SmGui::FMT_STR_TEN_POWER_FLOAT )) // "10 ^ %.2f"
             {
                 config.acquire();
                 config.conf["nominalPower"] = nominalPower;
