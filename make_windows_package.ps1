@@ -71,7 +71,7 @@ cp $build_dir/sink_modules/network_sink/$RELDIR/network_sink.dll sdrpp_windows_x
 # Copy decoder modules
 cp $build_dir/decoder_modules/m17_decoder/$RELDIR/m17_decoder.dll sdrpp_windows_x64/modules/
 cp $build_dir/decoder_modules/ft8_decoder/$RELDIR/ft8_decoder.dll sdrpp_windows_x64/modules/
-cp $build_dir/decoder_modules/ft8_decoder/$RELDIR/sdrpp_ft8_mshv.exe sdrpp_windows_x64/
+#cp $build_dir/decoder_modules/ft8_decoder/$RELDIR/sdrpp_ft8_mshv.exe sdrpp_windows_x64/
 cp "C:/Program Files/codec2/lib/libcodec2.dll" sdrpp_windows_x64/
 
 cp $build_dir/decoder_modules/meteor_demodulator/$RELDIR/meteor_demodulator.dll sdrpp_windows_x64/modules/

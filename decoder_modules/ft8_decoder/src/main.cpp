@@ -25,6 +25,7 @@
 #include "module_interface.h"
 #include "ft8_etc/gen_ft8.h"
 
+
 using namespace utils;
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
@@ -1455,3 +1456,25 @@ void SingleDecoder::handleIFData(const std::vector<dsp::stereo_t>& data) {
     fullBlock->insert(std::end(*fullBlock), std::begin(data), std::end(data));
     //        flog::info("{} Got {} samples: {}", blockNumber, data.size(), data[0].l);
 }
+
+
+#ifdef NEW_BUILTIN_MODE
+
+extern void doDecode(const char *mode, const char *path, int threads, std::function<void(int mode, std::vector<std::string> result)> callback);
+namespace dsp {
+    namespace ft8 {
+        void invokeDecoder(int nthreads, const std::string &mode, const std::string &wavPath, const std::string &outPath,
+                           const std::string &errPath,
+                           std::function<void(int mode, std::vector<std::string> result, std::atomic<const char *> &progress)> callback1,
+                           std::atomic<const char *> &progress)
+        {
+            ::doDecode(mode.c_str(), wavPath.c_str(), nthreads, [&](int mode2, std::vector<std::string> result) {
+                callback1(mode2, result, progress);
+            });
+        }
+
+    }
+}
+
+
+#endif

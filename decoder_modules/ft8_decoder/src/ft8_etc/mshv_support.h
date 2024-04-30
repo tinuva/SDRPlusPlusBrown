@@ -2,6 +2,10 @@
 #pragma once
 
 
+#include "../fftw_mshv_plug.h"
+
+#include "wasm_defines.h"
+
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <vector>
@@ -9,7 +13,6 @@
 
 #include <complex.h>
 //#define complex		_Complex
-#include <fftw3.h>
 #include <memory>
 #include <cstring>
 #include <thread>
@@ -137,6 +140,7 @@ struct QString {
     void initWithConstChar(const char *init, int len);
 
     QString(const char *init);
+    QString(const char *init, int len);
 
     explicit QString(char init);
 
@@ -335,7 +339,8 @@ struct QString {
 
     QChar &operator[](int index) const {
         if (index >= str->length()) {
-            throw std::runtime_error("string index[] error");
+            fprintf(stderr, "string index[] error, index=%d length=%zu  str=%s\n", index, str->length(), str->c_str());
+            abort();
         }
         QChar *p = (QChar *)str->data()+index;
         return *p;
@@ -405,7 +410,7 @@ inline std::ostream &operator << (std::ostream &os, const QString &s) {
 }
 
 struct fftw_complexW {
-    fftw_complex c;
+    plug_complex_float c;
     constexpr fftw_complexW() : c() {
         c[0] = 0;
         c[1] = 0;
@@ -444,3 +449,21 @@ void mshv_init();
     std::vector<typ> name##0(size); \
     auto name = (name##0).data();
 
+
+extern std::function<void(const char *line)> decodeResultOutputFun;
+#ifdef __wasm__
+WASM_IMPORT("decodeResultOutput") void decodeResultOutput(const char *line);
+#else
+inline void decodeResultOutput(const char *line) { printf("%s\n", line); if (decodeResultOutputFun) decodeResultOutputFun(line); }
+#endif
+
+void debugPrintf(const char *fmt, ...);
+
+std::string arrayToString(const char *name, const float *arr, int len);
+std::string arrayToStringD(const char *name, const double *arr, int len);
+std::string arrayToStringC(const char *name, const plug_complex_float *arr, int len);
+std::string arrayToStringSCD(const char *name, const std::complex<double> *arr, int len);
+void printArray(const char *name, const float *arr, int len);
+void printArrayC(const char *name, const plug_complex_float *arr, int len);
+void printArrayD(const char *name, const double *arr, int len);
+void printArraySCD(const char *name, const std::complex<double> *arr, int len);
