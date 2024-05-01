@@ -34,6 +34,8 @@ typedef std::thread pthread_t;
 #include <unistd.h>
 #endif
 
+#include <varargs.h>
+
 #include <utils/usleep.h>
 #include <functional>
 
