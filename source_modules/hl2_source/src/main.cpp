@@ -285,7 +285,6 @@ private:
             flog::error("Tried to start HL2 source with null serial");
             return;
         }
-
         _this->device.reset();
         for (int i = 0; i < devices; i++) {
             if (_this->selectedIP == discoveredToIp(discovered[i])) {
@@ -421,6 +420,7 @@ private:
         SmGui::SameLine();
         //        SmGui::SetNextItemWidth(100);
         if (SmGui::SliderInt(("##_radio_agc_gain_" + name).c_str(), &adcGain, -12, +48, SmGui::FMT_STR_INT_DB)) {
+            flog::info("ADC Gain changed: {}", adcGain);
             if (device) {
                 device->setADCGain(adcGain);
                 config.acquire();

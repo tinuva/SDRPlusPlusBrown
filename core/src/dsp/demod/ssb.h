@@ -79,7 +79,6 @@ namespace dsp::demod {
         }
 
 
-
         int process(int count, const complex_t* in, T* out) {
             // Move back sideband
             xlator.process(count, in, xlator.out.writeBuf);

@@ -199,15 +199,17 @@ namespace SmGui {
                 SetNextItemWidth(elements[i].f);
                 i++;
             } else if (elem.step == DRAW_STEP_POP_STYLE_COLOR) {
-                PopStyleColor(elements[i].i);
+                PopStyleColor(elements[i].f);
                 i++;
             }
             else if (elem.step == DRAW_STEP_PUSH_STYLE_COLOR) {
                 PushStyleColor(elements[i].i, ImVec4(elements[i+1].f, elements[i+2].f, elements[i+3].f, elements[i+4].f));
                 i+=5;
             }
-
-            else {
+            else if (elem.step == DRAW_STEP_COLLAPSING_HEADER) {
+                CollapsingHeader(elements[i].str.c_str());
+                i+=1;
+            } else {
                 flog::error("Invalid widget in Drawlist");
             }
 

@@ -154,6 +154,11 @@ struct HL2Device {
         if (debug) {
             debugOut = fopen("/tmp/hl2_tx_stream.bin", "wb");
         }
+        flog::info("Called HL2Device::HL2Device()");
+    }
+
+    virtual ~HL2Device() {
+        flog::info("Called HL2Device::~HL2Device()");
     }
 
     bool isHL2Proxy() {
