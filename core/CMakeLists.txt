@@ -158,6 +158,8 @@ else()
     pkg_check_modules(GLFW3 REQUIRED glfw3)
     pkg_check_modules(LIBZSTD REQUIRED libzstd)
 
+    message(STATUS "VOLK=${VOLK_INCLUDE_DIRS}")
+
 
     target_include_directories(sdrpp_core PUBLIC
         ${OPENGL_INCLUDE_DIRS}

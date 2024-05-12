@@ -282,6 +282,9 @@ if (OPT_BUILD_M17_DECODER)
 add_subdirectory("decoder_modules/m17_decoder")
 endif (OPT_BUILD_M17_DECODER)
 
+add_subdirectory("decoder_modules/ch_dmr_decoder")
+
+
 if (OPT_BUILD_FT8_DECODER)
     add_subdirectory("decoder_modules/ft8_decoder")
 endif (OPT_BUILD_FT8_DECODER)
