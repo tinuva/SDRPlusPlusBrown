@@ -302,6 +302,7 @@ public:
         srChangeHandler.ctx = this;
         srChangeHandler.handler = sampleRateChangeHandler;
         stream.init(&srChangeHandler, audioSampleRate);
+        stream.setInput(afChain.out);
         sigpath::sinkManager.registerStream(name, &stream);
 
         // Select the demodulator

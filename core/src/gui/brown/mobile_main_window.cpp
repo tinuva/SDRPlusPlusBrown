@@ -1297,17 +1297,19 @@ struct MobileMainWindowPrivate {
     }
 
     void beginPlay() {
-        ImGui::WaterfallVFO *&pVfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
-        if (pVfo) {
-            callCQlayer.startPlaying();
-            callCQlayer.onPlayEnd = [&]() {
-                flog::info("callCQlayer: onplayend, stopping tx via button");
-                callCQlayer.onPlayEnd = nullptr;
-                callCQlayer.onPlayStart = nullptr;
-                pub->qsoPanel->handleTxButton(pVfo, false, false, &pub->pvt->callCQlayer.splitter);
-            };
-            pub->qsoPanel->handleTxButton(pVfo, true, false, &pub->pvt->callCQlayer.splitter);
-            sigpath::sinkManager.setAllMuted(false);    // re-enable sound
+        if (gui::waterfall.selectedVFO != "") {
+            ImGui::WaterfallVFO *&pVfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
+            if (pVfo) {
+                callCQlayer.startPlaying();
+                callCQlayer.onPlayEnd = [&]() {
+                    flog::info("callCQlayer: onplayend, stopping tx via button");
+                    callCQlayer.onPlayEnd = nullptr;
+                    callCQlayer.onPlayStart = nullptr;
+                    pub->qsoPanel->handleTxButton(pVfo, false, false, &pub->pvt->callCQlayer.splitter);
+                };
+                pub->qsoPanel->handleTxButton(pVfo, true, false, &pub->pvt->callCQlayer.splitter);
+                sigpath::sinkManager.setAllMuted(false);    // re-enable sound
+            }
         }
 
     }
@@ -1546,18 +1548,20 @@ void MobileMainWindow::updateSubmodeAfterChange() {
     }
     this->submodeToggle.upperText = submode;
     qsoPanel->setModeSubmode(mode, submode);
-    ImGui::WaterfallVFO *&pVfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
-    if (pVfo) {
-        auto selectedDemod = RadioModule::RADIO_DEMOD_USB;
-        if (submode == "LSB") selectedDemod = RadioModule::RADIO_DEMOD_LSB;
-        if (submode == "CWU") selectedDemod = RadioModule::RADIO_DEMOD_CW;
-        if (submode == "CWL") selectedDemod = RadioModule::RADIO_DEMOD_CW;
-        if (submode == "CW") selectedDemod = RadioModule::RADIO_DEMOD_CW;
-        if (submode == "NFM") selectedDemod = RadioModule::RADIO_DEMOD_NFM;
-        if (submode == "WFM") selectedDemod = RadioModule::RADIO_DEMOD_WFM;
-        if (submode == "AM") selectedDemod = RadioModule::RADIO_DEMOD_AM;
-        if (submode == "DSB") selectedDemod = RadioModule::RADIO_DEMOD_DSB;
-        pVfo->onUserChangedDemodulator.emit((int) selectedDemod);
+    if (gui::waterfall.selectedVFO != "") {
+        ImGui::WaterfallVFO *&pVfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
+        if (pVfo) {
+            auto selectedDemod = RadioModule::RADIO_DEMOD_USB;
+            if (submode == "LSB") selectedDemod = RadioModule::RADIO_DEMOD_LSB;
+            if (submode == "CWU") selectedDemod = RadioModule::RADIO_DEMOD_CW;
+            if (submode == "CWL") selectedDemod = RadioModule::RADIO_DEMOD_CW;
+            if (submode == "CW") selectedDemod = RadioModule::RADIO_DEMOD_CW;
+            if (submode == "NFM") selectedDemod = RadioModule::RADIO_DEMOD_NFM;
+            if (submode == "WFM") selectedDemod = RadioModule::RADIO_DEMOD_WFM;
+            if (submode == "AM") selectedDemod = RadioModule::RADIO_DEMOD_AM;
+            if (submode == "DSB") selectedDemod = RadioModule::RADIO_DEMOD_DSB;
+            pVfo->onUserChangedDemodulator.emit((int) selectedDemod);
+        }
     }
     updateFrequencyAfterChange();
 }

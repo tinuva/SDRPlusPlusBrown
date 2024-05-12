@@ -1,7 +1,7 @@
 #include "radio_module.h"
 
 SDRPP_MOD_INFO{
-    /* Name:            */ "vhfvoiceradio",
+    /* Name:            */ "ch_dmr_decoder",
     /* Description:     */ "Modified radio decoder for V/UHF voice",
     /* Author:          */ "cropinghigh",
     /* Version:         */ 0, 0, 6,
