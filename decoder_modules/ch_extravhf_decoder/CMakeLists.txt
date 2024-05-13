@@ -14,6 +14,7 @@ else ()
     FILE(READ "${DLROOT}/mbelib/CMakeLists.txt" TMPF)
     string(REGEX REPLACE "add_custom_target.uninstall" "add_custom_target(mbelib_uninstall" TMPF "${TMPF}")
     string(REGEX REPLACE "OUTPUT_NAME mbe" "" TMPF "${TMPF}")
+    string(REGEX REPLACE " OFF" " ON" TMPF "${TMPF}")  # disable test
     FILE(WRITE "${DLROOT}/mbelib/CMakeLists.txt" ${TMPF})
 endif ()
 
@@ -47,7 +48,6 @@ FILE(REMOVE ${DLROOT}/mbelib/config.h)
 set(CMAKE_MODULE_PATH "${DLROOT}/itpp/cmake" ${CMAKE_MODULE_PATH})
 add_subdirectory(${DLROOT}/itpp ${DLROOT}/itpp-build)
 
-set(DISABLE_TEST YES)
 add_subdirectory(${DLROOT}/mbelib ${DLROOT}/mbelib-build)
 
 file(GLOB_RECURSE SRC "src/*.cpp" "src/*.h" "src/*.hpp" "src/*.c")
