@@ -12,8 +12,9 @@ else ()
     FILE(GLOB CONTENT ${DLROOT}/mbelib-*)
     FILE(RENAME ${CONTENT} ${DLROOT}/mbelib)
     FILE(READ "${DLROOT}/mbelib/CMakeLists.txt" TMPF)
-    string(REGEX REPLACE "add_custom_target.uninstall" "add_custom_target(mbelib_uninstall" TMPF2 "${TMPF}")
-    FILE(WRITE "${DLROOT}/mbelib/CMakeLists.txt" ${TMPF2})
+    string(REGEX REPLACE "add_custom_target.uninstall" "add_custom_target(mbelib_uninstall" TMPF "${TMPF}")
+    string(REGEX REPLACE "OUTPUT_NAME mbe" "" TMPF "${TMPF}")
+    FILE(WRITE "${DLROOT}/mbelib/CMakeLists.txt" ${TMPF})
 endif ()
 
 # add_custom_target(uninstall
@@ -38,8 +39,9 @@ FILE(REMOVE ${DLROOT}/mbelib/config.h)
 
 set(CMAKE_MODULE_PATH "${DLROOT}/itpp/cmake" ${CMAKE_MODULE_PATH})
 add_subdirectory(${DLROOT}/itpp ${DLROOT}/itpp-build)
+
 set(DISABLE_TEST YES)
-add_subdirectory(${DLROOT}/mbelib ${DLROOT}/mdelib-build)
+add_subdirectory(${DLROOT}/mbelib ${DLROOT}/mbelib-build)
 
 file(GLOB_RECURSE SRC "src/*.cpp" "src/*.h" "src/*.hpp" "src/*.c")
 
@@ -62,6 +64,9 @@ endif()
 
 if(ANDROID)
     target_link_libraries(ch_dmr_decoder PUBLIC ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3f.so)
+elseif(MSVC)
+    find_package(FFTW3f CONFIG REQUIRED)
+    target_link_libraries(ch_dmr_decoder PUBLIC FFTW3::fftw3f)
 else()
     target_link_libraries(ch_dmr_decoder PUBLIC fftw3 )
 endif()

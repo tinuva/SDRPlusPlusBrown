@@ -1881,12 +1881,12 @@ namespace dsp {
     }
 
     void DSD::P25readZeros(P25_Heuristics::P25_AnalogSignal* analog_signal_array, unsigned int length, int* status_count, int new_sequence) {
-      char buffer[length];
+      std::vector<char> buffer(length, 0);
       unsigned int i;
       int analog_signal_index;
 
       analog_signal_index = 0;
-      P25readDibitUpdateAnalogData (buffer, length, status_count, analog_signal_array, &analog_signal_index);
+      P25readDibitUpdateAnalogData(buffer.data(), length, status_count, analog_signal_array, &analog_signal_index);
       if (new_sequence) {
           analog_signal_array[0].sequence_broken = 1;
       }

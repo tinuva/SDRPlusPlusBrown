@@ -1,4 +1,8 @@
 #include <config.h>
+
+#undef max
+#undef min
+
 #include "dsd.h"
 #include <stdio.h>
 #include <string.h>

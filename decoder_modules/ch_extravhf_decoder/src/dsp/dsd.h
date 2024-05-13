@@ -3,6 +3,12 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
+#ifdef WIN32
+#undef max
+#undef min
+#endif
+
+
 
 #include <dsp/processor.h>
 #include <utils/flog.h>

@@ -327,7 +327,7 @@ namespace dsp {
         int DSD::getSymbol (int have_sync) {
             int i, sum, symbol, count;
             short sample;
-            ssize_t result;
+            int result;
 
             sum = 0;
             count = 0;
