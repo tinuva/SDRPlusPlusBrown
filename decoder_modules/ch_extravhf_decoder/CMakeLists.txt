@@ -45,6 +45,7 @@ file(GLOB_RECURSE SRC "src/*.cpp" "src/*.h" "src/*.hpp" "src/*.c")
 
 include(${SDRPP_MODULE_CMAKE})
 
+
 if ((CMAKE_BUILD_TYPE STREQUAL Release) OR (NOT CMAKE_BUILD_TYPE))
     set (libitpp_target itpp_static)
 else()
@@ -52,6 +53,7 @@ else()
 endif()
 
 
+target_compile_definitions(${libitpp_target} PUBLIC TIME_WITH_SYS_TIME)
 
 target_link_libraries(ch_dmr_decoder PRIVATE fftw3 ${libitpp_target} mbe-static)
 target_include_directories(ch_dmr_decoder PRIVATE "src/" ${CMAKE_CURRENT_LIST_DIR}/../../core/src/ ${DLROOT}/mbelib ${DLROOT}/itpp ${DLROOT}/ ${DLROOT}/itpp-build)
