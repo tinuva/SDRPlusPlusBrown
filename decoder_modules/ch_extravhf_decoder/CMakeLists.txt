@@ -14,7 +14,7 @@ else ()
     FILE(READ "${DLROOT}/mbelib/CMakeLists.txt" TMPF)
     string(REGEX REPLACE "add_custom_target.uninstall" "add_custom_target(mbelib_uninstall" TMPF "${TMPF}")
     string(REGEX REPLACE "OUTPUT_NAME mbe" "" TMPF "${TMPF}")
-    FILE(WRITE "${DLROOT}/mbelib/CMakeLists.txt" ${TMPF})
+    FILE(WRITE "${DLROOT}/mbelib/CMakeLists.txt" "${TMPF}")
 endif ()
 
 # add_custom_target(uninstall
@@ -30,12 +30,12 @@ else ()
 
     FILE(READ "${DLROOT}/itpp/CMakeLists.txt" TMPF)
     string(REGEX REPLACE "option.ITPP_SHARED_LIB" "option(ZZZZ_ITPP_SHARED_LIB" TMPF "${TMPF}")
-    FILE(WRITE "${DLROOT}/itpp/CMakeLists.txt" ${TMPF})
-        C:\Users\san\source\repos\SDRPlusPlusBrown\out\build\x64-Debug\itpp\itpp\base\math\log_exp.h
+    FILE(WRITE "${DLROOT}/itpp/CMakeLists.txt" "${TMPF}")
+        
     if(MSVC)
 	    FILE(READ "${DLROOT}/itpp/itpp/base/math/log_exp.h" TMPF)
-	    string(REGEX REPLACE "namespace itpp" "#undef min\n#undef max\nnamespace itpp" TMPF "${TMPF}")
-	    FILE(WRITE "${DLROOT}/itpp/itpp/base/math/log_exp.h" ${TMPF})
+	    string(REPLACE "namespace itpp" "#undef min\n#undef max\nnamespace itpp" TMPF "${TMPF}")
+	    FILE(WRITE "${DLROOT}/itpp/itpp/base/math/log_exp.h" "${TMPF}")
     endif()
 
 
