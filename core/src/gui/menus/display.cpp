@@ -136,7 +136,7 @@ namespace displaymenu {
             showClock = core::configManager.conf["showClock"];
         }
 
-        fftSizeId = 3;
+        fftSizeId = 4;
         int fftSize = core::configManager.conf["fftSize"];
         for (int i = 0; i < std::size(FFTSizes); i++) {
             if (fftSize == FFTSizes[i]) {

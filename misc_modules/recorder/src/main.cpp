@@ -478,9 +478,9 @@ private:
         snprintf(monStr, sizeof monStr, "%02d", ltm->tm_mon + 1);
         snprintf(yearStr, sizeof yearStr, "%02d", ltm->tm_year + 1900);
         if (core::modComManager.getModuleName(name) == "radio") {
-            int mode;
+            int mode = -1;
             core::modComManager.callInterface(name, RADIO_IFACE_CMD_GET_MODE, NULL, &mode);
-            modeStr = radioModeToString[mode];
+            if (mode >= 0) { modeStr = radioModeToString[mode]; };
         }
 
         // Replace in template
