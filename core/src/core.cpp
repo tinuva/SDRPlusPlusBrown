@@ -470,6 +470,8 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["moduleInstances"]["Noise Reduction logmmse"]["enabled"] = true;
     defConfig["moduleInstances"]["FT8/FT4 Decoder"]["module"] = "ft8_decoder";
     defConfig["moduleInstances"]["FT8/FT4 Decoder"]["enabled"] = true;
+    defConfig["moduleInstances"]["VHF Digital Modes"]["module"] = "ch_extravhf_decoder";
+    defConfig["moduleInstances"]["VHF Digital Modes"]["enabled"] = true;
     // defConfig["moduleInstances"]["Rigctl Client"] = "rigctl_client";
     // TODO: Enable rigctl_client when ready
     // defConfig["moduleInstances"]["Scanner"] = "scanner";
@@ -573,6 +575,7 @@ int sdrpp_main(int argc, char* argv[]) {
     core::configManager.conf["modules"][modCount++] = "websdr_view.so";
     core::configManager.conf["modules"][modCount++] = "noise_reduction_logmmse.so";
     core::configManager.conf["modules"][modCount++] = "ft8_decoder.so";
+    core::configManager.conf["modules"][modCount++] = "ch_extravhf_decoder.so";
     core::configManager.conf["modules"][modCount++] = "reports_monitor.so";
 #endif
 
