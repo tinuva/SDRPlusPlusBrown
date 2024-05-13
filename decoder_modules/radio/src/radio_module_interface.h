@@ -27,6 +27,6 @@ struct RadioModuleInterface {
 
     virtual int getSelectedDemodId() = 0;
 
-    virtual void selectDemodByID(DemodID id) = 0;
+    virtual bool selectDemodByID(DemodID id) = 0;
 
 };

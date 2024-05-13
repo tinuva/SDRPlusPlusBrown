@@ -101,7 +101,7 @@ public:
 
             for (auto x: core::moduleManager.instances) {
                 Instance *pInstance = x.second.instance;
-                auto radio = (RadioModuleInterface *) pInstance->getInterface("RadioModule");
+                auto radio = (RadioModuleInterface *) pInstance->getInterface("RadioModuleInterface");
                 if (radio) {
                     auto inj = getInjection(radio);
                     radio->onDrawModeButtons.unbindHandler(&inj->drawModeButtonsHandler);
@@ -164,7 +164,9 @@ MOD_EXPORT ModuleManager::Instance* _CREATE_INSTANCE_(std::string name) {
 }
 
 MOD_EXPORT void _DELETE_INSTANCE_(void* instance) {
-    delete (VhfVoiceRadioModule*)instance;
+    auto mymod = (VhfVoiceRadioModule*)instance;
+    mymod->uninject();
+    delete mymod;
 }
 
 MOD_EXPORT void _END_() {

@@ -47,7 +47,7 @@ public:
         bool created = false;
         config.acquire();
         if (!config.conf.contains(name)) {
-            config.conf[name]["selectedDemodId"] = 1;
+            config.conf[name]["`selected`DemodId"] = 1;
             created = true;
         }
         selectedDemodID = config.conf[name]["selectedDemodId"];
@@ -118,11 +118,6 @@ public:
             }
         }
 
-
-
-        // Select the demodulator
-        selectDemodByID((DemodID)selectedDemodID);
-
         // Start IF chain
         ifChain.start();
 
@@ -131,11 +126,9 @@ public:
 
         afsplitter.start();
 
-//        if (sigpath::sinkManager.configured) { // not start streams unless sinkmanager is ready
-            for (auto& s : streams) {
-                s->start();
-            }
-//        }
+        for (auto& s : streams) {
+            s->start();
+        }
 
         // Register the menu
         gui::menu.registerEntry(name, menuHandler, this, this);
@@ -150,6 +143,8 @@ public:
         };
         sigpath::txState.bindHandler(&txHandler);
     }
+
+
 
     void *getInterface(const char *name) override {
         if (!strcmp(name,"RadioModule")) {
@@ -233,7 +228,16 @@ public:
 
 
 
-    void postInit() override {}
+    void postInit() override {
+        // Select the demodulator
+        if (!selectDemodByID((DemodID)selectedDemodID)) {
+            // can happen if module not loaded.
+            selectedDemodID = 1;
+            selectDemodByID((DemodID)selectedDemodID);
+        }
+
+
+    }
 
     void enable() override {
         enabled = true;
@@ -272,12 +276,12 @@ public:
         return selectedDemodID;
     }
 
-    void selectDemodByID(DemodID id) override {
+    bool selectDemodByID(DemodID id) override {
         auto startTime = std::chrono::high_resolution_clock::now();
         demod::Demodulator* demod = instantiateDemod(id);
         if (!demod) {
             flog::error("Demodulator {0} not implemented", (int)id);
-            return;
+            return false;
         }
         selectedDemodID = id;
         selectDemod(demod);
@@ -288,6 +292,7 @@ public:
         config.release(true);
         auto endTime = std::chrono::high_resolution_clock::now();
         flog::warn("Demod switch took {0} us", (int64_t)((std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime)).count()));
+        return true;
     }
 
 
@@ -425,7 +430,9 @@ private:
         }
 
         // Demodulator specific menu
-        _this->selectedDemod->showMenu();
+        if (_this->selectedDemod) {
+            _this->selectedDemod->showMenu();
+        }
 
         if (!_this->enabled) { style::endDisabled(); }
     }

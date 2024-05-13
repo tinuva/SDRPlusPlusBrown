@@ -52,12 +52,10 @@ else()
     set (libitpp_target itpp_static_debug)
 endif()
 
-
-target_compile_definitions(${libitpp_target} PUBLIC TIME_WITH_SYS_TIME)
-
 if (MSVC)
     target_compile_definitions(${libitpp_target} PUBLIC HAVE_LOG2)
 else()
+    target_compile_definitions(${libitpp_target} PUBLIC TIME_WITH_SYS_TIME)
     target_compile_options(${libitpp_target} PUBLIC "-fPIC")
     target_compile_options(mbe-static PUBLIC "-fPIC")
 endif()
