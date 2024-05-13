@@ -2,6 +2,10 @@
 
 Newest entries are at the top.
 
+2024.05.12
+
+* Added extra UHF/VHF modes module, refactored work of cropinghigh.
+
 2024.04.07
 
 * SDR++ server: client disconnection is detected, stream is stopped. Client IP address is logged properly.

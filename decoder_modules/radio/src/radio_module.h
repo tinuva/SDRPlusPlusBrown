@@ -330,7 +330,7 @@ private:
         };
         ImGui::Columns(1, CONCAT("EndRadioModeColumns##_", _this->name), false);
 
-        _this->onDrawModeButtons.emit(GImGui);
+        _this->onDrawModeButtons.emit(nullptr);
 
         ImGui::EndGroup();
 

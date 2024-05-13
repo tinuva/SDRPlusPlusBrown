@@ -31,7 +31,6 @@ if (NEVER)
     file(GLOB_RECURSE SDRPP_FT8MSHV_SRC src/*.cpp src/*.c ../../core/src/utils/networking.cpp ../../core/src/utils/flog.cpp EXCLUDE main.c)
     list(FILTER SDRPP_FT8MSHV_SRC EXCLUDE REGEX "main.c*")
 
-    if (MSVC)
         # winmain-type code
         add_executable(sdrpp_ft8_mshv WIN32 "src/sdrpp_ft8_mshv_main.cpp" "src/sdrpp_ft8_mshv.cpp" ${SDRPP_FT8MSHV_SRC})
     else ()

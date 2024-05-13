@@ -21,6 +21,7 @@ Thanks and due respect to:
 * imgui-notify author for his great [work](https://github.com/patrickcjk/imgui-notify)
 * implot author for his great [work](https://github.com/epezent/implot/)
 * alexander-sholohov (github) for his work on soapy_sdr module.
+* Cropinghigh / Indir for his [work](github.com/cropinghigh/sdrpp-vhfvoiceradio) on extra VHF modes.
 
 ## Feedback
 
