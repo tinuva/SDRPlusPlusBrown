@@ -1,4 +1,11 @@
 # sdrpp-vhfvoiceradio
+
+======== REFERENCE =====
+
+This code has been used by gentle permission of author, https://github.com/cropinghigh/sdrpp-vhfvoiceradio 
+
+======== ORIGINAL README =====
+
 VHF voice radio  plugin for SDR++
 
 Includes:

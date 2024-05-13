@@ -1,8 +1,8 @@
-#include "radio_module.h"
+#include "./radio_module.h"
 
 SDRPP_MOD_INFO{
     /* Name:            */ "ch_dmr_decoder",
-    /* Description:     */ "Modified radio decoder for V/UHF voice",
+    /* Description:     */ "Additional modes for V/UHF voice",
     /* Author:          */ "cropinghigh",
     /* Version:         */ 0, 0, 6,
     /* Max instances    */ -1
@@ -10,7 +10,7 @@ SDRPP_MOD_INFO{
 
 MOD_EXPORT void _INIT_() {
     json def = json({});
-    config.setPath(core::args["root"].s() + "/vhfvoiceradio_config.json");
+    config.setPath(core::args["root"].s() + "/ch_dmr_decoder_config.json");
     config.load(def);
     config.enableAutoSave();
 }

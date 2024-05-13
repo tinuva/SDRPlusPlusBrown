@@ -17,6 +17,7 @@
 #include <utils/optionlist.h>
 #include "radio_interface.h"
 #include "demod.h"
+#include "radio_module_interface.h"
 
 extern ConfigManager config;
 
@@ -27,7 +28,7 @@ extern std::map<DeemphasisMode, double> deempTaus;
 extern std::map<IFNRPreset, double> ifnrTaps;
 
 
-class RadioModule : public ModuleManager::Instance  {
+class RadioModule : public ModuleManager::Instance, public RadioModuleInterface  {
 public:
     RadioModule(std::string name) {
         this->name = name;
@@ -154,6 +155,9 @@ public:
         if (!strcmp(name,"RadioModule")) {
             return (RadioModule*)this;
         }
+        if (!strcmp(name,"RadioModuleInterface")) {
+            return (RadioModuleInterface*)this;
+        }
         return nullptr;
     }
 
@@ -263,21 +267,29 @@ public:
 
     std::string name;
 
-    enum DemodID {
-        RADIO_DEMOD_NFM,
-        RADIO_DEMOD_WFM,
-        RADIO_DEMOD_AM,
-        RADIO_DEMOD_DSB,
-        RADIO_DEMOD_USB,
-        RADIO_DEMOD_CW,
-        RADIO_DEMOD_LSB,
-        RADIO_DEMOD_RAW,
-        _RADIO_DEMOD_COUNT,
-    };
-
     int getSelectedDemodId() {
         return selectedDemodID;
     }
+
+    void selectDemodByID(DemodID id) {
+        auto startTime = std::chrono::high_resolution_clock::now();
+        demod::Demodulator* demod = instantiateDemod(id);
+        if (!demod) {
+            flog::error("Demodulator {0} not implemented", (int)id);
+            return;
+        }
+        selectedDemodID = id;
+        selectDemod(demod);
+
+        // Save config
+        config.acquire();
+        config.conf[name]["selectedDemodId"] = id;
+        config.release(true);
+        auto endTime = std::chrono::high_resolution_clock::now();
+        flog::warn("Demod switch took {0} us", (int64_t)((std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime)).count()));
+    }
+
+
 
 private:
     static void menuHandler(void* ctx) {
@@ -318,6 +330,8 @@ private:
         };
         ImGui::Columns(1, CONCAT("EndRadioModeColumns##_", _this->name), false);
 
+        _this->onDrawModeButtons.emit(GImGui);
+
         ImGui::EndGroup();
 
         if (!_this->bandwidthLocked) {
@@ -330,11 +344,11 @@ private:
             }
             int limit = 12000;
             switch(_this->selectedDemodID) {        // convenience to fully utilize slider, edit with above field for outside values
-            case RadioModule::RADIO_DEMOD_LSB:
-            case RadioModule::RADIO_DEMOD_USB:
+            case RADIO_DEMOD_LSB:
+            case RADIO_DEMOD_USB:
                 limit = 3500;
                 break;
-            case RadioModule::RADIO_DEMOD_CW:
+            case RADIO_DEMOD_CW:
                 limit = 1000;
                 break;
             }
@@ -428,6 +442,12 @@ private:
             case DemodID::RADIO_DEMOD_RAW:  demod = new demod::RAW(); break;
             default:                        demod = NULL; break;
         }
+        if (!demod) {
+            for (int i = 0; i < demodulatorProviders.size(); i++) {
+                demod = demodulatorProviders[i](id);
+                if (demod) { break; }
+            }
+        }
         if (!demod) { return NULL; }
 
         // Default config
@@ -449,24 +469,6 @@ private:
         demod->init(name, &config, ifChain.out, bw, streams.front()->getSampleRate());
 
         return demod;
-    }
-
-    void selectDemodByID(DemodID id) {
-        auto startTime = std::chrono::high_resolution_clock::now();
-        demod::Demodulator* demod = instantiateDemod(id);
-        if (!demod) {
-            flog::error("Demodulator {0} not implemented", (int)id);
-            return;
-        }
-        selectedDemodID = id;
-        selectDemod(demod);
-
-        // Save config
-        config.acquire();
-        config.conf[name]["selectedDemodId"] = id;
-        config.release(true);
-        auto endTime = std::chrono::high_resolution_clock::now();
-        flog::warn("Demod switch took {0} us", (int64_t)((std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime)).count()));
     }
 
     void selectDemod(demod::Demodulator* demod) {
@@ -628,19 +630,6 @@ private:
         afChain.start();
     }
 
-    void setDeemphasisMode(DeemphasisMode mode) {
-        deempId = deempModes.valueId(mode);
-        if (!postProcEnabled || !selectedDemod) { return; }
-        bool deempEnabled = (mode != DEEMP_MODE_NONE);
-        if (deempEnabled) { deemp.setTau(deempTaus[mode]); }
-        afChain.setBlockEnabled(&deemp, deempEnabled, [=](dsp::stream<dsp::stereo_t>* out){ afsplitter.setInput(out); });
-
-        // Save config
-        config.acquire();
-        config.conf[name][selectedDemod->getName()]["deempMode"] = deempModes.key(deempId);
-        config.release(true);
-    }
-
     void setNBEnabled(bool enable) {
         nbEnabled = enable;
         if (!selectedDemod) { return; }
@@ -694,6 +683,19 @@ private:
         config.release(true);
     }
 
+    void setDeemphasisMode(DeemphasisMode mode) {
+        deempId = deempModes.valueId(mode);
+        if (!postProcEnabled || !selectedDemod) { return; }
+        bool deempEnabled = (mode != DEEMP_MODE_NONE);
+        if (deempEnabled) { deemp.setTau(deempTaus[mode]); }
+        afChain.setBlockEnabled(&deemp, deempEnabled, [=](dsp::stream<dsp::stereo_t>* out){ afsplitter.setInput(out); });
+
+        // Save config
+        config.acquire();
+        config.conf[name][selectedDemod->getName()]["deempMode"] = deempModes.key(deempId);
+        config.release(true);
+    }
+
     void setIFNRPreset(IFNRPreset preset) {
         // Don't save if in broadcast mode
         if (preset == IFNR_PRESET_BROADCAST) {
@@ -711,6 +713,8 @@ private:
         config.conf[name][selectedDemod->getName()]["fmifnrPreset"] = ifnrPresets.key(fmIFPresetId);
         config.release(true);
     }
+
+
 
     static void vfoUserChangedBandwidthHandler(double newBw, void* ctx) {
         RadioModule* _this = (RadioModule*)ctx;
@@ -883,3 +887,4 @@ private:
 
     EventHandler<bool> txHandler;
 };
+

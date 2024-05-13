@@ -1551,15 +1551,15 @@ void MobileMainWindow::updateSubmodeAfterChange() {
     if (gui::waterfall.selectedVFO != "") {
         ImGui::WaterfallVFO *&pVfo = gui::waterfall.vfos[gui::waterfall.selectedVFO];
         if (pVfo) {
-            auto selectedDemod = RadioModule::RADIO_DEMOD_USB;
-            if (submode == "LSB") selectedDemod = RadioModule::RADIO_DEMOD_LSB;
-            if (submode == "CWU") selectedDemod = RadioModule::RADIO_DEMOD_CW;
-            if (submode == "CWL") selectedDemod = RadioModule::RADIO_DEMOD_CW;
-            if (submode == "CW") selectedDemod = RadioModule::RADIO_DEMOD_CW;
-            if (submode == "NFM") selectedDemod = RadioModule::RADIO_DEMOD_NFM;
-            if (submode == "WFM") selectedDemod = RadioModule::RADIO_DEMOD_WFM;
-            if (submode == "AM") selectedDemod = RadioModule::RADIO_DEMOD_AM;
-            if (submode == "DSB") selectedDemod = RadioModule::RADIO_DEMOD_DSB;
+            auto selectedDemod = RADIO_DEMOD_USB;
+            if (submode == "LSB") selectedDemod = RADIO_DEMOD_LSB;
+            if (submode == "CWU") selectedDemod = RADIO_DEMOD_CW;
+            if (submode == "CWL") selectedDemod = RADIO_DEMOD_CW;
+            if (submode == "CW") selectedDemod = RADIO_DEMOD_CW;
+            if (submode == "NFM") selectedDemod = RADIO_DEMOD_NFM;
+            if (submode == "WFM") selectedDemod = RADIO_DEMOD_WFM;
+            if (submode == "AM") selectedDemod = RADIO_DEMOD_AM;
+            if (submode == "DSB") selectedDemod = RADIO_DEMOD_DSB;
             pVfo->onUserChangedDemodulator.emit((int) selectedDemod);
         }
     }
@@ -2568,25 +2568,25 @@ void MobileMainWindow::init() {
 
 void MobileMainWindow::updateModeFromRadio(int radioDemodId) {
     switch (radioDemodId) {
-        case RadioModule::RADIO_DEMOD_AM:
+        case RADIO_DEMOD_AM:
             setCurrentModeBySubmode("AM");
             return;
-        case RadioModule::RADIO_DEMOD_LSB:
+        case RADIO_DEMOD_LSB:
             setCurrentModeBySubmode("LSB");
             return;
-        case RadioModule::RADIO_DEMOD_USB:
+        case RADIO_DEMOD_USB:
             setCurrentModeBySubmode("USB");
             return;
-        case RadioModule::RADIO_DEMOD_NFM:
+        case RADIO_DEMOD_NFM:
             setCurrentModeBySubmode("NFM");
             return;
-        case RadioModule::RADIO_DEMOD_WFM:
+        case RADIO_DEMOD_WFM:
             setCurrentModeBySubmode("WFM");
             return;
-        case RadioModule::RADIO_DEMOD_CW:
+        case RADIO_DEMOD_CW:
             setCurrentModeBySubmode("CW");
             return;
-        case RadioModule::RADIO_DEMOD_DSB:
+        case RADIO_DEMOD_DSB:
             setCurrentModeBySubmode("DSB");
             return;
     }
