@@ -1,4 +1,9 @@
 #pragma once
+
+#define _USE_MATH_DEFINES
+#include <math.h>
+
+
 #include <dsp/processor.h>
 #include <utils/flog.h>
 extern "C" {
