@@ -62,5 +62,13 @@ else()
     target_compile_options(mbe-static PUBLIC "-fPIC")
 endif()
 
-target_link_libraries(ch_dmr_decoder PRIVATE fftw3 ${libitpp_target} mbe-static)
-target_include_directories(ch_dmr_decoder PRIVATE "src/" ${CMAKE_CURRENT_LIST_DIR}/../../core/src/ ${DLROOT}/mbelib ${DLROOT}/itpp ${DLROOT}/ ${DLROOT}/itpp-build)
+if(ANDROID)
+    target_link_libraries(ch_dmr_decoder PUBLIC ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3f.so)
+else()
+    target_link_libraries(ch_dmr_decoder PUBLIC fftw3 )
+endif()
+
+target_link_libraries(ch_dmr_decoder PUBLIC ${libitpp_target} mbe-static)
+
+
+target_include_directories(ch_dmr_decoder PUBLIC "src/" ${CMAKE_CURRENT_LIST_DIR}/../../core/src/ ${DLROOT}/mbelib ${DLROOT}/itpp ${DLROOT}/ ${DLROOT}/itpp-build)
