@@ -69,6 +69,4 @@ else()
 endif()
 
 target_link_libraries(ch_dmr_decoder PUBLIC ${libitpp_target} mbe-static)
-
-
 target_include_directories(ch_dmr_decoder PUBLIC "src/" ${CMAKE_CURRENT_LIST_DIR}/../../core/src/ ${DLROOT}/mbelib ${DLROOT}/itpp ${DLROOT}/ ${DLROOT}/itpp-build)
