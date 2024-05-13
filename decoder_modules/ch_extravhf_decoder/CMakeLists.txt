@@ -54,6 +54,8 @@ endif()
 
 
 target_compile_definitions(${libitpp_target} PUBLIC TIME_WITH_SYS_TIME)
+target_compile_options(${libitpp_target} PUBLIC "-fPIC")
+target_compile_options(mbe-static PUBLIC "-fPIC")
 
 target_link_libraries(ch_dmr_decoder PRIVATE fftw3 ${libitpp_target} mbe-static)
 target_include_directories(ch_dmr_decoder PRIVATE "src/" ${CMAKE_CURRENT_LIST_DIR}/../../core/src/ ${DLROOT}/mbelib ${DLROOT}/itpp ${DLROOT}/ ${DLROOT}/itpp-build)
