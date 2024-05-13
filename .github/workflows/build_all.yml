@@ -93,7 +93,7 @@ jobs:
           run: gh release upload stable ${{runner.workspace}}/sdrpp_windows_x64.zip -R ${{github.repository}} --clobber
 
 
-    build_macos:
+    build_macos_intel:
       runs-on: macos-12
 
       steps:
