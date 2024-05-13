@@ -29,8 +29,14 @@ else ()
     FILE(RENAME ${CONTENT} ${DLROOT}/itpp)
 
     FILE(READ "${DLROOT}/itpp/CMakeLists.txt" TMPF)
-    string(REGEX REPLACE "option.ITPP_SHARED_LIB" "option(ZZZZ_ITPP_SHARED_LIB" TMPF2 "${TMPF}")
-    FILE(WRITE "${DLROOT}/itpp/CMakeLists.txt" ${TMPF2})
+    string(REGEX REPLACE "option.ITPP_SHARED_LIB" "option(ZZZZ_ITPP_SHARED_LIB" TMPF "${TMPF}")
+    FILE(WRITE "${DLROOT}/itpp/CMakeLists.txt" ${TMPF})
+        C:\Users\san\source\repos\SDRPlusPlusBrown\out\build\x64-Debug\itpp\itpp\base\math\log_exp.h
+    if(MSVC)
+	    FILE(READ "${DLROOT}/itpp/itpp/base/math/log_exp.h" TMPF)
+	    string(REGEX REPLACE "namespace itpp" "#undef min\n#undef max\nnamespace itpp" TMPF "${TMPF}")
+	    FILE(WRITE "${DLROOT}/itpp/itpp/base/math/log_exp.h" ${TMPF})
+    endif()
 
 
 endif ()
