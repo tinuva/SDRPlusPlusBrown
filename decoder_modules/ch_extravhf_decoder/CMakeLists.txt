@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.13)
 project(ch_dmr_decoder)
 
 
+message("HERE ${VCPKG_INSTALLED_DIR}")
+
 set(DLROOT ${CMAKE_BINARY_DIR})
 if (EXISTS ${DLROOT}/mbelib)
     message("Not downloading mbelib")
@@ -19,35 +21,37 @@ else ()
 endif ()
 
 # add_custom_target(uninstall
+if(NOT MSVC)
+    if (EXISTS ${DLROOT}/itpp)
+        message("Not downloading itpp")
+    else ()
+        message("Downloading itpp")
+        file(DOWNLOAD https://codeload.github.com/mmeidlinger/itpp//tar.gz/d29deaf7560ed84818a82aa2cc6e4b9337ee9017 ${DLROOT}/itpp.tar.gz)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xfz itpp.tar.gz WORKING_DIRECTORY ${DLROOT})
+        FILE(GLOB CONTENT ${DLROOT}/itpp-*)
+        FILE(RENAME ${CONTENT} ${DLROOT}/itpp)
 
-if (EXISTS ${DLROOT}/itpp)
-    message("Not downloading itpp")
-else ()
-    message("Downloading itpp")
-    file(DOWNLOAD https://codeload.github.com/mmeidlinger/itpp//tar.gz/d29deaf7560ed84818a82aa2cc6e4b9337ee9017 ${DLROOT}/itpp.tar.gz)
-    execute_process(COMMAND ${CMAKE_COMMAND} -E tar xfz itpp.tar.gz WORKING_DIRECTORY ${DLROOT})
-    FILE(GLOB CONTENT ${DLROOT}/itpp-*)
-    FILE(RENAME ${CONTENT} ${DLROOT}/itpp)
+        FILE(READ "${DLROOT}/itpp/CMakeLists.txt" TMPF)
+        string(REGEX REPLACE "option.ITPP_SHARED_LIB" "option(ZZZZ_ITPP_SHARED_LIB" TMPF "${TMPF}")
+        FILE(WRITE "${DLROOT}/itpp/CMakeLists.txt" "${TMPF}")
 
-    FILE(READ "${DLROOT}/itpp/CMakeLists.txt" TMPF)
-    string(REGEX REPLACE "option.ITPP_SHARED_LIB" "option(ZZZZ_ITPP_SHARED_LIB" TMPF "${TMPF}")
-    FILE(WRITE "${DLROOT}/itpp/CMakeLists.txt" "${TMPF}")
 
-    if(MSVC)
-	    FILE(READ "${DLROOT}/itpp/itpp/base/math/log_exp.h" TMPF)
-	    string(REPLACE "namespace itpp" "#undef min\n#undef max\nnamespace itpp" TMPF "${TMPF}")
-	    FILE(WRITE "${DLROOT}/itpp/itpp/base/math/log_exp.h" "${TMPF}")
+    endif ()
+    FILE(REMOVE ${DLROOT}/itpp/version)
+    set(CMAKE_MODULE_PATH "${DLROOT}/itpp/cmake" ${CMAKE_MODULE_PATH})
+    add_subdirectory(${DLROOT}/itpp ${DLROOT}/itpp-build)
+
+    if ((CMAKE_BUILD_TYPE STREQUAL Release) OR (NOT CMAKE_BUILD_TYPE))
+        set (libitpp_target itpp_static)
+    else()
+        set (libitpp_target itpp_static_debug)
     endif()
+    target_compile_definitions(${libitpp_target} PUBLIC TIME_WITH_SYS_TIME)
+    target_compile_options(${libitpp_target} PUBLIC "-fPIC")
 
-endif ()
+endif()
 
-
-FILE(REMOVE ${DLROOT}/itpp/version)
 FILE(REMOVE ${DLROOT}/mbelib/config.h)
-
-set(CMAKE_MODULE_PATH "${DLROOT}/itpp/cmake" ${CMAKE_MODULE_PATH})
-add_subdirectory(${DLROOT}/itpp ${DLROOT}/itpp-build)
-
 add_subdirectory(${DLROOT}/mbelib ${DLROOT}/mbelib-build)
 
 file(GLOB_RECURSE SRC "src/*.cpp" "src/*.h" "src/*.hpp" "src/*.c")
@@ -55,23 +59,14 @@ file(GLOB_RECURSE SRC "src/*.cpp" "src/*.h" "src/*.hpp" "src/*.c")
 include(${SDRPP_MODULE_CMAKE})
 
 
-if ((CMAKE_BUILD_TYPE STREQUAL Release) OR (NOT CMAKE_BUILD_TYPE))
-    set (libitpp_target itpp_static)
-else()
-    set (libitpp_target itpp_static_debug)
-endif()
-
-if (MSVC)
-    target_compile_definitions(${libitpp_target} PUBLIC HAVE_LOG2)
-else()
-    target_compile_definitions(${libitpp_target} PUBLIC TIME_WITH_SYS_TIME)
-    target_compile_options(${libitpp_target} PUBLIC "-fPIC")
+if (NOT MSVC)
     target_compile_options(mbe-static PUBLIC "-fPIC")
 endif()
 
 if(ANDROID)
     target_link_libraries(ch_dmr_decoder PUBLIC ${SDR_KIT_ROOT}/${ANDROID_ABI}/lib/libfftw3f.so)
 elseif(MSVC)
+    target_link_libraries(ch_dmr_decoder PUBLIC itpp)
     find_package(FFTW3f CONFIG REQUIRED)
     target_link_libraries(ch_dmr_decoder PUBLIC FFTW3::fftw3f)
 else()
@@ -79,4 +74,4 @@ else()
 endif()
 
 target_link_libraries(ch_dmr_decoder PUBLIC ${libitpp_target} mbe-static)
-target_include_directories(ch_dmr_decoder PUBLIC "src/" ${CMAKE_CURRENT_LIST_DIR}/../../core/src/ ${DLROOT}/mbelib ${DLROOT}/itpp ${DLROOT}/ ${DLROOT}/itpp-build)
+target_include_directories(ch_dmr_decoder PUBLIC "src/" ${CMAKE_CURRENT_LIST_DIR}/../../core/src/ ${DLROOT}/mbelib)
