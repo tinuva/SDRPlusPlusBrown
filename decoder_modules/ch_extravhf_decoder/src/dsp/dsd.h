@@ -1,5 +1,8 @@
 #pragma once
 
+//#define register
+#include <itpp/itcomm.h>
+
 #define _USE_MATH_DEFINES
 #include <math.h>
 
@@ -21,8 +24,6 @@ extern "C" {
 #include "ReedSolomon.hpp"
 #include "Hamming.hpp"
 
-#define register
-#include <itpp/itcomm.h>
 
 
 //Using https://github.com/szechyjs/dsd source code

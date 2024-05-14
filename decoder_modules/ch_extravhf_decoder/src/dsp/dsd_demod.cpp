@@ -1,3 +1,9 @@
+
+
+#include <itpp/itcomm.h>
+
+#include <algorithm>
+
 #include <config.h>
 #include "dsd.h"
 
@@ -114,7 +120,7 @@ namespace dsp {
                 memset(&(out[outcnt]), 0, remainingOut*sizeof(short));
                 outcnt += remainingOut;
             }
-            outSymsCtr -= (std::min(outSymsCtr, requiredOut));
+            outSymsCtr -= (min(outSymsCtr, requiredOut));
             inSymsCtr -= requiredOut * 3 / 5;
             return outcnt;
         }
