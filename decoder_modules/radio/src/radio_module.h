@@ -47,7 +47,7 @@ public:
         bool created = false;
         config.acquire();
         if (!config.conf.contains(name)) {
-            config.conf[name]["`selected`DemodId"] = 1;
+            config.conf[name]["selectedDemodId"] = 1;
             created = true;
         }
         selectedDemodID = config.conf[name]["selectedDemodId"];

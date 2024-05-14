@@ -8,6 +8,8 @@ $RELDIR="RelWithDebInfo"
 # Copy root
 cp -Recurse $root_dir/* sdrpp_windows_x64/
 
+cp %VCPKG_ROOT%/installed/x64-windows/bin/itpp.dll sdrpp_windows_x64/
+
 # Copy core
 cp $build_dir/$RELDIR/* sdrpp_windows_x64/
 cp 'C:/Program Files/PothosSDR/bin/volk.dll' sdrpp_windows_x64/
