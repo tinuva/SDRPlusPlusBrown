@@ -271,15 +271,15 @@ namespace dsp {
                                 }
                             }
                             if (firstV < 0 || lastV < 0) {
-//                                std::cerr << "Bad noise_mu2 figure. countZeros="+std::to_string(countZeros)+"\n";
                                 *noise_mu2 = noise_mu2_copy;
-//                                abort();
                             } else {
+                                auto v = nmu2[firstV];
                                 for (int q = firstV - 1; q >= 0; q--) {
-                                    nmu2[q] = nmu2[firstV];
+                                    nmu2[q] = v;
                                 }
-                                for (int q = lastV + 1; q < noise_mu2->size(); q++) {
-                                    nmu2[q] = nmu2[lastV];
+                                v = nmu2[lastV];
+                                for (int q = lastV + 1; q < nFFT; q++) {
+                                    nmu2[q] = v;
                                 }
                             }
                             ADD_STEP_STATS();

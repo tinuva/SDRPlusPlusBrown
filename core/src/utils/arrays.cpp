@@ -637,15 +637,15 @@ namespace dsp {
         // add scalar to all items
         FloatArray add(const FloatArray& v, float e) {
             auto retval = std::make_shared<std::vector<float>>();
-            if (true) {
+            if (false) {
                 retval->reserve(v->size());
                 for (auto d : *v) {
                     retval->emplace_back(d + e);
                 }
             }
             else {
-                //                retval->resize(v->size());
-                //                volk_32f_s32f_add_32f(retval->data(), v->data(), e, v->size());
+                retval->resize(v->size());
+                volk_32f_s32f_add_32f(retval->data(), v->data(), e, v->size());
             }
             return retval;
         }
@@ -954,6 +954,7 @@ namespace dsp {
         // only even window sizes
         FloatArray npmavg(const FloatArray& v, int windowSize) {
             auto retval = std::make_shared<std::vector<float>>();
+            retval->reserve(v->size());
             float sum = 0;
             float count = 0;
             auto ws2 = windowSize / 2;
@@ -978,6 +979,7 @@ namespace dsp {
 
         FloatArray npreal(const ComplexArray& v) {
             auto retval = std::make_shared<std::vector<float>>();
+            retval->reserve(v->size());
             for (auto d : *v) {
                 retval->emplace_back(d.re);
             }
@@ -1018,18 +1020,12 @@ namespace dsp {
             if (in->size() == nsize) {
                 return in;
             }
-            auto retval = std::make_shared<std::vector<dsp::complex_t>>();
+            auto retval = std::make_shared<std::vector<dsp::complex_t>>(nsize, dsp::complex_t{ 0, 0 });
             auto limit = in->size();
             if (nsize < in->size()) {
                 limit = nsize;
             }
-            retval->reserve(nsize);
-            for (auto i = 0; i < limit; i++) {
-                retval->emplace_back(in->at(i));
-            }
-            for (auto i = limit; i < nsize; i++) {
-                retval->emplace_back(dsp::complex_t{ 0, 0 });
-            }
+            std::copy(in->begin(), in->begin() + limit, retval->begin());
             return retval;
         }
 

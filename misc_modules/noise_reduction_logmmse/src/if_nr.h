@@ -104,17 +104,30 @@ namespace dsp {
             return;
         }
 
+        long long lastReport = currentTimeMillis();
+        long long cpuUsed = 0;
+        int percentUsage = 0;
+
         int runMMSE(stream <complex_t> *_in, stream <complex_t> &out) {
             int count = _in->read();
             if (count < 0) { return -1; }
             int outCount;
+            long long ctm0 = currentTimeMillis();
             process(_in->readBuf, count, out.writeBuf, outCount);
             _in->flush();
             if (!out.swap(outCount)) {
                 return -1;
             }
+            long long ctm = currentTimeMillis();
+            cpuUsed += ctm - ctm0;
+            if (lastReport / 1000 != ctm / 1000) {
+                auto timeSinceLastReport = ctm - lastReport;
+                auto usedSinceLastReport = cpuUsed;
+                cpuUsed = 0;
+                lastReport = ctm;
+                percentUsage = (usedSinceLastReport * 100) / timeSinceLastReport;
+            }
             return 1;
-
         }
 
         int run() override {
@@ -144,6 +157,7 @@ namespace dsp {
             block::start();
         }
         void stop() override {
+            percentUsage = -1;
             block::stop();
             sigpath::txState.unbindHandler(&txHandler);
         }

@@ -225,6 +225,17 @@ private:
 
             actuateIFNR();
         }
+        if (ifnrProcessor.percentUsage >= 0) {
+            ImGui::SameLine();
+            if (ifnrProcessor.percentUsage > 80) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0, 0, 1.0f));
+            }
+            ImGui::Text("%d%% cpu", (int)ifnrProcessor.percentUsage);
+            if (ifnrProcessor.percentUsage > 80) {
+                ImGui::PopStyleColor(1);
+            }
+        }
+
 //        if (mustShowTooltip("IFNR"))
 //            ImGui::SetTooltip("Algorithm running on full bandwidth. High CPU usage! Good for SSB/AM/CW only.");
 
