@@ -120,7 +120,7 @@ namespace dsp {
             }
             long long ctm = currentTimeMillis();
             cpuUsed += ctm - ctm0;
-            if (lastReport / 1000 != ctm / 1000) {
+            if (lastReport / 400 != ctm / 400) {
                 auto timeSinceLastReport = ctm - lastReport;
                 auto usedSinceLastReport = cpuUsed;
                 cpuUsed = 0;
