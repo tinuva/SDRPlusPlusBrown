@@ -749,6 +749,34 @@ private:
 
     static void moduleInterfaceHandler(int code, void* in, void* out, void* ctx) {
         RadioModule* _this = (RadioModule*)ctx;
+        if(in) {
+            switch(code) {
+                case RADIO_IFACE_CMD_ADD_TO_IFCHAIN:
+                    _this->ifChain.addBlock((dsp::Processor<dsp::complex_t, dsp::complex_t> *)in, false);
+                    return;
+                case RADIO_IFACE_CMD_ADD_TO_AFCHAIN:
+                    _this->afChain.addBlock((dsp::Processor<dsp::stereo_t, dsp::stereo_t> *)in, false);
+                    return;
+                case RADIO_IFACE_CMD_REMOVE_FROM_IFCHAIN:
+                    _this->ifChain.removeBlock((dsp::Processor<dsp::complex_t, dsp::complex_t> *)in, [=](dsp::stream<dsp::complex_t>* out){ _this->selectedDemod->setInput(out); });
+                    return;
+                case RADIO_IFACE_CMD_REMOVE_FROM_AFCHAIN:
+                    _this->afChain.removeBlock((dsp::Processor<dsp::stereo_t, dsp::stereo_t> *)in, [=](dsp::stream<dsp::stereo_t>* out){ _this->afsplitter.setInput(out); });
+                    return;
+                case RADIO_IFACE_CMD_ENABLE_IN_IFCHAIN:
+                    _this->ifChain.setBlockEnabled((dsp::Processor<dsp::complex_t, dsp::complex_t> *)in, true, [=](dsp::stream<dsp::complex_t>* out){ _this->selectedDemod->setInput(out); });
+                    return;
+                case RADIO_IFACE_CMD_ENABLE_IN_AFCHAIN:
+                    _this->afChain.setBlockEnabled((dsp::Processor<dsp::stereo_t, dsp::stereo_t> *)in, true, [=](dsp::stream<dsp::stereo_t>* out){ _this->afsplitter.setInput(out); });
+                    return;
+                case RADIO_IFACE_CMD_DISABLE_IN_IFCHAIN:
+                    _this->ifChain.setBlockEnabled((dsp::Processor<dsp::complex_t, dsp::complex_t> *)in, false, [=](dsp::stream<dsp::complex_t>* out){ _this->selectedDemod->setInput(out); });
+                    return;
+                case RADIO_IFACE_CMD_DISABLE_IN_AFCHAIN:
+                    _this->afChain.setBlockEnabled((dsp::Processor<dsp::stereo_t, dsp::stereo_t> *)in, false, [=](dsp::stream<dsp::stereo_t>* out){ _this->afsplitter.setInput(out); });
+                    return;
+            }
+        }
 
         // If no demod is selected, reject the command
         if (!_this->selectedDemod) { return; }
@@ -786,38 +814,6 @@ private:
         else if (code == RADIO_IFACE_CMD_SET_SQUELCH_LEVEL && in && _this->enabled) {
             float* _in = (float*)in;
             _this->setSquelchLevel(*_in);
-        }
-        else if (code == RADIO_IFACE_CMD_ADD_TO_IFCHAIN && in) {
-            auto proc = (dsp::Processor<dsp::complex_t, dsp::complex_t> *)in;
-            _this->ifChain.addBlock(proc, false);
-        }
-        else if (code == RADIO_IFACE_CMD_ADD_TO_AFCHAIN && in) {
-            auto proc = (dsp::Processor<dsp::stereo_t, dsp::stereo_t> *)in;
-            _this->afChain.addBlock(proc, false);
-        }
-        else if (code == RADIO_IFACE_CMD_REMOVE_FROM_IFCHAIN && in) {
-            auto proc = (dsp::Processor<dsp::complex_t, dsp::complex_t> *)in;
-            _this->ifChain.removeBlock(proc, [=](dsp::stream<dsp::complex_t>* out){ _this->selectedDemod->setInput(out); });
-        }
-        else if (code == RADIO_IFACE_CMD_REMOVE_FROM_AFCHAIN && in) {
-            auto proc = (dsp::Processor<dsp::stereo_t, dsp::stereo_t> *)in;
-            _this->afChain.removeBlock(proc, [=](dsp::stream<dsp::stereo_t>* out){ _this->afsplitter.setInput(out); });
-        }
-        else if (code == RADIO_IFACE_CMD_ENABLE_IN_IFCHAIN && in) {
-            auto proc = (dsp::Processor<dsp::complex_t, dsp::complex_t> *)in;
-            _this->ifChain.setBlockEnabled(proc, true, [=](dsp::stream<dsp::complex_t>* out){ _this->selectedDemod->setInput(out); });
-        }
-        else if (code == RADIO_IFACE_CMD_ENABLE_IN_AFCHAIN && in) {
-            auto proc = (dsp::Processor<dsp::stereo_t, dsp::stereo_t> *)in;
-            _this->afChain.setBlockEnabled(proc, true, [=](dsp::stream<dsp::stereo_t>* out){ _this->afsplitter.setInput(out); });
-        }
-        else if (code == RADIO_IFACE_CMD_DISABLE_IN_IFCHAIN && in) {
-            auto proc = (dsp::Processor<dsp::complex_t, dsp::complex_t> *)in;
-            _this->ifChain.setBlockEnabled(proc, false, [=](dsp::stream<dsp::complex_t>* out){ _this->selectedDemod->setInput(out); });
-        }
-        else if (code == RADIO_IFACE_CMD_DISABLE_IN_AFCHAIN && in) {
-            auto proc = (dsp::Processor<dsp::stereo_t, dsp::stereo_t> *)in;
-            _this->afChain.setBlockEnabled(proc, false, [=](dsp::stream<dsp::stereo_t>* out){ _this->afsplitter.setInput(out); });
         }
         else {
             return;
