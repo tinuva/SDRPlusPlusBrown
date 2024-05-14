@@ -61,6 +61,7 @@ include(${SDRPP_MODULE_CMAKE})
 
 if (NOT MSVC)
     target_compile_options(mbe-static PUBLIC "-fPIC")
+    target_include_directories(ch_dmr_decoder PUBLIC "${DLROOT}/itpp" "${DLROOT}")
 endif()
 
 if(ANDROID)

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../../../../core/src/config.h"
+
 //#define register
 #include <itpp/itcomm.h>
 
@@ -10,7 +12,6 @@
 #undef max
 #undef min
 #endif
-
 
 
 #include <dsp/processor.h>
