@@ -2,6 +2,12 @@
 
 #include "../../../../core/src/config.h"
 
+#ifdef __MACH__
+// because it is needed only on macos
+#define register
+#endif
+
+
 //#define register
 #include <itpp/itcomm.h>
 

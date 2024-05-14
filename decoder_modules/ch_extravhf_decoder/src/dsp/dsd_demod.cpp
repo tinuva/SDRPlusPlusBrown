@@ -1,5 +1,9 @@
 
+#ifdef __MACH__
+#define register
+#endif
 
+// it is included here first, because on windows it would fail otherwise.
 #include <itpp/itcomm.h>
 
 #include <algorithm>

@@ -1,15 +1,29 @@
 
-#include "../../../core/src/config.h"
+
+
+#ifdef __MACH__
+// because it is needed only on macos
+#define register
+#endif
+
+
+
 #include <itpp/itcomm.h>
+#ifndef ITCOMM_H
+// KEEP THIS CRAP TOGETHER DONT REMOVE INCLUDE.
+#error "ITCOMM_H is not defined"
+#endif
 
 
 #include <imgui.h>
+#include "../../src/gui/style.h"
+#include "../../../core/src/config.h"
+
+
 #include <module.h>
 #include <gui/gui.h>
-#include <gui/style.h>
 #include <signal_path/signal_path.h>
 #include "../../radio/src/radio_module_interface.h"
-#include <config.h>
 #include <core.h>
 #include <utils/optionlist.h>
 #include "./demod.h"
