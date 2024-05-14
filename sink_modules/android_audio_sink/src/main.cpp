@@ -537,9 +537,9 @@ private:
                 nInBuffer += rd;
                 totalRead+= rd;
                 auto ctm = currentTimeMillis();
-                if (ctm > lastReport + 1000) {
+                if (ctm > lastReport + 1800000) {
                     lastReport = ctm;
-                    flog::info("Got data from microphone: {}", std::to_string(totalRead));
+                    flog::info("(each 30 min) Got data from microphone: {}", std::to_string(totalRead));
                     totalRead = 0;
                 }
             }
