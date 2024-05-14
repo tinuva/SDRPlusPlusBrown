@@ -14,6 +14,7 @@ else ()
     FILE(READ "${DLROOT}/mbelib/CMakeLists.txt" TMPF)
     string(REGEX REPLACE "add_custom_target.uninstall" "add_custom_target(mbelib_uninstall" TMPF "${TMPF}")
     string(REGEX REPLACE "OUTPUT_NAME mbe" "" TMPF "${TMPF}")
+    string(REGEX REPLACE " OFF" " ON" TMPF "${TMPF}")  # disable test
     FILE(WRITE "${DLROOT}/mbelib/CMakeLists.txt" "${TMPF}")
 endif ()
 
@@ -31,22 +32,22 @@ else ()
     FILE(READ "${DLROOT}/itpp/CMakeLists.txt" TMPF)
     string(REGEX REPLACE "option.ITPP_SHARED_LIB" "option(ZZZZ_ITPP_SHARED_LIB" TMPF "${TMPF}")
     FILE(WRITE "${DLROOT}/itpp/CMakeLists.txt" "${TMPF}")
-        
+
     if(MSVC)
 	    FILE(READ "${DLROOT}/itpp/itpp/base/math/log_exp.h" TMPF)
 	    string(REPLACE "namespace itpp" "#undef min\n#undef max\nnamespace itpp" TMPF "${TMPF}")
 	    FILE(WRITE "${DLROOT}/itpp/itpp/base/math/log_exp.h" "${TMPF}")
     endif()
 
-
 endif ()
+
+
 FILE(REMOVE ${DLROOT}/itpp/version)
 FILE(REMOVE ${DLROOT}/mbelib/config.h)
 
 set(CMAKE_MODULE_PATH "${DLROOT}/itpp/cmake" ${CMAKE_MODULE_PATH})
 add_subdirectory(${DLROOT}/itpp ${DLROOT}/itpp-build)
 
-set(DISABLE_TEST YES)
 add_subdirectory(${DLROOT}/mbelib ${DLROOT}/mbelib-build)
 
 file(GLOB_RECURSE SRC "src/*.cpp" "src/*.h" "src/*.hpp" "src/*.c")

@@ -1,5 +1,6 @@
 
-#include <iomanip>
+#include <itpp/itcomm.h>
+
 
 #include <imgui.h>
 #include <module.h>
@@ -7,11 +8,10 @@
 #include <gui/style.h>
 #include <signal_path/signal_path.h>
 #include "../../radio/src/radio_module_interface.h"
-#include "./demod.h"
-
 #include <config.h>
 #include <core.h>
 #include <utils/optionlist.h>
+#include "./demod.h"
 
 ConfigManager config;
 

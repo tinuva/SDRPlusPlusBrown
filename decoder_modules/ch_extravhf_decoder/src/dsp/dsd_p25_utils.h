@@ -334,7 +334,7 @@ namespace dsp {
         */
         static void debug_print_symbol_heuristics(int previous_dibit, int dibit, P25_SymbolHeuristics* sh) {
             float mean, sd;
-            int k;
+            // int k;
             int n;
 
             n = sh->count;
