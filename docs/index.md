@@ -31,7 +31,7 @@ read on below.
 
 * [Even more improved rendering performance](#improved-rendering-performance)
 * [Bundled FT8 decoder](#bundled-ft8-decoder) - extracted from MSHV code, slightly tweaked.
-* [Bundled some UHF/VHF digital modes decoder] - with generous help of cropinghigh.
+* Bundled UHF/VHF digital modes decoder - with generous help of cropinghigh.
 * [Noise Reduction](#noise-reduction) - both for audio frequency and baseband (visual noise reduction!)
 * [Hermes Lite 2 support](#hermes-lite-2-support) - hl2_source plugin (don't confuse with hermes_source).
 * [Transmit mode](#transmit-mode) for Hermes Lite 2 - SSB QSO supported in full. See the [MANUAL](tx.md)
