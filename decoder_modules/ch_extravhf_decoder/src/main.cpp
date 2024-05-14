@@ -1,8 +1,7 @@
 
 
 
-#ifdef __MACH__
-// because it is needed only on macos
+#if defined(__MACH__) || defined(__ANDROID__)
 #define register
 #endif
 

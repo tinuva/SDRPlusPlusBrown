@@ -1,5 +1,5 @@
 
-#ifdef __MACH__
+#if defined(__MACH__) || defined(__ANDROID__)
 #define register
 #endif
 

@@ -2,13 +2,10 @@
 
 #include "../../../../core/src/config.h"
 
-#ifdef __MACH__
-// because it is needed only on macos
+#if defined(__MACH__) || defined(__ANDROID__)
 #define register
 #endif
 
-
-//#define register
 #include <itpp/itcomm.h>
 
 #define _USE_MATH_DEFINES
