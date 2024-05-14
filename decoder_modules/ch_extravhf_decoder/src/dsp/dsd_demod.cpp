@@ -120,7 +120,11 @@ namespace dsp {
                 memset(&(out[outcnt]), 0, remainingOut*sizeof(short));
                 outcnt += remainingOut;
             }
+#ifdef _WIN32
             outSymsCtr -= (min(outSymsCtr, requiredOut));
+#else
+            outSymsCtr -= (std::min(outSymsCtr, requiredOut));
+#endif
             inSymsCtr -= requiredOut * 3 / 5;
             return outcnt;
         }
