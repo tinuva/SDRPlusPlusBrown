@@ -4,6 +4,7 @@
 #include <dsp/types.h>
 #include <dsp/processor.h>
 #include "utils/arrays.h"
+#include <utils/usleep.h>
 #include "logmmse.h"
 
 namespace dsp {
@@ -107,6 +108,7 @@ namespace dsp {
         long long lastReport = currentTimeMillis();
         long long cpuUsed = 0;
         int percentUsage = 0;
+        int prevPercentUsage = 0;
 
         int runMMSE(stream <complex_t> *_in, stream <complex_t> &out) {
             int count = _in->read();
@@ -114,18 +116,22 @@ namespace dsp {
             int outCount;
             long long ctm0 = currentTimeMillis();
             process(_in->readBuf, count, out.writeBuf, outCount);
+            long long ctm = currentTimeMillis();
             _in->flush();
             if (!out.swap(outCount)) {
                 return -1;
             }
-            long long ctm = currentTimeMillis();
             cpuUsed += ctm - ctm0;
             if (lastReport / 400 != ctm / 400) {
                 auto timeSinceLastReport = ctm - lastReport;
                 auto usedSinceLastReport = cpuUsed;
                 cpuUsed = 0;
                 lastReport = ctm;
+                prevPercentUsage = percentUsage;
                 percentUsage = (usedSinceLastReport * 100) / timeSinceLastReport;
+                if (prevPercentUsage >= 95 && percentUsage >= 95) {
+                    stopReason = "Slow CPU. Reduce sample rate.";
+                }
             }
             return 1;
         }
@@ -163,6 +169,7 @@ namespace dsp {
         }
 
         bool bypass = true;
+        std::string stopReason = "";
         EventHandler<bool> txHandler;
 
 
