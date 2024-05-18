@@ -21,7 +21,7 @@
 #include <core.h>
 #include <utils/optionlist.h>
 #include <utils/wav.h>
-#include <radio_interface.h>
+#include <radio_module_interface.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -440,17 +440,6 @@ private:
         if (dbLvl.r > lvl.r) { lvl.r = dbLvl.r; }
     }
 
-    std::map<int, const char*> radioModeToString = {
-        { RADIO_IFACE_MODE_NFM, "NFM" },
-        { RADIO_IFACE_MODE_WFM, "WFM" },
-        { RADIO_IFACE_MODE_AM,  "AM"  },
-        { RADIO_IFACE_MODE_DSB, "DSB" },
-        { RADIO_IFACE_MODE_USB, "USB" },
-        { RADIO_IFACE_MODE_CW,  "CW"  },
-        { RADIO_IFACE_MODE_LSB, "LSB" },
-        { RADIO_IFACE_MODE_RAW, "RAW" }
-    };
-
     std::string genFileName(std::string templ, std::string type, std::string name) {
         // Get data
         time_t now = time(0);
@@ -477,10 +466,12 @@ private:
         snprintf(dayStr, sizeof dayStr, "%02d", ltm->tm_mday);
         snprintf(monStr, sizeof monStr, "%02d", ltm->tm_mon + 1);
         snprintf(yearStr, sizeof yearStr, "%02d", ltm->tm_year + 1900);
-        if (core::modComManager.getModuleName(name) == "radio") {
-            int mode = -1;
-            core::modComManager.callInterface(name, RADIO_IFACE_CMD_GET_MODE, NULL, &mode);
-            if (mode >= 0) { modeStr = radioModeToString[mode]; };
+        auto radio = (RadioModuleInterface *)core::moduleManager.getInterface(name,"RadioModuleInterface");
+        if (radio) {
+            int demodId = radio->getSelectedDemodId();
+            for(int q=0; q<radio->radioModes.size(); q++) {
+                if (radio->radioModes[q].second == demodId) { modeStr = radio->radioModes[q].first.c_str(); }
+            }
         }
 
         // Replace in template
