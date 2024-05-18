@@ -74,6 +74,9 @@ public:
         if (config.conf.contains("scanIP")) {
             scanIP = config.conf["scanIP"];
         }
+        if (config.conf.contains("fastScan")) {
+            fastScan = config.conf["fastScan"];
+        }
         if (config.conf.contains("directIP")) {
             directIP = config.conf["directIP"];
         }
@@ -126,7 +129,7 @@ public:
         refreshing = true;
         devices = 0;
         try {
-            protocol1_discovery(staticIp, scanIP);
+            protocol1_discovery(staticIp, scanIP, fastScan);
         }
         catch (std::exception& e) {
             flog::error("Error while discovering devices: %s", e.what());
@@ -264,6 +267,7 @@ private:
     bool showMore = false;
     bool directIP = false;
     bool scanIP = true;
+    bool fastScan = true;
     char staticIp[20] = { 0 };
 
     void incomingSample(double i, double q) {
@@ -447,6 +451,12 @@ private:
             if (SmGui::Checkbox("Full UDP scan /24##hl2_scan_ip", &scanIP)) {
                 config.acquire();
                 config.conf["scanIP"] = scanIP;
+                config.release(true);
+            }
+            SmGui::SameLine();
+            if (SmGui::Checkbox("Fast scan##hl2_scan_ip_first", &fastScan)) {
+                config.acquire();
+                config.conf["fastScan"] = fastScan;
                 config.release(true);
             }
         }

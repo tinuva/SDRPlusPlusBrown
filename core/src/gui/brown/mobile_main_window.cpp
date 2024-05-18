@@ -1155,15 +1155,15 @@ struct QSOAudioRecorder {
     dsp::routing::Splitter<dsp::stereo_t> *audioInProcessed;
 
     void init(dsp::routing::Splitter<dsp::stereo_t> *audioInProcessed) {
-        flog::info("Init insider QSOAudioRecorder");
+//        flog::info("Init insider QSOAudioRecorder");
         this->audioInProcessed = audioInProcessed;
         auto names = sigpath::sinkManager.getStreamNames();
-        flog::info("Init insider QSOAudioRecorder p.2 ");
+//        flog::info("Init insider QSOAudioRecorder p.2 ");
         if (!names.empty()) {
             // Select the stream
-            flog::info("Init insider QSOAudioRecorder p.3");
+//            flog::info("Init insider QSOAudioRecorder p.3");
             radioStream = sigpath::sinkManager.bindStream(boundStream = names[0]);
-            flog::info("Init insider QSOAudioRecorder p.4");
+//            flog::info("Init insider QSOAudioRecorder p.4");
             if (!radioStream) {
                 return;
             }
@@ -1622,13 +1622,7 @@ void MobileMainWindow::updateAudioWaterfallPipeline() {
 }
 
 static RadioModule *getRadioModule() {
-    for (auto x: core::moduleManager.instances) {
-        auto radio = (RadioModule *) x.second.instance->getInterface("RadioModule");
-        if (radio) {
-            return radio;
-        }
-    }
-    return nullptr;
+    return (RadioModule *)core::moduleManager.getInterface("", "RadioModule");
 }
 
 static TransientBookmarkManager *getTransientBookmarkManager() {
@@ -3381,7 +3375,7 @@ void MobileMainWindow::maybeAddBookmark(const std::string dx, double frequency, 
                     bookmark.extraInfo = dx;
                     bookmark.bookmarkName = rec.dxcall;
                     bookmark.listName = "OnAir";
-                    bookmark.bookmark.mode = modeI;
+                    bookmark.bookmark.modeIndex = modeI;
                     bookmark.bookmark.bandwidth = bandwidth;
                     bookmark.bookmark.frequency = frequency;
                     bookmark.worked |= worked;

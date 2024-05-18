@@ -129,19 +129,23 @@ void doDecode(const char *mode, const char *path, int threads, std::function<voi
     wav::FormatHeader *hdr = (wav::FormatHeader *)(buf+12+8); // skip RIFF + WAV
     riff::ChunkHeader *dta = (riff::ChunkHeader *)(buf+12+8 + sizeof (wav::FormatHeader));
     auto *data = (float *)((uint8_t *)dta + sizeof(riff::ChunkHeader));
-    printf("Channels: %d\n", hdr->channelCount);
-    printf("SampleRate: %d\n", hdr->sampleRate);
-    printf("BytesPerSample: %d\n", hdr->bytesPerSample);
-    printf("BitDepth: %d\n", hdr->bitDepth);
-    printf("Codec: %d\n", hdr->codec);
-    fflush(stdout);
+    if (noisy_ft8) {
+        printf("Channels: %d\n", hdr->channelCount);
+        printf("SampleRate: %d\n", hdr->sampleRate);
+        printf("BytesPerSample: %d\n", hdr->bytesPerSample);
+        printf("BitDepth: %d\n", hdr->bitDepth);
+        printf("Codec: %d\n", hdr->codec);
+        fflush(stdout);
+    }
     bool handled = hdr->codec == 3 && hdr->bitDepth == 32 && hdr->channelCount == 2;
     handled |= hdr->codec == 1 && hdr->bitDepth == 16 && hdr->channelCount == 2;
     if (!handled) {
         fprintf(stderr,"ERROR Want Codec/BitDepth/channels: 3/32/2 or 1/16/2\n");
     }
     int nSamples = ((char*)(buf + size)-(char *)data)/2/(hdr->bitDepth/8);
-    printf("NSamples: %d\n", nSamples);
+    if (noisy_ft8) {
+        printf("NSamples: %d\n", nSamples);
+    }
 
     std::vector<dsp::stereo_t> converted;
     if (hdr->codec == 1) {  // short samples
@@ -177,10 +181,12 @@ void doDecode(const char *mode, const char *path, int threads, std::function<voi
                 };
                 callback(!strcmp(mode, "ft8") ? ft8::DMS_FT8 : ft8::DMS_FT4, formatted);
             });
-            std::cout << "Time taken: " << currentTimeMillis() - ctm << " ms" << std::endl;
-            std::cout << "DECODE_EOF" << std::endl;
-            std::cout << "DECODE_EOF" << std::endl;
-            fflush(stdout);
+            if (noisy_ft8) {
+                std::cout << "Time taken: " << currentTimeMillis() - ctm << " ms" << std::endl;
+                std::cout << "DECODE_EOF" << std::endl;
+                std::cout << "DECODE_EOF" << std::endl;
+                fflush(stdout);
+            }
         }
     } catch (std::runtime_error &e) {
         fprintf(stderr,"ERROR %s \n", e.what());

@@ -116,8 +116,8 @@ namespace dsp {
                         return;
                     }
                     if (noise->size() != nFFT) {
-                        abort(); // because
-
+                        flog::info("ERROR noise->size() != nFFT: {} {}", (int)noise->size(), nFFT);
+                        return;
                     }
                     noise_history.emplace_back(noise);
                     volk_32f_x2_add_32f(sums->data(), sums->data(), noise->data(), nFFT);
@@ -145,6 +145,7 @@ namespace dsp {
 
 
 #define ADD_STEP_STATS()          ctm2 = currentTimeNanos(); muSum[statIndex++] += ctm2-ctm; ctm = ctm2
+
                 void update_noise_mu2(const ComplexArray &x) {
                     auto sz = x->size();
                     ALLOC_AND_CHECK(x, sz, "update_noise_mu2 point 1.5a")
@@ -302,7 +303,7 @@ namespace dsp {
                     // 768 mu2:        13 8 12 52 195         // after dropping each 10th frame for noise dev calculation
                     // 768 mu2:        13 8 12 52 115         // replaced at() with direct data access.
                     muCount++;
-                    if (muCount == 1000) {
+                    if (muCount == 1000 && false) {
                         std::cout << "mu2: ";
                         for(int z=0; z<statIndex; z++) {
                             std::cout << " " << std::to_string(muSum[z] / 1000);
@@ -453,12 +454,14 @@ namespace dsp {
                     //                   0	    1738	790         // radio src
                     // 768 logmmse_all:  0      920     786
                     // 768 logmmse_all:  0      762     841         //
-                    std::cout << "logmmse_all: ";
-                    for(int z=0; z<statIndex; z++) {
-                        std::cout << " " << std::to_string(muSum[z] / 1000);
-                        muSum[z] = 0;
+                    if (false) {
+                        std::cout << "logmmse_all: ";
+                        for (int z = 0; z < statIndex; z++) {
+                            std::cout << " " << std::to_string(muSum[z] / 1000);
+                            muSum[z] = 0;
+                        }
+                        std::cout << std::endl;
                     }
-                    std::cout << std::endl;
                     muCount = 0;
                 }
                 ADD_STEP_STATS();

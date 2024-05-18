@@ -1007,14 +1007,14 @@ namespace ImGui {
             fftHeight = widgetSize.y - (50.0f * style::uiScale);
         }
         dataWidth = widgetSize.x - (60.0f * style::uiScale);
-        flog::info("onresize: dataWidth={} wsx={}", (int)dataWidth, widgetSize.x);
+//        flog::info("onresize: dataWidth={} wsx={}", (int)dataWidth, widgetSize.x);
 
         if (waterfallVisible) {
             // Raw FFT resize
             fftLines = std::min<int>(fftLines, waterfallHeight) - 1;
             if (rawFFTs != NULL) {
                 if (currentFFTLine != 0) {
-                    flog::info("onresize: currentFFTLine={} rawFFTSize={}", currentFFTLine, rawFFTSize);
+                    //flog::info("onresize: currentFFTLine={} rawFFTSize={}", currentFFTLine, rawFFTSize);
                     float* tempWF = new float[currentFFTLine * rawFFTSize];
                     int moveCount = lastWaterfallHeight - currentFFTLine;
                     memcpy(tempWF, rawFFTs, currentFFTLine * rawFFTSize * sizeof(float));
@@ -1056,7 +1056,7 @@ namespace ImGui {
             delete[] waterfallFb;
             // allocate extra rows, will be used to create continuous pixels for textures
             const int sz = dataWidth * (waterfallHeight + 128);
-            flog::info("onresize: waterfallHeight={} sz={}", waterfallHeight, sz);
+            //flog::info("onresize: waterfallHeight={} sz={}", waterfallHeight, sz);
             waterfallFb = new uint32_t[sz];
             memset(waterfallFb, 0, sz * sizeof(uint32_t));
 

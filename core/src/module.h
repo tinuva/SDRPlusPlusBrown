@@ -86,6 +86,30 @@ public:
 
     int countModuleInstances(std::string module);
 
+    void *getInterface(const std::string &name, const std::string &interfaceName) {
+        if (name != "") {       //
+            auto it = instances.find(name);
+            if (it == instances.end()) {
+                return nullptr;
+            }
+            if (it->second.instance == nullptr) {
+                return nullptr;
+            }
+            return it->second.instance->getInterface(interfaceName.c_str());
+        }
+        // no name given -> first one
+        for(auto x: instances) {
+            if (x.second.instance == nullptr) {
+                continue;
+            }
+            auto rv = x.second.instance->getInterface(interfaceName.c_str());
+            if (rv != nullptr) {
+                return rv;
+            }
+        }
+        return nullptr;
+    }
+
     void doPostInitAll();
 
     Event<std::string> onInstanceCreated;
@@ -94,6 +118,8 @@ public:
 
     std::map<std::string, ModuleManager::Module_t> modules;
     std::map<std::string, ModuleManager::Instance_t> instances;
+
+
 };
 
 #define SDRPP_MOD_INFO MOD_EXPORT const ModuleManager::ModuleInfo_t _INFO_

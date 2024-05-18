@@ -45,12 +45,21 @@ inline void SetThreadName(const std::string &threadName)
 #ifdef __linux__
     prctl(PR_SET_NAME,threadName.c_str(),0,0,0);
 #endif
+#ifdef __APPLE__
+    pthread_setname_np(threadName.c_str());
+#endif
 }
 inline std::string GetThreadName( ) {
 #ifdef __linux__
     char thread_name_buffer[100] = { 0 };
     prctl(PR_GET_NAME,thread_name_buffer,0,0,0);
     return std::string(thread_name_buffer);
+#endif
+#ifdef __APPLE__
+    char name[256];
+    pthread_t thread = pthread_self();
+    int result = pthread_getname_np(thread, name, sizeof(name));
+    return name;
 #endif
     return "??";
 }

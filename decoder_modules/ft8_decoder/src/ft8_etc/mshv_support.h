@@ -1,6 +1,8 @@
 
 #pragma once
 
+// keep logs cliean
+#define noisy_ft8 0
 
 #include "../fftw_mshv_plug.h"
 
@@ -456,7 +458,7 @@ extern std::function<void(const char *line)> decodeResultOutputFun;
 #ifdef __wasm__
 WASM_IMPORT("decodeResultOutput") void decodeResultOutput(const char *line);
 #else
-inline void decodeResultOutput(const char *line) { printf("%s\n", line); if (decodeResultOutputFun) decodeResultOutputFun(line); }
+inline void decodeResultOutput(const char *line) { if (noisy_ft8) printf("%s\n", line); if (decodeResultOutputFun) decodeResultOutputFun(line); }
 #endif
 
 void debugPrintf(const char *fmt, ...);

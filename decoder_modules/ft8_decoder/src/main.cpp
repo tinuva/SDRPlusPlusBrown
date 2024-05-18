@@ -1303,7 +1303,9 @@ void SingleDecoder::startBlockProcessing(const std::shared_ptr<std::vector<dsp::
             auto start = currentTimeMillis();
             dsp::ft8::decodeFT8(mod->nthreads, getModeString(), VFO_SAMPLE_RATE, block->data(), block->size(), handler, progress, removeFiles);
             auto end = currentTimeMillis();
-            flog::info("FT8 decoding ({}) took {} ms", this->getModeString(), (int64_t)(end - start));
+            if (noisy_ft8) {
+                flog::info("FT8 decoding ({}) took {} ms", this->getModeString(), (int64_t) (end - start));
+            }
             lastDecodeCount = (int)count;
             lastDecodeTime = (int)(end - start);
             if (time0 == 0) {
@@ -1421,7 +1423,9 @@ void SingleDecoder::handleIFData(const std::vector<dsp::stereo_t>& data) {
     long long int curtime = sigpath::iqFrontEnd.getCurrentStreamTime() ;
     double blockNumber = floor((curtime / 1000.0) / getBlockDuration());
     if (blockNumber != prevBlockNumber) {
-        flog::info("handleIFdata new block ({}) : {} ", getModeString(), blockNumber);
+        if (noisy_ft8) {
+            flog::info("handleIFdata new block ({}) : {} ", getModeString(), blockNumber);
+        }
         if (fullBlock) {
             bool shouldStartProcessing = true;
             std::shared_ptr<std::vector<dsp::stereo_t>> processingBlock;

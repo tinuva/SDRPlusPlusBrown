@@ -30,7 +30,9 @@ extern std::map<IFNRPreset, double> ifnrTaps;
 
 class RadioModule : public ModuleManager::Instance, public RadioModuleInterface  {
 public:
-    RadioModule(std::string name) {
+
+
+    RadioModule(std::string name) : RadioModuleInterface() {
         this->name = name;
 
         // Initialize option lists
@@ -202,6 +204,7 @@ public:
             }
         }
     }
+
     static void removeSubstreamHandler(std::string name, void* ctx) {
         RadioModule* _this = (RadioModule*)ctx;
         auto pos = std::find(_this->streamNames.begin(), _this->streamNames.end(), name);
@@ -230,10 +233,12 @@ public:
 
     void postInit() override {
         // Select the demodulator
-        if (!selectDemodByID((DemodID)selectedDemodID)) {
-            // can happen if module not loaded.
-            selectedDemodID = 1;
-            selectDemodByID((DemodID)selectedDemodID);
+        if (enabled) {
+            if (!selectDemodByID((DemodID) selectedDemodID)) {
+                // can happen if module not loaded.
+                selectedDemodID = 1;
+                selectDemodByID((DemodID) selectedDemodID);
+            }
         }
 
 
@@ -271,7 +276,6 @@ public:
 
     std::string name;
 
-
     int getSelectedDemodId() override  {
         return selectedDemodID;
     }
@@ -295,8 +299,6 @@ public:
         return true;
     }
 
-
-
 private:
     static void menuHandler(void* ctx) {
         RadioModule* _this = (RadioModule*)ctx;
@@ -307,36 +309,24 @@ private:
         ImGui::BeginGroup();
 
         ImGui::Columns(4, CONCAT("RadioModeColumns##_", _this->name), false);
-        if (ImGui::RadioButton(CONCAT("NFM##_", _this->name), _this->selectedDemodID == 0) && _this->selectedDemodID != 0) {
-            _this->selectDemodByID(RADIO_DEMOD_NFM);
+        char boo[1024];
+        for(int i=0; i<8; i++) {
+            snprintf(boo, sizeof boo, "%s##_%s", _this->radioModes[i].first.c_str(), _this->name.c_str());
+            if (ImGui::RadioButton(boo, _this->selectedDemodID == _this->radioModes[i].second) && _this->selectedDemodID != _this->radioModes[i].second) {
+                _this->selectDemodByID((DemodID)_this->radioModes[i].second);
+            }
+            if (i % 2 == 1 && i != 7) {
+                ImGui::NextColumn();
+            }
         }
-        if (ImGui::RadioButton(CONCAT("WFM##_", _this->name), _this->selectedDemodID == 1) && _this->selectedDemodID != 1) {
-            _this->selectDemodByID(RADIO_DEMOD_WFM);
-        }
-        ImGui::NextColumn();
-        if (ImGui::RadioButton(CONCAT("AM##_", _this->name), _this->selectedDemodID == 2) && _this->selectedDemodID != 2) {
-            _this->selectDemodByID(RADIO_DEMOD_AM);
-        }
-        if (ImGui::RadioButton(CONCAT("DSB##_", _this->name), _this->selectedDemodID == 3) && _this->selectedDemodID != 3) {
-            _this->selectDemodByID(RADIO_DEMOD_DSB);
-        }
-        ImGui::NextColumn();
-        if (ImGui::RadioButton(CONCAT("USB##_", _this->name), _this->selectedDemodID == 4) && _this->selectedDemodID != 4) {
-            _this->selectDemodByID(RADIO_DEMOD_USB);
-        }
-        if (ImGui::RadioButton(CONCAT("CW##_", _this->name), _this->selectedDemodID == 5) && _this->selectedDemodID != 5) {
-            _this->selectDemodByID(RADIO_DEMOD_CW);
-        };
-        ImGui::NextColumn();
-        if (ImGui::RadioButton(CONCAT("LSB##_", _this->name), _this->selectedDemodID == 6) && _this->selectedDemodID != 6) {
-            _this->selectDemodByID(RADIO_DEMOD_LSB);
-        }
-        if (ImGui::RadioButton(CONCAT("RAW##_", _this->name), _this->selectedDemodID == 7) && _this->selectedDemodID != 7) {
-            _this->selectDemodByID(RADIO_DEMOD_RAW);
-        };
         ImGui::Columns(1, CONCAT("EndRadioModeColumns##_", _this->name), false);
 
-        _this->onDrawModeButtons.emit(nullptr);
+        for(int i=8; i<_this->radioModes.size(); i++) {
+            snprintf(boo, sizeof boo, "%s##_%s", _this->radioModes[i].first.c_str(), _this->name.c_str());
+            if (ImGui::RadioButton(boo, _this->selectedDemodID == _this->radioModes[i].second) && _this->selectedDemodID != _this->radioModes[i].second) {
+                _this->selectDemodByID((DemodID)_this->radioModes[i].second);
+            }
+        }
 
         ImGui::EndGroup();
 

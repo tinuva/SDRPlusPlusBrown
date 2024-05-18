@@ -558,7 +558,7 @@ namespace dsp::buffer {
 #ifdef DBGTRACE
         auto nxt = dbg_cnt++;
         if (*buffer == nullptr) {
-            flog::error("Buffer verifier: got null pointer!");
+            flog::error("ERROR Buffer verifier: got null pointer!");
             abort();
         }
         dbg_trace[nxt].info = info;
@@ -590,7 +590,7 @@ namespace dsp::buffer {
                     volatile auto found = dbg_trace[q].storageVariable ? *dbg_trace[q].storageVariable : nullptr;
                     if (dbg_trace[q].storageVariable && expected && found != expected) {
                         if (dbg_trace[q].STAMP1 != 0x3456345634563456 || dbg_trace[q].STAMP2 != 0x1234123412341234) {
-                            flog::error("Buffer verifier self-corruption");
+                            flog::error("ERROR Buffer verifier self-corruption");
                             abort();
                         }
                         expected = nullptr;

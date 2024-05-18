@@ -44,6 +44,8 @@ public:
     ~VhfVoiceRadioModule() {
     }
 
+    EventHandler<std::string> moduleCreatedListener;
+    EventHandler<std::string> moduleDeleteListener;
 
     struct Injection {
         RadioModuleInterface *radio;
@@ -54,18 +56,6 @@ public:
 
     static const int RADIO_DEMOD_DSD = 0x1301;
     static const int RADIO_DEMOD_OLDDSD = 0x1302;
-
-    static void onDrawModeButtons(ImGuiContext *imguiContext, void *ctx) {
-        auto inj = (Injection *)ctx;
-        auto _this = inj->thiz;
-        if (ImGui::RadioButton(CONCAT("DSD##_", _this->name), inj->radio->getSelectedDemodId() == RADIO_DEMOD_DSD) && inj->radio->getSelectedDemodId() != RADIO_DEMOD_DSD) {
-            inj->radio->selectDemodByID((DemodID )RADIO_DEMOD_DSD);
-        }
-        ImGui::SameLine();
-        if (ImGui::RadioButton(CONCAT("OLD DSD##_", _this->name), inj->radio->getSelectedDemodId() == RADIO_DEMOD_OLDDSD) && inj->radio->getSelectedDemodId() != RADIO_DEMOD_OLDDSD) {
-            inj->radio->selectDemodByID((DemodID)RADIO_DEMOD_OLDDSD);
-        }
-    }
 
     bool injected = false;
 
@@ -91,40 +81,84 @@ public:
         return rv;
     }
 
+    void injectIntoRadio(RadioModuleInterface *radio) {
+        auto inj = getInjection(radio);
+        inj->drawModeButtonsHandler.ctx = inj.get();
+        //inj->drawModeButtonsHandler.handler = onDrawModeButtons;
+        //radio->onDrawModeButtons.bindHandler(&inj->drawModeButtonsHandler);
+        radio->demodulatorProviders.emplace_back(inj->demodFunction);
+        radio->radioModes.emplace_back();
+        radio->radioModes.back().first = "DSD";
+        radio->radioModes.back().second = RADIO_DEMOD_DSD;
+        radio->radioModes.emplace_back();
+        radio->radioModes.back().first = "OLD DSD";
+        radio->radioModes.back().second = RADIO_DEMOD_OLDDSD;
+
+    }
+
+    static void onModuleCreated(std::string modName, void *ctx) {
+        auto _this = (VhfVoiceRadioModule *)ctx;
+        auto radio = (RadioModuleInterface *)core::moduleManager.getInterface(modName, "RadioModuleInterface");
+        if (radio) {
+            _this->injectIntoRadio(radio);
+        }
+
+    }
+
+    static void onModuleDelete(std::string modName, void *ctx) {
+        auto _this = (VhfVoiceRadioModule *)ctx;
+        auto radio = (RadioModuleInterface *)core::moduleManager.getInterface(modName, "RadioModuleInterface");
+        if (radio) {
+            _this->uninjectFromRadio(radio);
+        }
+    }
+
     void inject() {
         if (!injected) {
             injected = true;
-
+            moduleCreatedListener.handler = onModuleCreated;
+            moduleCreatedListener.ctx = this;
+            moduleDeleteListener.handler = onModuleDelete;
+            moduleDeleteListener.ctx = this;
+            core::moduleManager.onInstanceCreated.bindHandler(&moduleCreatedListener);
+            core::moduleManager.onInstanceDelete.bindHandler(&moduleDeleteListener);
             for(auto x: core::moduleManager.instances) {
                 Instance *pInstance = x.second.instance;
                 auto radio = (RadioModuleInterface *)pInstance->getInterface("RadioModuleInterface");
                 if (radio) {
-                    auto inj = getInjection(radio);
-                    inj->drawModeButtonsHandler.ctx = inj.get();
-                    inj->drawModeButtonsHandler.handler = onDrawModeButtons;
-                    radio->onDrawModeButtons.bindHandler(&inj->drawModeButtonsHandler);
-                    radio->demodulatorProviders.emplace_back(inj->demodFunction);
+                    injectIntoRadio(radio);
                 }
+            }
+        }
+    }
+
+    void uninjectFromRadio(RadioModuleInterface *radio) {
+        auto inj = getInjection(radio);
+        //radio->onDrawModeButtons.unbindHandler(&inj->drawModeButtonsHandler);
+        auto wh = std::find(radio->demodulatorProviders.begin(), radio->demodulatorProviders.end(), inj->demodFunction);
+        if (wh != radio->demodulatorProviders.end()) {
+            radio->demodulatorProviders.erase(wh);
+        }
+        for(int i=0; i<radio->radioModes.size(); i++) {
+            if (radio->radioModes[i].second == RADIO_DEMOD_DSD || radio->radioModes[i].second == RADIO_DEMOD_OLDDSD) {
+                radio->radioModes.erase(radio->radioModes.begin() + i);
+                i--;
             }
         }
     }
 
     void uninject() {
         if (injected) {
-            injected = false;
-
+            core::moduleManager.onInstanceCreated.unbindHandler(&moduleCreatedListener);
+            core::moduleManager.onInstanceDelete.unbindHandler(&moduleDeleteListener);
             for (auto x: core::moduleManager.instances) {
                 Instance *pInstance = x.second.instance;
                 auto radio = (RadioModuleInterface *) pInstance->getInterface("RadioModuleInterface");
                 if (radio) {
-                    auto inj = getInjection(radio);
-                    radio->onDrawModeButtons.unbindHandler(&inj->drawModeButtonsHandler);
-                    auto wh = std::find(radio->demodulatorProviders.begin(), radio->demodulatorProviders.end(), inj->demodFunction);
-                    if (wh != radio->demodulatorProviders.end()) {
-                        radio->demodulatorProviders.erase(wh);
-                    }
+                    uninjectFromRadio(radio);
                 }
             }
+            injected = false;
         }
     }
 

@@ -972,6 +972,7 @@ namespace dsp {
                 }
             }
             if (retval->size() != v->size()) {
+                flog::info("FloatArray npmavg: retval->size() != v->size() {} {}\n", (int)retval->size(), (int)v->size());
                 abort();
             }
             return retval;
