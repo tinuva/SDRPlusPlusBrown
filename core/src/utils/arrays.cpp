@@ -636,17 +636,17 @@ namespace dsp {
 
         // add scalar to all items
         FloatArray add(const FloatArray& v, float e) {
-            auto retval = std::make_shared<std::vector<float>>();
-            if (false) {
-                retval->reserve(v->size());
-                for (auto d : *v) {
-                    retval->emplace_back(d + e);
-                }
+            auto retval = std::make_shared<std::vector<float>>(v->size(), 0);
+#ifndef VOLK_VERSION
+            int limit = (int)v->size();
+            auto* src = v->data();
+            auto* dst = retval->data();
+            for (int i=0; i<limit; i++) {
+                dst[i] = src[i] + e;
             }
-            else {
-                retval->resize(v->size());
-                volk_32f_s32f_add_32f(retval->data(), v->data(), e, v->size());
-            }
+#else
+            volk_32f_s32f_add_32f(retval->data(), v->data(), e, v->size());
+#endif
             return retval;
         }
 
