@@ -3,7 +3,7 @@
 #include <gui/smgui.h>
 #include <dsp/types.h>
 
-#define SERVER_MAX_PACKET_SIZE  (STREAM_BUFFER_SIZE * sizeof(dsp::complex_t) * 2)
+#define SERVER_MAX_PACKET_SIZE  (STREAM_BUFFER_SIZE * sizeof(dsp::complex_t) * 2 + 1024) // metadata added
 
 namespace server {
     enum PacketType {
@@ -14,7 +14,8 @@ namespace server {
         PACKET_TYPE_BASEBAND_COMPRESSED,
         PACKET_TYPE_VFO,
         PACKET_TYPE_FFT,
-        PACKET_TYPE_ERROR
+        PACKET_TYPE_ERROR,
+        PACKET_TYPE_BASEBAND_WITH_METADATA = 0x37,
     };
 
     enum Command {
@@ -44,6 +45,14 @@ namespace server {
     struct PacketHeader {
         uint32_t type;
         uint32_t size;
+    };
+
+    struct StreamMetadata {
+        int32_t version;
+        int32_t size;
+
+        double sampleRate;
+        double frequency;
     };
 
     struct CommandHeader {

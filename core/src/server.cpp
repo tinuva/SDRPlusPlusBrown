@@ -51,6 +51,12 @@ namespace server {
     bool compression = false;
     double sampleRate = 1000000.0;
 
+    static const int CLIENT_CAPS_BASEDATA_METADATA = 0x0001;        // wants frequency and samplerate along with each IQ batch (otherwise, network latency decouples freq request from baseband)
+    static const int CLIENT_CAPS_FFT_WANTED = 0x0002;        // not yet done
+
+    int client_caps_requested = 0;
+    double lastTunedFrequency = 0;
+    double lastSampleRate = 0;
 
     int main() {
         flog::info("=====| SERVER MODE |=====");
@@ -236,11 +242,19 @@ namespace server {
 
     void _testServerHandler(uint8_t* data, int count, void* ctx) {
         // Compress data if needed and fill out header fields
-        if (compression) {
+        if (client_caps_requested & CLIENT_CAPS_BASEDATA_METADATA) {
+            bb_pkt_hdr->type = PACKET_TYPE_BASEBAND_WITH_METADATA;
+            bb_pkt_hdr->size = sizeof(PacketHeader) + sizeof(StreamMetadata) + count;
+            StreamMetadata *sm = (StreamMetadata*)&bbuf[sizeof(PacketHeader)];
+            sm->version = 1;
+            sm->size = sizeof(StreamMetadata);
+            sm->frequency = lastTunedFrequency;
+            sm->sampleRate = lastSampleRate;
+            memcpy(&bbuf[sizeof(PacketHeader) + sizeof(StreamMetadata)], data, count);
+        } else if (compression) {
             bb_pkt_hdr->type = PACKET_TYPE_BASEBAND_COMPRESSED;
             bb_pkt_hdr->size = sizeof(PacketHeader) + (uint32_t)ZSTD_compressCCtx(cctx, &bbuf[sizeof(PacketHeader)], SERVER_MAX_PACKET_SIZE-sizeof(PacketHeader), data, count, 1);
-        }
-        else {
+        } else {
             bb_pkt_hdr->type = PACKET_TYPE_BASEBAND;
             bb_pkt_hdr->size = sizeof(PacketHeader) + count;
             memcpy(&bbuf[sizeof(PacketHeader)], data, count);
@@ -297,6 +311,14 @@ namespace server {
             }
         }
         else if (cmd == COMMAND_START) {
+            if (len >= 8) {
+                int32_t *pdata = (int32_t*)data;
+                int32_t MAGIC = pdata[0];
+                if (MAGIC != 0x0b5a1000) {      // brown
+                    return;
+                }
+                client_caps_requested = pdata[1];
+            }
             sigpath::sourceManager.start();
             running = true;
         }
@@ -306,6 +328,7 @@ namespace server {
         }
         else if (cmd == COMMAND_SET_FREQUENCY && len == 8) {
             sigpath::sourceManager.tune(*(double*)data);
+            lastTunedFrequency = *(double*)data;
             sendCommandAck(COMMAND_SET_FREQUENCY, 0);
         }
         else if (cmd == COMMAND_SET_SAMPLE_TYPE && len == 1) {
@@ -378,6 +401,7 @@ namespace server {
     void sendSampleRate(double sampleRate) {
         *(double*)s_cmd_data = sampleRate;
         sendCommand(COMMAND_SET_SAMPLERATE, sizeof(double));
+        lastSampleRate = sampleRate;
     }
 
     void setInputSampleRate(double samplerate) {
