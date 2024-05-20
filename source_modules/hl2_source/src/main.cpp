@@ -15,6 +15,7 @@
 #include "hl2_device.h"
 #include "utils/stream_tracker.h"
 #include "bandconfig.h"
+#include <server.h>
 
 #define CONCAT(a, b) ((std::string(a) + (b)).c_str())
 
@@ -45,10 +46,17 @@ class HermesLite2SourceModule : public ModuleManager::Instance, public Transmitt
     int redZoneExtraPercent = 100;
     float powerADCScalingFactor = 0.0f;
 
+    bool serverMode = false;
+
 public:
     explicit HermesLite2SourceModule(const std::string& name) : hermesSamples("hermes samples") {
 
         this->name = name;
+
+        if (core::args["server"].b()) {
+            serverMode = true;
+        }
+
         memset(sevenRelays, 0, sizeof(sevenRelays));
 
         sampleRate = 48000;
@@ -273,12 +281,17 @@ private:
     void incomingSample(double i, double q) {
         incomingBuffer.emplace_back(dsp::complex_t{ (float)q, (float)i });
         if (incomingBuffer.size() >= 512 - 8) {
-            //            hermesSamples.add(incomingBuffer.size());
-            memcpy(stream.writeBuf, incomingBuffer.data(), incomingBuffer.size() * sizeof(dsp::complex_t));
-            stream.swap((int)incomingBuffer.size());
-            incomingBuffer.clear();
+            flushIncomingSamples();
         }
     }
+
+    void flushIncomingSamples() {
+        memcpy(stream.writeBuf, incomingBuffer.data(), incomingBuffer.size() * sizeof(dsp::complex_t));
+        stream.swap((int)incomingBuffer.size());
+        incomingBuffer.clear();
+    }
+
+    int lastReportedFrequency = -1;
 
     static void start(void* ctx) {
         auto* _this = (HermesLite2SourceModule*)ctx;
@@ -292,7 +305,7 @@ private:
         _this->device.reset();
         for (int i = 0; i < devices; i++) {
             if (_this->selectedIP == discoveredToIp(discovered[i])) {
-                _this->device = std::make_shared<HL2Device>(discovered[i], [=](double i, double q) {
+                _this->device = std::make_shared<HL2Device>(discovered[i], [=](int currentFrequency, double i, double q) {
                     static auto lastCtm = currentTimeMillis();
                     static auto totalCount = 0LL;
                     totalCount++;
@@ -303,6 +316,13 @@ private:
                             //                            std::cout << "HL2: Speed: IQ pairs/sec: ~ " << (totalCount - lastLastTotalCount) * 1000 / (nowCtm - lastCtm) << std::endl;
                             lastLastTotalCount = totalCount;
                             lastCtm = nowCtm;
+                        }
+                    }
+                    if (_this->lastReportedFrequency != currentFrequency) {
+                        _this->lastReportedFrequency = currentFrequency;
+                        if (_this->serverMode) {
+                            _this->flushIncomingSamples();
+                            server::setInputCenterFrequencyCallback(currentFrequency);  // notify server next samples are for different frequency
                         }
                     }
                     _this->incomingSample(i, q);

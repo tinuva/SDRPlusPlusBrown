@@ -20,6 +20,7 @@ namespace server {
     void sendError(Error err);
     void sendSampleRate(double sampleRate);
     void setInputSampleRate(double samplerate);
+    void setInputCenterFrequencyCallback(int centerFrequency); // realtime callback from drivers.
 
     void sendPacket(PacketType type, int len);
     void sendCommand(Command cmd, int len);

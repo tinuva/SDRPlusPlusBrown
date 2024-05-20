@@ -55,7 +55,9 @@ namespace server {
     static const int CLIENT_CAPS_FFT_WANTED = 0x0002;        // not yet done
 
     int client_caps_requested = 0;
+
     double lastTunedFrequency = 0;
+    double lastCallbackFrequency = -1;
     double lastSampleRate = 0;
 
     int main() {
@@ -248,7 +250,7 @@ namespace server {
             StreamMetadata *sm = (StreamMetadata*)&bbuf[sizeof(PacketHeader)];
             sm->version = 1;
             sm->size = sizeof(StreamMetadata);
-            sm->frequency = lastTunedFrequency;
+            sm->frequency = lastCallbackFrequency != -1 ? lastCallbackFrequency : lastTunedFrequency; // for any driver, supporting callback frequency or not.
             sm->sampleRate = lastSampleRate;
             memcpy(&bbuf[sizeof(PacketHeader) + sizeof(StreamMetadata)], data, count);
         } else if (compression) {
@@ -274,7 +276,15 @@ namespace server {
     }
 
     void setInput(dsp::stream<dsp::complex_t>* stream) {
+        lastCallbackFrequency = -1;
         comp.setInput(stream);
+    }
+
+    void setInputCenterFrequencyCallback(int centerFrequency) {
+        if (lastCallbackFrequency != centerFrequency) {
+            flog::info("Confirmed frequency from device: {}", centerFrequency);
+        }
+        lastCallbackFrequency = centerFrequency;
     }
 
     void commandHandler(Command cmd, uint8_t* data, int len) {
@@ -327,8 +337,9 @@ namespace server {
             running = false;
         }
         else if (cmd == COMMAND_SET_FREQUENCY && len == 8) {
-            sigpath::sourceManager.tune(*(double*)data);
             lastTunedFrequency = *(double*)data;
+            flog::info("Setting device to frequency: {}", (unsigned long long)lastTunedFrequency);
+            sigpath::sourceManager.tune(*(double*)data);
             sendCommandAck(COMMAND_SET_FREQUENCY, 0);
         }
         else if (cmd == COMMAND_SET_SAMPLE_TYPE && len == 1) {

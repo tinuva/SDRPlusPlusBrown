@@ -45,9 +45,9 @@ namespace dsp::compression {
             }
 
             // Find maximum value
-            uint32_t maxIdx;
+            uint32_t maxIdx; // in case count = 0
             volk_32f_index_max_32u(&maxIdx, (float*)in, count * 2);
-            float maxVal = ((float*)in)[maxIdx];
+            float maxVal = count == 0 ? 1.0 : ((float*)in)[maxIdx];
             *scaler = maxVal;
 
             // Convert to the right type and send it out (sign bit determines pcm type)
