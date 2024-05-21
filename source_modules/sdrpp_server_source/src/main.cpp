@@ -37,6 +37,21 @@ public:
         sampleTypeList.define("Float32", dsp::compression::PCM_TYPE_F32);
         sampleTypeId = sampleTypeList.valueId(dsp::compression::PCM_TYPE_I16);
 
+        prebufferMsec.define("disabled", 0);
+        prebufferMsec.define("100 msec", 100);
+        prebufferMsec.define("250 msec", 250);
+        prebufferMsec.define("500 msec", 500);
+        prebufferMsec.define("750 msec", 700);
+        prebufferMsec.define("1000 msec", 1000);
+        prebufferMsec.define("1500 msec", 1500);
+        prebufferMsec.define("2000 msec", 2000);
+        prebufferMsec.define("3000 msec", 3000);
+        prebufferMsec.define("5000 msec", 5000);
+
+        rxPrebufferId = prebufferMsec.valueId(0);
+        txPrebufferId = prebufferMsec.valueId(0);
+
+
         handler.ctx = this;
         handler.selectHandler = menuSelected;
         handler.deselectHandler = menuDeselected;
@@ -189,7 +204,25 @@ private:
                 config.conf["servers"][_this->devConfName]["sampleType"] = _this->sampleTypeList.key(_this->sampleTypeId);
                 config.release(true);
             }
-            
+            ImGui::LeftLabel("RX prebuffer length");
+            ImGui::FillWidth();
+            if (ImGui::Combo("##sdrpp_srv_source_rx_prebuf", &_this->rxPrebufferId, _this->prebufferMsec.txt)) {
+                auto msecValue = _this->prebufferMsec.value(_this->rxPrebufferId);
+                config.acquire();
+                config.conf["servers"][_this->devConfName]["rxPrebuffer"] = msecValue;
+                config.release(true);
+                if (_this->client) {
+                    _this->client->setRxPrebufferMsec(msecValue);
+                }
+            }
+            ImGui::LeftLabel("TX prebuffer length");
+            ImGui::FillWidth();
+            if (ImGui::Combo("##sdrpp_srv_source_tx_prebuf", &_this->txPrebufferId, _this->prebufferMsec.txt)) {
+                config.acquire();
+                config.conf["servers"][_this->devConfName]["txPrebuffer"] = _this->prebufferMsec.value(_this->txPrebufferId);
+                config.release(true);
+            }
+
             if (ImGui::Checkbox("Compression", &_this->compression)) {
                 _this->client->setCompression(_this->compression);
 
@@ -214,8 +247,7 @@ private:
 
             ImGui::TextUnformatted("Status:");
             ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Connected (%.3f Mbit/s)", _this->datarate);
-
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Connected (%.3f Mbit/s), %d%% buffer", _this->datarate, _this->client ? _this->client->getBufferPercentFull() : 0);
             ImGui::CollapsingHeader("Source [REMOTE]", ImGuiTreeNodeFlags_DefaultOpen);
 
             _this->client->showMenu();
@@ -236,6 +268,7 @@ private:
             if (client) { client.reset(); }
             client = server::connect(hostname, port, &stream);
             deviceInit();
+            // client->setRxPrebufferMsec(prebufferMsec.value(rxPrebufferId));
         }
         catch (const std::exception& e) {
             flog::error("Could not connect to SDR: {}", e.what());
@@ -244,19 +277,30 @@ private:
     }
 
     void deviceInit() {
-        // Generate the config name
+        // Gene rate the config name
         char buf[4096];
         snprintf(buf, sizeof buf, "%s:%05d", hostname, port);
         devConfName = buf;
 
         // Load settings
         sampleTypeId = sampleTypeList.valueId(dsp::compression::PCM_TYPE_I16);
-        if (config.conf["servers"][devConfName].contains("sampleType")) {
-            std::string key = config.conf["servers"][devConfName]["sampleType"];
+        auto &cfg = config.conf["servers"][devConfName];
+        if (cfg.contains("sampleType")) {
+            std::string key = cfg["sampleType"];
             if (sampleTypeList.keyExists(key)) { sampleTypeId = sampleTypeList.keyId(key); }
         }
-        if (config.conf["servers"][devConfName].contains("compression")) {
-            compression = config.conf["servers"][devConfName]["compression"];
+        if (cfg.contains("compression")) {
+            compression = cfg["compression"];
+        }
+        if (cfg.contains("rxPrebuffer")) {
+            int rxPrebufferMsec = cfg["rxPrebuffer"];
+            rxPrebufferId = prebufferMsec.valueId(rxPrebufferMsec);
+            if (client) {
+                client->setRxPrebufferMsec(rxPrebufferMsec);
+            }
+        }
+        if (cfg.contains("txPrebuffer")) {
+            txPrebufferId = prebufferMsec.valueId(cfg["txPrebuffer"]);
         }
 
         // Set settings
@@ -282,7 +326,10 @@ private:
     SourceManager::SourceHandler handler;
 
     OptionList<std::string, dsp::compression::PCMType> sampleTypeList;
+    OptionList<std::string, int> prebufferMsec;
     int sampleTypeId;
+    int txPrebufferId;
+    int rxPrebufferId;
     bool compression = false;
 
     std::shared_ptr<server::Client> client;

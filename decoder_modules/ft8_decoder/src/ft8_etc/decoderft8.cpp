@@ -2177,7 +2177,7 @@ void DecoderFt8::sync8(double *dd,double nfa,double nfb,double syncmin,double nf
         }
         if (i == 0 && k == 0) {
             // not found the cand!
-            std::cout << " !cand1 i " << i << " ia " << ia << " indx[(iz-1)-i] " << indx[(iz - 1) - i] << " n " << n << " red[n] " << red[n] << std::endl;
+            //std::cout << " !cand1 i " << i << " ia " << ia << " indx[(iz-1)-i] " << indx[(iz - 1) - i] << " n " << n << " red[n] " << red[n] << std::endl;
         }
     }
     ncand=k;

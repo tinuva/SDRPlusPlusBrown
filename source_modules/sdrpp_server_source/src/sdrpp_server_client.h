@@ -11,12 +11,14 @@
 #include <dsp/compression/sample_stream_decompressor.h>
 #include <dsp/sink.h>
 #include <dsp/routing/stream_link.h>
+#include <dsp/buffer/prebuffer.h>
 #include <zstd.h>
 
 #define PROTOCOL_TIMEOUT_MS             10000
 
 namespace server {
     class PacketWaiter {
+
     public:
         bool await(int timeout) {
             std::unique_lock lck(readyMtx);
@@ -100,6 +102,21 @@ namespace server {
         int bytes = 0;
         bool serverBusy = false;
 
+        int rxPrebufferMsec;
+
+        void setRxPrebufferMsec(int msec) {
+            rxPrebufferMsec = msec;
+            prebufferer.setBufferSize((long long)((rxPrebufferMsec * currentSampleRate) / 1000));
+        }
+
+        int getBufferPercentFull() {
+            return prebufferer.getPercentFull();
+        }
+
+        int getBufferTimeDelay() {
+            return prebufferer.getTimeDelayInMillis();
+        }
+
         friend struct RemoteTransmitter;
 
     private:
@@ -121,8 +138,10 @@ namespace server {
 
         dsp::stream<uint8_t> decompIn;
         dsp::compression::SampleStreamDecompressor decomp;
+        dsp::buffer::Prebuffer<dsp::complex_t> prebufferer;
         dsp::routing::StreamLink<dsp::complex_t> link;
         dsp::stream<dsp::complex_t>* output;
+
 
         uint8_t* rbuffer = NULL;
         uint8_t* sbuffer = NULL;

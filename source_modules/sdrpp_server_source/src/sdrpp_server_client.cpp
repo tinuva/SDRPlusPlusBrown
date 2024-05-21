@@ -190,7 +190,9 @@ namespace server {
         decompIn.setBufferSize(STREAM_BUFFER_SIZE*sizeof(dsp::complex_t) + 8);
         decompIn.clearWriteStop();
         decomp.init(&decompIn);
-        link.init(&decomp.out, output);
+        prebufferer.init(&decomp.out);
+        link.init(&prebufferer.out, output);
+        prebufferer.start();
         decomp.start();
         link.start();
 
@@ -286,12 +288,15 @@ namespace server {
 
     void Client::setCompression(bool enabled) {
         if (!isOpen()) { return; }
-         s_cmd_data[0] = enabled;
+        s_cmd_data[0] = enabled;
         sendCommand(COMMAND_SET_COMPRESSION, 1);
     }
 
     void Client::start() {
         if (!isOpen()) { return; }
+        prebufferer.setBufferSize((long long)((rxPrebufferMsec * currentSampleRate) / 1000));
+        prebufferer.setSampleRate(currentSampleRate);
+        prebufferer.clear();
         sendCommand(COMMAND_START, 0);
         getUI();
     }
@@ -300,6 +305,7 @@ namespace server {
         if (!isOpen()) { return; }
         sendCommand(COMMAND_STOP, 0);
         getUI();
+        prebufferer.clear();
     }
 
     void Client::close() {
@@ -311,6 +317,7 @@ namespace server {
 
         // Stop DSP
         decomp.stop();
+        prebufferer.stop();
         link.stop();
         if (sigpath::transmitter) {
             delete sigpath::transmitter;
@@ -323,6 +330,14 @@ namespace server {
     }
 
     void Client::worker() {
+
+        auto updateStreamTime = [=]() {
+            int currentTime = currentTimeMillis() - getBufferTimeDelay();
+            auto existingTime = sigpath::iqFrontEnd.getCurrentStreamTime();
+            if (currentTime > existingTime) {
+                sigpath::iqFrontEnd.setCurrentStreamTime(currentTime);
+            }
+        };
         while (true) {
             // Receive header
             if (sock->recv(rbuffer, sizeof(PacketHeader), true) <= 0) {
@@ -390,12 +405,14 @@ namespace server {
             else if (r_pkt_hdr->type == PACKET_TYPE_BASEBAND) {
                 memcpy(decompIn.writeBuf, &rbuffer[sizeof(PacketHeader)], r_pkt_hdr->size - sizeof(PacketHeader));
                 if (!decompIn.swap(r_pkt_hdr->size - sizeof(PacketHeader))) { break; }
+                updateStreamTime();
             }
             else if (r_pkt_hdr->type == PACKET_TYPE_BASEBAND_COMPRESSED) {
                 size_t outCount = ZSTD_decompressDCtx(dctx, decompIn.writeBuf, STREAM_BUFFER_SIZE*sizeof(dsp::complex_t)+8, r_pkt_data, r_pkt_hdr->size - sizeof(PacketHeader));
                 if (outCount) {
                     if (!decompIn.swap(outCount)) { break; }
                 };
+                updateStreamTime();
             }
             else if (r_pkt_hdr->type == PACKET_TYPE_ERROR) {
                 flog::error("SDR++ Server Error: {0}", rbuffer[sizeof(PacketHeader)]);
@@ -403,6 +420,7 @@ namespace server {
             else {
                 flog::error("Invalid packet type: {0}", r_pkt_hdr->type);
             }
+
         }
     }
 

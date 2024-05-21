@@ -6,6 +6,9 @@
 #define SERVER_MAX_PACKET_SIZE  (STREAM_BUFFER_SIZE * sizeof(dsp::complex_t) * 2 + 1024) // metadata added
 
 namespace server {
+
+    static const int SDRPP_BROWN_MAGIC = 0x0b5a1000;
+
     enum PacketType {
         // Client to Server
         PACKET_TYPE_COMMAND,

@@ -52,6 +52,7 @@ public:
         sampleTypes.define(wav::SAMP_TYPE_INT32, "Int32", wav::SAMP_TYPE_INT32);
         sampleTypes.define(wav::SAMP_TYPE_FLOAT32, "Float32", wav::SAMP_TYPE_FLOAT32);
 
+
         // Load default config for option lists
         containerId = containers.valueId(wav::FORMAT_WAV);
         sampleTypeId = sampleTypes.valueId(wav::SAMP_TYPE_INT16);
@@ -278,6 +279,14 @@ private:
         }
 
         ImGui::LeftLabel("Sample type");
+        ImGui::FillWidth();
+        if (ImGui::Combo(CONCAT("##_recorder_st_", _this->name), &_this->sampleTypeId, _this->sampleTypes.txt)) {
+            config.acquire();
+            config.conf[_this->name]["sampleType"] = _this->sampleTypes.key(_this->sampleTypeId);
+            config.release(true);
+        }
+
+        ImGui::LeftLabel("TX Prebuf");
         ImGui::FillWidth();
         if (ImGui::Combo(CONCAT("##_recorder_st_", _this->name), &_this->sampleTypeId, _this->sampleTypes.txt)) {
             config.acquire();

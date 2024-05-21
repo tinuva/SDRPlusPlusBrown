@@ -54,7 +54,8 @@ namespace server {
     static const int CLIENT_CAPS_BASEDATA_METADATA = 0x0001;        // wants frequency and samplerate along with each IQ batch (otherwise, network latency decouples freq request from baseband)
     static const int CLIENT_CAPS_FFT_WANTED = 0x0002;        // not yet done
 
-    int client_caps_requested = 0;
+    int clientCapsRequested = 0;
+    int txPrebufferMsec = 0;
 
     double lastTunedFrequency = 0;
     double lastCallbackFrequency = -1;
@@ -291,7 +292,7 @@ namespace server {
 
     void _testServerHandler(uint8_t* data, int count, void* ctx) {
         // Compress data if needed and fill out header fields
-        if (client_caps_requested & CLIENT_CAPS_BASEDATA_METADATA) {
+        if (clientCapsRequested & CLIENT_CAPS_BASEDATA_METADATA) {
             bb_pkt_hdr->type = PACKET_TYPE_BASEBAND_WITH_METADATA;
             bb_pkt_hdr->size = sizeof(PacketHeader) + sizeof(StreamMetadata) + count;
             StreamMetadata *sm = (StreamMetadata*)&bbuf[sizeof(PacketHeader)];
@@ -370,11 +371,16 @@ namespace server {
         else if (cmd == COMMAND_START) {
             if (len >= 8) {
                 int32_t *pdata = (int32_t*)data;
-                int32_t MAGIC = pdata[0];
-                if (MAGIC != 0x0b5a1000) {      // brown
+                int32_t magic = pdata[0];
+                if (magic != SDRPP_BROWN_MAGIC) {      // brown
                     return;
                 }
-                client_caps_requested = pdata[1];
+                clientCapsRequested = pdata[1];
+                if (len > 8) {
+                    txPrebufferMsec = pdata[2];
+                } else {
+                    txPrebufferMsec = 0;
+                }
             }
             sigpath::sourceManager.start();
             running = true;
