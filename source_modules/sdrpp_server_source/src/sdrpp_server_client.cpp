@@ -329,15 +329,18 @@ namespace server {
         return sock && sock->isOpen();
     }
 
-    void Client::worker() {
+    long long lastReportedTime = 0;
 
-        auto updateStreamTime = [=]() {
-            int currentTime = currentTimeMillis() - getBufferTimeDelay();
-            auto existingTime = sigpath::iqFrontEnd.getCurrentStreamTime();
-            if (currentTime > existingTime) {
-                sigpath::iqFrontEnd.setCurrentStreamTime(currentTime);
-            }
-        };
+    void updateStreamTime(Client *client) {
+        long long currentTime = currentTimeMillis() - client->getBufferTimeDelay();
+        if (currentTime > lastReportedTime) {
+            sigpath::iqFrontEnd.setCurrentStreamTime(currentTime);
+            lastReportedTime = currentTime;
+        }
+
+    }
+
+    void Client::worker() {
         while (true) {
             // Receive header
             if (sock->recv(rbuffer, sizeof(PacketHeader), true) <= 0) {
@@ -405,14 +408,14 @@ namespace server {
             else if (r_pkt_hdr->type == PACKET_TYPE_BASEBAND) {
                 memcpy(decompIn.writeBuf, &rbuffer[sizeof(PacketHeader)], r_pkt_hdr->size - sizeof(PacketHeader));
                 if (!decompIn.swap(r_pkt_hdr->size - sizeof(PacketHeader))) { break; }
-                updateStreamTime();
+                updateStreamTime(this);
             }
             else if (r_pkt_hdr->type == PACKET_TYPE_BASEBAND_COMPRESSED) {
                 size_t outCount = ZSTD_decompressDCtx(dctx, decompIn.writeBuf, STREAM_BUFFER_SIZE*sizeof(dsp::complex_t)+8, r_pkt_data, r_pkt_hdr->size - sizeof(PacketHeader));
                 if (outCount) {
                     if (!decompIn.swap(outCount)) { break; }
                 };
-                updateStreamTime();
+                updateStreamTime(this);
             }
             else if (r_pkt_hdr->type == PACKET_TYPE_ERROR) {
                 flog::error("SDR++ Server Error: {0}", rbuffer[sizeof(PacketHeader)]);
