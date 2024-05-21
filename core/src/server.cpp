@@ -10,6 +10,7 @@
 #include <utils/optionlist.h>
 #include "dsp/compression/sample_stream_compressor.h"
 #include "dsp/sink/handler_sink.h"
+#include "dsp/multirate/rational_resampler.h"
 #include <zstd.h>
 
 #ifdef __linux__
@@ -19,6 +20,7 @@
 
 namespace server {
     dsp::stream<dsp::complex_t> dummyInput("server::dummyInput");
+    dsp::multirate::RationalResampler<dsp::complex_t> forcedResampler;
     dsp::compression::SampleStreamCompressor comp;
     dsp::sink::Handler<uint8_t> hnd;
     net::Conn client;
@@ -50,6 +52,7 @@ namespace server {
     bool running = false;
     bool compression = false;
     double sampleRate = 1000000.0;
+    int forcedSampleRate = 0;
 
     static const int CLIENT_CAPS_BASEDATA_METADATA = 0x0001;        // wants frequency and samplerate along with each IQ batch (otherwise, network latency decouples freq request from baseband)
     static const int CLIENT_CAPS_FFT_WANTED = 0x0002;        // not yet done
@@ -71,13 +74,15 @@ namespace server {
 #endif
 
         // Init DSP
-        comp.init(&dummyInput, dsp::compression::PCM_TYPE_I8);
+        forcedResampler.init(&dummyInput, 1000000, 48000);
+        comp.init(&forcedResampler.out, dsp::compression::PCM_TYPE_I8);
         hnd.init(&comp.out, _testServerHandler, NULL);
         rbuf = new uint8_t[SERVER_MAX_PACKET_SIZE];
         sbuf = new uint8_t[SERVER_MAX_PACKET_SIZE];
         bbuf = new uint8_t[SERVER_MAX_PACKET_SIZE];
         comp.start();
         hnd.start();
+        forcedResampler.start();
 
         // Initialize headers
         r_pkt_hdr = (PacketHeader*)rbuf;
@@ -235,7 +240,7 @@ namespace server {
         comp.setPCMType(dsp::compression::PCM_TYPE_I16);
         compression = false;
 
-        sendSampleRate(sampleRate);
+        sendSampleRate(forcedSampleRate != 0 ? forcedSampleRate: sampleRate);
 
 
         // TODO: Wait otherwise someone else could connect
@@ -323,9 +328,17 @@ namespace server {
         }
     }
 
+    void updateResampler() {
+        if (forcedSampleRate == 0) {
+            forcedResampler.setRates(sampleRate, sampleRate);
+        } else {
+            forcedResampler.setRates(sampleRate, forcedSampleRate);
+        }
+    }
+
     void setInput(dsp::stream<dsp::complex_t>* stream) {
         lastCallbackFrequency = -1;
-        comp.setInput(stream);
+        forcedResampler.setInput(stream);
     }
 
     void setInputCenterFrequencyCallback(int centerFrequency) {
@@ -385,6 +398,11 @@ namespace server {
             sigpath::sourceManager.start();
             running = true;
             maybeSendTransmitterState();
+        }
+        else if (cmd == COMMAND_SET_SAMPLERATE) {
+            forcedSampleRate = *(int32_t *)data;
+            updateResampler();
+            sendSampleRate(forcedSampleRate != 0 ? forcedSampleRate: sampleRate);
         }
         else if (cmd == COMMAND_STOP) {
             sigpath::sourceManager.stop();
@@ -496,8 +514,9 @@ namespace server {
 
     void setInputSampleRate(double samplerate) {
         sampleRate = samplerate;
+        updateResampler();
         if (!client || !client->isOpen()) { return; }
-        sendSampleRate(sampleRate);
+        sendSampleRate(forcedSampleRate != 0 ? forcedSampleRate: sampleRate);
     }
 
     void sendPacket(PacketType type, int len) {

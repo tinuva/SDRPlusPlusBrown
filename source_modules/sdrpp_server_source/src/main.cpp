@@ -48,6 +48,15 @@ public:
         prebufferMsec.define("3000 msec", 3000);
         prebufferMsec.define("5000 msec", 5000);
 
+        serverResample.define("no resample", 0);
+        serverResample.define("24 KHz", 24000);
+        serverResample.define("48 KHz", 48000);
+        serverResample.define("96 KHz", 96000);
+        serverResample.define("128 KHz", 128000);
+        serverResample.define("196 KHz", 196000);
+        serverResample.define("256 KHz", 256000);
+        serverResample.define("384 KHz", 384000);
+
         rxPrebufferId = prebufferMsec.valueId(0);
         txPrebufferId = prebufferMsec.valueId(0);
 
@@ -204,6 +213,17 @@ private:
                 config.conf["servers"][_this->devConfName]["sampleType"] = _this->sampleTypeList.key(_this->sampleTypeId);
                 config.release(true);
             }
+            ImGui::LeftLabel("RX resample");
+            ImGui::FillWidth();
+            if (ImGui::Combo("##sdrpp_srv_source_rx_resample", &_this->rxResampleId, _this->serverResample.txt)) {
+                auto spsValue = _this->serverResample.value(_this->rxResampleId);
+                config.acquire();
+                config.conf["servers"][_this->devConfName]["rxResample"] = spsValue;
+                config.release(true);
+                if (_this->client) {
+                    _this->client->setRxResample(spsValue);
+                }
+            }
             ImGui::LeftLabel("RX prebuffer length");
             ImGui::FillWidth();
             if (ImGui::Combo("##sdrpp_srv_source_rx_prebuf", &_this->rxPrebufferId, _this->prebufferMsec.txt)) {
@@ -299,6 +319,13 @@ private:
                 client->setRxPrebufferMsec(rxPrebufferMsec);
             }
         }
+        if (cfg.contains("rxResample")) {
+            int sps = cfg["rxResample"];
+            rxResampleId = serverResample.valueId(sps);
+            if (client) {
+                client->setRxResample(sps);
+            }
+        }
         if (cfg.contains("txPrebuffer")) {
             txPrebufferId = prebufferMsec.valueId(cfg["txPrebuffer"]);
         }
@@ -327,9 +354,11 @@ private:
 
     OptionList<std::string, dsp::compression::PCMType> sampleTypeList;
     OptionList<std::string, int> prebufferMsec;
+    OptionList<std::string, int> serverResample;
     int sampleTypeId;
     int txPrebufferId;
     int rxPrebufferId;
+    int rxResampleId;
     bool compression = false;
 
     std::shared_ptr<server::Client> client;

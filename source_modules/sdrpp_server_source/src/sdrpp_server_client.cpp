@@ -297,6 +297,9 @@ namespace server {
         prebufferer.setBufferSize((long long)((rxPrebufferMsec * currentSampleRate) / 1000));
         prebufferer.setSampleRate(currentSampleRate);
         prebufferer.clear();
+        int32_t *sr = (int32_t *)&s_cmd_data[0];
+        *sr = requestedSampleRate;
+        sendCommand(COMMAND_SET_SAMPLERATE, sizeof(int32_t));
         sendCommand(COMMAND_START, 0);
         getUI();
     }

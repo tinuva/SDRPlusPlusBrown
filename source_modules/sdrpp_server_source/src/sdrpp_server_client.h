@@ -109,6 +109,16 @@ namespace server {
             prebufferer.setBufferSize((long long)((rxPrebufferMsec * currentSampleRate) / 1000));
         }
 
+        void setRxResample(int freq) {
+            if (requestedSampleRate != freq) {
+                requestedSampleRate = freq;
+                *((int32_t*)&s_cmd_data[0]) = freq;
+                sendCommand(COMMAND_SET_SAMPLERATE, sizeof(int32_t));
+                prebufferer.setSampleRate(freq);
+                prebufferer.clear();
+            }
+        }
+
         int getBufferPercentFull() {
             return prebufferer.getPercentFull();
         }
@@ -164,6 +174,7 @@ namespace server {
         std::thread workerThread;
 
         double currentSampleRate = 1000000.0;
+        double requestedSampleRate = 0;
     };
 
     std::shared_ptr<Client> connect(std::string host, uint16_t port, dsp::stream<dsp::complex_t>* out);

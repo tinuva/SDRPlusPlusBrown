@@ -39,7 +39,7 @@ namespace server {
         // brown subset
         COMMAND_TRANSMIT_ACTION = 0x37,
 
-        // Server to client
+        // Server to client, AND client to server. Client sets desired sample rate or 0. Server responds the actual.
         COMMAND_SET_SAMPLERATE = 0x80,
 
         COMMAND_SET_TRANSMITTER_SUPPORTED = 0xA1,
