@@ -106,7 +106,7 @@ namespace server {
 
         void setRxPrebufferMsec(int msec) {
             rxPrebufferMsec = msec;
-            prebufferer.setBufferSize((long long)((rxPrebufferMsec * currentSampleRate) / 1000));
+            prebufferer.setPrebufferMsec(rxPrebufferMsec);
         }
 
         void setRxResample(int freq) {
@@ -114,7 +114,6 @@ namespace server {
                 requestedSampleRate = freq;
                 *((int32_t*)&s_cmd_data[0]) = freq;
                 sendCommand(COMMAND_SET_SAMPLERATE, sizeof(int32_t));
-                prebufferer.setSampleRate(freq);
                 prebufferer.clear();
             }
         }

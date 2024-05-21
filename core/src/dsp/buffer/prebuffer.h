@@ -16,21 +16,25 @@ namespace dsp::buffer {
 
         Prebuffer(stream<T> *in) { base_type::init(in); }
 
-        long long bufferSize = 0;
+        int prebufferMsec = 0;
         std::mutex bufferLock;
         std::vector<T> buffer;
         bool bufferReached = false;
-        void setBufferSize(long long size) {
-            this->bufferSize = size;
-            clear();
+        void setPrebufferMsec(int msec) {
+            this->prebufferMsec = msec;
         }
 
         int sampleRate = 48000;
         void setSampleRate(int sampleRate) {
             this->sampleRate = sampleRate;
+            clear();
         }
 
         bool volatile running = false;
+
+        int getBufferSize() const {
+            return prebufferMsec * sampleRate / 1000;
+        }
 
         virtual void doStart() {
             base_type ::doStart();
@@ -46,7 +50,7 @@ namespace dsp::buffer {
                         bufferLock.lock();
                         auto bs = buffer.size();
                         bufferLock.unlock();
-                        bufferReached = bs >= bufferSize;
+                        bufferReached = bs >= getBufferSize();
                         if (bufferReached) {
                             lastSend = currentTimeMillis() - ITER_STEP_MILLIS;
                             break;
@@ -82,10 +86,10 @@ namespace dsp::buffer {
                     bufferLock.lock();
                     std::copy(buffer.begin(), buffer.begin() + samplesNeeded, base_type::out.writeBuf);
                     buffer.erase(buffer.begin(), buffer.begin() + samplesNeeded);
-                    if (bufferSize > 0) {
-                        if (buffer.size() > bufferSize) {
+                    if (getBufferSize() > 0) {
+                        if (buffer.size() > getBufferSize()) {
                             // drop over 100%
-                            auto drop = buffer.size() - bufferSize;
+                            auto drop = buffer.size() - getBufferSize();
                             buffer.erase(buffer.begin(), buffer.begin() + drop);
                         }
                     }
@@ -120,10 +124,10 @@ namespace dsp::buffer {
 
         int getPercentFull() {
             bufferLock.lock();
-            if (bufferSize <= 0) {
+            if (getBufferSize() <= 0) {
                 return 100;
             }
-            int percent = 100 * buffer.size() / bufferSize;
+            int percent = 100 * buffer.size() / getBufferSize();
             bufferLock.unlock();
             return percent;
         }

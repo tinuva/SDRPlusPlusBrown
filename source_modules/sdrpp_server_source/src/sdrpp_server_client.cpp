@@ -294,7 +294,7 @@ namespace server {
 
     void Client::start() {
         if (!isOpen()) { return; }
-        prebufferer.setBufferSize((long long)((rxPrebufferMsec * currentSampleRate) / 1000));
+        prebufferer.setPrebufferMsec(rxPrebufferMsec);
         prebufferer.setSampleRate(currentSampleRate);
         prebufferer.clear();
         int32_t *sr = (int32_t *)&s_cmd_data[0];
@@ -364,6 +364,7 @@ namespace server {
                 if (r_cmd_hdr->cmd == COMMAND_SET_SAMPLERATE && r_pkt_hdr->size == sizeof(PacketHeader) + sizeof(CommandHeader) + sizeof(double)) {
                     currentSampleRate = *(double*)r_cmd_data;
                     core::setInputSampleRate(currentSampleRate);
+                    prebufferer.setSampleRate(currentSampleRate);
                 } else if (r_cmd_hdr->cmd == COMMAND_SET_TRANSMITTER_SUPPORTED) {
                     if (!sigpath::transmitter) {
                         std::string str = std::string((char*)r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));
