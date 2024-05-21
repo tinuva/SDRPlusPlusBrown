@@ -1,12 +1,169 @@
 #include "sdrpp_server_client.h"
 #include <volk/volk.h>
 #include <cstring>
+#include <signal_path/signal_path.h>
 #include <utils/flog.h>
 #include <core.h>
 
 using namespace std::chrono_literals;
 
 namespace server {
+
+
+    struct RemoteTransmitter : public Transmitter {
+        Client* client;
+
+        RemoteTransmitter(Client* client, const std::string someState) : client(client) {
+            parseState(someState);
+        }
+
+        void sendTransmitAction(const json &action) {
+            auto str = action.dump();
+            strcpy((char*)client->s_cmd_data, str.c_str());
+            client->sendCommand(COMMAND_TRANSMIT_ACTION, str.length()+1); // including zero, for conv.
+        }
+
+        bool txStatus;
+
+        void setTransmitStatus(bool status) override {
+            auto rv = json({});
+            rv["transmitStatus"] = status;
+            sendTransmitAction(rv);
+            txStatus = status;
+        }
+
+        dsp::stream<dsp::complex_t> *txstream;
+
+        static const int  TX_SEND_BUFFER_SAMPLES = 2400;
+        void setTransmitStream(dsp::stream<dsp::complex_t> *astream) override {
+            std::thread([this, astream]() {
+                SetThreadName("sdrpp_server_client.txstream");
+                auto debug = true;
+                std::vector<dsp::complex_t> buffer;
+                int addedBlocks = 0;
+                int readSamples = 0;
+                int nreads = 0;
+                while (true) {
+                    int rd = astream->read();
+                    if (rd < 0) {
+                        printf("End iq stream for tx");
+                        break;
+                    }
+                    readSamples += rd;
+                    nreads++;
+                    for (int q = 0; q < rd; q++) {
+                        buffer.push_back(astream->readBuf[q]);
+                        if (buffer.size() == TX_SEND_BUFFER_SAMPLES) {
+                            sendBuffer(buffer);
+                            buffer.clear();
+                        }
+                    }
+                    astream->flush();
+                }
+                buffer.clear();
+                sendBuffer(buffer);     // empty buffer = end of transmission.
+            }).detach();
+        }
+
+        uint8_t txStreamBuffer[TX_SEND_BUFFER_SAMPLES * sizeof(dsp::complex_t) + 1024];
+
+        void sendBuffer(std::vector<dsp::complex_t> buffer) {
+            if (client->sock->isOpen()) {
+                PacketHeader* s_pkt_hdr = (PacketHeader*)&txStreamBuffer[0];
+                uint8_t* s_pkt_data = txStreamBuffer + sizeof(PacketHeader);
+                s_pkt_hdr->type = PACKET_TYPE_TRANSMIT_DATA;
+                s_pkt_hdr->size = sizeof(PacketHeader) + buffer.size() * sizeof(dsp::complex_t);
+                memcpy(s_pkt_data, buffer.data(), buffer.size() * sizeof(dsp::complex_t));
+                client->sock->send(txStreamBuffer, s_pkt_hdr->size);
+            }
+        }
+
+        unsigned char softwareGain = 0;
+        unsigned char hardwareGain = 0;
+
+        void setTransmitSoftwareGain(unsigned char gain) override {
+            auto rv = json({});
+            rv["transmitSoftwareGain"] = gain;
+            sendTransmitAction(rv);
+            softwareGain = gain;
+        }
+        void setTransmitHardwareGain(unsigned char gain) override {
+            auto rv = json({});
+            rv["transmitHardwareGain"] = gain;
+            sendTransmitAction(rv);
+            hardwareGain = gain;
+        }
+        unsigned char getTransmitHardwareGain() override {
+            return hardwareGain;
+        }
+        void setTransmitFrequency(int freq) override {
+            auto rv = json({});
+            rv["transmitFrequency"] = freq;
+            sendTransmitAction(rv);
+        };
+
+        void setPAEnabled(bool enabled) override {
+            auto rv = json({});
+            rv["paEnabled"] = enabled;
+            sendTransmitAction(rv);
+        }
+
+        int getTXStatus() override {
+            return txStatus;
+        }
+
+        float transmitPower = 0;
+        float reflectedPower = 0;
+        float swr = 0;
+        float getTransmitPower() override {
+            return transmitPower;
+        }
+        float getReflectedPower() override {
+            return reflectedPower;
+        }
+        float getTransmitSWR() override {
+            return swr;
+        }
+
+        int normalZone = 5;
+        int redZone = 10;
+        int getNormalZone() override {
+            return normalZone;
+        }
+        int getRedZone() override {
+            return redZone;
+        }
+
+        std::string transmitterName = "not set";
+        std::string &getTransmitterName() override {
+            return transmitterName;
+        }
+
+        void parseState(const std::string &state) {
+            try {
+                auto s = json::parse(state);
+                normalZone = s["normalZone"];
+                redZone = s["redZone"];
+                reflectedPower = s["reflectedPower"];
+                transmitPower = s["transmitPower"];
+                swr = s["swr"];
+                hardwareGain = s["hardwareGain"];
+                transmitterName = s["transmitterName"];
+            } catch (std::exception &e) {
+                return;
+            }
+        }
+
+        virtual ~RemoteTransmitter() {
+//            if (txstream) {
+//                txstream->stopReader();
+//            }
+        }
+
+
+
+    };
+
     Client::Client(std::shared_ptr<net::Socket> sock, dsp::stream<dsp::complex_t>* out) {
         this->sock = sock;
         output = out;
@@ -155,6 +312,10 @@ namespace server {
         // Stop DSP
         decomp.stop();
         link.stop();
+        if (sigpath::transmitter) {
+            delete sigpath::transmitter;
+            sigpath::transmitter = nullptr;
+        }
     }
 
     bool Client::isOpen() {
@@ -182,6 +343,16 @@ namespace server {
                 if (r_cmd_hdr->cmd == COMMAND_SET_SAMPLERATE && r_pkt_hdr->size == sizeof(PacketHeader) + sizeof(CommandHeader) + sizeof(double)) {
                     currentSampleRate = *(double*)r_cmd_data;
                     core::setInputSampleRate(currentSampleRate);
+                } else if (r_cmd_hdr->cmd == COMMAND_SET_TRANSMITTER_SUPPORTED) {
+                    if (!sigpath::transmitter) {
+                        std::string str = std::string((char*)r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));
+                        sigpath::transmitter = new RemoteTransmitter(this, str);
+                    }
+                } else if (r_cmd_hdr->cmd == COMMAND_SET_TRANSMITTER_NOT_SUPPORTED) {
+                    if (sigpath::transmitter) {
+                        delete sigpath::transmitter;
+                        sigpath::transmitter = nullptr;
+                    }
                 }
                 else if (r_cmd_hdr->cmd == COMMAND_DISCONNECT) {
                     flog::error("Asked to disconnect by the server");

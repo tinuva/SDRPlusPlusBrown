@@ -60,6 +60,9 @@ namespace server {
     double lastCallbackFrequency = -1;
     double lastSampleRate = 0;
 
+    dsp::stream<dsp::complex_t> *transmitData = nullptr;
+    bool transmitDataRunning = false;
+
     int main() {
         flog::info("=====| SERVER MODE |=====");
 #ifdef __linux__
@@ -176,6 +179,28 @@ namespace server {
         return 0;
     }
 
+    std::string transmitterStatusToString(Transmitter *transmitter) {
+        auto rv = json({});
+        rv["normalZone"] = transmitter->getNormalZone();
+        rv["redZone"] = transmitter->getRedZone();
+        rv["reflectedPower"] = transmitter->getReflectedPower();
+        rv["swr"] = transmitter->getTransmitSWR();
+        rv["transmitPower"] = transmitter->getTransmitPower();
+        rv["hardwareGain"] = transmitter->getTransmitHardwareGain();
+        rv["transmitterName"] = transmitter->getTransmitterName();
+        return rv.dump();
+    }
+
+    void maybeSendTransmitterState() {
+        if (sigpath::transmitter) {
+            auto state = transmitterStatusToString(sigpath::transmitter);
+            strcpy((char*)s_cmd_data, state.c_str());
+            sendCommand(COMMAND_SET_TRANSMITTER_SUPPORTED, state.length()+1);
+        } else {
+            sendCommand(COMMAND_SET_TRANSMITTER_NOT_SUPPORTED, 0);
+        }
+    }
+
     void _clientHandler(net::Conn conn, void* ctx) {
         // Reject if someone else is already connected
         if (client && client->isOpen()) {
@@ -211,6 +236,7 @@ namespace server {
 
         sendSampleRate(sampleRate);
 
+
         // TODO: Wait otherwise someone else could connect
 
         listener->acceptAsync(_clientHandler, NULL);
@@ -230,7 +256,28 @@ namespace server {
         }
 
         // Parse and process
-        if (hdr->type == PACKET_TYPE_COMMAND && hdr->size >= sizeof(PacketHeader) + sizeof(CommandHeader)) {
+        if (hdr->type == PACKET_TYPE_TRANSMIT_DATA && sigpath::transmitter) {
+            int nSamples = (hdr->size - sizeof(PacketHeader)) / sizeof(dsp::complex_t);
+            if (nSamples) {
+                if (!transmitDataRunning) {
+                    if (transmitData) {
+                        delete transmitData; // drained by that time.
+                    }
+                    transmitData = new dsp::stream<dsp::complex_t>("server.txstream");
+                    transmitDataRunning = true;
+                    sigpath::transmitter->setTransmitStream(transmitData);
+                }
+                memcpy(transmitData->writeBuf, buf + sizeof(PacketHeader), nSamples * sizeof(dsp::complex_t));
+                transmitData->swap(nSamples);
+            } else {
+                // end of data.
+                if (transmitData && transmitDataRunning) {
+                    transmitData->stopReader();
+                    transmitDataRunning = false;
+                }
+            }
+            maybeSendTransmitterState();
+        } else if (hdr->type == PACKET_TYPE_COMMAND && hdr->size >= sizeof(PacketHeader) + sizeof(CommandHeader)) {
             CommandHeader* chdr = (CommandHeader*)&buf[sizeof(PacketHeader)];
             commandHandler((Command)chdr->cmd, &buf[sizeof(PacketHeader) + sizeof(CommandHeader)], hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));
         }
@@ -331,10 +378,12 @@ namespace server {
             }
             sigpath::sourceManager.start();
             running = true;
+            maybeSendTransmitterState();
         }
         else if (cmd == COMMAND_STOP) {
             sigpath::sourceManager.stop();
             running = false;
+            maybeSendTransmitterState();
         }
         else if (cmd == COMMAND_SET_FREQUENCY && len == 8) {
             lastTunedFrequency = *(double*)data;
@@ -348,6 +397,29 @@ namespace server {
         }
         else if (cmd == COMMAND_SET_COMPRESSION && len == 1) {
             compression = *(uint8_t*)data;
+        }
+        else if (cmd == COMMAND_TRANSMIT_ACTION && sigpath::transmitter != nullptr) {
+            std::string str = std::string((char*)r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));
+            try {
+                auto j = json::parse(str);
+                if (j.contains("transmitStatus")) {
+                    sigpath::transmitter->setTransmitStatus(j["transmitStatus"]);
+                }
+                if (j.contains("transmitSoftwareGain")) {
+                    sigpath::transmitter->setTransmitSoftwareGain(j["transmitSoftwareGain"]);
+                }
+                if (j.contains("transmitHardwareGain")) {
+                    sigpath::transmitter->setTransmitHardwareGain(j["transmitHardwareGain"]);
+                }
+                if (j.contains("transmitFrequency")) {
+                    sigpath::transmitter->setTransmitFrequency(j["transmitFrequency"]);
+                }
+                if (j.contains("paEnabled")) {
+                    sigpath::transmitter->setPAEnabled(j["paEnabled"]);
+                }
+            } catch(std::exception &ex) {
+                flog::info("json parse exception: {}", ex.what());
+            }
         }
         else {
             flog::error("Invalid Command: {0} (len = {1})", (int)cmd, len);
@@ -369,6 +441,7 @@ namespace server {
 
         sigpath::sourceManager.showSelectedMenu();
     }
+
 
     void renderUI(SmGui::DrawList* dl, std::string diffId, SmGui::DrawListElem diffValue) {
         // If we're recording and there's an action, render once with the action and record without

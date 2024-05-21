@@ -15,7 +15,11 @@ namespace server {
         PACKET_TYPE_VFO,
         PACKET_TYPE_FFT,
         PACKET_TYPE_ERROR,
+
+        // brown subset
         PACKET_TYPE_BASEBAND_WITH_METADATA = 0x37,
+        PACKET_TYPE_TRANSMIT_PROGRESS = 0x38,     // various indicators of transmitter.
+        PACKET_TYPE_TRANSMIT_DATA = 0x38,
     };
 
     enum Command {
@@ -29,8 +33,14 @@ namespace server {
         COMMAND_SET_SAMPLE_TYPE,
         COMMAND_SET_COMPRESSION,
 
+        // brown subset
+        COMMAND_TRANSMIT_ACTION = 0x37,
+
         // Server to client
         COMMAND_SET_SAMPLERATE = 0x80,
+
+        COMMAND_SET_TRANSMITTER_SUPPORTED = 0xA1,
+        COMMAND_SET_TRANSMITTER_NOT_SUPPORTED = 0xA2,
         COMMAND_DISCONNECT
     };
 
@@ -53,6 +63,12 @@ namespace server {
 
         double sampleRate;
         double frequency;
+    };
+
+    // generic data packet, to ensure protocol evolution, for non-performance cases.
+    struct JsonData {
+        int32_t dataSize;
+        char data[1024];
     };
 
     struct CommandHeader {

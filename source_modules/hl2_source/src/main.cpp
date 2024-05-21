@@ -564,15 +564,16 @@ private:
     int tunedFrequency = 0;
 
 
-    int getInputStreamFramerate() override {
-        return 48000;
-    }
+//    int getInputStreamFramerate() override {
+//        return 48000;
+//    }
     void setTransmitStatus(bool status) override {
         device->setTune(false);
         device->setPTT(status);
         updateBandRelays();
     }
     void setTransmitStream(dsp::stream<dsp::complex_t>* astream) override {
+        flog::info("hl2 transmit stream feed NEW STREAM");
         std::thread([this, astream]() {
             SetThreadName("hl2_tx_strm_rd");
             auto debug = true;
@@ -587,6 +588,7 @@ private:
                     break;
                 }
                 readSamples += rd;
+                flog::info("hl2 transmit stream feed: got samples: {}", rd);
                 nreads++;
                 for (int q = 0; q < rd; q++) {
                     buffer.push_back(astream->readBuf[q]);
@@ -601,6 +603,7 @@ private:
                 }
                 astream->flush();
             }
+            flog::info("hl2 transmit stream feed END");
         }).detach();
     }
     void setTransmitSoftwareGain(unsigned char gain) override {
@@ -619,39 +622,31 @@ public:
     }
 
 public:
-    int getTransmittedBufferLatency() override {
-        return device->bufferLatency;
-    }
-    void setTransmittedBufferLatency(int latency) override {
-        device->bufferLatency = latency;
-        device->setHangLatency(device->pttHangTime, device->bufferLatency);
-    }
-    int getTransmittedPttDelay() override {
-        return device->pttHangTime;
-    }
-    void setTransmittedPttDelay(int delay) override {
-        device->pttHangTime = delay;
-        device->setHangLatency(device->pttHangTime, device->bufferLatency);
-    }
+//    int getTransmittedBufferLatency() override {
+//        return device->bufferLatency;
+//    }
+//    void setTransmittedBufferLatency(int latency) override {
+//        device->bufferLatency = latency;
+//        device->setHangLatency(device->pttHangTime, device->bufferLatency);
+//    }
+//    int getTransmittedPttDelay() override {
+//        return device->pttHangTime;
+//    }
+//    void setTransmittedPttDelay(int delay) override {
+//        device->pttHangTime = delay;
+//        device->setHangLatency(device->pttHangTime, device->bufferLatency);
+//    }
 
 private:
-    void startGenerateTone(int frequency) override {
-        device->setFrequency(frequency);
-        device->setTxFrequency(frequency);
-        device->setTune(true);
-        device->setPTT(true);
-    }
+//    void startGenerateTone(int frequency) override {
+//        device->setFrequency(frequency);
+//        device->setTxFrequency(frequency);
+//        device->setTune(true);
+//        device->setPTT(true);
+//    }
 
     void setPAEnabled(bool paenabled) override {
         device->setPAEnabled(paenabled);
-    }
-
-    void stopGenerateTone() override {
-        device->setPTT(false);
-        device->setTune(false);
-    }
-
-    void setToneGain() override {
     }
 
     int getTXStatus() override {

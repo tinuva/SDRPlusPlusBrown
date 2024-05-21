@@ -76,6 +76,8 @@ namespace server {
         CONN_ERR_BUSY       = -2
     };
 
+    struct RemoteTransmitter;
+
     class Client {
     public:
         Client(std::shared_ptr<net::Socket> sock, dsp::stream<dsp::complex_t>* out);
@@ -97,6 +99,8 @@ namespace server {
 
         int bytes = 0;
         bool serverBusy = false;
+
+        friend struct RemoteTransmitter;
 
     private:
         void worker();
