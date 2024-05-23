@@ -14,7 +14,7 @@ WINDOWS INSTALL TROUBLESHOOTING: https://youtu.be/Q3CV5U-2IIU
 
 Thanks and due respect to:
  
-* original author, Alexandre Rouma, for his great [work](https://github.com/AlexandreRouma/SDRPlusPlus). 
+* original author, Alexandre Rouma, for his great [work](https://github.com/AlexandreRouma/SDRPlusPlus). Due credits go to all contributors in the upstream project. 
 * MSHV author, LZ2HV, for his great [work](http://lz2hv.org/mshv).
 * logmmse/python authors for their great [work](https://github.com/wilsonchingg/logmmse).
 * OMLSA authors for their great [idea](https://github.com/yuzhouhe2000/OMLSA-IMCRA) and [implementation](https://github.com/xiaochunxin/OMLSA-MCRA).
