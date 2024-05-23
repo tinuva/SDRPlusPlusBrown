@@ -21,8 +21,9 @@ namespace server {
 
         // brown subset
         PACKET_TYPE_BASEBAND_WITH_METADATA = 0x37,
-        PACKET_TYPE_TRANSMIT_PROGRESS = 0x38,     // various indicators of transmitter.
-        PACKET_TYPE_TRANSMIT_DATA = 0x38,
+        PACKET_TYPE_TRANSMIT_PROGRESS,     // various indicators of transmitter. 0x38
+        PACKET_TYPE_TRANSMIT_DATA,  // 0x39
+        PACKET_TYPE_BASEBAND_EXPERIMENTAL_FFT,  // 0x3a
     };
 
     enum Command {
@@ -38,12 +39,15 @@ namespace server {
 
         // brown subset
         COMMAND_TRANSMIT_ACTION = 0x37,
+        COMMAND_SET_FFTZSTD_COMPRESSION,
+        COMMAND_SET_EFFT_MULTIPLIER,
 
         // Server to client, AND client to server. Client sets desired sample rate or 0. Server responds the actual.
         COMMAND_SET_SAMPLERATE = 0x80,
 
         COMMAND_SET_TRANSMITTER_SUPPORTED = 0xA1,
-        COMMAND_SET_TRANSMITTER_NOT_SUPPORTED = 0xA2,
+        COMMAND_SET_TRANSMITTER_NOT_SUPPORTED, // 0xA2,
+        COMMAND_EFFT_NOISE_FIGURE,
         COMMAND_DISCONNECT
     };
 
@@ -66,6 +70,8 @@ namespace server {
 
         double sampleRate;
         double frequency;
+
+        int64_t fftCompressed;
     };
 
     // generic data packet, to ensure protocol evolution, for non-performance cases.

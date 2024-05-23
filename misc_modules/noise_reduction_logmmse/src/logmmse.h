@@ -246,43 +246,11 @@ namespace dsp {
                                     nmu2[q] = navg[q] * navg[q];
                                 }
                             }
-                            int firstV = -1;
-                            int lastV = -1;
-                            int countZeros = 0;
-                            for(int q=0; q<nFFT; q++) {
-                                float val = nmu2[q];
-                                if(firstV < 0 && val != 0) {
-                                    firstV = q;
-                                }
-                                if (val != 0) {
-                                    if (lastV != -1) {
-                                        if (q - lastV > 1) {
-                                            // fill the gap
-                                            auto d = (val - nmu2[lastV]) / (q - lastV);
-                                            auto running = nmu2[lastV];
-                                            for(int w=lastV+1; w<q; w++) {
-                                                running += d;
-                                                nmu2[w] = running;
-                                            }
-                                        }
-                                    }
-                                    lastV = q;
-                                } else {
-                                    countZeros++;
-                                }
-                            }
-                            if (firstV < 0 || lastV < 0) {
+
+                            if (!linearInterpolateHoles(nmu2, nFFT)) {
                                 *noise_mu2 = noise_mu2_copy;
-                            } else {
-                                auto v = nmu2[firstV];
-                                for (int q = firstV - 1; q >= 0; q--) {
-                                    nmu2[q] = v;
-                                }
-                                v = nmu2[lastV];
-                                for (int q = lastV + 1; q < nFFT; q++) {
-                                    nmu2[q] = v;
-                                }
                             }
+
                             ADD_STEP_STATS();
 
                         }  // end if audio frequency

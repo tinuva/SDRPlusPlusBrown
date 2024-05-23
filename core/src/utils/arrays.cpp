@@ -429,9 +429,70 @@ namespace dsp {
         float expn(float q) {
             return EXPN::expn__(q);
         }
+
+        bool linearInterpolateHoles(float *arr, int narr) {
+            int firstV = -1;
+            int lastV = -1;
+            for(int q=0; q < narr; q++) {
+                float val = arr[q];
+                if(firstV < 0 && val != 0) {
+                    firstV = q;
+                }
+                if (val != 0) {
+                    if (lastV != -1) {
+                        if (q - lastV > 1) {
+                            // fill the gap
+                            auto d = (val - arr[lastV]) / (q - lastV);
+                            auto running = arr[lastV];
+                            for(int w=lastV+1; w<q; w++) {
+                                running += d;
+                                arr[w] = running;
+                            }
+                        }
+                    }
+                    lastV = q;
+                }
+            }
+            if (firstV < 0 || lastV < 0) {
+                return false;
+            } else {
+                auto v = arr[firstV];
+                for (int q = firstV - 1; q >= 0; q--) {
+                    arr[q] = v;
+                }
+                v = arr[lastV];
+                for (int q = lastV + 1; q < narr; q++) {
+                    arr[q] = v;
+                }
+                return true;
+            }
+        }
     }
 
     namespace arrays {
+
+        FloatArray centeredSma(FloatArray in, int winsize) {
+            int limit = in->size();
+            auto rv = npzeros(limit);
+            float total = 0;
+            int win2 = winsize / 2;
+            auto indata = in->data();
+            auto outdata = rv->data();
+            for(int i=0; i<winsize; i++) {
+                total += indata[i];
+            }
+            for(int i=winsize; i<limit; i++) {
+                outdata[i - win2] = total / winsize;
+                total += indata[i] - indata[i-winsize];
+            }
+            for(int i=0; i<winsize-win2; i++) {
+                outdata[i] = outdata[winsize-win2];
+            }
+            for(int i=limit - win2; i<limit; i++) {
+                outdata[i] = outdata[limit-win2-1];
+            }
+            return rv;
+        }
 
         struct fftwPlanImplFFTW : public FFTPlan {
             int nbuckets;
@@ -1012,6 +1073,14 @@ namespace dsp {
             return array;
         }
 
+        void swapfft(const ComplexArray &arr) {
+            int s2 = arr->size() / 2;
+            auto data = arr->data();
+            for(int i=0; i<s2; i++) {
+                std::swap(data[i], data[i+s2]);
+            }
+        }
+
         ComplexArray npzeros_c(int size) {
             auto retval = std::make_shared<std::vector<dsp::complex_t>>(size, dsp::complex_t{ 0.0f, 0.0f });
             return retval;
@@ -1052,6 +1121,10 @@ namespace dsp {
 
         FloatArray clone(const FloatArray& in) {
             return std::make_shared<std::vector<float>>(*in);
+        }
+
+        ComplexArray clone(const ComplexArray& in) {
+            return std::make_shared<std::vector<dsp::complex_t>>(*in);
         }
 
         FloatArray npabsolute(const ComplexArray& in) {

@@ -9,6 +9,7 @@
 #include <gui/smgui.h>
 #include <utils/optionlist.h>
 #include "dsp/compression/sample_stream_compressor.h"
+#include "dsp/compression/experimental_fft_compressor.h"
 #include "dsp/sink/handler_sink.h"
 #include "dsp/multirate/rational_resampler.h"
 #include <zstd.h>
@@ -21,6 +22,7 @@
 namespace server {
     dsp::stream<dsp::complex_t> dummyInput("server::dummyInput");
     dsp::multirate::RationalResampler<dsp::complex_t> forcedResampler;
+    dsp::compression::ExperimentalFFTCompressor fftCompressor;
     dsp::compression::SampleStreamCompressor comp;
     dsp::sink::Handler<uint8_t> hnd;
     net::Conn client;
@@ -59,7 +61,6 @@ namespace server {
 
     int clientCapsRequested = 0;
     int txPrebufferMsec = 0;
-
     double lastTunedFrequency = 0;
     double lastCallbackFrequency = -1;
     double lastSampleRate = 0;
@@ -75,13 +76,16 @@ namespace server {
 
         // Init DSP
         forcedResampler.init(&dummyInput, 1000000, 48000);
-        comp.init(&forcedResampler.out, dsp::compression::PCM_TYPE_I8);
+        fftCompressor.init(&forcedResampler.out);
+        fftCompressor.setEnabled(true);
+        comp.init(&fftCompressor.out, dsp::compression::PCM_TYPE_I8);
         hnd.init(&comp.out, _testServerHandler, NULL);
         rbuf = new uint8_t[SERVER_MAX_PACKET_SIZE];
         sbuf = new uint8_t[SERVER_MAX_PACKET_SIZE];
         bbuf = new uint8_t[SERVER_MAX_PACKET_SIZE];
         comp.start();
         hnd.start();
+        fftCompressor.start();
         forcedResampler.start();
 
         // Initialize headers
@@ -295,17 +299,31 @@ namespace server {
         client->readAsync(sizeof(PacketHeader), rbuf, _packetHandler, NULL);
     }
 
+    int frameCount = 0;
+
     void _testServerHandler(uint8_t* data, int count, void* ctx) {
+        frameCount++;
         // Compress data if needed and fill out header fields
-        if (clientCapsRequested & CLIENT_CAPS_BASEDATA_METADATA) {
+        if ((clientCapsRequested & CLIENT_CAPS_BASEDATA_METADATA)) {
             bb_pkt_hdr->type = PACKET_TYPE_BASEBAND_WITH_METADATA;
-            bb_pkt_hdr->size = sizeof(PacketHeader) + sizeof(StreamMetadata) + count;
             StreamMetadata *sm = (StreamMetadata*)&bbuf[sizeof(PacketHeader)];
             sm->version = 1;
             sm->size = sizeof(StreamMetadata);
             sm->frequency = lastCallbackFrequency != -1 ? lastCallbackFrequency : lastTunedFrequency; // for any driver, supporting callback frequency or not.
             sm->sampleRate = lastSampleRate;
-            memcpy(&bbuf[sizeof(PacketHeader) + sizeof(StreamMetadata)], data, count);
+            sm->fftCompressed = fftCompressor.isEnabled();
+            auto dataOffset = sizeof(PacketHeader) + sizeof(StreamMetadata);
+            if (sm->fftCompressed) {
+                count = ZSTD_compressCCtx(cctx, &bbuf[dataOffset], SERVER_MAX_PACKET_SIZE-dataOffset, data, count, 1);
+            } else {
+                memcpy(&bbuf[dataOffset], data, count);
+            }
+            bb_pkt_hdr->size = dataOffset + count;
+        } else if (fftCompressor.isEnabled()) {
+            bb_pkt_hdr->type = PACKET_TYPE_BASEBAND_EXPERIMENTAL_FFT;
+            auto dataOffset = sizeof(PacketHeader);
+            count = ZSTD_compressCCtx(cctx, &bbuf[dataOffset], SERVER_MAX_PACKET_SIZE-dataOffset, data, count, 1);
+            bb_pkt_hdr->size = sizeof(PacketHeader) + count;
         } else if (compression) {
             bb_pkt_hdr->type = PACKET_TYPE_BASEBAND_COMPRESSED;
             bb_pkt_hdr->size = sizeof(PacketHeader) + (uint32_t)ZSTD_compressCCtx(cctx, &bbuf[sizeof(PacketHeader)], SERVER_MAX_PACKET_SIZE-sizeof(PacketHeader), data, count, 1);
@@ -325,14 +343,23 @@ namespace server {
                 client.reset();
                 flog::error("Client is gone, stopping SDR.");
             }
+            if (fftCompressor.isEnabled() && frameCount % 20 == 1) {
+                fftCompressor.noiseFigureLock.lock();
+                auto nbytes = fftCompressor.noiseFigure.size() * sizeof(fftCompressor.noiseFigure[0]);
+                memcpy(s_cmd_data, fftCompressor.noiseFigure.data(), nbytes);
+                fftCompressor.noiseFigureLock.unlock();
+                sendCommand(COMMAND_EFFT_NOISE_FIGURE, nbytes);
+            }
         }
     }
 
     void updateResampler() {
         if (forcedSampleRate == 0) {
             forcedResampler.setRates(sampleRate, sampleRate);
+            fftCompressor.setSampleRate(sampleRate);
         } else {
             forcedResampler.setRates(sampleRate, forcedSampleRate);
+            fftCompressor.setSampleRate(forcedSampleRate);
         }
     }
 
@@ -381,6 +408,12 @@ namespace server {
                 renderUI(NULL, diffId.str, diffValue);
             }
         }
+        else if (cmd == COMMAND_SET_EFFT_MULTIPLIER) {
+            if (len == 8) {
+                double *pdata = (double*)data;
+                fftCompressor.noiseMultiplier = pdata[0];
+            }
+        }
         else if (cmd == COMMAND_START) {
             if (len >= 8) {
                 int32_t *pdata = (int32_t*)data;
@@ -421,6 +454,9 @@ namespace server {
         }
         else if (cmd == COMMAND_SET_COMPRESSION && len == 1) {
             compression = *(uint8_t*)data;
+        }
+        else if (cmd == COMMAND_SET_FFTZSTD_COMPRESSION && len == 1) {
+            fftCompressor.setEnabled(*(uint8_t*)data);
         }
         else if (cmd == COMMAND_TRANSMIT_ACTION && sigpath::transmitter != nullptr) {
             std::string str = std::string((char*)r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));

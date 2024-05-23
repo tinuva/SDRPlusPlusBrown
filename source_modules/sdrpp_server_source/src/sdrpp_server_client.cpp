@@ -4,6 +4,7 @@
 #include <signal_path/signal_path.h>
 #include <utils/flog.h>
 #include <core.h>
+#include "dsp/compression/experimental_fft_decompressor.h"
 
 using namespace std::chrono_literals;
 
@@ -190,10 +191,12 @@ namespace server {
         decompIn.setBufferSize(STREAM_BUFFER_SIZE*sizeof(dsp::complex_t) + 8);
         decompIn.clearWriteStop();
         decomp.init(&decompIn);
-        prebufferer.init(&decomp.out);
+        fftDecompressor.init(&decomp.out);
+        prebufferer.init(&fftDecompressor.out);
         link.init(&prebufferer.out, output);
         prebufferer.start();
         decomp.start();
+        fftDecompressor.start();
         link.start();
 
         // Start worker thread
@@ -292,11 +295,22 @@ namespace server {
         sendCommand(COMMAND_SET_COMPRESSION, 1);
     }
 
+    void Client::setCompressionMultiplier(double mult) {
+        if (!isOpen()) { return; }
+        (*(double *)&s_cmd_data[0]) = mult;
+        sendCommand(COMMAND_SET_EFFT_MULTIPLIER, 8);
+    }
+
+    void Client::setNoiseMultiplierDB(double multDB) {
+        fftDecompressor.noiseMultiplierDB = multDB;
+    }
+
     void Client::start() {
         if (!isOpen()) { return; }
         prebufferer.setPrebufferMsec(rxPrebufferMsec);
         prebufferer.setSampleRate(currentSampleRate);
         prebufferer.clear();
+        fftDecompressor.noiseFigure.clear();
         int32_t *sr = (int32_t *)&s_cmd_data[0];
         *sr = requestedSampleRate;
         sendCommand(COMMAND_SET_SAMPLERATE, sizeof(int32_t));
@@ -320,6 +334,7 @@ namespace server {
 
         // Stop DSP
         decomp.stop();
+        fftDecompressor.stop();
         prebufferer.stop();
         link.stop();
         if (sigpath::transmitter) {
@@ -365,6 +380,12 @@ namespace server {
                     currentSampleRate = *(double*)r_cmd_data;
                     core::setInputSampleRate(currentSampleRate);
                     prebufferer.setSampleRate(currentSampleRate);
+                } else if (r_cmd_hdr->cmd == COMMAND_EFFT_NOISE_FIGURE) {
+                    int nbytes = r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader);
+                    int nelems = nbytes / sizeof(dsp::complex_t);
+                    std::vector<dsp::complex_t> figure(nelems);
+                    memcpy(figure.data(), r_cmd_data, nbytes);
+                    fftDecompressor.setNoiseFigure(figure);
                 } else if (r_cmd_hdr->cmd == COMMAND_SET_TRANSMITTER_SUPPORTED) {
                     if (!sigpath::transmitter) {
                         std::string str = std::string((char*)r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));
@@ -410,11 +431,19 @@ namespace server {
                 }
             }
             else if (r_pkt_hdr->type == PACKET_TYPE_BASEBAND) {
+                fftDecompressor.setEnabled(false);
                 memcpy(decompIn.writeBuf, &rbuffer[sizeof(PacketHeader)], r_pkt_hdr->size - sizeof(PacketHeader));
                 if (!decompIn.swap(r_pkt_hdr->size - sizeof(PacketHeader))) { break; }
                 updateStreamTime(this);
             }
+            else if (r_pkt_hdr->type == PACKET_TYPE_BASEBAND_EXPERIMENTAL_FFT) {
+                fftDecompressor.setEnabled(true);
+                size_t outCount = ZSTD_decompressDCtx(dctx, decompIn.writeBuf, STREAM_BUFFER_SIZE*sizeof(dsp::complex_t)+8, r_pkt_data, r_pkt_hdr->size - sizeof(PacketHeader));
+                if (!decompIn.swap(outCount)) { break; }
+                updateStreamTime(this);
+            }
             else if (r_pkt_hdr->type == PACKET_TYPE_BASEBAND_COMPRESSED) {
+                fftDecompressor.setEnabled(false);
                 size_t outCount = ZSTD_decompressDCtx(dctx, decompIn.writeBuf, STREAM_BUFFER_SIZE*sizeof(dsp::complex_t)+8, r_pkt_data, r_pkt_hdr->size - sizeof(PacketHeader));
                 if (outCount) {
                     if (!decompIn.swap(outCount)) { break; }

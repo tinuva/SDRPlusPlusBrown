@@ -13,6 +13,7 @@
 #include <dsp/routing/stream_link.h>
 #include <dsp/buffer/prebuffer.h>
 #include <zstd.h>
+#include "dsp/compression/experimental_fft_decompressor.h"
 
 #define PROTOCOL_TIMEOUT_MS             10000
 
@@ -92,6 +93,8 @@ namespace server {
         
         void setSampleType(dsp::compression::PCMType type);
         void setCompression(bool enabled);
+        void setCompressionMultiplier(double mult);
+        void setNoiseMultiplierDB(double mult);
 
         void start();
         void stop();
@@ -147,6 +150,7 @@ namespace server {
 
         dsp::stream<uint8_t> decompIn;
         dsp::compression::SampleStreamDecompressor decomp;
+        dsp::compression::ExperimentalFFTDeCompressor fftDecompressor;
         dsp::buffer::Prebuffer<dsp::complex_t> prebufferer;
         dsp::routing::StreamLink<dsp::complex_t> link;
         dsp::stream<dsp::complex_t>* output;

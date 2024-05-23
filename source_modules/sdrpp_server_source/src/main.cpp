@@ -251,6 +251,21 @@ private:
                 config.conf["servers"][_this->devConfName]["compression"] = _this->compression;
                 config.release(true);
             }
+            ImGui::LeftLabel("EFFT compression multiplier");
+            ImGui::FillWidth();
+            if (ImGui::SliderFloat("##sdrpp_srv_source_efft_mult", &_this->compressionMultipler, 0, 1.5)) {
+                if (_this->client) {
+                    _this->client->setCompressionMultiplier(_this->compressionMultipler);
+                }
+            }
+            ImGui::LeftLabel("Noise filler multiplier, db");
+            ImGui::FillWidth();
+            if (ImGui::SliderFloat("##sdrpp_srv_source_noise_mult", &_this->noiseMultiplerDB, -10, 10)) {
+                if (_this->client) {
+                    _this->client->setNoiseMultiplierDB(_this->noiseMultiplerDB);
+                }
+            }
+
 
             bool dummy = true;
             style::beginDisabled();
@@ -360,7 +375,8 @@ private:
     int rxPrebufferId;
     int rxResampleId;
     bool compression = false;
-
+    float compressionMultipler = 1;
+    float noiseMultiplerDB = 0;
     std::shared_ptr<server::Client> client;
 };
 

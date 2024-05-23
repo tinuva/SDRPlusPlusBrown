@@ -26,6 +26,7 @@ namespace dsp {
         std::vector<float> maxeach(int maxwindow, std::vector<float>& src);
         double sinc(double omega, double x, double norm);
         float expn(float q);
+        bool linearInterpolateHoles(float *arr, int narr);
     }
 
     namespace arrays {
@@ -98,11 +99,14 @@ namespace dsp {
         FloatArray hamming(int N);
         FloatArray linspace(float start, float stop, int num);
         ComplexArray npzeros_c(int size);
+        void swapfft(const ComplexArray &arr);
         ComplexArray resize(const ComplexArray& in, int nsize);
         FloatArray scipyspecialexpn(const FloatArray& in);
         FloatArray maximum(const FloatArray& in, float value);
         FloatArray clone(const FloatArray& in);
+        ComplexArray clone(const ComplexArray & in);
         FloatArray npabsolute(const ComplexArray& in);
+        FloatArray centeredSma(FloatArray in, int winsize);
 
         struct FFTPlan {
             virtual ComplexArray getInput() = 0;
