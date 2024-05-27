@@ -94,6 +94,7 @@ namespace server {
         void setSampleType(dsp::compression::PCMType type);
         void setCompression(bool enabled);
         void setCompressionMultiplier(double mult);
+        void setAGC(float, float);
         void setNoiseMultiplierDB(double mult);
 
         void start();

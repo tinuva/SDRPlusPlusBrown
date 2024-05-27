@@ -4,6 +4,8 @@
 #include "utils/arrays.h"
 #include <cmath>
 #include <random>
+#include "dsp/window/blackman.h"
+#include "experimental_fft_compressor.h"
 
 
 
@@ -22,6 +24,7 @@ namespace dsp::compression {
         std::random_device rd;
         std::mt19937 rgen;
         float noiseMultiplierDB = 0.0;
+        std::vector<float> fftWindow;
 
         ExperimentalFFTDeCompressor() : Processor<complex_t, complex_t>(), rgen(rd()) {
 
@@ -34,6 +37,8 @@ namespace dsp::compression {
                 this->fftSize = fftSize;
                 fftPlan = allocateFFTWPlan(true, fftSize);
                 inArray = npzeros_c(fftSize);
+                fftWindow.resize(fftSize);
+                for (int i = 0; i < fftSize; i++) { fftWindow[i] = 1.0/blackmanWindowElement(i+5, fftSize+10); }
             }
         }
 
@@ -69,26 +74,37 @@ namespace dsp::compression {
                 inArray->clear();
                 inArray->insert(inArray->begin(), _in->readBuf, _in->readBuf + count);
                 base_type::_in->flush();
+                auto indata = inArray->data();
 
+                auto nd = std::normal_distribution<>(0, 1);
+                auto ad = std::normal_distribution<>(-M_PI, M_PI);
                 if (noiseFigure.size() > 0) {
-                    int nparts = noiseFigure.size() / 2;
-                    auto indata = inArray->data();
+                    int nparts = noiseFigure.size();
+                    auto avgmag = inArray->data();
                     int singlePart = fftSize / nparts;
-
-                    std::vector<std::normal_distribution<float>> distre(nparts+1, std::normal_distribution<float>(0, 1));
-                    std::vector<std::normal_distribution<float>> distim(nparts+1, std::normal_distribution<float>(0, 1));
-                    auto  noiseMult = db_to_linear(noiseMultiplierDB);
-                    for (int i = 0; i < nparts; i++) {
-                        distre[i] = std::normal_distribution<float>(noiseFigure[i * 2 + 0].re, noiseMult * noiseFigure[i * 2 + 1].re);
-                        distim[i] = std::normal_distribution<float>(noiseFigure[i * 2 + 0].im, noiseMult * noiseFigure[i * 2 + 1].im);
-                    }
-                    distre[nparts] = distre[nparts-1];
-                    distim[nparts] = distim[nparts-1];
+                    float  noiseMult = 0;
+                    float  prevnoiseMult = 0;
+                    int prevd = -1;
+                    int istart = 0;
 
                     for (int i = 0; i < fftSize; i++) {
                         if (indata[i].re == 0 && indata[i].im == 0) {
-                            indata[i].re = distre[i/singlePart](rgen);
-                            indata[i].im = distim[i/singlePart](rgen);
+                            int d = i / singlePart;
+                            if (d != prevd) {
+                                if (d >= nparts) {
+                                    d = nparts - 1;
+                                }
+                                prevnoiseMult = noiseMult;
+                                noiseMult = db_to_linear(noiseFigure[d] + noiseMultiplierDB) * fftSize;
+                                prevd = d;
+                                istart = i;
+                            }
+                            float prog = (i-istart)/(float)singlePart;
+                            float cnoiseMult = prog*noiseMult + (1-prog)*prevnoiseMult;
+                            float angle = ad(rgen);
+                            float length = nd(rgen) * cnoiseMult;
+                            indata[i].re = length * sin(angle);
+                            indata[i].im = length * cos(angle);
                         }
                     }
                 }
@@ -103,20 +119,19 @@ namespace dsp::compression {
             }
         }
 
-        std::vector<dsp::complex_t> noiseFigure;
+        std::vector<float> noiseFigure;
 
         float lowpass(float oldd, float neww) {
             float delay = 0.8;
             return oldd * delay + neww * (1-delay);
         }
 
-        void setNoiseFigure(std::vector<dsp::complex_t> figure) {
+        void setNoiseFigure(std::vector<float> figure) {
             if (noiseFigure.size() != figure.size()) {
                 noiseFigure = figure;
             } else {
                 for(int q=0; q<figure.size(); q++) {
-                    noiseFigure[q].re = lowpass(noiseFigure[q].re, figure[q].re);
-                    noiseFigure[q].im = lowpass(noiseFigure[q].im, figure[q].im);
+                    noiseFigure[q] = lowpass(noiseFigure[q], figure[q]);
                 }
             }
         }

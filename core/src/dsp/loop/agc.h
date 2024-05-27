@@ -84,6 +84,10 @@ namespace dsp::loop {
 
         inline int process(int count, T* in, T* out) {
             float envelope = 1.0f;
+            if (_attack <= 0) {
+                std::copy(in, in + count, out);
+                return count;
+            }
             for (int i = 0; i < count; i++) {
                 // Get signal amplitude
                 float inAmp, gain = 1.0;

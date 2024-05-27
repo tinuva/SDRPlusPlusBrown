@@ -36,6 +36,7 @@ namespace server {
         COMMAND_GET_SAMPLERATE,
         COMMAND_SET_SAMPLE_TYPE,
         COMMAND_SET_COMPRESSION,
+        COMMAND_SET_AGC,
 
         // brown subset
         COMMAND_TRANSMIT_ACTION = 0x37,

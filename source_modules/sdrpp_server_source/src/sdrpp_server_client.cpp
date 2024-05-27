@@ -295,6 +295,14 @@ namespace server {
         sendCommand(COMMAND_SET_COMPRESSION, 1);
     }
 
+    void Client::setAGC(float attack, float decay) {
+        if (!isOpen()) { return; }
+        float *cmdd = (float *)&s_cmd_data[0];
+        cmdd[0] = attack;
+        cmdd[1] = decay;
+        sendCommand(COMMAND_SET_AGC, 2 * sizeof(float));
+    }
+
     void Client::setCompressionMultiplier(double mult) {
         if (!isOpen()) { return; }
         (*(double *)&s_cmd_data[0]) = mult;
@@ -382,8 +390,8 @@ namespace server {
                     prebufferer.setSampleRate(currentSampleRate);
                 } else if (r_cmd_hdr->cmd == COMMAND_EFFT_NOISE_FIGURE) {
                     int nbytes = r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader);
-                    int nelems = nbytes / sizeof(dsp::complex_t);
-                    std::vector<dsp::complex_t> figure(nelems);
+                    int nelems = nbytes / sizeof(float);
+                    std::vector<float >figure(nelems);
                     memcpy(figure.data(), r_cmd_data, nbytes);
                     fftDecompressor.setNoiseFigure(figure);
                 } else if (r_cmd_hdr->cmd == COMMAND_SET_TRANSMITTER_SUPPORTED) {

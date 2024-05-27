@@ -89,7 +89,7 @@ namespace displaymenu {
     const IQFrontEnd::FFTWindow fftWindowList[] = {
         IQFrontEnd::FFTWindow::RECTANGULAR,
         IQFrontEnd::FFTWindow::BLACKMAN,
-        IQFrontEnd::FFTWindow::NUTTALL
+        IQFrontEnd::FFTWindow::NUTTALL,
     };
 
     void updateFFTSpeeds() {

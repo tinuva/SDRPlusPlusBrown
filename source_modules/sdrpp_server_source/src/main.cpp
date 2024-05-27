@@ -251,9 +251,23 @@ private:
                 config.conf["servers"][_this->devConfName]["compression"] = _this->compression;
                 config.release(true);
             }
+            ImGui::LeftLabel("AGC Attack");
+            ImGui::FillWidth();
+            if (ImGui::SliderFloat("##sdrpp_srv_source_agc_attack", &_this->agcAttack, -0.01, 0.1)) {
+                if (_this->client) {
+                    _this->client->setAGC(_this->agcAttack, _this->agcDecay);
+                }
+            }
+            ImGui::LeftLabel("AGC Decay");
+            ImGui::FillWidth();
+            if (ImGui::SliderFloat("##sdrpp_srv_source_agc_decay", &_this->agcDecay, 0, 0.1)) {
+                if (_this->client) {
+                    _this->client->setAGC(_this->agcAttack, _this->agcDecay);
+                }
+            }
             ImGui::LeftLabel("EFFT compression multiplier");
             ImGui::FillWidth();
-            if (ImGui::SliderFloat("##sdrpp_srv_source_efft_mult", &_this->compressionMultipler, 0, 1.5)) {
+            if (ImGui::SliderFloat("##sdrpp_srv_source_efft_mult", &_this->compressionMultipler, 0, 10.5)) {
                 if (_this->client) {
                     _this->client->setCompressionMultiplier(_this->compressionMultipler);
                 }
@@ -376,6 +390,8 @@ private:
     int rxResampleId;
     bool compression = false;
     float compressionMultipler = 1;
+    float agcAttack = 50;
+    float agcDecay = 5;
     float noiseMultiplerDB = 0;
     std::shared_ptr<server::Client> client;
 };

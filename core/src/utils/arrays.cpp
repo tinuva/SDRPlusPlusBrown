@@ -494,6 +494,18 @@ namespace dsp {
             return rv;
         }
 
+        FloatArray movingVariance(FloatArray in, int winsize) {
+            auto mean = centeredSma(in, winsize);
+            auto squaredDistances = npzeros(mean->size());
+            auto meanData = mean->data();
+            auto squaredDistancesData = squaredDistances->data();
+            auto inData = in->data();
+            for(int i=0; i<mean->size(); i++) {
+                squaredDistancesData[i] = (inData[i] - meanData[i]) * (inData[i] - meanData[i]);
+            }
+            return centeredSma(squaredDistances, winsize);
+        }
+
         struct fftwPlanImplFFTW : public FFTPlan {
             int nbuckets;
             bool reverse;
@@ -612,61 +624,104 @@ namespace dsp {
         };
 #endif
 
-        std::string dumpArr(const FloatArray& x) {
+        std::string dumpArr(const FloatArray &x) {
+            return dumpArr(x->data(), x->size());
+        }
+
+        std::string dumpArr(const float *x, int limit) {
             std::string s;
-            auto minn = x->at(0);
-            auto maxx = x->at(0);
+            auto minn = x[0];
+            auto maxx = x[0];
             int lim = 10;
-            for (int q = 0; q < x->size(); q++) {
-                auto v = x->at(q);
-                if (q < lim) {
+            for (int q = 0; q < limit; q++) {
+                auto v = x[q];
+                if (false) {
+                    if (q < lim) {
+                        s.append(std::to_string(v));
+                        s.append(" ");
+                    }
+                    if (v > maxx) {
+                        maxx = v;
+                    }
+                    if (v < minn) {
+                        minn = v;
+                    }
+                } else {
+                    s.append(std::to_string(q));
                     s.append(" ");
                     s.append(std::to_string(v));
-                }
-                if (v > maxx) {
-                    maxx = v;
-                }
-                if (v < minn) {
-                    minn = v;
+                    s.append("\n");
                 }
             }
-            std::string pre = "min/max=";
-            pre.append(std::to_string(minn));
-            pre += "/";
-            pre.append(std::to_string(maxx));
-            pre.append(" ");
-            return pre + s;
+            if (false) {
+                std::string pre = "min/max=";
+                pre.append(std::to_string(minn));
+                pre += "/";
+                pre.append(std::to_string(maxx));
+                pre.append(" ");
+                return pre + s;
+            } else {
+                return s;
+            }
         }
 
         std::string dumpArr(const ComplexArray& x) {
+
+        }
+        std::string dumpArr(const dsp::complex_t *x, int limit) {
             std::string s;
-            auto minn = x->at(0).re;
-            auto maxx = x->at(0).re;
-            for (int q = 0; q < x->size(); q++) {
+            auto minn = x[0].re;
+            auto maxx = x[0].re;
+            for (int q = 0; q < limit; q++) {
+                s.append(std::to_string(q));
                 s.append(" ");
-                auto v = x->at(q).amplitude();
-                s.append(std::to_string(v));
+                auto v = x[q].amplitude();
+                s.append(std::to_string(x[q].re));
+                s.append(" ");
+                s.append(std::to_string(x[q].im));
+                s.append(" ");
                 if (v > maxx) {
                     maxx = v;
                 }
                 if (v < minn) {
                     minn = v;
                 }
+                s += "\n";
             }
-            std::string pre = "min/max=";
-            pre.append(std::to_string(minn));
-            pre += "/";
-            pre.append(std::to_string(maxx));
-            pre.append(" ");
-            return pre + s;
+            if (false) {
+                std::string pre = "min/max=";
+                pre.append(std::to_string(minn));
+                pre += "/";
+                pre.append(std::to_string(maxx));
+                pre.append(" ");
+                return pre + s;
+            } else {
+                return s;
+            }
         }
 
         void dumpArr_(const FloatArray& x) {
-            std::cout << dumpArr(x) << std::endl;
+            std::cout << dumpArr(x->data(), x->size()) << std::endl;
+        }
+
+        void dumpArr_(const std::vector<float> &x) {
+            std::cout << dumpArr(x.data(), x.size()) << std::endl;
         }
 
         void dumpArr_(const ComplexArray& x) {
-            std::cout << dumpArr(x) << std::endl;
+            std::cout << dumpArr(x->data(), x->size()) << std::endl;
+        }
+
+        void dumpArr_(const std::vector<dsp::complex_t> &x) {
+            std::cout << dumpArr(x.data(), x.size()) << std::endl;
+        }
+
+        void dumpArr_(dsp::complex_t *ptr, int len) {
+            std::cout << dumpArr(ptr, len) << std::endl;
+        }
+
+        void dumpArr_(float *ptr, int len) {
+            std::cout << dumpArr(ptr, len) << std::endl;
         }
 
         // hanning window

@@ -36,13 +36,17 @@ namespace dsp {
         typedef std::shared_ptr<std::vector<float>> FloatArray;
         typedef std::shared_ptr<std::vector<dsp::complex_t>> ComplexArray;
 
-        std::string dumpArr(const FloatArray& x);
-
+        std::string dumpArr(const float *x, int limit);
         std::string dumpArr(const ComplexArray& x);
+        std::string dumpArr(const FloatArray &x);
+        std::string dumpArr(const dsp::complex_t *x, int limit);
 
-        void dumpArr_(const FloatArray& x);
-
+        void dumpArr_(const FloatArray& x) ;
+        void dumpArr_(const std::vector<float> &x);
         void dumpArr_(const ComplexArray& x);
+        void dumpArr_(const std::vector<dsp::complex_t> &x);
+        void dumpArr_(dsp::complex_t *ptr, int len);
+        void dumpArr_(float *ptr, int len);
 
         // hanning window
         FloatArray nphanning(int len);
@@ -107,6 +111,8 @@ namespace dsp {
         ComplexArray clone(const ComplexArray & in);
         FloatArray npabsolute(const ComplexArray& in);
         FloatArray centeredSma(FloatArray in, int winsize);
+        FloatArray movingVariance(FloatArray in, int winsize);
+
 
         struct FFTPlan {
             virtual ComplexArray getInput() = 0;

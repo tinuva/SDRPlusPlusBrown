@@ -11,6 +11,7 @@
 #include "dsp/compression/sample_stream_compressor.h"
 #include "dsp/compression/experimental_fft_compressor.h"
 #include "dsp/sink/handler_sink.h"
+#include "dsp/loop/agc.h"
 #include "dsp/multirate/rational_resampler.h"
 #include <zstd.h>
 
@@ -22,6 +23,7 @@
 namespace server {
     dsp::stream<dsp::complex_t> dummyInput("server::dummyInput");
     dsp::multirate::RationalResampler<dsp::complex_t> forcedResampler;
+    dsp::loop::AGC<dsp::complex_t> agc;
     dsp::compression::ExperimentalFFTCompressor fftCompressor;
     dsp::compression::SampleStreamCompressor comp;
     dsp::sink::Handler<uint8_t> hnd;
@@ -64,6 +66,8 @@ namespace server {
     double lastTunedFrequency = 0;
     double lastCallbackFrequency = -1;
     double lastSampleRate = 0;
+    float agcAttack = 0;
+    float agcDecay = 1;
 
     dsp::stream<dsp::complex_t> *transmitData = nullptr;
     bool transmitDataRunning = false;
@@ -76,7 +80,8 @@ namespace server {
 
         // Init DSP
         forcedResampler.init(&dummyInput, 1000000, 48000);
-        fftCompressor.init(&forcedResampler.out);
+        agc.init(&forcedResampler.out, 1.0, agcAttack / sampleRate, agcDecay / sampleRate, 10e6, 1, INFINITY);
+        fftCompressor.init(&agc.out);
         fftCompressor.setEnabled(true);
         comp.init(&fftCompressor.out, dsp::compression::PCM_TYPE_I8);
         hnd.init(&comp.out, _testServerHandler, NULL);
@@ -85,6 +90,7 @@ namespace server {
         bbuf = new uint8_t[SERVER_MAX_PACKET_SIZE];
         comp.start();
         hnd.start();
+        agc.start();
         fftCompressor.start();
         forcedResampler.start();
 
@@ -353,6 +359,12 @@ namespace server {
         }
     }
 
+    void updateAGC() {
+        auto sampleRate = fftCompressor.getSampleRate();
+        agc.setAttack(agcAttack / sampleRate);
+        agc.setDecay(agcDecay / sampleRate);
+    }
+
     void updateResampler() {
         if (forcedSampleRate == 0) {
             forcedResampler.setRates(sampleRate, sampleRate);
@@ -361,6 +373,7 @@ namespace server {
             forcedResampler.setRates(sampleRate, forcedSampleRate);
             fftCompressor.setSampleRate(forcedSampleRate);
         }
+        updateAGC();
     }
 
     void setInput(dsp::stream<dsp::complex_t>* stream) {
@@ -454,6 +467,11 @@ namespace server {
         }
         else if (cmd == COMMAND_SET_COMPRESSION && len == 1) {
             compression = *(uint8_t*)data;
+        }
+        else if (cmd == COMMAND_SET_AGC && len == sizeof(float)*2) {
+            agcAttack =  ((float*)data)[0];
+            agcDecay =  ((float*)data)[1];
+            updateAGC();
         }
         else if (cmd == COMMAND_SET_FFTZSTD_COMPRESSION && len == 1) {
             fftCompressor.setEnabled(*(uint8_t*)data);
