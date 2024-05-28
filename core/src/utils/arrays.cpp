@@ -666,8 +666,9 @@ namespace dsp {
         }
 
         std::string dumpArr(const ComplexArray& x) {
-
+            return dumpArr(x->data(), x->size());
         }
+
         std::string dumpArr(const dsp::complex_t *x, int limit) {
             std::string s;
             auto minn = x[0].re;

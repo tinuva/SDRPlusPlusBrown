@@ -5,6 +5,7 @@
 #include <utils/flog.h>
 #include <core.h>
 #include "dsp/compression/experimental_fft_decompressor.h"
+#include <gui/tuner.h>
 
 using namespace std::chrono_literals;
 
@@ -306,7 +307,7 @@ namespace server {
     void Client::setCompressionMultiplier(double mult) {
         if (!isOpen()) { return; }
         (*(double *)&s_cmd_data[0]) = mult;
-        sendCommand(COMMAND_SET_EFFT_MULTIPLIER, 8);
+        sendCommand(COMMAND_SET_EFFT_LOSS_RATE, 8);
     }
 
     void Client::setNoiseMultiplierDB(double multDB) {
@@ -388,6 +389,9 @@ namespace server {
                     currentSampleRate = *(double*)r_cmd_data;
                     core::setInputSampleRate(currentSampleRate);
                     prebufferer.setSampleRate(currentSampleRate);
+                } else if (r_cmd_hdr->cmd == COMMAND_SET_FREQUENCY) {
+                    double freq = *(double*)r_cmd_data;
+                    tuner::tune(tuner::TUNER_MODE_IQ_ONLY, "", freq);
                 } else if (r_cmd_hdr->cmd == COMMAND_EFFT_NOISE_FIGURE) {
                     int nbytes = r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader);
                     int nelems = nbytes / sizeof(float);

@@ -421,10 +421,10 @@ namespace server {
                 renderUI(NULL, diffId.str, diffValue);
             }
         }
-        else if (cmd == COMMAND_SET_EFFT_MULTIPLIER) {
+        else if (cmd == COMMAND_SET_EFFT_LOSS_RATE) {
             if (len == 8) {
                 double *pdata = (double*)data;
-                fftCompressor.noiseMultiplier = pdata[0];
+                fftCompressor.lossRate = pdata[0];
             }
         }
         else if (cmd == COMMAND_START) {
@@ -564,6 +564,11 @@ namespace server {
         *(double*)s_cmd_data = sampleRate;
         sendCommand(COMMAND_SET_SAMPLERATE, sizeof(double));
         lastSampleRate = sampleRate;
+    }
+
+    void sendCenterFrequency(double freq) {
+        *(double*)s_cmd_data = freq;
+        sendCommand(COMMAND_SET_FREQUENCY, sizeof(double));
     }
 
     void setInputSampleRate(double samplerate) {

@@ -105,6 +105,20 @@ namespace dsp::compression {
                             float length = nd(rgen) * cnoiseMult;
                             indata[i].re = length * sin(angle);
                             indata[i].im = length * cos(angle);
+                        } else {
+                            auto compressedAmp = indata[i].amplitude();
+                            auto origAmp = compressedAmp * compressedAmp * compressedAmp * compressedAmp;
+                            auto scale =  origAmp / compressedAmp;
+                            indata[i] *= scale;
+                        }
+                    }
+                } else {
+                    for (int i = 0; i < fftSize; i++) {
+                        if (indata[i].re != 0 && indata[i].im != 0) {
+                            auto compressedAmp = indata[i].amplitude();
+                            auto origAmp = compressedAmp * compressedAmp * compressedAmp * compressedAmp;
+                            auto scale =  origAmp / compressedAmp;
+                            indata[i] *= scale;
                         }
                     }
                 }

@@ -265,16 +265,16 @@ private:
                     _this->client->setAGC(_this->agcAttack, _this->agcDecay);
                 }
             }
-            ImGui::LeftLabel("EFFT compression multiplier");
+            ImGui::LeftLabel("EFFT loss rate");
             ImGui::FillWidth();
-            if (ImGui::SliderFloat("##sdrpp_srv_source_efft_mult", &_this->compressionMultipler, 0, 10.5)) {
+            if (ImGui::SliderFloat("##sdrpp_srv_source_efft_mult", &_this->compressionMultipler, 0, 20)) {
                 if (_this->client) {
                     _this->client->setCompressionMultiplier(_this->compressionMultipler);
                 }
             }
             ImGui::LeftLabel("Noise filler multiplier, db");
             ImGui::FillWidth();
-            if (ImGui::SliderFloat("##sdrpp_srv_source_noise_mult", &_this->noiseMultiplerDB, -10, 10)) {
+            if (ImGui::SliderFloat("##sdrpp_srv_source_noise_mult", &_this->noiseMultiplerDB, -20, 3)) {
                 if (_this->client) {
                     _this->client->setNoiseMultiplierDB(_this->noiseMultiplerDB);
                 }

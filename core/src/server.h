@@ -19,6 +19,7 @@ namespace server {
     void sendUI(Command originCmd, std::string diffId, SmGui::DrawListElem diffValue);
     void sendError(Error err);
     void sendSampleRate(double sampleRate);
+    void sendCenterFrequency(double centerFreq);
     void setInputSampleRate(double samplerate);
     void setInputCenterFrequencyCallback(int centerFrequency); // realtime callback from drivers.
 

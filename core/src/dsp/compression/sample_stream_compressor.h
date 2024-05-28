@@ -27,7 +27,7 @@ namespace dsp::compression {
             base_type::tempStart();
         }
 
-        inline static int process(int count, PCMType pcmType, const complex_t* in, uint8_t* out) {
+        static int process(int count, PCMType pcmType, const complex_t* in, uint8_t* out) {
             uint16_t* compressionType = (uint16_t*)out;
             uint16_t* sampleType = (uint16_t*)&out[2];
             float* scaler = (float*)&out[4];

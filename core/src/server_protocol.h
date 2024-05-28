@@ -32,7 +32,7 @@ namespace server {
         COMMAND_UI_ACTION,
         COMMAND_START,
         COMMAND_STOP,
-        COMMAND_SET_FREQUENCY,
+        COMMAND_SET_FREQUENCY,      // also back, when file source changed, for example
         COMMAND_GET_SAMPLERATE,
         COMMAND_SET_SAMPLE_TYPE,
         COMMAND_SET_COMPRESSION,
@@ -41,7 +41,7 @@ namespace server {
         // brown subset
         COMMAND_TRANSMIT_ACTION = 0x37,
         COMMAND_SET_FFTZSTD_COMPRESSION,
-        COMMAND_SET_EFFT_MULTIPLIER,
+        COMMAND_SET_EFFT_LOSS_RATE,
 
         // Server to client, AND client to server. Client sets desired sample rate or 0. Server responds the actual.
         COMMAND_SET_SAMPLERATE = 0x80,

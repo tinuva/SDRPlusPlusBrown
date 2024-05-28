@@ -5,6 +5,8 @@
 #include "utils/arrays.h"
 #include "utils/strings.h"
 #include "dsp/window/blackman.h"
+#include "dsp/compression/sample_stream_compressor.h"
+#include "dsp/compression/sample_stream_decompressor.h"
 #include <cmath>
 
 
@@ -34,7 +36,7 @@ namespace dsp::compression {
         int sampleRate = 0;
         int sliceMsec = 50;
         int fftSize = 1024;
-        double noiseMultiplier = 1.0;
+        double lossRate = 1.0;
 
         Arg<FFTPlan> fftPlan;
         std::shared_ptr<std::vector<complex_t>> inArray;
@@ -105,7 +107,7 @@ namespace dsp::compression {
         FloatArray filterSignal(FloatArray windowedMags, FloatArray clearMags, dsp::complex_t *unfiltered) {
             //
             auto mvar = dsp::arrays::movingVariance(windowedMags, noiseNPoints);
-            auto newAllowance = 10*noiseMultiplier * percentile::percentile_sampling(*clone(mvar), .15);
+            auto newAllowance = lossRate * percentile::percentile_sampling(*clone(mvar), .15);
             auto allowance = newAllowance * 0.1 + prevAllowance * 0.9;
             prevAllowance = allowance;
 
@@ -148,7 +150,7 @@ namespace dsp::compression {
                     nfiltered++;
                 }
             }
-            flog::info("compressor: filtered {} of {}", nfiltered, fftSize);
+//            flog::info("compressor: filtered {} of {}", nfiltered, fftSize);
             return cma;
         }
 
@@ -159,7 +161,7 @@ namespace dsp::compression {
             int slice = fftSize / nslices;
             auto rv = std::vector<float>(nslices);
             for(int i=0; i<nslices; i++) {
-                rv[i] = noiseFloor->at(i * slice + slice/2);
+                rv[i] = 7 + noiseFloor->at(i * slice + slice/2); // 7db is due to averaging, probably
             }
             return rv;
         }
@@ -211,13 +213,40 @@ namespace dsp::compression {
 
             std::vector<dsp::complex_t> noise(fftSize, {0, 0});
 
-            if (noiseMultiplier > 0) {
+            if (lossRate > 0) {
                 auto nf = filterSignal(windowedSpectrum, clearSpectrum, this->out.writeBuf); // result is filtered writebuf
                 auto newNoiseFigure = estimateNoise(nf); // i/q variance estimate, output is in noise figure.
                 noiseFigureLock.lock();
                 noiseFigure = newNoiseFigure;
                 noiseFigureLock.unlock();
             }
+            auto unfiltered = this->out.writeBuf;
+            for(int i=0; i<fftSize; i++) {
+                // make amplitude logarithmic, for better for 8bit scaling
+                if (unfiltered[i].re == 0 && unfiltered[i].im == 0) {
+
+                } else {
+                    auto amp = unfiltered[i].amplitude();
+                    auto namp = sqrt(sqrt(amp));
+                    unfiltered[i] *= (namp / amp);
+                }
+            }
+
+            if (fftSize < 16000 && false) {
+                uint8_t  buf[30000];
+                dsp::complex_t tbuf[30000];
+                int cnt = SampleStreamCompressor::process(fftSize, PCM_TYPE_I8, unfiltered, buf);
+                int ocnt = SampleStreamDecompressor::process(cnt, buf, tbuf);
+                float maxdelta = 0;
+                for(int q=0; q<fftSize; q++) {
+                    auto delta = (tbuf[q] - unfiltered[q]).amplitude();
+                    if (delta > maxdelta) {
+                        maxdelta = delta;
+                    }
+                }
+                flog::info("ocnt = {}  maxerr={}", ocnt, maxdelta);
+            }
+
 
             // averaged windowedSpectrum ready, normalized around 0. Calculating noise floor
 
@@ -280,7 +309,7 @@ namespace dsp::compression {
 //                    int cnt = 0;
 //                    for (int q = 0; q < sliceSize; q++) {
 //                        int srcIndex = q + p * sliceSize;
-//                        if (smallSma->at(srcIndex) < spectrumVars->at(p) * noiseMultiplier && noiseMultiplier > 0) {
+//                        if (smallSma->at(srcIndex) < spectrumVars->at(p) * lossRate && lossRate > 0) {
 //                            iqSum += this->out.writeBuf[srcIndex];
 //                            cnt++;
 //                        }
@@ -297,7 +326,7 @@ namespace dsp::compression {
 //                    cnt = 0;
 //                    for (int q = 0; q < sliceSize; q++) {
 //                        int srcIndex = q + p * sliceSize;
-//                        if (smallSma->at(srcIndex) < spectrumVars->at(p) * noiseMultiplier && noiseMultiplier > 0) {
+//                        if (smallSma->at(srcIndex) < spectrumVars->at(p) * lossRate && lossRate > 0) {
 //                            auto dd = this->out.writeBuf[q + p * sliceSize] - mean;
 //                            iqVar += {dd.re * dd.re, dd.im * dd.im};
 //                            cnt++;
@@ -321,7 +350,7 @@ namespace dsp::compression {
 //                iDev = centeredSma(iDev, 5);
 //                qDev = centeredSma(qDev, 5);
 //
-//                if (noiseMultiplier > 0) {
+//                if (lossRate > 0) {
 //                    noiseFigureLock.lock();
 //                    noiseFigure.clear();
 //                    for (int p = 0; p < noiseNPoints; p++) {
@@ -337,7 +366,7 @@ namespace dsp::compression {
 //                }
 //
 //                for(int i=0; i<fftSize; i++) {
-//                    if (smallSma->at(i) < spectrumVars->at(i / sliceSize) * noiseMultiplier && noiseMultiplier > 0) {
+//                    if (smallSma->at(i) < spectrumVars->at(i / sliceSize) * lossRate && lossRate > 0) {
 //                        // remove signals below the noise level.
 //                        this->out.writeBuf[i] = {0, 0};
 //                        noiseCount++;
@@ -350,7 +379,7 @@ namespace dsp::compression {
 //            flog::info("RawNoiseCount={} NoiseCount={} ", rawNoiseCount, noiseCount);
 
             iteration++;
-            if (iteration == 50) {
+            if (iteration == -10) {
                 FILE *t = fopen("/tmp/arr.bin", "wb");
                 if (t) {
                     for (int r = 0; r < minRecents; r++) {
