@@ -28,7 +28,7 @@ namespace server {
 
     enum Command {
         // Client to Server
-        COMMAND_GET_UI = 0x00,
+        COMMAND_GET_UI = 0x00,      // also unsolicited, server -> client, after async update.
         COMMAND_UI_ACTION,
         COMMAND_START,
         COMMAND_STOP,

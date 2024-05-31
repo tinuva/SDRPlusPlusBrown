@@ -403,6 +403,10 @@ namespace server {
                     currentSampleRate = *(double*)r_cmd_data;
                     core::setInputSampleRate(currentSampleRate);
                     prebufferer.setSampleRate(currentSampleRate);
+                } else if (r_cmd_hdr->cmd == COMMAND_GET_UI) {
+                    // unsolicited UI
+                    std::lock_guard lck(dlMtx);
+                    dl.load(r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));
                 } else if (r_cmd_hdr->cmd == COMMAND_SECURE_CHALLENGE) {
                     secureChallengeReceived = currentTimeMillis();
                     challenge.resize(256 / 8);

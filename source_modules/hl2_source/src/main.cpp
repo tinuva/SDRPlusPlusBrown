@@ -338,6 +338,8 @@ private:
                     _this->device->setSevenRelays(1 << q);
                 }
             }
+            _this->prevBand = -1; // update ui
+            _this->updateBandRelays();
             _this->device->start();
         }
         _this->running = true;
@@ -359,11 +361,18 @@ private:
     }
 
 
+    int prevBand = -1;
     void updateBandRelays() {
         if (device) {
             auto istx = this->getTXStatus();
-            auto bits = getBitsForBand(tunedFrequency, istx);
+            auto [bits, band] = getBitsForBand(tunedFrequency, istx);
             device->setSevenRelays(bits);
+            if (band != prevBand) {
+                prevBand = band;
+                if (serverMode) {
+                    server::sendUnsolicitedUI(); // to reflect current band on checkboxes.
+                }
+            }
         }
     }
 
@@ -423,6 +432,9 @@ private:
                             selectFirst();
                         }
                     };
+                    if (serverMode) {
+                        server::sendUnsolicitedUI();
+                    }
                 });
                 refreshThread.detach();
             }

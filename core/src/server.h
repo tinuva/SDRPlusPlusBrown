@@ -17,6 +17,7 @@ namespace server {
     void commandHandler(Command cmd, uint8_t* data, int len);
     void renderUI(SmGui::DrawList* dl, std::string diffId, SmGui::DrawListElem diffValue);
     void sendUI(Command originCmd, std::string diffId, SmGui::DrawListElem diffValue);
+    void sendUnsolicitedUI();
     void sendError(Error err);
     void sendSampleRate(double sampleRate);
     void sendCenterFrequency(double centerFreq);

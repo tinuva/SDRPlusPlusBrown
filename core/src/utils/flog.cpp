@@ -147,12 +147,12 @@ namespace flog {
         // Get time
         auto now = std::chrono::system_clock::now();
         auto nowt = std::chrono::system_clock::to_time_t(now);
-        auto nowc = std::localtime(&nowt); // TODO: This is not threadsafe
         long long msec = std::chrono::time_point_cast<std::chrono::milliseconds>(now).time_since_epoch().count();
 
         // Write to output
         {
             std::lock_guard<std::mutex> lck(outMtx);
+            auto nowc = std::localtime(&nowt); // This is now threadsafe
 #if defined(_WIN32)
             // Get output handle and return if invalid
             int wOutStream = (type == TYPE_ERROR) ? STD_ERROR_HANDLE  : STD_OUTPUT_HANDLE;

@@ -592,6 +592,14 @@ namespace server {
         sendCommandAck(originCmd, size);
     }
 
+    void sendUnsolicitedUI() {
+        SmGui::DrawList dl;
+        renderUI(&dl, "", dummyElem);
+        int size = dl.getSize();
+        dl.store(s_cmd_data, size);
+        sendCommand(COMMAND_GET_UI, size);
+    }
+
     void sendError(Error err) {
         PacketHeader* hdr = (PacketHeader*)sbuf;
         s_pkt_data[0] = err;
