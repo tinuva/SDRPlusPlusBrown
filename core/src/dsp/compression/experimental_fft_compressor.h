@@ -54,6 +54,8 @@ namespace dsp::compression {
         int largeTick;
         int signalWidth = 300;
 
+        std::vector<int32_t> maskedFrequencies;
+
 
         ExperimentalFFTCompressor() {}
 
@@ -78,7 +80,9 @@ namespace dsp::compression {
                 hzTick = ((float) sampleRate) / fftSize;
                 smallTick = signalWidth / hzTick;
                 largeTick = smallTick * 10;
-
+                sharedDataLock.lock();
+                noiseFigure.clear();
+                sharedDataLock.unlock();
             }
         }
 
@@ -92,6 +96,12 @@ namespace dsp::compression {
             this->enabled = enabled;
         }
 
+        void setMaskedFrequencies(const std::vector<int32_t> maskedFrequencies) {
+            sharedDataLock.lock();
+            this->maskedFrequencies = maskedFrequencies;
+            sharedDataLock.unlock();
+        }
+
         bool isEnabled() {
             return enabled;
         }
@@ -100,7 +110,7 @@ namespace dsp::compression {
 
         const int noiseNPoints = 16;
         std::vector<float> noiseFigure; // mean, variance, mean, variance, mean, variance..
-        std::mutex noiseFigureLock;
+        std::mutex sharedDataLock;
         float prevAllowance = 0;
 
         // returns noise floor
@@ -140,6 +150,17 @@ namespace dsp::compression {
             for (int i = 0; i < fftSize; i++) {
                 if (clearMags->at(i) > cma->at(i) + allowance) {     // allowance = normal noise variance
                     mask->at(i) = 1;
+                }
+            }
+            for(int i=0; i<maskedFrequencies.size(); i+=2) {
+                int from = maskedFrequencies[i+0];
+                int to = maskedFrequencies[i+1];
+                int tickFrom = fftSize/2 + from / hzTick;
+                int tickTo = fftSize/2 + to / hzTick;
+                for (int j = tickFrom; j < tickTo; j++) {
+                    if (j >= 0 && j < fftSize) {
+                        mask->at(j) = 1;
+                    }
                 }
             }
             mask = centeredSma(mask, signalWidth / 8);      // add some around the signal
@@ -216,9 +237,9 @@ namespace dsp::compression {
             if (lossRate > 0) {
                 auto nf = filterSignal(windowedSpectrum, clearSpectrum, this->out.writeBuf); // result is filtered writebuf
                 auto newNoiseFigure = estimateNoise(nf); // i/q variance estimate, output is in noise figure.
-                noiseFigureLock.lock();
+                sharedDataLock.lock();
                 noiseFigure = newNoiseFigure;
-                noiseFigureLock.unlock();
+                sharedDataLock.unlock();
             }
             auto unfiltered = this->out.writeBuf;
             for(int i=0; i<fftSize; i++) {
@@ -351,7 +372,7 @@ namespace dsp::compression {
 //                qDev = centeredSma(qDev, 5);
 //
 //                if (lossRate > 0) {
-//                    noiseFigureLock.lock();
+//                    sharedDataLock.lock();
 //                    noiseFigure.clear();
 //                    for (int p = 0; p < noiseNPoints; p++) {
 //                        dsp::complex_t iqMean = {iMean->at(p), qMean->at(p)};
@@ -362,7 +383,7 @@ namespace dsp::compression {
 //                        noiseFigure.emplace_back(iqMean);
 //                        noiseFigure.emplace_back(iqDev);
 //                    }
-//                    noiseFigureLock.unlock();
+//                    sharedDataLock.unlock();
 //                }
 //
 //                for(int i=0; i<fftSize; i++) {
@@ -424,6 +445,7 @@ namespace dsp::compression {
                 return outCount;
             }
         }
+
 
     };
 }

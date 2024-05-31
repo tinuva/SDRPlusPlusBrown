@@ -6,6 +6,7 @@
 #include <core.h>
 #include "dsp/compression/experimental_fft_decompressor.h"
 #include <gui/tuner.h>
+#include "utils/pbkdf2_sha256.h"
 
 using namespace std::chrono_literals;
 
@@ -269,6 +270,8 @@ namespace server {
                 sendCommand(COMMAND_UI_ACTION, size);
             }
         }
+
+
     }
 
     void Client::setFrequency(double freq) {
@@ -290,21 +293,15 @@ namespace server {
         sendCommand(COMMAND_SET_SAMPLE_TYPE, 1);
     }
 
-    void Client::setCompression(bool enabled) {
+    void Client::setCompressionType(CompressionType type) {
         if (!isOpen()) { return; }
-        s_cmd_data[0] = enabled;
+        s_cmd_data[0] = type == CompressionType::CT_LEGACY ? 1 : 0;
         sendCommand(COMMAND_SET_COMPRESSION, 1);
+        s_cmd_data[0] = type == CompressionType::CT_LOSSY ? 1 : 0;
+        sendCommand(COMMAND_SET_FFTZSTD_COMPRESSION, 1);
     }
 
-    void Client::setAGC(float attack, float decay) {
-        if (!isOpen()) { return; }
-        float *cmdd = (float *)&s_cmd_data[0];
-        cmdd[0] = attack;
-        cmdd[1] = decay;
-        sendCommand(COMMAND_SET_AGC, 2 * sizeof(float));
-    }
-
-    void Client::setCompressionMultiplier(double mult) {
+    void Client::setLossFactor(double mult) {
         if (!isOpen()) { return; }
         (*(double *)&s_cmd_data[0]) = mult;
         sendCommand(COMMAND_SET_EFFT_LOSS_RATE, 8);
@@ -313,6 +310,7 @@ namespace server {
     void Client::setNoiseMultiplierDB(double multDB) {
         fftDecompressor.noiseMultiplierDB = multDB;
     }
+
 
     void Client::start() {
         if (!isOpen()) { return; }
@@ -323,7 +321,23 @@ namespace server {
         int32_t *sr = (int32_t *)&s_cmd_data[0];
         *sr = requestedSampleRate;
         sendCommand(COMMAND_SET_SAMPLERATE, sizeof(int32_t));
-        sendCommand(COMMAND_START, 0);
+        StartCommandArguments sca;
+        sca.magic = SDRPP_BROWN_MAGIC;
+        if (!challenge.empty()) {
+            if (hmacKeyToUse.empty()) {
+                flog::error("No HMAC key provided");
+                return;
+            }
+            HMAC_SHA256_CTX ctx;
+            hmac_sha256_init(&ctx, (uint8_t *)hmacKeyToUse.data(), hmacKeyToUse.size());
+            hmac_sha256_update(&ctx, (uint8_t *)challenge.data(), challenge.size());
+            uint8_t hmac[256 / 8];
+            hmac_sha256_final(&ctx, hmac);
+            memcpy(sca.signedChallenge, hmac, 256 / 8);
+        }
+        sca.magic = server::SDRPP_BROWN_MAGIC;
+        memcpy(s_cmd_data, &sca, sizeof(sca));
+        sendCommand(COMMAND_START, sizeof(sca));
         getUI();
     }
 
@@ -389,6 +403,10 @@ namespace server {
                     currentSampleRate = *(double*)r_cmd_data;
                     core::setInputSampleRate(currentSampleRate);
                     prebufferer.setSampleRate(currentSampleRate);
+                } else if (r_cmd_hdr->cmd == COMMAND_SECURE_CHALLENGE) {
+                    secureChallengeReceived = currentTimeMillis();
+                    challenge.resize(256 / 8);
+                    memcpy(challenge.data(), r_cmd_data, challenge.size());
                 } else if (r_cmd_hdr->cmd == COMMAND_SET_FREQUENCY) {
                     double freq = *(double*)r_cmd_data;
                     tuner::tune(tuner::TUNER_MODE_IQ_ONLY, "", freq);
@@ -399,11 +417,13 @@ namespace server {
                     memcpy(figure.data(), r_cmd_data, nbytes);
                     fftDecompressor.setNoiseFigure(figure);
                 } else if (r_cmd_hdr->cmd == COMMAND_SET_TRANSMITTER_SUPPORTED) {
+                    transmitterSupported = 1;
                     if (!sigpath::transmitter) {
                         std::string str = std::string((char*)r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));
                         sigpath::transmitter = new RemoteTransmitter(this, str);
                     }
                 } else if (r_cmd_hdr->cmd == COMMAND_SET_TRANSMITTER_NOT_SUPPORTED) {
+                    transmitterSupported = 0;
                     if (sigpath::transmitter) {
                         delete sigpath::transmitter;
                         sigpath::transmitter = nullptr;

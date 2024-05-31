@@ -30,8 +30,6 @@ namespace dsp::compression {
 
         }
 
-        //ExperimentalFFTDeCompressor(stream<complex_t>* in) { init(in); }
-
         void setFFTSize(int fftSize) {
             if (this->fftSize != fftSize) {
                 this->fftSize = fftSize;

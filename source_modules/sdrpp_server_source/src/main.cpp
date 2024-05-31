@@ -1,4 +1,4 @@
-#include "sdrpp_server_client.h"
+#include "server.h"
 #include <imgui.h>
 #include <utils/flog.h>
 #include <module.h>
@@ -10,6 +10,9 @@
 #include <gui/widgets/stepped_slider.h>
 #include <utils/optionlist.h>
 #include <gui/dialogs/dialog_box.h>
+#include "sdrpp_server_client.h"
+#include "utils/pbkdf2_sha256.h"
+#include <gui/gui.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -25,6 +28,7 @@ ConfigManager config;
 
 class SDRPPServerSourceModule : public ModuleManager::Instance {
 public:
+
     SDRPPServerSourceModule(std::string name) {
         this->name = name;
 
@@ -32,6 +36,11 @@ public:
         if (core::args["server"].b()) { return; }
 
         // Initialize lists
+        compressionTypeList.define("No compression", server::CT_NONE);
+        compressionTypeList.define("Legacy ZSTD compression", server::CT_LEGACY);
+        compressionTypeList.define("Lossy compression", server::CT_LOSSY);
+        compressionTypeId = compressionTypeList.valueId(server::CT_NONE);
+
         sampleTypeList.define("Int8", dsp::compression::PCM_TYPE_I8);
         sampleTypeList.define("Int16", dsp::compression::PCM_TYPE_I16);
         sampleTypeList.define("Float32", dsp::compression::PCM_TYPE_F32);
@@ -139,8 +148,18 @@ private:
             if (!_this->connected()) { return; }
         }
 
+        if (!_this->client->challenge.empty() && _this->client->hmacKeyToUse.empty()) {
+            HMAC_SHA256_CTX pbkdf_hmac;
+            _this->client->hmacKeyToUse.resize(256 / 8);
+            flog::info("Computing auth signing key..");
+            pbkdf2_sha256(&pbkdf_hmac, (uint8_t *)_this->securePassword, strlen(_this->securePassword), (uint8_t*)server::passwordSalt.data(), server::passwordSalt.length(), 20000, (uint8_t*)_this->client->hmacKeyToUse.data(), _this->client->hmacKeyToUse.size());
+            flog::info("Computed auth signing key..");
+        }
+
         // Set configuration
         _this->client->setFrequency(_this->freq);
+        _this->lastStartSent = currentTimeMillis();
+        _this->lastStopSent = 0;
         _this->client->start();
 
         _this->running = true;
@@ -154,6 +173,7 @@ private:
         if (_this->connected()) { _this->client->stop(); }
 
         _this->running = false;
+        _this->lastStopSent = currentTimeMillis();
         flog::info("SDRPPServerSourceModule '{0}': Stop!", _this->name);
     }
 
@@ -172,6 +192,9 @@ private:
 
         bool connected = _this->connected();
         gui::mainWindow.playButtonLocked = !connected;
+        if (gui::mainWindow.isPlaying() && !connected) {
+            gui::mainWindow.setPlayState(false);  // Stop playing on disconnect.
+        }
 
         ImGui::GenericDialog("##sdrpp_srv_src_err_dialog", _this->serverBusy, GENERIC_DIALOG_BUTTONS_OK, [=](){
             ImGui::TextUnformatted("This server is already in use.");
@@ -203,6 +226,29 @@ private:
 
 
         if (connected) {
+            if (_this->client->challenge.size() > 0) {
+                ImGui::LeftLabel("Password");
+                ImGui::FillWidth();
+                if (ImGui::InputText("##sdrpp_srv_source_password", _this->securePassword,
+                                     sizeof _this->securePassword - 1, ImGuiInputTextFlags_Password)) {
+                    _this->client->hmacKeyToUse.clear();
+                    // Save config
+                    config.acquire();
+                    config.conf["hosts"][std::string(_this->hostname)]["securePassword"] = std::string(
+                            _this->securePassword);
+                    config.release(true);
+                }
+                if (strlen(_this->securePassword) == 0) {
+                    ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "Password required");
+                }
+            }
+            if (_this->lastStartSent != 0 && _this->lastStopSent == 0 && _this->client->secureChallengeReceived > _this->lastStartSent) {
+                ImGui::TextColored(ImVec4(1.0f, 0, 0, 1.0f), "%s", "server: invalid password.");
+                if (gui::mainWindow.isPlaying()) {
+                    gui::mainWindow.setPlayState(false);
+                    _this->lastStopSent = 0;
+                }
+            }
             ImGui::LeftLabel("Sample type");
             ImGui::FillWidth();
             if (ImGui::Combo("##sdrpp_srv_source_samp_type", &_this->sampleTypeId, _this->sampleTypeList.txt)) {
@@ -213,15 +259,17 @@ private:
                 config.conf["servers"][_this->devConfName]["sampleType"] = _this->sampleTypeList.key(_this->sampleTypeId);
                 config.release(true);
             }
-            ImGui::LeftLabel("RX resample");
-            ImGui::FillWidth();
-            if (ImGui::Combo("##sdrpp_srv_source_rx_resample", &_this->rxResampleId, _this->serverResample.txt)) {
-                auto spsValue = _this->serverResample.value(_this->rxResampleId);
-                config.acquire();
-                config.conf["servers"][_this->devConfName]["rxResample"] = spsValue;
-                config.release(true);
-                if (_this->client) {
-                    _this->client->setRxResample(spsValue);
+            if (_this->client->transmitterSupported != -1) { // means sdr++ brown version
+                ImGui::LeftLabel("RX resample");
+                ImGui::FillWidth();
+                if (ImGui::Combo("##sdrpp_srv_source_rx_resample", &_this->rxResampleId, _this->serverResample.txt)) {
+                    auto spsValue = _this->serverResample.value(_this->rxResampleId);
+                    config.acquire();
+                    config.conf["servers"][_this->devConfName]["rxResample"] = spsValue;
+                    config.release(true);
+                    if (_this->client) {
+                        _this->client->setRxResample(spsValue);
+                    }
                 }
             }
             ImGui::LeftLabel("RX prebuffer length");
@@ -235,48 +283,42 @@ private:
                     _this->client->setRxPrebufferMsec(msecValue);
                 }
             }
-            ImGui::LeftLabel("TX prebuffer length");
-            ImGui::FillWidth();
-            if (ImGui::Combo("##sdrpp_srv_source_tx_prebuf", &_this->txPrebufferId, _this->prebufferMsec.txt)) {
-                config.acquire();
-                config.conf["servers"][_this->devConfName]["txPrebuffer"] = _this->prebufferMsec.value(_this->txPrebufferId);
-                config.release(true);
+            if (_this->client->transmitterSupported == 1) {
+                ImGui::LeftLabel("TX prebuffer length");
+                ImGui::FillWidth();
+                if (ImGui::Combo("##sdrpp_srv_source_tx_prebuf", &_this->txPrebufferId, _this->prebufferMsec.txt)) {
+                    config.acquire();
+                    config.conf["servers"][_this->devConfName]["txPrebuffer"] = _this->prebufferMsec.value(_this->txPrebufferId);
+                    config.release(true);
+                }
             }
 
-            if (ImGui::Checkbox("Compression", &_this->compression)) {
-                _this->client->setCompression(_this->compression);
 
+            if (ImGui::Combo("##sdrpp_srv_source_compr_typ", &_this->compressionTypeId, _this->compressionTypeList.txt)) {
+                _this->client->setCompressionType(_this->compressionTypeList[_this->compressionTypeId]);
                 // Save config
                 config.acquire();
-                config.conf["servers"][_this->devConfName]["compression"] = _this->compression;
+                config.conf["servers"][_this->devConfName]["compressionType"] = _this->compressionTypeList.value(_this->compressionTypeId);
                 config.release(true);
             }
-            ImGui::LeftLabel("AGC Attack");
-            ImGui::FillWidth();
-            if (ImGui::SliderFloat("##sdrpp_srv_source_agc_attack", &_this->agcAttack, -0.01, 0.1)) {
-                if (_this->client) {
-                    _this->client->setAGC(_this->agcAttack, _this->agcDecay);
-                }
-            }
-            ImGui::LeftLabel("AGC Decay");
-            ImGui::FillWidth();
-            if (ImGui::SliderFloat("##sdrpp_srv_source_agc_decay", &_this->agcDecay, 0, 0.1)) {
-                if (_this->client) {
-                    _this->client->setAGC(_this->agcAttack, _this->agcDecay);
-                }
-            }
-            ImGui::LeftLabel("EFFT loss rate");
-            ImGui::FillWidth();
-            if (ImGui::SliderFloat("##sdrpp_srv_source_efft_mult", &_this->compressionMultipler, 0, 20)) {
-                if (_this->client) {
-                    _this->client->setCompressionMultiplier(_this->compressionMultipler);
-                }
-            }
-            ImGui::LeftLabel("Noise filler multiplier, db");
-            ImGui::FillWidth();
-            if (ImGui::SliderFloat("##sdrpp_srv_source_noise_mult", &_this->noiseMultiplerDB, -20, 3)) {
-                if (_this->client) {
-                    _this->client->setNoiseMultiplierDB(_this->noiseMultiplerDB);
+            if (_this->compressionTypeList.value(_this->compressionTypeId) == server::CT_LOSSY) {
+                if (_this->client->transmitterSupported != -1) { // means sdr++ brown version
+                    ImGui::LeftLabel("Loss factor");
+                    ImGui::FillWidth();
+                    if (ImGui::SliderFloat("##sdrpp_srv_source_efft_mult", &_this->lossFactor, 0, 20)) {
+                        if (_this->client) {
+                            _this->client->setLossFactor(_this->lossFactor);
+                        }
+                    }
+                    ImGui::LeftLabel("Noise filler multiplier, db");
+                    ImGui::FillWidth();
+                    if (ImGui::SliderFloat("##sdrpp_srv_source_noise_mult", &_this->noiseMultiplerDB, -20, 3)) {
+                        if (_this->client) {
+                            _this->client->setNoiseMultiplierDB(_this->noiseMultiplerDB);
+                        }
+                    }
+                } else {
+                    ImGui::TextUnformatted("Compression: server not compatible.");
                 }
             }
 
@@ -300,12 +342,27 @@ private:
             ImGui::CollapsingHeader("Source [REMOTE]", ImGuiTreeNodeFlags_DefaultOpen);
 
             _this->client->showMenu();
+
+            if (_this->client) {
+                std::vector<int32_t> offsets;
+                for (auto v : gui::waterfall.vfos) {
+                    auto from = v.second->lowerOffset;
+                    auto to = v.second->upperOffset;
+                    offsets.emplace_back((int32_t)from);
+                    offsets.emplace_back((int32_t)to);
+                }
+                _this->client->setMaskedFrequencies(offsets);
+            }
+
+
+
         }
         else {
             ImGui::TextUnformatted("Status:");
             ImGui::SameLine();
             ImGui::TextUnformatted("Not connected (--.--- Mbit/s)");
         }
+
     }
 
     bool connected() {
@@ -316,7 +373,7 @@ private:
         try {
             if (client) { client.reset(); }
             client = server::connect(hostname, port, &stream);
-            deviceInit();
+            onConnectionEstablished();
             // client->setRxPrebufferMsec(prebufferMsec.value(rxPrebufferId));
         }
         catch (const std::exception& e) {
@@ -325,43 +382,54 @@ private:
         }
     }
 
-    void deviceInit() {
+    void onConnectionEstablished() {
         // Gene rate the config name
         char buf[4096];
         snprintf(buf, sizeof buf, "%s:%05d", hostname, port);
         devConfName = buf;
 
+        config.acquire();
+
+
+
         // Load settings
         sampleTypeId = sampleTypeList.valueId(dsp::compression::PCM_TYPE_I16);
         auto &cfg = config.conf["servers"][devConfName];
+        auto &hcfg = config.conf["hosts"][hostname];
+        if(hcfg.contains("securePassword")) {
+            std::string securePassword = hcfg["securePassword"];
+            strcpy(this->securePassword, securePassword.c_str());
+            client->hmacKeyToUse.clear();
+        } else {
+            this->securePassword[0] = 0;
+        }
         if (cfg.contains("sampleType")) {
             std::string key = cfg["sampleType"];
             if (sampleTypeList.keyExists(key)) { sampleTypeId = sampleTypeList.keyId(key); }
         }
-        if (cfg.contains("compression")) {
-            compression = cfg["compression"];
+        if (cfg.contains("compressionType")) {
+            compressionTypeId = compressionTypeList.valueId(cfg["compressionType"]);
         }
         if (cfg.contains("rxPrebuffer")) {
             int rxPrebufferMsec = cfg["rxPrebuffer"];
             rxPrebufferId = prebufferMsec.valueId(rxPrebufferMsec);
-            if (client) {
-                client->setRxPrebufferMsec(rxPrebufferMsec);
-            }
         }
         if (cfg.contains("rxResample")) {
             int sps = cfg["rxResample"];
             rxResampleId = serverResample.valueId(sps);
-            if (client) {
-                client->setRxResample(sps);
-            }
         }
         if (cfg.contains("txPrebuffer")) {
             txPrebufferId = prebufferMsec.valueId(cfg["txPrebuffer"]);
         }
 
+        config.release();
+
         // Set settings
         client->setSampleType(sampleTypeList[sampleTypeId]);
-        client->setCompression(compression);
+        client->setCompressionType(compressionTypeList[compressionTypeId]);
+        client->setLossFactor(lossFactor);
+        client->setRxResample(serverResample.value(rxResampleId));
+        client->setRxPrebufferMsec(prebufferMsec.value(rxPrebufferId));
     }
 
     std::string name;
@@ -376,22 +444,24 @@ private:
 
     char hostname[1024];
     int port = 50000;
+    long long lastStartSent = 0L;
+    long long lastStopSent = 0L;
     std::string devConfName = "";
 
     dsp::stream<dsp::complex_t> stream;
     SourceManager::SourceHandler handler;
 
     OptionList<std::string, dsp::compression::PCMType> sampleTypeList;
+    OptionList<std::string, server::CompressionType> compressionTypeList;
     OptionList<std::string, int> prebufferMsec;
     OptionList<std::string, int> serverResample;
+    char securePassword[65] = {0};
     int sampleTypeId;
+    int compressionTypeId;
     int txPrebufferId;
     int rxPrebufferId;
     int rxResampleId;
-    bool compression = false;
-    float compressionMultipler = 1;
-    float agcAttack = 50;
-    float agcDecay = 5;
+    float lossFactor = 10;
     float noiseMultiplerDB = 0;
     std::shared_ptr<server::Client> client;
 };

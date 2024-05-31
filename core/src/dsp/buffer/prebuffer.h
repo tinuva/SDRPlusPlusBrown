@@ -125,6 +125,7 @@ namespace dsp::buffer {
         int getPercentFull() {
             bufferLock.lock();
             if (getBufferSize() <= 0) {
+                bufferLock.unlock();
                 return 100;
             }
             int percent = 100 * buffer.size() / getBufferSize();

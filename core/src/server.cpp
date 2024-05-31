@@ -20,10 +20,12 @@
 #include <csignal>
 #endif
 
+#define PBKDF2_SHA256_IMPLEMENTATION
+#include "utils/pbkdf2_sha256.h"
+
 namespace server {
     dsp::stream<dsp::complex_t> dummyInput("server::dummyInput");
     dsp::multirate::RationalResampler<dsp::complex_t> forcedResampler;
-    dsp::loop::AGC<dsp::complex_t> agc;
     dsp::compression::ExperimentalFFTCompressor fftCompressor;
     dsp::compression::SampleStreamCompressor comp;
     dsp::sink::Handler<uint8_t> hnd;
@@ -58,16 +60,16 @@ namespace server {
     double sampleRate = 1000000.0;
     int forcedSampleRate = 0;
 
+    std::vector<int8_t> authSigningKey;
+    std::string challenge;
+
     static const int CLIENT_CAPS_BASEDATA_METADATA = 0x0001;        // wants frequency and samplerate along with each IQ batch (otherwise, network latency decouples freq request from baseband)
     static const int CLIENT_CAPS_FFT_WANTED = 0x0002;        // not yet done
 
-    int clientCapsRequested = 0;
-    int txPrebufferMsec = 0;
+    StartCommandArguments startCommandArguments;
     double lastTunedFrequency = 0;
     double lastCallbackFrequency = -1;
     double lastSampleRate = 0;
-    float agcAttack = 0;
-    float agcDecay = 1;
 
     dsp::stream<dsp::complex_t> *transmitData = nullptr;
     bool transmitDataRunning = false;
@@ -78,10 +80,18 @@ namespace server {
         signal(SIGPIPE, SIG_IGN);
 #endif
 
-        // Init DSP
+
+        std::string password = (std::string)core::args["password"];
+        if (password != "") {
+            HMAC_SHA256_CTX pbkdf_hmac;
+            authSigningKey.resize(256 / 8);
+            flog::info("Computing auth signing key..");
+            pbkdf2_sha256(&pbkdf_hmac, (uint8_t *)password.data(), password.length(), (uint8_t*)passwordSalt.data(), passwordSalt.length(), 20000, (uint8_t*)authSigningKey.data(), authSigningKey.size());
+        }
+
+            // Init DSP
         forcedResampler.init(&dummyInput, 1000000, 48000);
-        agc.init(&forcedResampler.out, 1.0, agcAttack / sampleRate, agcDecay / sampleRate, 10e6, 1, INFINITY);
-        fftCompressor.init(&agc.out);
+        fftCompressor.init(&forcedResampler.out);
         fftCompressor.setEnabled(true);
         comp.init(&fftCompressor.out, dsp::compression::PCM_TYPE_I8);
         hnd.init(&comp.out, _testServerHandler, NULL);
@@ -90,7 +100,6 @@ namespace server {
         bbuf = new uint8_t[SERVER_MAX_PACKET_SIZE];
         comp.start();
         hnd.start();
-        agc.start();
         fftCompressor.start();
         forcedResampler.start();
 
@@ -217,28 +226,43 @@ namespace server {
         }
     }
 
+    void maybeSendChallenge() {
+        if (authSigningKey.size() > 0) {
+            challenge = std::to_string(currentTimeMillis());
+            challenge.resize(256 / 8, ' ');
+            memcpy(s_cmd_data, challenge.c_str(), challenge.size());
+            sendCommand(COMMAND_SECURE_CHALLENGE, challenge.size());
+        }
+    }
+
     void _clientHandler(net::Conn conn, void* ctx) {
         // Reject if someone else is already connected
         if (client && client->isOpen()) {
-            flog::info("REJECTED Connection from {0}, another client is already connected.", conn->getPeerName());
-            
-            // Issue a disconnect command to the client
-            uint8_t buf[sizeof(PacketHeader) + sizeof(CommandHeader)];
-            PacketHeader* tmp_phdr = (PacketHeader*)buf;
-            CommandHeader* tmp_chdr = (CommandHeader*)&buf[sizeof(PacketHeader)];
-            tmp_phdr->size = sizeof(PacketHeader) + sizeof(CommandHeader);
-            tmp_phdr->type = PACKET_TYPE_COMMAND;
-            tmp_chdr->cmd = COMMAND_DISCONNECT;
-            conn->write(tmp_phdr->size, buf);
+            if (running) {
+                flog::info("REJECTED Connection from {0}, another client is already connected.", conn->getPeerName());
 
-            // TODO: Find something cleaner
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                // Issue a disconnect command to the client
+                uint8_t buf[sizeof(PacketHeader) + sizeof(CommandHeader)];
+                PacketHeader *tmp_phdr = (PacketHeader *) buf;
+                CommandHeader *tmp_chdr = (CommandHeader *) &buf[sizeof(PacketHeader)];
+                tmp_phdr->size = sizeof(PacketHeader) + sizeof(CommandHeader);
+                tmp_phdr->type = PACKET_TYPE_COMMAND;
+                tmp_chdr->cmd = COMMAND_DISCONNECT;
+                conn->write(tmp_phdr->size, buf);
 
-            conn->close();
-            
-            // Start another async accept
-            listener->acceptAsync(_clientHandler, NULL);
-            return;
+                // TODO: Find something cleaner
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+                conn->close();
+
+                // Start another async accept
+                listener->acceptAsync(_clientHandler, NULL);
+                return;
+            } else {
+                // idle existing client is sent away.
+                client->close();
+                client.reset();
+            }
         }
 
         flog::info("Connection from {0}", conn->getPeerName());
@@ -251,6 +275,11 @@ namespace server {
         compression = false;
 
         sendSampleRate(forcedSampleRate != 0 ? forcedSampleRate: sampleRate);
+
+        if (authSigningKey.size() > 0) {
+            maybeSendChallenge();
+        }
+        maybeSendTransmitterState();
 
 
         // TODO: Wait otherwise someone else could connect
@@ -310,7 +339,7 @@ namespace server {
     void _testServerHandler(uint8_t* data, int count, void* ctx) {
         frameCount++;
         // Compress data if needed and fill out header fields
-        if ((clientCapsRequested & CLIENT_CAPS_BASEDATA_METADATA)) {
+        if ((startCommandArguments.clientCapsRequested & CLIENT_CAPS_BASEDATA_METADATA)) {
             bb_pkt_hdr->type = PACKET_TYPE_BASEBAND_WITH_METADATA;
             StreamMetadata *sm = (StreamMetadata*)&bbuf[sizeof(PacketHeader)];
             sm->version = 1;
@@ -343,26 +372,20 @@ namespace server {
         if (client) {
             if (client->isOpen()) {
                 client->write(bb_pkt_hdr->size, bbuf);
+                if (fftCompressor.isEnabled() && frameCount % 20 == 1) {
+                    fftCompressor.sharedDataLock.lock();
+                    auto nbytes = fftCompressor.noiseFigure.size() * sizeof(fftCompressor.noiseFigure[0]);
+                    memcpy(s_cmd_data, fftCompressor.noiseFigure.data(), nbytes);
+                    fftCompressor.sharedDataLock.unlock();
+                    sendCommand(COMMAND_EFFT_NOISE_FIGURE, nbytes);
+                }
             } else {
                 sigpath::sourceManager.stop();
                 running = false;
                 client.reset();
                 flog::error("Client is gone, stopping SDR.");
             }
-            if (fftCompressor.isEnabled() && frameCount % 20 == 1) {
-                fftCompressor.noiseFigureLock.lock();
-                auto nbytes = fftCompressor.noiseFigure.size() * sizeof(fftCompressor.noiseFigure[0]);
-                memcpy(s_cmd_data, fftCompressor.noiseFigure.data(), nbytes);
-                fftCompressor.noiseFigureLock.unlock();
-                sendCommand(COMMAND_EFFT_NOISE_FIGURE, nbytes);
-            }
         }
-    }
-
-    void updateAGC() {
-        auto sampleRate = fftCompressor.getSampleRate();
-        agc.setAttack(agcAttack / sampleRate);
-        agc.setDecay(agcDecay / sampleRate);
     }
 
     void updateResampler() {
@@ -373,7 +396,6 @@ namespace server {
             forcedResampler.setRates(sampleRate, forcedSampleRate);
             fftCompressor.setSampleRate(forcedSampleRate);
         }
-        updateAGC();
     }
 
     void setInput(dsp::stream<dsp::complex_t>* stream) {
@@ -432,18 +454,33 @@ namespace server {
                 int32_t *pdata = (int32_t*)data;
                 int32_t magic = pdata[0];
                 if (magic != SDRPP_BROWN_MAGIC) {      // brown
-                    return;
-                }
-                clientCapsRequested = pdata[1];
-                if (len > 8) {
-                    txPrebufferMsec = pdata[2];
+                    // do nothing
                 } else {
-                    txPrebufferMsec = 0;
+                    memset(&startCommandArguments, 0, sizeof startCommandArguments);
+                    memcpy(&startCommandArguments, pdata, len);
                 }
             }
-            sigpath::sourceManager.start();
-            running = true;
-            maybeSendTransmitterState();
+            bool startAllowed = true;
+            if (!authSigningKey.empty()) {
+                if (challenge.size() == 0) {
+                    flog::info("ASSERTION FAILED: challenge not produced");
+                }
+                HMAC_SHA256_CTX ctx;
+                hmac_sha256_init(&ctx, (uint8_t *)authSigningKey.data(), authSigningKey.size());
+                hmac_sha256_update(&ctx, (uint8_t *)challenge.data(), challenge.size());
+                uint8_t hmac[256 / 8];
+                hmac_sha256_final(&ctx, hmac);
+                if (memcmp(hmac, startCommandArguments.signedChallenge, sizeof hmac)) {
+                    // different?
+                    startAllowed = false;
+                    maybeSendChallenge();    // send new challenge. Password incorrect.
+                }
+            }
+            if (startAllowed) {
+                sigpath::sourceManager.start();
+                running = true;
+                maybeSendTransmitterState();
+            }
         }
         else if (cmd == COMMAND_SET_SAMPLERATE) {
             forcedSampleRate = *(int32_t *)data;
@@ -454,6 +491,7 @@ namespace server {
             sigpath::sourceManager.stop();
             running = false;
             maybeSendTransmitterState();
+            maybeSendChallenge();
         }
         else if (cmd == COMMAND_SET_FREQUENCY && len == 8) {
             lastTunedFrequency = *(double*)data;
@@ -468,13 +506,13 @@ namespace server {
         else if (cmd == COMMAND_SET_COMPRESSION && len == 1) {
             compression = *(uint8_t*)data;
         }
-        else if (cmd == COMMAND_SET_AGC && len == sizeof(float)*2) {
-            agcAttack =  ((float*)data)[0];
-            agcDecay =  ((float*)data)[1];
-            updateAGC();
-        }
         else if (cmd == COMMAND_SET_FFTZSTD_COMPRESSION && len == 1) {
             fftCompressor.setEnabled(*(uint8_t*)data);
+        }
+        else if (cmd == COMMAND_SET_EFFT_MASKED_FREQUENCIES) {
+            std::vector<int32_t> freqs(len / sizeof(int32_t));
+            memcpy(freqs.data(), data, len);
+            fftCompressor.setMaskedFrequencies(freqs);
         }
         else if (cmd == COMMAND_TRANSMIT_ACTION && sigpath::transmitter != nullptr) {
             std::string str = std::string((char*)r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));

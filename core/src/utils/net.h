@@ -1,9 +1,14 @@
 #pragma once
+
+#ifndef SDRPP_SOCKET_DEFINED
+#define SDRPP_SOCKET_DEFINED
+
 #include <stdint.h>
 #include <string>
 #include <mutex>
 #include <memory>
 #include <map>
+
 
 
 #ifdef _WIN32
@@ -23,6 +28,8 @@
 #include <fcntl.h>
 #include <ifaddrs.h>
 #endif
+
+
 
 namespace net {
 #ifdef _WIN32
@@ -282,3 +289,5 @@ namespace net {
      */
     std::shared_ptr<Socket> openudp(std::string rhost, int rport, std::string lhost = "0.0.0.0", int lport = 0, bool allowBroadcast = false);  
 }
+
+#endif

@@ -22,6 +22,7 @@ Thanks and due respect to:
 * implot author for his great [work](https://github.com/epezent/implot/)
 * alexander-sholohov (github) for his work on soapy_sdr module.
 * Cropinghigh / Indir for his [work](github.com/cropinghigh/sdrpp-vhfvoiceradio) on extra VHF modes.
+* monolifed for his [pbkdf2 header-only implementation](https://github.com/monolifed/pbkdf2-hmac-sha256)  
 
 ## Feedback
 

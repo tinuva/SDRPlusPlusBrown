@@ -36,12 +36,12 @@ namespace server {
         COMMAND_GET_SAMPLERATE,
         COMMAND_SET_SAMPLE_TYPE,
         COMMAND_SET_COMPRESSION,
-        COMMAND_SET_AGC,
 
         // brown subset
         COMMAND_TRANSMIT_ACTION = 0x37,
         COMMAND_SET_FFTZSTD_COMPRESSION,
         COMMAND_SET_EFFT_LOSS_RATE,
+        COMMAND_SET_EFFT_MASKED_FREQUENCIES,        // set the current vfo so efft does not blank it.
 
         // Server to client, AND client to server. Client sets desired sample rate or 0. Server responds the actual.
         COMMAND_SET_SAMPLERATE = 0x80,
@@ -49,6 +49,7 @@ namespace server {
         COMMAND_SET_TRANSMITTER_SUPPORTED = 0xA1,
         COMMAND_SET_TRANSMITTER_NOT_SUPPORTED, // 0xA2,
         COMMAND_EFFT_NOISE_FIGURE,
+        COMMAND_SECURE_CHALLENGE,
         COMMAND_DISCONNECT
     };
 
@@ -79,6 +80,14 @@ namespace server {
     struct JsonData {
         int32_t dataSize;
         char data[1024];
+    };
+
+    struct StartCommandArguments {
+        int32_t magic;
+        int32_t clientCapsRequested;
+        int32_t txPrebufferMsec;
+        char signedChallenge[256 / 8];
+
     };
 
     struct CommandHeader {

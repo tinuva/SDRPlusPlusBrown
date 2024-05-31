@@ -1,4 +1,8 @@
 #pragma once
+
+#ifndef SDRPP_SOCKET_DEFINED
+#define SDRPP_SOCKET_DEFINED
+
 #include <stdint.h>
 #include <string>
 #include <vector>
@@ -125,3 +129,5 @@ namespace net {
     extern bool winsock_init;
 #endif
 }
+
+#endif
