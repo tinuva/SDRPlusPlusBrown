@@ -1969,8 +1969,9 @@ void MobileMainWindow::draw() {
     if (qsoPanel->audioInToTransmitter) {
         qsoPanel->triggerTXOffEvent--;
         if (!qsoPanel->triggerTXOffEvent) { // zero cross
+            qsoPanel->audioInToTransmitter->out.stopReader();
             qsoPanel->audioInToTransmitter.reset();
-            sigpath::txState.emit(false);
+            sigpath::txState.emit(sigpath::transmitter->getTXStatus());
         }
     }
 
@@ -2188,6 +2189,9 @@ void MobileMainWindow::draw() {
         }
     }
 //    qsoPanel->setModeSubmode(modeToggle.upperText, submodeToggle.upperText);
+    if (!sigpath::transmitter && qsoPanel->transmitting) {
+        qsoPanel->handleTxButton(vfo, false, false, &qsoPanel->audioInProcessed);
+    }
     if (sigpath::transmitter && qsoPanel->triggerTXOffEvent <= 0) { // transiver exists, and TX is not in handing off state
         if (pressedButton == &this->softTune) {
             this->softTunePressed(vfo);
@@ -3163,7 +3167,6 @@ void QSOPanel::handleTxButton(ImGui::WaterfallVFO *vfo, bool tx, bool tune, dsp:
     }
     if (tx) {
         if (!this->transmitting) {
-            sigpath::txState.emit(tx);
             this->transmitting = true;
             if (sigpath::transmitter) {
                 currentTransmitSource = what;
@@ -3179,6 +3182,7 @@ void QSOPanel::handleTxButton(ImGui::WaterfallVFO *vfo, bool tx, bool tune, dsp:
                 audioInToTransmitter->postprocess = postprocess;
                 audioInToTransmitter->tuneFrequency = tune ? 20 : 0; // 20hz close to carrier
                 audioInToTransmitter->start();
+                audioInToTransmitter->out.clearReadStop();
                 sigpath::transmitter->setTransmitStream(&audioInToTransmitter->out);
                 sigpath::transmitter->setTransmitFrequency((gui::mainWindow.txFrequencyOverride ? gui::mainWindow.txFrequencyOverride : (int) currentFreq) + gui::mainWindow.txOffset);
                 sigpath::transmitter->setTransmitStatus(true);

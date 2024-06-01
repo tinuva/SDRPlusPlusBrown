@@ -36,6 +36,11 @@ namespace dsp::buffer {
             block::tempStart();
         }
 
+
+        void clear() {
+            read = 0;
+        }
+
         int run() {
             int count = _in->read();
             if (count < 0) {

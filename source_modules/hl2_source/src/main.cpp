@@ -583,7 +583,9 @@ private:
         device->setTune(false);
         device->setPTT(status);
         updateBandRelays();
+        sigpath::txState.emit(status);
     }
+
     void setTransmitStream(dsp::stream<dsp::complex_t>* astream) override {
         flog::info("hl2 transmit stream feed NEW STREAM");
         std::thread([this, astream]() {
@@ -593,14 +595,20 @@ private:
             int addedBlocks = 0;
             int readSamples = 0;
             int nreads = 0;
+            long long lastTransmit = currentTimeMillis();
             while (true) {
                 int rd = astream->read();
                 if (rd < 0) {
-                    printf("End iq stream for tx");
+                    flog::info("End iq stream for tx: astream read < 0");
                     break;
                 }
                 readSamples += rd;
-                flog::info("hl2 transmit stream feed: got samples: {}", rd);
+                auto ctm = currentTimeMillis();
+                if (lastTransmit < ctm - 1000) {
+                    flog::info("hl2 transmit stream feed: got samples/sec: {}", readSamples * 1000 / (ctm - lastTransmit));
+                    readSamples = 0;
+                    lastTransmit = ctm;
+                }
                 nreads++;
                 for (int q = 0; q < rd; q++) {
                     buffer.push_back(astream->readBuf[q]);

@@ -20,6 +20,7 @@ namespace dsp::buffer {
         std::mutex bufferLock;
         std::vector<T> buffer;
         bool bufferReached = false;
+        bool logging = false;
         void setPrebufferMsec(int msec) {
             this->prebufferMsec = msec;
         }
@@ -40,8 +41,10 @@ namespace dsp::buffer {
             base_type ::doStart();
             running = true;
             std::thread([=]() {
-                flog::info("Prebuffer: begin: running={}, &running={}",running, (void*)&running);
-                const int ITER_STEP_MILLIS = 50;
+                if (logging) {
+                    flog::info("Prebuffer: begin: running={}, &running={}", running, (void *) &running);
+                }
+                const int ITER_STEP_MILLIS = 15;
                 long long lastSend;
                 while (running) {
                     // this is long loop wating until preload goal is reached
@@ -50,12 +53,18 @@ namespace dsp::buffer {
                         bufferLock.lock();
                         auto bs = buffer.size();
                         bufferLock.unlock();
-                        bufferReached = bs >= getBufferSize();
-                        if (bufferReached) {
-                            lastSend = currentTimeMillis() - ITER_STEP_MILLIS;
-                            break;
+                        if (bs > 0) {
+                            bufferReached = bs >= getBufferSize();
+                            if (bufferReached) {
+                                lastSend = currentTimeMillis() - ITER_STEP_MILLIS;
+                                if (logging) {
+                                    flog::info("prebuffer: first block, bs={} > {} reached=true", (int) bs,
+                                               (int) getBufferSize());
+                                }
+                                break;
+                            }
                         }
-                        usleep(ITER_STEP_MILLIS);
+                        usleep(1000 * ITER_STEP_MILLIS);
                     }
                     if (!running) {
                         break;
@@ -72,14 +81,22 @@ namespace dsp::buffer {
                             // fall through
                         } else {
                             // not enough data in buffer to send.
-                            bufferReached = false; // want to fill again.
-                            usleep(ITER_STEP_MILLIS);
+                            if (bufferReached) {
+                                bufferReached = false; // want to fill again.
+                                if (logging) {
+                                    flog::info("prebuffer: second block, bs={} reached=false, sleep+continue", (int) bs);
+                                }
+                            }
+                            usleep(1000 * ITER_STEP_MILLIS);
                             continue; // sleep again.
                         }
                     }
 
                     if (samplesNeeded == 0) {
-                        usleep(ITER_STEP_MILLIS);
+                        usleep(1000 * ITER_STEP_MILLIS);
+                        if (logging) {
+                            flog::info("prebuffer: samples needed = 0, continue");
+                        }
                         continue; // sleep again.
                     }
 
@@ -87,16 +104,28 @@ namespace dsp::buffer {
                     std::copy(buffer.begin(), buffer.begin() + samplesNeeded, base_type::out.writeBuf);
                     buffer.erase(buffer.begin(), buffer.begin() + samplesNeeded);
                     if (getBufferSize() > 0) {
-                        if (buffer.size() > getBufferSize()) {
+                        auto maxAllow = 1.5 * getBufferSize();
+                        if (buffer.size() > maxAllow) {
                             // drop over 100%
-                            auto drop = buffer.size() - getBufferSize();
+                            if (logging) {
+                                flog::info("prebuffer: dropping excess: {} -> {}", (int)buffer.size(), (int)maxAllow);
+                            }
+                            auto drop = buffer.size() - maxAllow;
                             buffer.erase(buffer.begin(), buffer.begin() + drop);
                         }
                     }
                     bufferLock.unlock();
+                    if (logging) {
+                        flog::info("sending from prebuffer...{}, remains {}", (int) samplesNeeded, (int) buffer.size());
+                    }
                     base_type::out.swap(samplesNeeded);
+                    if (logging) {
+                        flog::info("sent from prebuffer...");
+                    }
                 }
-                flog::info("Prebuffer: finished, running={}, &running={}",running, (void*)&running);
+                if (logging) {
+                    flog::info("Prebuffer: finished, running={}, &running={}", running, (void *) &running);
+                }
                 return ;
             }).detach();
         }

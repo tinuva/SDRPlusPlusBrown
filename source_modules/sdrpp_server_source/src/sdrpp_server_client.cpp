@@ -15,6 +15,10 @@ namespace server {
 
     struct RemoteTransmitter : public Transmitter {
         Client* client;
+        bool remoteTxPressed = false;
+        long long remoteTxPressedWhen = 0;
+        const int *rxPrebufferMillis = nullptr;     // only pointers
+        const int *txPrebufferMillis = nullptr;
 
         RemoteTransmitter(Client* client, const std::string someState) : client(client) {
             parseState(someState);
@@ -48,6 +52,9 @@ namespace server {
                 int nreads = 0;
                 while (true) {
                     int rd = astream->read();
+                    if (sigpath::transmitter == nullptr) {
+                        break; // transmitter died (sdrpp server disconnected, for example)
+                    }
                     if (rd < 0) {
                         printf("End iq stream for tx");
                         break;
@@ -63,15 +70,21 @@ namespace server {
                     }
                     astream->flush();
                 }
-                buffer.clear();
-                sendBuffer(buffer);     // empty buffer = end of transmission.
+                if (sigpath::transmitter != nullptr) {
+                    if (buffer.size() > 0) {
+                        sendBuffer(buffer);
+                    }
+                    buffer.clear(); // send zero-sized buffer to indicate end stream;
+                    sendBuffer(buffer);
+                }
             }).detach();
         }
 
         uint8_t txStreamBuffer[TX_SEND_BUFFER_SAMPLES * sizeof(dsp::complex_t) + 1024];
 
         void sendBuffer(std::vector<dsp::complex_t> buffer) {
-            if (client->sock->isOpen()) {
+            if (client == nullptr) return;
+            if (client->isOpen()) {
                 PacketHeader* s_pkt_hdr = (PacketHeader*)&txStreamBuffer[0];
                 uint8_t* s_pkt_data = txStreamBuffer + sizeof(PacketHeader);
                 s_pkt_hdr->type = PACKET_TYPE_TRANSMIT_DATA;
@@ -112,7 +125,12 @@ namespace server {
         }
 
         int getTXStatus() override {
-            return txStatus;
+            bool actualRemoteTx = remoteTxPressed;
+            long long int ctm = currentTimeMillis();
+            if (txPrebufferMillis && rxPrebufferMillis && remoteTxPressedWhen > ctm - *rxPrebufferMillis - *txPrebufferMillis) {
+                actualRemoteTx = !actualRemoteTx;       // comes in effect only after buffer time passes, so invert.
+            }
+            return txStatus || actualRemoteTx;
         }
 
         float transmitPower = 0;
@@ -158,8 +176,9 @@ namespace server {
         }
 
         virtual ~RemoteTransmitter() {
+            // stream must be stopped outside prior to deletion.
 //            if (txstream) {
-//                txstream->stopReader();
+//                txstream->stopReader(); // thread will terminate
 //            }
         }
 
@@ -336,6 +355,7 @@ namespace server {
             memcpy(sca.signedChallenge, hmac, 256 / 8);
         }
         sca.magic = server::SDRPP_BROWN_MAGIC;
+        sca.txPrebufferMsec = txPrebufferMsec;
         memcpy(s_cmd_data, &sca, sizeof(sca));
         sendCommand(COMMAND_START, sizeof(sca));
         getUI();
@@ -412,8 +432,24 @@ namespace server {
                     challenge.resize(256 / 8);
                     memcpy(challenge.data(), r_cmd_data, challenge.size());
                 } else if (r_cmd_hdr->cmd == COMMAND_SET_FREQUENCY) {
-                    double freq = *(double*)r_cmd_data;
+                    double freq = *(double *) r_cmd_data;
                     tuner::tune(tuner::TUNER_MODE_IQ_ONLY, "", freq);
+                } else if (r_cmd_hdr->cmd == COMMAND_TRANSMIT_ACTION) {
+                    // state from server
+                    std::string str = std::string((char*)r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));
+                    try {
+                        auto j = json::parse(str);
+                        if (j.contains("transmitStatus")) {
+                            bool remoteTx = j["transmitStatus"];
+                            auto rt = ((RemoteTransmitter *)sigpath::transmitter);
+                            rt->remoteTxPressed = remoteTx;
+                            rt->remoteTxPressedWhen = currentTimeMillis();
+                            flog::info("From remote: tx = {}", remoteTx);
+                        }
+                    } catch(std::exception &ex) {
+                        flog::info("json parse exception: {}", ex.what());
+                    }
+
                 } else if (r_cmd_hdr->cmd == COMMAND_EFFT_NOISE_FIGURE) {
                     int nbytes = r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader);
                     int nelems = nbytes / sizeof(float);
@@ -424,7 +460,10 @@ namespace server {
                     transmitterSupported = 1;
                     if (!sigpath::transmitter) {
                         std::string str = std::string((char*)r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));
-                        sigpath::transmitter = new RemoteTransmitter(this, str);
+                        auto rt = new RemoteTransmitter(this, str);
+                        rt->rxPrebufferMillis = &prebufferer.prebufferMsec;
+                        rt->txPrebufferMillis = &txPrebufferMsec;
+                        sigpath::transmitter = rt;
                     }
                 } else if (r_cmd_hdr->cmd == COMMAND_SET_TRANSMITTER_NOT_SUPPORTED) {
                     transmitterSupported = 0;
@@ -544,4 +583,19 @@ namespace server {
     std::shared_ptr<Client> connect(std::string host, uint16_t port, dsp::stream<dsp::complex_t>* out) {
         return std::make_shared<Client>(net::connect(host, port), out);
     }
+
+    int prevTxStatus = 0;
+    void Client::idle() {
+        auto rt = ((RemoteTransmitter *)sigpath::transmitter);
+        if (rt) {
+            int nowStatus = rt->getTXStatus();
+            if (nowStatus != prevTxStatus) {
+                flog::info("Emit TX status: {}", nowStatus);
+                sigpath::txState.emit(nowStatus);
+                prevTxStatus = nowStatus;
+            }
+        }
+    }
+
+
 }

@@ -9,6 +9,8 @@
 #include <gui/smgui.h>
 #include <utils/optionlist.h>
 #include "dsp/compression/sample_stream_compressor.h"
+#include <dsp/buffer/prebuffer.h>
+#include <dsp/buffer/packer.h>
 #include "dsp/compression/experimental_fft_compressor.h"
 #include "dsp/sink/handler_sink.h"
 #include "dsp/loop/agc.h"
@@ -71,8 +73,11 @@ namespace server {
     double lastCallbackFrequency = -1;
     double lastSampleRate = 0;
 
-    dsp::stream<dsp::complex_t> *transmitData = nullptr;
     bool transmitDataRunning = false;
+    bool txPressed = false;
+    dsp::stream<dsp::complex_t> transmitDataStream;
+    dsp::buffer::Prebuffer<dsp::complex_t> transmitPrebufferer;
+    dsp::buffer::Packer<dsp::complex_t> transmitPacker;
 
     int main() {
         flog::info("=====| SERVER MODE |=====");
@@ -102,6 +107,12 @@ namespace server {
         hnd.start();
         fftCompressor.start();
         forcedResampler.start();
+
+        transmitPrebufferer.init(&transmitDataStream);
+        transmitPrebufferer.logging = true;
+        transmitPrebufferer.start();
+        transmitPacker.init(&transmitPrebufferer.out, 2048);
+        transmitPacker.start();
 
         // Initialize headers
         r_pkt_hdr = (PacketHeader*)rbuf;
@@ -287,6 +298,20 @@ namespace server {
         listener->acceptAsync(_clientHandler, NULL);
     }
 
+    void sendTransmitAction() {
+        auto rv = json({});
+        rv["transmitStatus"] = (bool)sigpath::transmitter->getTXStatus();;
+        auto str = rv.dump();
+        strcpy((char*)s_cmd_data, str.c_str());
+        sendCommand(COMMAND_TRANSMIT_ACTION, str.length()+1); // including zero, for conv.
+    }
+
+
+    void setTxStatus(bool status) {
+        sigpath::transmitter->setTransmitStatus(status);
+        sendTransmitAction();
+    }
+
     void _packetHandler(int count, uint8_t* buf, void* ctx) {
         PacketHeader* hdr = (PacketHeader*)buf;
 
@@ -305,21 +330,30 @@ namespace server {
             int nSamples = (hdr->size - sizeof(PacketHeader)) / sizeof(dsp::complex_t);
             if (nSamples) {
                 if (!transmitDataRunning) {
-                    if (transmitData) {
-                        delete transmitData; // drained by that time.
-                    }
-                    transmitData = new dsp::stream<dsp::complex_t>("server.txstream");
                     transmitDataRunning = true;
-                    sigpath::transmitter->setTransmitStream(transmitData);
+                    transmitPacker.out.clearReadStop();
+                    transmitPrebufferer.setSampleRate(48000);
+                    transmitPrebufferer.clear();
+                    transmitPacker.clear();
+                    transmitPrebufferer.setPrebufferMsec(startCommandArguments.txPrebufferMsec);
+                    sigpath::transmitter->setTransmitStream(&transmitPacker.out);
                 }
-                memcpy(transmitData->writeBuf, buf + sizeof(PacketHeader), nSamples * sizeof(dsp::complex_t));
-                transmitData->swap(nSamples);
+                memcpy(transmitDataStream.writeBuf, buf + sizeof(PacketHeader), nSamples * sizeof(dsp::complex_t));
+                transmitDataStream.swap(nSamples);
+                if (txPressed && sigpath::transmitter->getTXStatus() == 0 && (transmitPrebufferer.bufferReached || startCommandArguments.txPrebufferMsec == 0)) {
+                    flog::info("sigpath::transmitter->setTransmitStatus(true): buffer reached: {} {}",
+                               (int) transmitPrebufferer.buffer.size(), (int) transmitPrebufferer.getBufferSize());
+                    setTxStatus(true);
+                }
             } else {
                 // end of data.
-                if (transmitData && transmitDataRunning) {
-                    transmitData->stopReader();
+                if (transmitDataRunning) {
+                    flog::info("sigpath::transmitter->setTransmitStatus(true): buffer reached: {} {}",
+                               (int) transmitPrebufferer.buffer.size(), (int) transmitPrebufferer.getBufferSize());
+//                    transmitPacker.out.stopReader();
                     transmitDataRunning = false;
                 }
+
             }
             maybeSendTransmitterState();
         } else if (hdr->type == PACKET_TYPE_COMMAND && hdr->size >= sizeof(PacketHeader) + sizeof(CommandHeader)) {
@@ -338,6 +372,14 @@ namespace server {
 
     void _testServerHandler(uint8_t* data, int count, void* ctx) {
         frameCount++;
+        // in main loop, stop TX when buffer has finished or when tx depressed+nobuffer
+        if (sigpath::transmitter) {
+            if (sigpath::transmitter->getTXStatus() == 1 && !transmitPrebufferer.bufferReached ||
+                !txPressed && startCommandArguments.txPrebufferMsec == 0) {
+                flog::info("sigpath::transmitter->setTransmitStatus(false): buffer empty.");
+                setTxStatus(false);
+            }
+        }
         // Compress data if needed and fill out header fields
         if ((startCommandArguments.clientCapsRequested & CLIENT_CAPS_BASEDATA_METADATA)) {
             bb_pkt_hdr->type = PACKET_TYPE_BASEBAND_WITH_METADATA;
@@ -519,7 +561,8 @@ namespace server {
             try {
                 auto j = json::parse(str);
                 if (j.contains("transmitStatus")) {
-                    sigpath::transmitter->setTransmitStatus(j["transmitStatus"]);
+                    txPressed = j["transmitStatus"];
+                    flog::info("client transmit status requested: {}", txPressed);
                 }
                 if (j.contains("transmitSoftwareGain")) {
                     sigpath::transmitter->setTransmitSoftwareGain(j["transmitSoftwareGain"]);

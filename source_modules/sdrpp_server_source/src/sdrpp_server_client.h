@@ -110,6 +110,8 @@ namespace server {
         void close();
         bool isOpen();
 
+        void idle();
+
         int bytes = 0;
         bool serverBusy = false;
 
@@ -151,6 +153,7 @@ namespace server {
         std::vector<uint8_t> hmacKeyToUse;
         std::vector<uint8_t> challenge;
         int transmitterSupported = -1; // unknown
+        int txPrebufferMsec = 0;
 
     private:
         void worker();

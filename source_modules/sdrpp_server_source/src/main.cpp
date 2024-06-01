@@ -194,6 +194,11 @@ private:
         gui::mainWindow.playButtonLocked = !connected;
         if (gui::mainWindow.isPlaying() && !connected) {
             gui::mainWindow.setPlayState(false);  // Stop playing on disconnect.
+            if (sigpath::transmitter) {
+                auto saved= sigpath::transmitter;
+                sigpath::transmitter = nullptr;
+                delete saved;   // various threads when stopping will not attempt anything.
+            }
         }
 
         ImGui::GenericDialog("##sdrpp_srv_src_err_dialog", _this->serverBusy, GENERIC_DIALOG_BUTTONS_OK, [=](){
@@ -283,13 +288,19 @@ private:
                     _this->client->setRxPrebufferMsec(msecValue);
                 }
             }
-            if (_this->client->transmitterSupported == 1) {
+            if (_this->client->transmitterSupported != -1) { // means sdr++ brown version
                 ImGui::LeftLabel("TX prebuffer length");
                 ImGui::FillWidth();
                 if (ImGui::Combo("##sdrpp_srv_source_tx_prebuf", &_this->txPrebufferId, _this->prebufferMsec.txt)) {
                     config.acquire();
-                    config.conf["servers"][_this->devConfName]["txPrebuffer"] = _this->prebufferMsec.value(_this->txPrebufferId);
+                    config.conf["servers"][_this->devConfName]["txPrebuffer"] = _this->prebufferMsec.value(
+                            _this->txPrebufferId);
                     config.release(true);
+                    _this->client->txPrebufferMsec = _this->prebufferMsec.value(_this->txPrebufferId);
+                    if (gui::mainWindow.isPlaying()) {
+                        gui::mainWindow.setPlayState(false);  // because this setting is set on start command.
+                    }
+
                 }
             }
 
@@ -363,6 +374,9 @@ private:
             ImGui::TextUnformatted("Not connected (--.--- Mbit/s)");
         }
 
+        if (_this->client) {
+            _this->client->idle();
+        }
     }
 
     bool connected() {
@@ -430,6 +444,7 @@ private:
         client->setLossFactor(lossFactor);
         client->setRxResample(serverResample.value(rxResampleId));
         client->setRxPrebufferMsec(prebufferMsec.value(rxPrebufferId));
+        client->txPrebufferMsec = prebufferMsec.value(txPrebufferId);
     }
 
     std::string name;

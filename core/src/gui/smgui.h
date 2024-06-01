@@ -104,7 +104,7 @@ namespace SmGui {
         static int getItemSize(DrawListElem& elem);
         int getSize();
         bool checkTypes(int firstId, int n, ...);
-        bool validate();
+        bool validate(std::string &step);
 
         std::vector<DrawListElem> elements;
     };

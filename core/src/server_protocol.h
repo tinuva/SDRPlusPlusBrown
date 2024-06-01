@@ -38,7 +38,7 @@ namespace server {
         COMMAND_SET_COMPRESSION,
 
         // brown subset
-        COMMAND_TRANSMIT_ACTION = 0x37,
+        COMMAND_TRANSMIT_ACTION = 0x37,                 // forth and back
         COMMAND_SET_FFTZSTD_COMPRESSION,
         COMMAND_SET_EFFT_LOSS_RATE,
         COMMAND_SET_EFFT_MASKED_FREQUENCIES,        // set the current vfo so efft does not blank it.
