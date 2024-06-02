@@ -624,7 +624,7 @@ private:
                 readSamples += rd;
                 auto ctm = currentTimeMillis();
                 if (lastTransmit < ctm - 1000) {
-                    flog::info("hl2 transmit stream feed: got samples/sec: {}", readSamples * 1000 / (ctm - lastTransmit));
+                    //flog::info("hl2 transmit stream feed: got samples/sec: {}", readSamples * 1000 / (ctm - lastTransmit));
                     readSamples = 0;
                     lastTransmit = ctm;
                 }

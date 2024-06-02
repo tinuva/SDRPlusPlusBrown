@@ -583,7 +583,7 @@ struct HL2Device {
                     ((unsigned long long)control_in[2]) << 16 |
                     ((unsigned long long)control_in[1]) << 24;
                     snprintf(cbuf,sizeof cbuf, "0x %02x %02x %02x %02x", control_in[1], control_in[2], control_in[3], control_in[4]);
-                    flog::info("{}: ACK={} PTT={} RADDR={} delay={} receiveFreq={} cbuf={}", nInputPacketsSeq, (int)ack, (int)ptt, (int)raddr, nInputPacketsSeq-rqstSentSeq, receiveFreq, std::string(cbuf));
+                    //flog::info("{}: ACK={} PTT={} RADDR={} delay={} receiveFreq={} cbuf={}", nInputPacketsSeq, (int)ack, (int)ptt, (int)raddr, nInputPacketsSeq-rqstSentSeq, receiveFreq, std::string(cbuf));
                     frequencyFromSamples = receiveFreq; // confirmed frequency
                     break;
                 default:
