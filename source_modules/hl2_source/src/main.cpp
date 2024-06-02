@@ -685,13 +685,21 @@ private:
 //    }
 
     void setPAEnabled(bool paenabled) override {
-        device->setPAEnabled(paenabled);
+        if (device) {
+            device->setPAEnabled(paenabled);
+        }
     }
 
     int getTXStatus() override {
+        if (!device) {
+            return false;
+        }
         return device->transmitMode;
     }
     float getTransmitPower() override {
+        if (!device) {
+            return 0;
+        }
         return device->fwd * pow(10, powerADCScalingFactor);
         //        device->updateSWR();
         //        return device->fwd+device->rev;
@@ -699,10 +707,16 @@ private:
 
 public:
     float getReflectedPower() override {
+        if (!device) {
+            return 0;
+        }
         return device->rev * pow(10, powerADCScalingFactor);
     }
 
     float getTransmitSWR() override {
+        if (!device) {
+            return 0;
+        }
         return device->swr;
     }
     int getNormalZone() override {
@@ -713,6 +727,9 @@ public:
     }
 
     float getFillLevel() {
+        if (!device) {
+            return 0;
+        }
         return (float)device->fill_level;
     }
 

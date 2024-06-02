@@ -110,7 +110,7 @@ namespace server {
         fftCompressor.start();
         forcedResampler.start();
 
-        if (false) {
+        if (true) {
             txStreamUpsampler.init(&transmitDataStream, TX_WIRE_SAMPLERATE, 48000);
             txStreamUpsampler.start();
             transmitPrebufferer.init(&txStreamUpsampler.out);
@@ -342,7 +342,7 @@ namespace server {
 
         // Parse and process
         if (hdr->type == PACKET_TYPE_TRANSMIT_DATA && sigpath::transmitter) {
-            int nSamples = (hdr->size - sizeof(PacketHeader)) / sizeof(dsp::complex_t);
+            int nSamples = (hdr->size - sizeof(PacketHeader) - sizeof(float)) / (2*sizeof(int16_t));
             if (nSamples) {
                 if (!transmitDataRunning) {
                     txDump.clear();
@@ -354,8 +354,14 @@ namespace server {
                     transmitPrebufferer.setPrebufferMsec(startCommandArguments.txPrebufferMsec);
                     sigpath::transmitter->setTransmitStream(&transmitPacker.out);
                 }
-                memcpy(transmitDataStream.writeBuf, buf + sizeof(PacketHeader), nSamples * sizeof(dsp::complex_t));
-                txDump.dump(buf + sizeof(PacketHeader), nSamples);
+                float *fptr = (float *)(buf + sizeof(PacketHeader));
+                float maxx = *fptr;
+                int16_t *iptr = (int16_t *)(buf + sizeof(PacketHeader) + sizeof(float));
+                for(int z=0; z<nSamples; z++) {
+                    transmitDataStream.writeBuf[z] = { (iptr[2 * z] * maxx) / 32767.0f, (iptr[2 * z + 1] * maxx) / 32767.0f};
+                }
+                //memcpy(transmitDataStream.writeBuf, buf + sizeof(PacketHeader), nSamples * sizeof(dsp::complex_t));
+                //txDump.dump(buf + sizeof(PacketHeader), nSamples);
 //                flog::info("received samples for tx data: {}", (int)nSamples);
                 transmitDataStream.swap(nSamples);
                 if (txPressed && sigpath::transmitter->getTXStatus() == 0 && (transmitPrebufferer.bufferReached || startCommandArguments.txPrebufferMsec == 0)) {

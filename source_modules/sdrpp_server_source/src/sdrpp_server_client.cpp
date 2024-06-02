@@ -46,14 +46,15 @@ namespace server {
         void setTransmitStream(dsp::stream<dsp::complex_t> *astream) override {
             std::thread([this, astream]() {
                 SetThreadName("sdrpp_server_client.txstream");
-//                dsp::multirate::RationalResampler<dsp::complex_t> txStreamDownsampler;
-//                txStreamDownsampler.init(nullptr, 48000, TX_WIRE_SAMPLERATE);
+                dsp::multirate::RationalResampler<dsp::complex_t> txStreamDownsampler;
+                txStreamDownsampler.init(nullptr, 48000, TX_WIRE_SAMPLERATE);
                 auto debug = true;
                 std::vector<dsp::complex_t> buffer;
                 int addedBlocks = 0;
                 int readSamples = 0;
                 int nreads = 0;
-                wav::ComplexDumper txDump(48000, "/tmp/ssc_audio_in.raw");
+                wav::ComplexDumper txDumpHi(48000, "/tmp/ssc_audio_hf.raw");
+                wav::ComplexDumper txDump(48000, "/tmp/ssc_audio_lf.raw");
                 while (true) {
                     int rd = astream->read();
                     if (sigpath::transmitter == nullptr) {
@@ -65,17 +66,15 @@ namespace server {
                     }
                     readSamples += rd;
                     nreads++;
-                    txDump.dump(astream->readBuf, rd);
                     for (int q = 0; q < rd; q++) {
                         buffer.push_back(astream->readBuf[q]);
                         if (buffer.size() == TX_SEND_BUFFER_SAMPLES) {
-/*
-
+                            txDumpHi.dump(buffer.data(), buffer.size());
                             auto compressedCnt = txStreamDownsampler.process(buffer.size(), buffer.data(), txStreamDownsampler.out.writeBuf);
                             flog::info("tx data sending out: resample from {} to {}", (int)buffer.size(), (int)compressedCnt);
                             buffer.resize(compressedCnt);
                             memcpy(buffer.data(), txStreamDownsampler.out.writeBuf, compressedCnt * sizeof(dsp::complex_t));
-*/
+                            txDump.dump(buffer.data(), buffer.size());
                             sendBuffer(buffer);
                             buffer.clear();
                         }
@@ -99,10 +98,32 @@ namespace server {
             if (client->isOpen()) {
                 PacketHeader* s_pkt_hdr = (PacketHeader*)&txStreamBuffer[0];
                 uint8_t* s_pkt_data = txStreamBuffer + sizeof(PacketHeader);
-                s_pkt_hdr->type = PACKET_TYPE_TRANSMIT_DATA;
-                s_pkt_hdr->size = sizeof(PacketHeader) + buffer.size() * sizeof(dsp::complex_t);
-                memcpy(s_pkt_data, buffer.data(), buffer.size() * sizeof(dsp::complex_t));
+                s_pkt_hdr->type = PACKET_TYPE_TRANSMIT_DATA;            // transmitted as Int16 with float multiplier sent in front of data.
+                int nsamples = buffer.size();
+                s_pkt_hdr->size = sizeof(PacketHeader) + 2 * nsamples * sizeof(int16_t) + sizeof(float);
+                float maxx = 0;
+                for(int z=0; z<nsamples; z++) {
+                    if (fabs(buffer[z].re) > maxx) {
+                        maxx = fabs(buffer[z].re);
+                    }
+                    if (fabs(buffer[z].im) > maxx) {
+                        maxx = fabs(buffer[z].im);
+                    }
+                }
+                if (maxx == 0) {
+                    maxx = 1; // all zeros
+                }
+                int16_t *iptr = (int16_t *)(s_pkt_data + sizeof(float));
+                float *fptr = (float *)(s_pkt_data);
+                *fptr = maxx; // store multiplier
+                for(int z=0; z<nsamples; z++) {
+                    iptr[2*z] = (int16_t)(buffer[z].re * 32767 / maxx);
+                    iptr[2*z+1] = (int16_t)(buffer[z].im * 32767 / maxx);
+                }
+                //memcpy(s_pkt_data, buffer.data(), buffer.size() * sizeof(dsp::complex_t));
                 client->sock->send(txStreamBuffer, s_pkt_hdr->size);
+                client->bytes += s_pkt_hdr->size;
+
             }
         }
 
@@ -577,6 +598,8 @@ namespace server {
         s_pkt_hdr->type = type;
         s_pkt_hdr->size = sizeof(PacketHeader) + len;
         sock->send(sbuffer, s_pkt_hdr->size);
+        bytes += s_pkt_hdr->size;
+
     }
 
     void Client::sendCommand(Command cmd, int len) {
