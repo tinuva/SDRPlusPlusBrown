@@ -1,4 +1,3 @@
-#include "server.h"
 #include <imgui.h>
 #include <utils/flog.h>
 #include <module.h>
@@ -374,9 +373,6 @@ private:
             ImGui::TextUnformatted("Not connected (--.--- Mbit/s)");
         }
 
-        if (_this->client) {
-            _this->client->idle();
-        }
     }
 
     bool connected() {

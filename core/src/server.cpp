@@ -5,6 +5,7 @@
 #include <config.h>
 #include <filesystem>
 #include <dsp/types.h>
+#include <utils/wav.h>
 #include <signal_path/signal_path.h>
 #include <gui/smgui.h>
 #include <utils/optionlist.h>
@@ -76,6 +77,7 @@ namespace server {
     bool transmitDataRunning = false;
     bool txPressed = false;
     dsp::stream<dsp::complex_t> transmitDataStream;
+    dsp::multirate::RationalResampler<dsp::complex_t> txStreamUpsampler;
     dsp::buffer::Prebuffer<dsp::complex_t> transmitPrebufferer;
     dsp::buffer::Packer<dsp::complex_t> transmitPacker;
 
@@ -108,8 +110,14 @@ namespace server {
         fftCompressor.start();
         forcedResampler.start();
 
-        transmitPrebufferer.init(&transmitDataStream);
-        transmitPrebufferer.logging = true;
+        if (false) {
+            txStreamUpsampler.init(&transmitDataStream, TX_WIRE_SAMPLERATE, 48000);
+            txStreamUpsampler.start();
+            transmitPrebufferer.init(&txStreamUpsampler.out);
+        } else {
+            transmitPrebufferer.init(&transmitDataStream);
+        }
+//        transmitPrebufferer.logging = true;
         transmitPrebufferer.start();
         transmitPacker.init(&transmitPrebufferer.out, 2048);
         transmitPacker.start();
@@ -307,10 +315,17 @@ namespace server {
     }
 
 
+    int lastSentTXStatus = 0;
     void setTxStatus(bool status) {
         sigpath::transmitter->setTransmitStatus(status);
-        sendTransmitAction();
+        int currentTXStatus = sigpath::transmitter->getTXStatus();
+        if (currentTXStatus != lastSentTXStatus) {
+            sendTransmitAction();
+            lastSentTXStatus = currentTXStatus;
+        }
     }
+
+    wav::ComplexDumper txDump(48000, "/tmp/svr_txaudio_in.raw");
 
     void _packetHandler(int count, uint8_t* buf, void* ctx) {
         PacketHeader* hdr = (PacketHeader*)buf;
@@ -330,6 +345,7 @@ namespace server {
             int nSamples = (hdr->size - sizeof(PacketHeader)) / sizeof(dsp::complex_t);
             if (nSamples) {
                 if (!transmitDataRunning) {
+                    txDump.clear();
                     transmitDataRunning = true;
                     transmitPacker.out.clearReadStop();
                     transmitPrebufferer.setSampleRate(48000);
@@ -339,18 +355,19 @@ namespace server {
                     sigpath::transmitter->setTransmitStream(&transmitPacker.out);
                 }
                 memcpy(transmitDataStream.writeBuf, buf + sizeof(PacketHeader), nSamples * sizeof(dsp::complex_t));
+                txDump.dump(buf + sizeof(PacketHeader), nSamples);
+//                flog::info("received samples for tx data: {}", (int)nSamples);
                 transmitDataStream.swap(nSamples);
                 if (txPressed && sigpath::transmitter->getTXStatus() == 0 && (transmitPrebufferer.bufferReached || startCommandArguments.txPrebufferMsec == 0)) {
                     flog::info("sigpath::transmitter->setTransmitStatus(true): buffer reached: {} {}",
-                               (int) transmitPrebufferer.buffer.size(), (int) transmitPrebufferer.getBufferSize());
+                               (int) transmitPrebufferer.buffer.size(), (int) transmitPrebufferer.getNeededBufferSize());
                     setTxStatus(true);
                 }
             } else {
                 // end of data.
                 if (transmitDataRunning) {
                     flog::info("sigpath::transmitter->setTransmitStatus(true): buffer reached: {} {}",
-                               (int) transmitPrebufferer.buffer.size(), (int) transmitPrebufferer.getBufferSize());
-//                    transmitPacker.out.stopReader();
+                               (int) transmitPrebufferer.buffer.size(), (int) transmitPrebufferer.getNeededBufferSize());
                     transmitDataRunning = false;
                 }
 
@@ -374,9 +391,9 @@ namespace server {
         frameCount++;
         // in main loop, stop TX when buffer has finished or when tx depressed+nobuffer
         if (sigpath::transmitter) {
-            if (sigpath::transmitter->getTXStatus() == 1 && !transmitPrebufferer.bufferReached ||
-                !txPressed && startCommandArguments.txPrebufferMsec == 0) {
-                flog::info("sigpath::transmitter->setTransmitStatus(false): buffer empty.");
+            if (!txPressed && sigpath::transmitter->getTXStatus() == 1 && (!transmitPrebufferer.bufferReached || startCommandArguments.txPrebufferMsec == 0)) {
+                flog::info("sigpath::transmitter->setTransmitStatus(false): buffer empty, stop transmitting.");
+                transmitPacker.out.stopReader();
                 setTxStatus(false);
             }
         }
@@ -571,7 +588,9 @@ namespace server {
                     sigpath::transmitter->setTransmitHardwareGain(j["transmitHardwareGain"]);
                 }
                 if (j.contains("transmitFrequency")) {
-                    sigpath::transmitter->setTransmitFrequency(j["transmitFrequency"]);
+                    int txfreq = j["transmitFrequency"];
+                    flog::info("set tx frequency: {}", txfreq);
+                    sigpath::transmitter->setTransmitFrequency(txfreq);
                 }
                 if (j.contains("paEnabled")) {
                     sigpath::transmitter->setPAEnabled(j["paEnabled"]);
@@ -632,7 +651,8 @@ namespace server {
         dl.store(s_cmd_data, size);
 
         // Send to network
-        sendCommandAck(originCmd, size);
+        //sendCommandAck(originCmd, size);
+        sendCommand(COMMAND_GET_UI, size);
     }
 
     void sendUnsolicitedUI() {

@@ -152,10 +152,7 @@ add_subdirectory("source_modules/airspyhf_source")
 endif (OPT_BUILD_AIRSPYHF_SOURCE)
 
 if (OPT_BUILD_AUDIO_SOURCE)
-if(APPLE)
-else()
 add_subdirectory("source_modules/audio_source")
-endif ()
 endif (OPT_BUILD_AUDIO_SOURCE)
 
 if (OPT_BUILD_BLADERF_SOURCE)

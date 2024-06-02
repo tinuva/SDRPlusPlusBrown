@@ -8,6 +8,8 @@
 namespace server {
 
     static const int SDRPP_BROWN_MAGIC = 0x0b5a1000;
+    static const int TX_WIRE_SAMPLERATE = 48000;
+    static const std::string passwordSalt = "sdrpp-brown-ftw";
 
     enum PacketType {
         // Client to Server

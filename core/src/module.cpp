@@ -100,10 +100,16 @@ ModuleManager::Module_t ModuleManager::loadModule(std::string path) {
             return _mod;
         }
     }
-    mod.init();
-    modules[mod.info->name] = mod;
-    flog::info(" ..... ok {}", path);
-    return mod;
+    try {
+        mod.init();
+        modules[mod.info->name] = mod;
+        flog::info(" ..... ok {}", path);
+        return mod;
+    } catch(std::exception& e) {
+        flog::error("Failed to initialize module {0}: {}", path, e.what());
+        mod.handle = NULL;
+        return mod;
+    }
 }
 
 int ModuleManager::createInstance(std::string name, std::string module) {

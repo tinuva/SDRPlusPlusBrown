@@ -28,6 +28,5 @@ namespace server {
     void sendCommand(Command cmd, int len);
     void sendCommandAck(Command cmd, int len);
 
-    const std::string passwordSalt = "sdrpp-brown-ftw";
 
 }

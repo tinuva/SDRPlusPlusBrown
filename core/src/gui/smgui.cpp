@@ -309,7 +309,7 @@ namespace SmGui {
         // Validate and clear if invalid
         std::string step;
         if (!validate(step)) {
-            flog::error("Drawlist validation failed");
+            flog::error("Drawlist validation failed: {}", step);
             //elements.clear();
             return -1;
         }
@@ -414,7 +414,7 @@ namespace SmGui {
         return true;
     }
 
-    #define VALIDATE_WIDGET(n, ws, ...)     if (step == ws) { if (!checkTypes(i, n, __VA_ARGS__)) { val(i, std::to_string(ws).c_str()); return false; }; i += n; }
+    #define VALIDATE_WIDGET(n, ws, ...)     if (step == ws) { if (!checkTypes(i, n, __VA_ARGS__)) { val(i, "!checkTypes:"#ws); return false; } else { val(i, "ok_checkTypes:"#ws); }; i += n; }
     #define E_VALIDATE_WIDGET(n, ws, ...)   else VALIDATE_WIDGET(n, ws, __VA_ARGS__)
 
     bool DrawList::validate(std::string &log) {
@@ -422,7 +422,7 @@ namespace SmGui {
         bool validate = true;
         auto val = [&](int i, const char *stp) {
             if (validate) {
-                log = std::to_string(i) + ": " + std::string(stp);
+                log += std::to_string(i) + ": " + std::string(stp)+"\n";
             }
         };
         for (int i = 0; i < count;) {
@@ -472,6 +472,9 @@ namespace SmGui {
             E_VALIDATE_WIDGET(1, DRAW_STEP_TABLE_SET_COLUMN_INDEX, DRAW_LIST_ELEM_TYPE_INT)
 
             E_VALIDATE_WIDGET(1, DRAW_STEP_SET_NEXT_ITEM_WIDTH, DRAW_LIST_ELEM_TYPE_FLOAT)
+            E_VALIDATE_WIDGET(1, DRAW_STEP_POP_STYLE_COLOR, DRAW_LIST_ELEM_TYPE_FLOAT)
+            E_VALIDATE_WIDGET(5, DRAW_STEP_PUSH_STYLE_COLOR, DRAW_LIST_ELEM_TYPE_INT, DRAW_LIST_ELEM_TYPE_FLOAT, DRAW_LIST_ELEM_TYPE_FLOAT, DRAW_LIST_ELEM_TYPE_FLOAT, DRAW_LIST_ELEM_TYPE_FLOAT)
+            E_VALIDATE_WIDGET(1, DRAW_STEP_COLLAPSING_HEADER, DRAW_LIST_ELEM_TYPE_STRING)
         }
 
         return true;

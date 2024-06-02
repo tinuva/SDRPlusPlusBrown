@@ -7,6 +7,7 @@
 #include "dsp/compression/experimental_fft_decompressor.h"
 #include <gui/tuner.h>
 #include "utils/pbkdf2_sha256.h"
+#include <utils/wav.h>
 
 using namespace std::chrono_literals;
 
@@ -30,7 +31,7 @@ namespace server {
             client->sendCommand(COMMAND_TRANSMIT_ACTION, str.length()+1); // including zero, for conv.
         }
 
-        bool txStatus;
+        bool txStatus = false;
 
         void setTransmitStatus(bool status) override {
             auto rv = json({});
@@ -45,11 +46,14 @@ namespace server {
         void setTransmitStream(dsp::stream<dsp::complex_t> *astream) override {
             std::thread([this, astream]() {
                 SetThreadName("sdrpp_server_client.txstream");
+//                dsp::multirate::RationalResampler<dsp::complex_t> txStreamDownsampler;
+//                txStreamDownsampler.init(nullptr, 48000, TX_WIRE_SAMPLERATE);
                 auto debug = true;
                 std::vector<dsp::complex_t> buffer;
                 int addedBlocks = 0;
                 int readSamples = 0;
                 int nreads = 0;
+                wav::ComplexDumper txDump(48000, "/tmp/ssc_audio_in.raw");
                 while (true) {
                     int rd = astream->read();
                     if (sigpath::transmitter == nullptr) {
@@ -61,9 +65,17 @@ namespace server {
                     }
                     readSamples += rd;
                     nreads++;
+                    txDump.dump(astream->readBuf, rd);
                     for (int q = 0; q < rd; q++) {
                         buffer.push_back(astream->readBuf[q]);
                         if (buffer.size() == TX_SEND_BUFFER_SAMPLES) {
+/*
+
+                            auto compressedCnt = txStreamDownsampler.process(buffer.size(), buffer.data(), txStreamDownsampler.out.writeBuf);
+                            flog::info("tx data sending out: resample from {} to {}", (int)buffer.size(), (int)compressedCnt);
+                            buffer.resize(compressedCnt);
+                            memcpy(buffer.data(), txStreamDownsampler.out.writeBuf, compressedCnt * sizeof(dsp::complex_t));
+*/
                             sendBuffer(buffer);
                             buffer.clear();
                         }
@@ -118,10 +130,14 @@ namespace server {
             sendTransmitAction(rv);
         };
 
+        bool prevPAEnabled = false;
         void setPAEnabled(bool enabled) override {
-            auto rv = json({});
-            rv["paEnabled"] = enabled;
-            sendTransmitAction(rv);
+            if (enabled != prevPAEnabled) {
+                auto rv = json({});
+                rv["paEnabled"] = enabled;
+                sendTransmitAction(rv);
+                prevPAEnabled = enabled;
+            }
         }
 
         int getTXStatus() override {
@@ -272,16 +288,16 @@ namespace server {
             // Send
             if (syncRequired) {
                 flog::warn("Action requires resync");
-                auto waiter = awaitCommandAck(COMMAND_UI_ACTION);
+//                auto waiter = awaitCommandAck(COMMAND_UI_ACTION);
                 sendCommand(COMMAND_UI_ACTION, size);
-                if (waiter->await(PROTOCOL_TIMEOUT_MS)) {
-                    std::lock_guard lck(dlMtx);
-                    dl.load(r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));
-                }
-                else {
-                    flog::error("Timeout out after asking for UI");
-                }
-                waiter->handled();
+//                if (waiter->await(PROTOCOL_TIMEOUT_MS)) {
+//                    std::lock_guard lck(dlMtx);
+//                    dl.load(r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));
+//                }
+//                else {
+//                    flog::error("Timeout out after asking for UI");
+//                }
+//                waiter->handled();
                 flog::warn("Resync done");
             }
             else {
@@ -297,9 +313,9 @@ namespace server {
         if (!isOpen()) { return; }
         *(double*)s_cmd_data = freq;
         sendCommand(COMMAND_SET_FREQUENCY, sizeof(double));
-        auto waiter = awaitCommandAck(COMMAND_SET_FREQUENCY);
-        waiter->await(PROTOCOL_TIMEOUT_MS);
-        waiter->handled();
+//        auto waiter = awaitCommandAck(COMMAND_SET_FREQUENCY);
+//        waiter->await(PROTOCOL_TIMEOUT_MS);
+//        waiter->handled();
     }
 
     double Client::getSampleRate() {
@@ -403,6 +419,9 @@ namespace server {
 
     void Client::worker() {
         while (true) {
+
+            idle();
+
             // Receive header
             if (sock->recv(rbuffer, sizeof(PacketHeader), true) <= 0) {
                 break;
@@ -412,6 +431,8 @@ namespace server {
             if (sock->recv(&rbuffer[sizeof(PacketHeader)], r_pkt_hdr->size - sizeof(PacketHeader), true, PROTOCOL_TIMEOUT_MS) <= 0) {
                 break;
             }
+
+
 
             // Increment data counter
             bytes += r_pkt_hdr->size;
@@ -537,18 +558,18 @@ namespace server {
 
     int Client::getUI() {
         if (!isOpen()) { return -1; }
-        auto waiter = awaitCommandAck(COMMAND_GET_UI);
+//        auto waiter = awaitCommandAck(COMMAND_GET_UI);
         sendCommand(COMMAND_GET_UI, 0);
-        if (waiter->await(PROTOCOL_TIMEOUT_MS)) {
-            std::lock_guard lck(dlMtx);
-            dl.load(r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));
-        }
-        else {
-            if (!serverBusy) { flog::error("Timeout out after asking for UI"); };
-            waiter->handled();
-            return serverBusy ? CONN_ERR_BUSY : CONN_ERR_TIMEOUT;
-        }
-        waiter->handled();
+//        if (waiter->await(PROTOCOL_TIMEOUT_MS)) {
+//            std::lock_guard lck(dlMtx);
+//            dl.load(r_cmd_data, r_pkt_hdr->size - sizeof(PacketHeader) - sizeof(CommandHeader));
+//        }
+//        else {
+//            if (!serverBusy) { flog::error("Timeout out after asking for UI"); };
+//            waiter->handled();
+//            return serverBusy ? CONN_ERR_BUSY : CONN_ERR_TIMEOUT;
+//        }
+//        waiter->handled();
         return 0;
     }
 

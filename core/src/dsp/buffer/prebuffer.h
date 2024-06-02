@@ -33,7 +33,7 @@ namespace dsp::buffer {
 
         bool volatile running = false;
 
-        int getBufferSize() const {
+        int getNeededBufferSize() const {
             return prebufferMsec * sampleRate / 1000;
         }
 
@@ -54,12 +54,12 @@ namespace dsp::buffer {
                         auto bs = buffer.size();
                         bufferLock.unlock();
                         if (bs > 0) {
-                            bufferReached = bs >= getBufferSize();
+                            bufferReached = bs >= getNeededBufferSize();
                             if (bufferReached) {
                                 lastSend = currentTimeMillis() - ITER_STEP_MILLIS;
                                 if (logging) {
                                     flog::info("prebuffer: first block, bs={} > {} reached=true", (int) bs,
-                                               (int) getBufferSize());
+                                               (int) getNeededBufferSize());
                                 }
                                 break;
                             }
@@ -90,6 +90,8 @@ namespace dsp::buffer {
                             usleep(1000 * ITER_STEP_MILLIS);
                             continue; // sleep again.
                         }
+                    } else {
+                        break;
                     }
 
                     if (samplesNeeded == 0) {
@@ -100,11 +102,23 @@ namespace dsp::buffer {
                         continue; // sleep again.
                     }
 
+                    if (!running) {
+                        break;
+                    }
                     bufferLock.lock();
+                    auto bs = buffer.size();
+                    if (bs < samplesNeeded) {
+                        if (logging) {
+                            flog::info("prebuffer WTF: bs={} < samplesNeeded={}, running={}", (int) bs, (int) samplesNeeded, (int)running);
+                        }
+                        bufferLock.unlock();
+                        usleep(1000); // just in case
+                        continue; // sleep again.
+                    }
                     std::copy(buffer.begin(), buffer.begin() + samplesNeeded, base_type::out.writeBuf);
                     buffer.erase(buffer.begin(), buffer.begin() + samplesNeeded);
-                    if (getBufferSize() > 0) {
-                        auto maxAllow = 1.5 * getBufferSize();
+                    if (getNeededBufferSize() > 0) {
+                        auto maxAllow = 1.5 * getNeededBufferSize();
                         if (buffer.size() > maxAllow) {
                             // drop over 100%
                             if (logging) {
@@ -153,11 +167,11 @@ namespace dsp::buffer {
 
         int getPercentFull() {
             bufferLock.lock();
-            if (getBufferSize() <= 0) {
+            if (getNeededBufferSize() <= 0) {
                 bufferLock.unlock();
                 return 100;
             }
-            int percent = 100 * buffer.size() / getBufferSize();
+            int percent = 100 * buffer.size() / getNeededBufferSize();
             bufferLock.unlock();
             return percent;
         }

@@ -30,7 +30,7 @@ namespace SmGui {
         DRAW_STEP_INPUT_TEXT,
         DRAW_STEP_TEXT,
         DRAW_STEP_TEXT_COLORED,
-        DRAW_STEP_OPEN_POPUP,
+        DRAW_STEP_OPEN_POPUP,   // 0x90
         DRAW_STEP_BEGIN_POPUP,
         DRAW_STEP_END_POPUP,
         DRAW_STEP_BEGIN_TABLE,

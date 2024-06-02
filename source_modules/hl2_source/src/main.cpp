@@ -47,9 +47,18 @@ class HermesLite2SourceModule : public ModuleManager::Instance, public Transmitt
     float powerADCScalingFactor = 0.0f;
 
     bool serverMode = false;
+    wav::ComplexDumper txDump;
 
 public:
-    explicit HermesLite2SourceModule(const std::string& name) : hermesSamples("hermes samples") {
+
+
+    static std::string txDumpName() {
+        char buf[1024];
+        snprintf(buf, sizeof buf, "/tmp/hl2sm_tx_stream_%d.raw", core::args["server"].b() ? 1 : 0);
+        return buf;
+    }
+
+    explicit HermesLite2SourceModule(const std::string& name) : hermesSamples("hermes samples"), txDump(48000, txDumpName()) {
 
         this->name = name;
 
@@ -579,12 +588,21 @@ private:
 //    int getInputStreamFramerate() override {
 //        return 48000;
 //    }
+
+    bool lastPTT = false;
     void setTransmitStatus(bool status) override {
         device->setTune(false);
         device->setPTT(status);
         updateBandRelays();
         sigpath::txState.emit(status);
+        if (lastPTT != status) {
+            lastPTT = status;
+            if (status) {
+                txDump.clear();
+            }
+        }
     }
+
 
     void setTransmitStream(dsp::stream<dsp::complex_t>* astream) override {
         flog::info("hl2 transmit stream feed NEW STREAM");
@@ -602,6 +620,7 @@ private:
                     flog::info("End iq stream for tx: astream read < 0");
                     break;
                 }
+                txDump.dump(astream->readBuf, rd);
                 readSamples += rd;
                 auto ctm = currentTimeMillis();
                 if (lastTransmit < ctm - 1000) {
@@ -623,7 +642,7 @@ private:
                 }
                 astream->flush();
             }
-            flog::info("hl2 transmit stream feed END");
+            flog::info("hl2 transmit stream feed END, {}", (int)core::args["server"].b() ? 1 : 0);
         }).detach();
     }
     void setTransmitSoftwareGain(unsigned char gain) override {

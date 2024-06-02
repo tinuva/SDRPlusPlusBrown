@@ -286,14 +286,6 @@ private:
             config.release(true);
         }
 
-        ImGui::LeftLabel("TX Prebuf");
-        ImGui::FillWidth();
-        if (ImGui::Combo(CONCAT("##_recorder_st_", _this->name), &_this->sampleTypeId, _this->sampleTypes.txt)) {
-            config.acquire();
-            config.conf[_this->name]["sampleType"] = _this->sampleTypes.key(_this->sampleTypeId);
-            config.release(true);
-        }
-
         // Show additional audio options
         if (_this->recMode == RECORDER_MODE_AUDIO) {
             ImGui::LeftLabel("Stream");

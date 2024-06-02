@@ -325,7 +325,8 @@ int sdrpp_main(int argc, char* argv[]) {
     bool serverMode = (bool)core::args["server"];
 
     if (!serverMode) {
-        core::startForkServer();
+        // obsolete
+        // core::startForkServer();
     }
 
 #ifdef _WIN32

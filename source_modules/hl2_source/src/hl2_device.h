@@ -3,6 +3,7 @@
 #include "discovered.h"
 #include "plugin_main.h"
 #include "utils/stream_tracker.h"
+#include "utils/wav.h"
 #include <dsp/types.h>
 #include <signal_path/signal_path.h>
 #include <ctm.h>
@@ -138,8 +139,9 @@ struct HL2Device {
 
     int pttHangTime = 6;
     int bufferLatency = 0x15; // as in linhpsdr
+    wav::ComplexDumper hl2txdump;
 
-    HL2Device(DISCOVERED _discovered, const std::function<void(int, double, double)>& handler) : _discovered(_discovered), handler(handler), sendTracker("hl2 tx") {
+    HL2Device(DISCOVERED _discovered, const std::function<void(int, double, double)>& handler) : _discovered(_discovered), handler(handler), sendTracker("hl2 tx"), hl2txdump(0, hl2txdumpName()) {
         discovered = &this->_discovered;
         setADCGain(0);
         setFrequency(7000000);
@@ -151,6 +153,12 @@ struct HL2Device {
             debugOut = fopen("/tmp/hl2_tx_stream.bin", "wb");
         }
         flog::info("Called HL2Device::HL2Device()");
+    }
+
+    static std::string hl2txdumpName() {
+        char buf[1024];
+        snprintf(buf, sizeof buf, "/tmp/hl2dev_tx_stream_%d.raw", core::args["server"].b() ? 1 : 0);
+        return buf;
     }
 
     virtual ~HL2Device() {
@@ -292,11 +300,17 @@ struct HL2Device {
     long long transmitModeStart = 0;
     long long transmitModeProducedIQData = 0;
 
+
     void setPTT(bool ptt) {
         deviceControlDirty[0] = ptt != transmitMode;
-        transmitMode = ptt;
-        transmitModeStart = currentTimeMillis();
-        transmitModeProducedIQData = 0;
+        if (transmitMode != ptt) {
+            transmitMode = ptt;
+            transmitModeStart = currentTimeMillis();
+            transmitModeProducedIQData = 0;
+            if (ptt) {
+                hl2txdump.clear();
+            }
+        }
     }
 
     void doTuneActive(bool tune) {
@@ -484,6 +498,7 @@ struct HL2Device {
         samplesToSend.lock.lock();
         if (samplesToSend.isDataReady(63)) {
             this->storeNextIQSamples(output_buffer + 8, samplesToSend.data.data());
+            hl2txdump.dump(samplesToSend.data.data(), 63);
             samplesToSend.consume_(nullptr, 63);
         }
         samplesToSend.lock.unlock();
