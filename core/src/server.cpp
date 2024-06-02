@@ -560,7 +560,7 @@ namespace server {
         }
         else if (cmd == COMMAND_SET_FREQUENCY && len == 8) {
             lastTunedFrequency = *(double*)data;
-            flog::info("Setting device to frequency: {}", (unsigned long long)lastTunedFrequency);
+            flog::info("Setting device to frequency: {}", (double)lastTunedFrequency);
             sigpath::sourceManager.tune(*(double*)data);
             sendCommandAck(COMMAND_SET_FREQUENCY, 0);
         }

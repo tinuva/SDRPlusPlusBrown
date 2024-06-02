@@ -2,6 +2,11 @@
 
 Newest entries are at the top.
 
+2024.06.02
+
+* SDR++Brown server: baseband compression, TX capability (Hermes Lite 2), buffering, password authentication.
+* File replay - combobox file selection, when in server mode.
+
 2024.05.12
 
 * Added extra UHF/VHF modes module, refactored work of cropinghigh.
