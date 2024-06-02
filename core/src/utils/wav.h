@@ -79,7 +79,11 @@ namespace wav {
         FILE *f;
 
         ComplexDumper(int sampleRate, const std::string &path) {
+#ifdef NDEBUG
+            f = nullptr;
+#else
             f = fopen(path.c_str(), "wb");
+#endif
         }
 
         void dump(void* samples, int nSamples) {
@@ -89,12 +93,18 @@ namespace wav {
         }
 
         void clear() {
-            ftruncate(fileno(f), 0);
-            fseek(f, 0, SEEK_SET);
+#ifndef NDEBUG
+            if (f) {
+                ftruncate(fileno(f), 0);
+                fseek(f, 0, SEEK_SET);
+            }
+#endif
         }
 
         ~ComplexDumper() {
-            fclose(f);
+            if (f) {
+                fclose(f);
+            }
         }
     };
 
