@@ -37,6 +37,7 @@ read on below.
 * [Transmit mode](#transmit-mode) for Hermes Lite 2 - SSB QSO supported in full. See the [MANUAL](tx.md)
   * record and then transmit the SSB CQ call to the air.
   * [transmit CQ](#self-monitoring-using-digital-modes) in CW/FT8/WSPR in one button. (some kind of QSO dialogue is planned for later where applicable)
+* Improved client-server protocol: [baseband compression](https://www.youtube.com/watch?v=dH-8xuz9nAA), buffering, password authentication, TX support.
 * [SNR Chart](#snr-chart) during RX to compare SNR while tweaking antennas, de-noising etc.
 * [SNR Chart during TX](#websdr-view) (using multiple remote kiwisdr) to compare SNR while transmitting.
 * RBN/pskreporter/WSPRnet continuous monitoring for your own call (estimate your signal when tuning your antenna)
@@ -48,7 +49,7 @@ read on below.
 * Optimized FFT on Macos using vDSP in Accelerate framework
 * Unicode support in fonts (Cyrillic), filenames and installation path (UTF-8), on Windows, too.
 * For Airspy HF+, added Fill-In option which cuts edge sides of the spectrum which are attenuated (low passed) by hardware.
-* When replaying WAV file, shows the timestamp, matching the factual time of the recording.
+* When replaying WAV file, shows the timestamp, matching the factual time of the recording. Also, File replayer support in client-server mode.
 * [KiwiSDR support](#kiwisdr-support) (12 KHz bandwidth)
 * [Multiple output audio devices support](#multiple-output-audio-devices-support). Also, possibility to output to the left or right channel only.
 * Android Audio Device selection (bluetooth/external headset supported in QSO).

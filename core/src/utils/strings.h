@@ -136,7 +136,7 @@ namespace percentile {
 
         // If k is more than number of
         // elements in array
-        return INT_MAX;
+        return arr[0];
     }
 
 
