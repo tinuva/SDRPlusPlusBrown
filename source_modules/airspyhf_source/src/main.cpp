@@ -465,7 +465,7 @@ MOD_EXPORT void _INIT_() {
     json def = json({});
     def["devices"] = json({});
     def["device"] = "";
-    config.setPath(core::args["root"].s() + "/airspyhf_config.json");
+    config.setPath(std::string(core::getRoot()) + "/airspyhf_config.json");
     config.load(def);
     config.enableAutoSave();
 }
@@ -481,4 +481,4 @@ MOD_EXPORT void _DELETE_INSTANCE_(ModuleManager::Instance* instance) {
 MOD_EXPORT void _END_() {
     config.disableAutoSave();
     config.save();
-}
+}   

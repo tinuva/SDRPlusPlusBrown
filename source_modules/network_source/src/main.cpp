@@ -347,7 +347,7 @@ private:
 
 MOD_EXPORT void _INIT_() {
     json def = json({});
-    config.setPath(core::args["root"].s() + "/network_source_config.json");
+    config.setPath(std::string(core::getRoot()) + "/network_source_config.json");
     config.load(def);
     config.enableAutoSave();
 }

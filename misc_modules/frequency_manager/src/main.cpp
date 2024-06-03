@@ -846,7 +846,7 @@ MOD_EXPORT void _INIT_() {
     def["lists"]["General"]["showOnWaterfall"] = true;
     def["lists"]["General"]["bookmarks"] = json::object();
 
-    config.setPath(core::args["root"].s() + "/frequency_manager_config.json");
+    config.setPath(std::string(core::getRoot()) + "/frequency_manager_config.json");
     config.load(def);
     config.enableAutoSave();
 

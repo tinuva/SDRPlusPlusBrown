@@ -39,7 +39,7 @@ namespace backend {
     int PollUnicodeChars();
 
     void doPartialInit() {
-        std::string root = (std::string)core::args["root"];
+        std::string root = std::string(core::getRoot());
         backend::init();
         style::loadFonts(root + "/res"); // TODO: Don't hardcode, use config
         icons::load(root + "/res");

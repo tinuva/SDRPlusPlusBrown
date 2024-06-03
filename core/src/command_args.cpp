@@ -3,6 +3,7 @@
 
 void CommandArgsParser::defineAll() {
 #if defined(_WIN32)
+    flog::info("Inside defineAll");
     std::string root = ".";
     define('c', "con", "Show console on Windows");
 #elif defined(IS_MACOS_BUNDLE)

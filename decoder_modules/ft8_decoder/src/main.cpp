@@ -1398,7 +1398,7 @@ void SingleDecoder::destroy() {
 MOD_EXPORT void _INIT_() {
     // Create default recording directory
     json def = json({});
-    config.setPath(core::args["root"].s() + "/ft8_decoder_config.json");
+    config.setPath(std::string(core::getRoot()) + "/ft8_decoder_config.json");
     config.load(def);
     config.enableAutoSave();
     mshv_init();

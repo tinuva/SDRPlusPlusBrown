@@ -82,7 +82,11 @@ namespace wav {
 #ifdef NDEBUG
             f = nullptr;
 #else
+#ifdef _WIN32
+            f = nullptr;
+#else
             f = fopen(path.c_str(), "wb");
+#endif
 #endif
         }
 
@@ -94,10 +98,12 @@ namespace wav {
 
         void clear() {
 #ifndef NDEBUG
+#ifndef _WIN32
             if (f) {
-                ftruncate(fileno(f), 0);
+                ftruncate(fileno(f), 0); // windows version?
                 fseek(f, 0, SEEK_SET);
             }
+#endif
 #endif
         }
 

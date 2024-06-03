@@ -572,7 +572,7 @@ private:
 
 MOD_EXPORT void _INIT_() {
     json def = json({});
-    config.setPath(core::args["root"].s() + "/audio_sink_config.json");
+    config.setPath(std::string(core::getRoot()) + "/audio_sink_config.json");
     config.load(def);
     config.enableAutoSave();
 }

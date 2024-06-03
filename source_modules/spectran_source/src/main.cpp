@@ -536,7 +536,7 @@ MOD_EXPORT void _INIT_() {
     json def = json({});
     def["devices"] = json({});
     def["device"] = "";
-    config.setPath(core::args["root"].s() + "/spectran_config.json");
+    config.setPath(std::string(core::getRoot()) + "/spectran_config.json");
     config.load(def);
     config.enableAutoSave();
 }

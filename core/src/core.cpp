@@ -80,6 +80,13 @@ namespace core {
     ModuleComManager modComManager;
     CommandArgsParser args;
 
+
+    SDRPP_EXPORT const char* getRoot() {
+        static const char* rootPath = strdup(core::args["root"].s().c_str());
+        return rootPath;
+    }
+
+
     void setInputSampleRate(double samplerate) {
         // Forward this to the server
         if (args["server"].b()) {
@@ -301,10 +308,11 @@ extern void test1();
 // main
 int sdrpp_main(int argc, char* argv[]) {
 
+
 #ifdef _WIN32
     setlocale(LC_ALL, ".65001"); // Set locale to UTF-8
 #endif
-    flog::info("SDR++Brown v" VERSION_STR);
+    flog::info("SDR++Brown! v" VERSION_STR);
 
 #ifdef IS_MACOS_BUNDLE
     // If this is a MacOS .app, CD to the correct directory
@@ -314,13 +322,18 @@ int sdrpp_main(int argc, char* argv[]) {
 
     // Define command line options and parse arguments
     core::args.defineAll();
-    if (core::args.parse(argc, argv) < 0) { return -1; }
+    flog::info("Define all OK");
+    if (core::args.parse(argc, argv) < 0) { 
+        flog::info("Unable to parse args.");
+        return -1; 
+    }
 
     // Show help and exit if requested
     if (core::args["help"].b()) {
         core::args.showHelp();
         return 0;
     }
+
 
     bool serverMode = (bool)core::args["server"];
 

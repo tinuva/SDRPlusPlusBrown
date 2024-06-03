@@ -13,9 +13,11 @@
 
 #ifdef _WIN32
 #define _WINSOCKAPI_ // stops windows.h including winsock.h
+#ifndef TCP_NODELAY
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <iphlpapi.h>
+#endif
 #else
 #include <unistd.h>
 #include <strings.h>

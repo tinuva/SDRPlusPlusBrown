@@ -13,8 +13,10 @@
 #include <condition_variable>
 
 #ifdef _WIN32
+#ifndef TCP_NODELAY
 #include <WinSock2.h>
 #include <WS2tcpip.h>
+#endif
 #else
 #include <unistd.h>
 #include <strings.h>

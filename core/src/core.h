@@ -4,6 +4,7 @@
 #include <module_com.h>
 #include "command_args.h"
 #include <atomic>
+#include <string>
 
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
@@ -15,6 +16,7 @@ namespace core {
     SDRPP_EXPORT ModuleManager moduleManager;
     SDRPP_EXPORT ModuleComManager modComManager;
     SDRPP_EXPORT CommandArgsParser args;
+    SDRPP_EXPORT const char *getRoot();
 
     void setInputSampleRate(double samplerate);
 

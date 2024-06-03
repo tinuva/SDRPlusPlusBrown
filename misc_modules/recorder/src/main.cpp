@@ -41,7 +41,7 @@ class RecorderModule : public ModuleManager::Instance {
 public:
     RecorderModule(std::string name) : folderSelect("%ROOT%/recordings") {
         this->name = name;
-        root = (std::string)core::args["root"];
+        root = std::string(core::getRoot());
         strcpy(nameTemplate, "$t_$f_$h-$m-$s_$d-$M-$y");
 
         // Define option lists
@@ -594,7 +594,7 @@ private:
 
 MOD_EXPORT void _INIT_() {
     // Create default recording directory
-    std::string root = (std::string)core::args["root"];
+    std::string root = std::string(core::getRoot());
     if (!std::filesystem::exists(root + "/recordings")) {
         flog::warn("Recordings directory does not exist, creating it");
         if (!std::filesystem::create_directory(root + "/recordings")) {

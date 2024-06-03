@@ -67,7 +67,7 @@ public:
         for (const auto& entry : std::filesystem::directory_iterator(wstr::str2wstr(directoryPath))) {
             // Check if the entry is a file and has a .wav extension
             if (entry.is_regular_file() && entry.path().extension() == ".wav") {
-                wavFiles.push_back(wstr::wstr2str(entry.path().string()));
+                wavFiles.push_back(entry.path().string());
             }
         }
 
@@ -83,7 +83,7 @@ public:
         std::filesystem::path directoryPath = filePath.parent_path();
 
         // Convert the directory path to a string and return it
-        return wstr::wstr2str(directoryPath.string());
+        return directoryPath.string();
     }
 
     std::string getFileName(const std::string& fullPath) {
@@ -94,7 +94,7 @@ public:
         std::filesystem::path fileName = filePath.filename();
 
         // Convert the file name to a string and return it
-        return wstr::wstr2str(fileName.string());
+        return fileName.string();
     }
 
     void refreshFiles() {
@@ -424,7 +424,7 @@ int FileSourceModule::isServer;
 MOD_EXPORT void _INIT_() {
     json def = json({});
     def["path"] = "";
-    config.setPath(core::args["root"].s() + "/file_source_config.json");
+    config.setPath(std::string(core::getRoot()) + "/file_source_config.json");
     config.load(def);
     config.enableAutoSave();
 }

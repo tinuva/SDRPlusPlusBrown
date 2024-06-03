@@ -33,7 +33,7 @@ ModuleManager::Module_t ModuleManager::loadModule(std::string path) {
                                      NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&errorMessageBuffer, 0, NULL);
         auto narrow = wstr::wstr2str(errorMessageBuffer);
 
-        flog::error("Couldn't load {0}. Error: {1} - {2}", path.c_str(), (int64_t)err, narrow.c_str());
+        flog::error("Couldn't LoadLibraryExW {0}. Error: {1} - {2}", path.c_str(), (int64_t)err, narrow.c_str());
         LocalFree(errorMessageBuffer);
         mod.handle = NULL;
         return mod;

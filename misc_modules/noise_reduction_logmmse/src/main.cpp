@@ -340,7 +340,7 @@ private:
 
 
 MOD_EXPORT void _INIT_() {
-    config.setPath(core::args["root"].s() + "/noise_reduction_logmmse_config.json");
+    config.setPath(std::string(core::getRoot()) + "/noise_reduction_logmmse_config.json");
     config.load(json::object());
     config.enableAutoSave();
 }

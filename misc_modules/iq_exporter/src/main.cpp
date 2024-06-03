@@ -570,7 +570,7 @@ private:
 
 MOD_EXPORT void _INIT_() {
     json def = json({});
-    std::string root = (std::string)core::args["root"];
+    std::string root = std::string(core::getRoot());
     config.setPath(root + "/iq_exporter_config.json");
     config.load(def);
     config.enableAutoSave();
