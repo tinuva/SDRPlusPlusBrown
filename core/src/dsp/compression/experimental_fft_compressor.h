@@ -147,9 +147,12 @@ namespace dsp::compression {
             cma = centeredSma(cma, largeTick);          // cleared noise floor.
 
             auto mask = npzeros(fftSize);
-            for (int i = 0; i < fftSize; i++) {
-                if (clearMags->at(i) > cma->at(i) + allowance) {     // allowance = normal noise variance
-                    mask->at(i) = 1;
+            if (!txMode) {
+                // for rx mode, add good signals to mask, for tx assume no signals at all. Mask will be used to filter signal.
+                for (int i = 0; i < fftSize; i++) {
+                    if (clearMags->at(i) > cma->at(i) + allowance) {     // allowance = normal noise variance
+                        mask->at(i) = 1;
+                    }
                 }
             }
             for(int i=0; i<maskedFrequencies.size(); i+=2) {
@@ -187,6 +190,11 @@ namespace dsp::compression {
             return rv;
         }
 
+        bool txMode = false;
+        void setTxMode(int txMode) {
+            this->txMode = txMode;
+        }
+
         inline int process() {
 
             if (inputBuffer.size() < fftSize) {
@@ -202,7 +210,9 @@ namespace dsp::compression {
 
             auto spectrumOut = npzeros(fftSize);
             volk_32fc_s32f_power_spectrum_32f(spectrumOut->data(), (const lv_32fc_t *) out->data(), fftSize, fftSize);
-            cleanMagnitudes.emplace_back(spectrumOut);
+            if (!txMode) {
+                cleanMagnitudes.emplace_back(spectrumOut);
+            }
 
             // applying window to get windowed windowedSpectrum
             volk_32fc_32f_multiply_32fc((lv_32fc_t*)inArray->data(), (lv_32fc_t*)inArray->data(), fftWindow.data(), fftSize);
@@ -210,9 +220,9 @@ namespace dsp::compression {
             swapfft(out);
             auto windowedSpectrumOut = npzeros(fftSize);
             volk_32fc_s32f_power_spectrum_32f(windowedSpectrumOut->data(), (const lv_32fc_t *) out->data(), fftSize, fftSize);
-            windowedMagnitudes.emplace_back(windowedSpectrumOut);
-
-
+            if (!txMode) {
+                windowedMagnitudes.emplace_back(windowedSpectrumOut);
+            }
 
             if (cleanFreqDomain.size() < minRecents) {
                 return 0;
@@ -236,10 +246,12 @@ namespace dsp::compression {
 
             if (lossRate > 0) {
                 auto nf = filterSignal(windowedSpectrum, clearSpectrum, this->out.writeBuf); // result is filtered writebuf
-                auto newNoiseFigure = estimateNoise(nf); // i/q variance estimate, output is in noise figure.
-                sharedDataLock.lock();
-                noiseFigure = newNoiseFigure;
-                sharedDataLock.unlock();
+                if (!txMode) {
+                    auto newNoiseFigure = estimateNoise(nf); // i/q variance estimate, output is in noise figure.
+                    sharedDataLock.lock();
+                    noiseFigure = newNoiseFigure;
+                    sharedDataLock.unlock();
+                }
             }
             auto unfiltered = this->out.writeBuf;
             for(int i=0; i<fftSize; i++) {

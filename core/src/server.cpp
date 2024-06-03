@@ -316,8 +316,9 @@ namespace server {
 
 
     int lastSentTXStatus = 0;
-    void setTxStatus(bool status) {
-        sigpath::transmitter->setTransmitStatus(status);
+    void setTxStatus(bool transmitFlag) {
+        fftCompressor.setTxMode(transmitFlag);
+        sigpath::transmitter->setTransmitStatus(transmitFlag);
         int currentTXStatus = sigpath::transmitter->getTXStatus();
         if (currentTXStatus != lastSentTXStatus) {
             sendTransmitAction();
@@ -437,7 +438,7 @@ namespace server {
         if (client) {
             if (client->isOpen()) {
                 client->write(bb_pkt_hdr->size, bbuf);
-                if (fftCompressor.isEnabled() && frameCount % 20 == 1) {
+                if (fftCompressor.isEnabled() && frameCount % 20 == 1 && (sigpath::transmitter == nullptr || sigpath::transmitter->getTXStatus() == 0)) {
                     fftCompressor.sharedDataLock.lock();
                     auto nbytes = fftCompressor.noiseFigure.size() * sizeof(fftCompressor.noiseFigure[0]);
                     memcpy(s_cmd_data, fftCompressor.noiseFigure.data(), nbytes);
