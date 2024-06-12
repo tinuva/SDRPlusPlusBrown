@@ -3,6 +3,8 @@
 
 ## Recent news (few tx features are reported in main document)
 
+* 2024-05-XX: client/server mode enhancement: TX and baseband compression, password for access.
+* 2024-01-XX: bluetooth headset support on android
 * 2023-06-12: It is possible to specify direct address of Hermes Lite, if broadcast scanning does not work for your specific network configuration.
 * 2023-06-01: Recording of QSO audio for purposes of logging. QSO audio is attached to the logbook. 
 * 2023-06-01: Recording CQ call and sending it to the air. 
@@ -24,6 +26,8 @@ You can receive/transmit SSB (USB/LSB). You can use your microphone of your desk
 Android phone while laying on the sofa and use microphone of your smartphone, and use wireless connection to the transciever.
 Sofa was the primary driving factor for this software development, and I will add everything to make it work better, 
 including small logbook for QSO logging etc. Jokes aside, portable use was primary goal.
+
+Update Spring 2024: You can choose to use the Bluetooth headset on Android. Remote (client/server) SDR++ mode for SSB transmit is now working, too. You can use lossy baseband (waterfall) compression to reduce wifi/mobile traffic.
 
 See example QSO video [https://www.youtube.com/watch?v=CGCXxUXLwr4](https://www.youtube.com/watch?v=CGCXxUXLwr4)
 
