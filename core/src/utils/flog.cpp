@@ -23,6 +23,8 @@ namespace flog {
 
     std::mutex outMtx;
     std::vector<LogRec> logRecords;
+    int performAdhocFileLogging = -1;
+    static const char *adhocLogFileName = "/tmp/sdrpp.adhoc.log";
 
     const char* TYPE_STR[_TYPE_COUNT] = {
         "DEBUG",
@@ -189,6 +191,23 @@ namespace flog {
             fprintf(outStream, COLOR_WHITE "[%02d/%02d/%02d %02d:%02d:%02d.%03d] [%s%s" COLOR_WHITE "] %s\n",
                     nowc->tm_mday, nowc->tm_mon + 1, nowc->tm_year + 1900, nowc->tm_hour, nowc->tm_min, nowc->tm_sec, (int)(msec % 1000), TYPE_COLORS[type], TYPE_STR[type], out.c_str());
 #endif
+
+            if (performAdhocFileLogging == -1) {
+                FILE *f = fopen(adhocLogFileName,"rt");
+                if (f) {
+                    fclose(f);
+                    performAdhocFileLogging = 1;
+                }
+                else {
+                    performAdhocFileLogging = 0;
+                }
+            }
+            if (performAdhocFileLogging == 1) {
+                FILE *f = fopen(adhocLogFileName,"at");
+                fprintf(f, "[%02d/%02d/%02d %02d:%02d:%02d.%03d] [%s" "] %s\n",
+                    nowc->tm_mday, nowc->tm_mon + 1, nowc->tm_year + 1900, nowc->tm_hour, nowc->tm_min, nowc->tm_sec, (int)(msec % 1000), TYPE_STR[type], out.c_str());
+                fclose(f);
+            }
             logRecords.emplace_back(LogRec{msec, type, out});
         }
     }
