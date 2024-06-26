@@ -42,8 +42,10 @@ namespace sdrpp_credits {
         "Ettus Research",
         "Howard Su",
         "MicroPhase",
+        "Microtelecom",
         "MyriadRF",
         "Nuand",
+        "RFNM",
         "RFspace",
         "RTL-SDRblog",
         "SDRplay"
