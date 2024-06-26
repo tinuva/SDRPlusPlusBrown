@@ -806,7 +806,6 @@ private:
         }
         ImGui::EndDisabled();
         if (reports.size() > 0) {
-            ImGui::SameLine();
             if (doFingerButton("View..")) {
                 ImGui::OpenPopup(SELF_REPORTS_POPUP);
             }
