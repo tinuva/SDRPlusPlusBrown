@@ -700,7 +700,11 @@ private:
                     if (report.decibel > 0) {
                         snprintf(buf, sizeof buf, "%d", (int)report.decibel);
                         float textWidth = ImGui::CalcTextSize(buf).x;
-                        ImGui::Dummy(ImVec2(ImGui::GetContentRegionAvail().x - textWidth, 0));
+                        float dx = ImGui::GetContentRegionAvail().x - textWidth;
+                        if (dx > 100) {
+                            dx = 100;
+                        }
+                        ImGui::Dummy(ImVec2(dx, 0));
                         ImGui::SameLine();
                         ImGui::Text("%s", buf);
                     } else {
@@ -830,7 +834,7 @@ private:
         auto disabled = noCallsign || !sigpath::transmitter || sigpath::transmitter->getTXStatus() || !gui::mainWindow.canTransmit();
         ImGui::BeginDisabled(disabled);
         char buf[1024];
-        snprintf(buf, sizeof buf, "CW TX:\nCQ CQ DE %s %s K", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorCallsign.c_str());
+        snprintf(buf, sizeof buf, "CW TX:\nTEST DE %s %s K", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorCallsign.c_str());
         if (doTXButtonAtFrequency(buf, gui::freqSelect.frequency)) {
             transmitCW(gui::freqSelect.frequency);
         }
@@ -954,7 +958,7 @@ private:
 
     void transmitCW(int frequency) {
         char buf[1024];
-        snprintf(buf, sizeof buf, "CQ CQ DE %s %s K", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorCallsign.c_str());
+        snprintf(buf, sizeof buf, "TEST DE %s %s K", sigpath::iqFrontEnd.operatorCallsign.c_str(), sigpath::iqFrontEnd.operatorCallsign.c_str());
         const std::string morse = " " +convertToMorseCode(buf)+ " " ;
 
         auto ditDuration = 60 * 1000 / (50 * gui::mainWindow.cwWPM);
