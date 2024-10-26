@@ -393,9 +393,16 @@ namespace server {
     }
 
     int frameCount = 0;
+    long long frameCountReport = currentTimeMillis();
 
     void _testServerHandler(uint8_t* data, int count, void* ctx) {
         frameCount++;
+        long ct = currentTimeMillis();
+        if (ct > frameCountReport + 1000) {
+            flog::info("frame count from hardware: {}", frameCount);
+            frameCount = 0;
+            frameCountReport = ct;
+        }
         // in main loop, stop TX when buffer has finished or when tx depressed+nobuffer
         if (sigpath::transmitter) {
             if (!txPressed && sigpath::transmitter->getTXStatus() == 1 && (!transmitPrebufferer.bufferReached || startCommandArguments.txPrebufferMsec == 0)) {
@@ -404,6 +411,7 @@ namespace server {
                 setTxStatus(false);
             }
         }
+
         // Compress data if needed and fill out header fields
         if ((startCommandArguments.clientCapsRequested & CLIENT_CAPS_BASEDATA_METADATA)) {
             bb_pkt_hdr->type = PACKET_TYPE_BASEBAND_WITH_METADATA;

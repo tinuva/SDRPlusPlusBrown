@@ -31,9 +31,9 @@ enum {
 
 const char* sinkModesTxt = "TCP\0UDP\0";
 
-class NetworkSink : SinkManager::Sink {
+class MPEGADTSSink : SinkManager::Sink {
 public:
-    NetworkSink(SinkManager::Stream* stream, std::string streamName) {
+    MPEGADTSSink(SinkManager::Stream* stream, std::string streamName) {
         _stream = stream;
         _streamName = streamName;
 
@@ -98,11 +98,11 @@ public:
         _stream->setSampleRate(sampleRate);
 
         // Start if needed
-        if (startNow) { startServer(); }
+        if (startNow) { startNetwork(); }
     }
 
-    ~NetworkSink() {
-        stopServer();
+    ~MPEGADTSSink() {
+        stopNetwork();
         delete[] netBuf;
     }
 
@@ -171,13 +171,13 @@ public:
         }
 
         if (listening && ImGui::Button(CONCAT("Stop##_network_sink_stop_", _streamName), ImVec2(menuWidth, 0))) {
-            stopServer();
+            stopNetwork();
             config.acquire();
             config.conf[_streamName]["listening"] = false;
             config.release(true);
         }
         else if (!listening && ImGui::Button(CONCAT("Start##_network_sink_stop_", _streamName), ImVec2(menuWidth, 0))) {
-            startServer();
+            startNetwork();
             config.acquire();
             config.conf[_streamName]["listening"] = true;
             config.release(true);
@@ -216,7 +216,7 @@ private:
         stereoSink.stop();
     }
 
-    void startServer() {
+    void startNetwork() {
         if (modeId == SINK_MODE_TCP) {
             listener = net::listen(hostname, port);
             if (listener) {
@@ -228,13 +228,13 @@ private:
         }
     }
 
-    void stopServer() {
+    void stopNetwork() {
         if (conn) { conn->close(); }
         if (listener) { listener->close(); }
     }
 
     static void monoHandler(float* samples, int count, void* ctx) {
-        NetworkSink* _this = (NetworkSink*)ctx;
+        MPEGADTSSink* _this = (MPEGADTSSink*)ctx;
         std::lock_guard lck(_this->connMtx);
         if (!_this->conn || !_this->conn->isOpen()) { return; }
 
@@ -244,7 +244,7 @@ private:
     }
 
     static void stereoHandler(dsp::stereo_t* samples, int count, void* ctx) {
-        NetworkSink* _this = (NetworkSink*)ctx;
+        MPEGADTSSink* _this = (MPEGADTSSink*)ctx;
         std::lock_guard lck(_this->connMtx);
         if (!_this->conn || !_this->conn->isOpen()) { return; }
 
@@ -254,7 +254,7 @@ private:
     }
 
     static void clientHandler(net::Conn client, void* ctx) {
-        NetworkSink* _this = (NetworkSink*)ctx;
+        MPEGADTSSink* _this = (MPEGADTSSink*)ctx;
 
         {
             std::lock_guard lck(_this->connMtx);
@@ -299,9 +299,9 @@ private:
     std::mutex connMtx;
 };
 
-class NetworkSinkModule : public ModuleManager::Instance {
+class MPEGADTSSinkModule : public ModuleManager::Instance {
 public:
-    NetworkSinkModule(std::string name) {
+    MPEGADTSSinkModule(std::string name) {
         this->name = name;
         provider.create = create_sink;
         provider.ctx = this;
@@ -309,7 +309,7 @@ public:
         sigpath::sinkManager.registerSinkProvider("Network", provider);
     }
 
-    ~NetworkSinkModule() {
+    ~MPEGADTSSinkModule() {
         // Unregister sink, this will automatically stop and delete all instances of the audio sink
         sigpath::sinkManager.unregisterSinkProvider("Network");
     }
@@ -330,7 +330,7 @@ public:
 
 private:
     static SinkManager::Sink* create_sink(SinkManager::Stream* stream, std::string streamName, void* ctx) {
-        return (SinkManager::Sink*)(new NetworkSink(stream, streamName));
+        return (SinkManager::Sink*)(new MPEGADTSSink(stream, streamName));
     }
 
     std::string name;
@@ -346,12 +346,12 @@ MOD_EXPORT void _INIT_() {
 }
 
 MOD_EXPORT void* _CREATE_INSTANCE_(std::string name) {
-    NetworkSinkModule* instance = new NetworkSinkModule(name);
+    MPEGADTSSinkModule* instance = new MPEGADTSSinkModule(name);
     return instance;
 }
 
 MOD_EXPORT void _DELETE_INSTANCE_(void* instance) {
-    delete (NetworkSinkModule*)instance;
+    delete (MPEGADTSSinkModule*)instance;
 }
 
 MOD_EXPORT void _END_() {

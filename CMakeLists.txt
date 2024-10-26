@@ -61,6 +61,7 @@ option(OPT_BUILD_KIWISDR_SOURCE "Build KiwiSDR (web) Source Module" ON)
 option(OPT_BUILD_ANDROID_AUDIO_SINK "Build Android Audio Sink Module (Dependencies: AAudio, only for android)" OFF)
 option(OPT_BUILD_AUDIO_SINK "Build Audio Sink Module (Dependencies: rtaudio)" ON)
 option(OPT_BUILD_NETWORK_SINK "Build Audio Sink Module (no dependencies required)" ON)
+option(OPT_BUILD_MPEG_ADTS_SINK "Build MPEG ADTS Sink Module (lame will be used)" ON)
 option(OPT_BUILD_NEW_PORTAUDIO_SINK "Build the new PortAudio Sink Module (Dependencies: portaudio)" ON)
 option(OPT_BUILD_PORTAUDIO_SINK "Build PortAudio Sink Module (Dependencies: portaudio)" OFF)
 
@@ -266,6 +267,10 @@ endif (OPT_BUILD_PORTAUDIO_SINK)
 if (OPT_BUILD_NETWORK_SINK)
 add_subdirectory("sink_modules/network_sink")
 endif (OPT_BUILD_NETWORK_SINK)
+
+if (OPT_BUILD_MPEG_ADTS_SINK)
+add_subdirectory("sink_modules/mpeg_adts_sink")
+endif (OPT_BUILD_MPEG_ADTS_SINK)
 
 if (NOT ANDROID)
     if (OPT_BUILD_NEW_PORTAUDIO_SINK)

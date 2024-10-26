@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 project(ch_extravhf_decoder)
 
 
-message("HERE ${VCPKG_INSTALLED_DIR}")
+message("HERE in ch_extravhf_decoder: VCPKG_INSTALLED_DIR=${VCPKG_INSTALLED_DIR}")
 
 set(DLROOT ${CMAKE_BINARY_DIR})
 if (EXISTS ${DLROOT}/mbelib)
