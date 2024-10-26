@@ -19,6 +19,7 @@
 #include <gui/widgets/folder_select.h>
 #include <recorder_interface.h>
 #include <core.h>
+#include <radio_interface.h>
 #include <utils/optionlist.h>
 #include <utils/wav.h>
 #include <radio_module_interface.h>
@@ -170,10 +171,9 @@ public:
         writer.setSamplerate(samplerate);
 
         // Open file
-        std::string type = (recMode == RECORDER_MODE_AUDIO) ? "audio" : "baseband";
         std::string vfoName = (recMode == RECORDER_MODE_AUDIO) ? selectedStreamName : "";
         std::string extension = ".wav";
-        std::string expandedPath = expandString(folderSelect.path + "/" + genFileName(nameTemplate, type, vfoName) + extension);
+        std::string expandedPath = expandString(folderSelect.path + "/" + genFileName(nameTemplate, recMode, vfoName) + extension);
         if (!writer.open(expandedPath)) {
             flog::error("Failed to open file for recording: {0}", expandedPath);
             return;
@@ -251,7 +251,6 @@ private:
         }
         ImGui::Columns(1, CONCAT("EndRecorderModeColumns##_", _this->name), false);
         ImGui::EndGroup();
-        if (_this->recording) { style::endDisabled(); }
 
         // Recording path
         if (_this->folderSelect.render("##_recorder_fold_" + _this->name)) {
@@ -286,8 +285,11 @@ private:
             config.release(true);
         }
 
+        if (_this->recording) { style::endDisabled(); }
+
         // Show additional audio options
         if (_this->recMode == RECORDER_MODE_AUDIO) {
+            if (_this->recording) { style::beginDisabled(); }
             ImGui::LeftLabel("Stream");
             ImGui::FillWidth();
             if (ImGui::Combo(CONCAT("##_recorder_stream_", _this->name), &_this->streamId, _this->audioStreams.txt)) {
@@ -296,6 +298,7 @@ private:
                 config.conf[_this->name]["audioStream"] = _this->audioStreams.key(_this->streamId);
                 config.release(true);
             }
+            if (_this->recording) { style::endDisabled(); }
 
             _this->updateAudioMeter(_this->audioLvl);
             ImGui::FillWidth();
@@ -441,7 +444,18 @@ private:
         if (dbLvl.r > lvl.r) { lvl.r = dbLvl.r; }
     }
 
-    std::string genFileName(std::string templ, std::string type, std::string name) {
+    std::map<int, const char*> radioModeToString = {
+        { RADIO_IFACE_MODE_NFM, "NFM" },
+        { RADIO_IFACE_MODE_WFM, "WFM" },
+        { RADIO_IFACE_MODE_AM,  "AM"  },
+        { RADIO_IFACE_MODE_DSB, "DSB" },
+        { RADIO_IFACE_MODE_USB, "USB" },
+        { RADIO_IFACE_MODE_CW,  "CW"  },
+        { RADIO_IFACE_MODE_LSB, "LSB" },
+        { RADIO_IFACE_MODE_RAW, "RAW" }
+    };
+
+    std::string genFileName(std::string templ, int recMode, std::string name) {
         // Get data
         time_t now = time(0);
         tm* ltm = localtime(&now);
@@ -451,6 +465,9 @@ private:
             freq += gui::waterfall.vfos[name]->generalOffset;
         }
 
+        // Select the recording type string
+        std::string type = (recMode == RECORDER_MODE_AUDIO) ? "audio" : "baseband";
+
         // Format to string
         char freqStr[128];
         char hourStr[128];
@@ -459,7 +476,8 @@ private:
         char dayStr[128];
         char monStr[128];
         char yearStr[128];
-        const char* modeStr = "Unknown";
+
+        const char* modeStr = (recMode == RECORDER_MODE_AUDIO) ? "Unknown" : "IQ";
         snprintf(freqStr, sizeof freqStr, "%.0lfHz", freq);
         snprintf(hourStr, sizeof hourStr, "%02d", ltm->tm_hour);
         snprintf(minStr, sizeof minStr, "%02d", ltm->tm_min);
@@ -473,6 +491,18 @@ private:
             for(int q=0; q<radio->radioModes.size(); q++) {
                 if (radio->radioModes[q].second == demodId) { modeStr = radio->radioModes[q].first.c_str(); }
             }
+        }
+        sprintf(freqStr, "%.0lfHz", freq);
+        sprintf(hourStr, "%02d", ltm->tm_hour);
+        sprintf(minStr, "%02d", ltm->tm_min);
+        sprintf(secStr, "%02d", ltm->tm_sec);
+        sprintf(dayStr, "%02d", ltm->tm_mday);
+        sprintf(monStr, "%02d", ltm->tm_mon + 1);
+        sprintf(yearStr, "%02d", ltm->tm_year + 1900);
+        if (core::modComManager.getModuleName(name) == "radio") {
+            int mode = -1;
+            core::modComManager.callInterface(name, RADIO_IFACE_CMD_GET_MODE, NULL, &mode);
+            if (mode >= 0) { modeStr = radioModeToString[mode]; };
         }
 
         // Replace in template

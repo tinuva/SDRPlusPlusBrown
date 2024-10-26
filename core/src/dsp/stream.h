@@ -2,6 +2,8 @@
 #include <string.h>
 #include <mutex>
 #include <atomic>
+#include <functional>
+#include <utils/flog.h>
 #include <condition_variable>
 //#include <volk/volk.h>
 #include "buffer/buffer.h"

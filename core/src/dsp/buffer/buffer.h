@@ -1,6 +1,7 @@
 #pragma once
 #include <volk/volk.h>
-#include <module.h>
+#include <string.h>
+#include <sdrpp_export.h>
 
 namespace dsp::buffer {
 
