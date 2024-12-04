@@ -196,7 +196,7 @@ private:
 
         float maxx = 0;
         for(int q=0; q<count; q++) {
-            maxx = std::max(maxx, fabs(samples[q]));
+            maxx = std::max<float>(maxx, fabs(samples[q]));
         }
         if (maxx > _this->scale) {
             _this->scale = maxx;

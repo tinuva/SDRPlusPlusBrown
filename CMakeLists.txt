@@ -277,6 +277,11 @@ if (OPT_BUILD_AUDIO_SINK)
 add_subdirectory("sink_modules/audio_sink")
 endif (OPT_BUILD_AUDIO_SINK)
 
+# same as audio_sink but with mic enabled
+if (OPT_BUILD_AUDIO_SINK)
+add_subdirectory("sink_modules/brown_audio_sink")
+endif (OPT_BUILD_AUDIO_SINK)
+
 if (OPT_BUILD_PORTAUDIO_SINK)
 add_subdirectory("sink_modules/portaudio_sink")
 endif (OPT_BUILD_PORTAUDIO_SINK)

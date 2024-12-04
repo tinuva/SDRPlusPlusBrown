@@ -54,7 +54,7 @@ void MainWindow::init() {
 
     // Load menu elements
     gui::menu.order.clear();
-    for (auto& elem : menuElements) {
+    for (auto &elem: menuElements) {
         if (!elem.contains("name")) {
             flog::error("Menu element is missing name key");
             continue;
