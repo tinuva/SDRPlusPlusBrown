@@ -149,7 +149,7 @@ jobs:
           run: git clone https://github.com/osmocom/rtl-sdr && cd rtl-sdr && mkdir build && cd build && cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DCMAKE_BUILD_TYPE=Release .. && make -j3 LIBRARY_PATH=$(pkg-config --libs-only-L libusb-1.0 | sed 's/\-L//') && sudo make install && cd ../../
 
         - name: Some debugging
-          run: ls -l /opt/homebrew/Cellar/codec2/1.2.0/include; echo "#ifndef CODEC2_HAVE_VERSION\n#define CODEC2_HAVE_VERSION\n#define CODEC2_VERSION_MAJOR 1\n#define CODEC2_VERSION_MINOR 2\n#define CODEC2_VERSION \"1.2.0\"\n#endif\n" > /opt/homebrew/Cellar/codec2/1.2.0/include/codec2/version.h
+          run: echo "before" && find /opt/homebrew/Cellar/codec2/1.2.0/include -print && echo "#ifndef CODEC2_HAVE_VERSION\n#define CODEC2_HAVE_VERSION\n#define CODEC2_VERSION_MAJOR 1\n#define CODEC2_VERSION_MINOR 2\n#define CODEC2_VERSION \"1.2.0\"\n#endif\n" > /opt/homebrew/Cellar/codec2/1.2.0/include/codec2/version.h && echo "after"; find /opt/homebrew/Cellar/codec2/1.2.0/include -print
 
         - name: Prepare CMake
           working-directory: ${{runner.workspace}}/build
