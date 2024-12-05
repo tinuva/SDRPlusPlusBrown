@@ -20,7 +20,6 @@ else ()
     FILE(WRITE "${DLROOT}/mbelib/CMakeLists.txt" "${TMPF}")
 endif ()
 
-# add_custom_target(uninstall
 if(NOT MSVC)
     if (EXISTS ${DLROOT}/itpp)
         message("Not downloading itpp")
@@ -39,7 +38,15 @@ if(NOT MSVC)
     endif ()
     FILE(REMOVE ${DLROOT}/itpp/version)
     set(CMAKE_MODULE_PATH "${DLROOT}/itpp/cmake" ${CMAKE_MODULE_PATH})
+
+    set(_orig_CMAKE_LINK_SEARCH_START_STATIC ${CMAKE_LINK_SEARCH_START_STATIC})
+    set(CMAKE_LINK_SEARCH_START_STATIC ON)
+    # i want blas and stuff statically linked.
     add_subdirectory(${DLROOT}/itpp ${DLROOT}/itpp-build)
+    find_package ( BLAS )
+    message("BLAS_LIBRARIES to use in itpp (for  mbelib deps) = ${BLAS_LIBRARIES}")
+    set(CMAKE_LINK_SEARCH_START_STATIC ${_orig_CMAKE_LINK_SEARCH_START_STATIC})
+
 
     if ((CMAKE_BUILD_TYPE STREQUAL Release) OR (NOT CMAKE_BUILD_TYPE))
         set (libitpp_target itpp_static)
