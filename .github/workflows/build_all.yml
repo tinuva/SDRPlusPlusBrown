@@ -148,6 +148,9 @@ jobs:
         - name: Install more recent librtlsdr
           run: git clone https://github.com/osmocom/rtl-sdr && cd rtl-sdr && mkdir build && cd build && cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DCMAKE_BUILD_TYPE=Release .. && make -j3 LIBRARY_PATH=$(pkg-config --libs-only-L libusb-1.0 | sed 's/\-L//') && sudo make install && cd ../../
 
+        - name: Some debugging
+          run: ls -l /opt/homebrew/Cellar/codec2/1.2.0/include; echo "#ifndef CODEC2_HAVE_VERSION\n#define CODEC2_HAVE_VERSION\n#define CODEC2_VERSION_MAJOR 1\n#define CODEC2_VERSION_MINOR 2\n#define CODEC2_VERSION \"1.2.0\"\n#endif\n" > /opt/homebrew/Cellar/codec2/1.2.0/include/codec2/version.h
+
         - name: Prepare CMake
           working-directory: ${{runner.workspace}}/build
           run: cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 $GITHUB_WORKSPACE -DOPT_BUILD_PLUTOSDR_SOURCE=ON -DOPT_BUILD_BLADERF_SOURCE=ON -DOPT_BUILD_SDRPLAY_SOURCE=ON -DOPT_BUILD_LIMESDR_SOURCE=ON -DOPT_BUILD_AUDIO_SINK=OFF -DOPT_BUILD_PORTAUDIO_SINK=ON -DOPT_BUILD_NEW_PORTAUDIO_SINK=ON -DOPT_BUILD_M17_DECODER=ON -DOPT_BUILD_PERSEUS_SOURCE=OFF -DOPT_BUILD_AUDIO_SOURCE=OFF -DUSE_BUNDLE_DEFAULTS=ON -DOPT_BUILD_RFNM_SOURCE=ON -DOPT_BUILD_FOBOSSDR_SOURCE=ON -DOPT_BUILD_CH_EXTRAVHF_DECODER=ON -DCMAKE_BUILD_TYPE=Release
