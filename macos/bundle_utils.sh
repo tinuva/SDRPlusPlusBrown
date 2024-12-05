@@ -22,6 +22,7 @@ bundle_is_not_to_be_installed() {
     if [ "$1" = "Foundation" ]; then echo 1; fi
     if [ "$1" = "AVFoundation" ]; then echo 1; fi
     if [ "$1" = "CoreAudio" ]; then echo 1; fi
+    if [ "$1" = "libBLAS.dylib" ]; then echo 1; fi
     if [ "$1" = "AudioToolbox" ]; then echo 1; fi
     if [ "$1" = "AudioUnit" ]; then echo 1; fi
     if [ "$1" = "libobjc.A.dylib" ]; then echo 1; fi
