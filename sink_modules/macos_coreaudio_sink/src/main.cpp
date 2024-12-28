@@ -312,7 +312,7 @@ private:
         AudioObjectPropertyAddress prop = {
             .mSelector = kAudioHardwarePropertyDevices,
             .mScope = kAudioObjectPropertyScopeGlobal,
-            .mElement = kAudioObjectPropertyElementMaster
+            .mElement = kAudioObjectPropertyElementMain
         };
 
         UInt32 size = 0;
