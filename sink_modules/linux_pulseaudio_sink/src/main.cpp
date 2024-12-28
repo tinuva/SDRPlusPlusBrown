@@ -228,10 +228,10 @@ private:
         // Connect stream to device
         pa_buffer_attr buffer_attr = {
             .maxlength = (uint32_t)(sampleRate * 0.1 * sizeof(dsp::stereo_t)), // 100ms buffer
-            .tlength = (uint32_t)(sampleRate * 0.05 * sizeof(dsp::stereo_t)), // 50ms target
+            .tlength = (uint32_t)(sampleRate * 0.02 * sizeof(dsp::stereo_t)), // 20ms target
             .prebuf = (uint32_t)-1,
-            .minreq = (uint32_t)(sampleRate * 0.01 * sizeof(dsp::stereo_t)), // 10ms minimum
-            .fragsize = (uint32_t)(sampleRate * 0.01 * sizeof(dsp::stereo_t)) // 10ms fragments
+            .minreq = (uint32_t)(sampleRate * 0.005 * sizeof(dsp::stereo_t)), // 5ms minimum
+            .fragsize = (uint32_t)(sampleRate * 0.005 * sizeof(dsp::stereo_t)) // 5ms fragments
         };
 
         int flags = PA_STREAM_ADJUST_LATENCY | PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_INTERPOLATE_TIMING;
@@ -274,31 +274,31 @@ private:
             return;
         }
 
-        // Process audio data in chunks
-        size_t remaining = length;
-        while (remaining > 0) {
-            void* data;
-            size_t chunkSize = remaining;
-            if (pa_stream_begin_write(stream, &data, &chunkSize) != 0) {
-                break;
-            }
-
-            if (stereoPacker.out.isDataReady()) {
-                int count = stereoPacker.out.read();
-                if (count > 0) {
-                    size_t actualSize = std::min(chunkSize, (size_t)count * sizeof(dsp::stereo_t));
-                    memcpy(data, stereoPacker.out.readBuf, actualSize);
+        // Always request data from the packer
+        if (stereoPacker.out.isDataReady()) {
+            int count = stereoPacker.out.read();
+            if (count > 0) {
+                // Calculate how much we can write
+                size_t bytesToWrite = std::min(length, (size_t)count * sizeof(dsp::stereo_t));
+                
+                // Write the data
+                void* data;
+                size_t chunkSize = bytesToWrite;
+                if (pa_stream_begin_write(stream, &data, &chunkSize) == 0) {
+                    memcpy(data, stereoPacker.out.readBuf, chunkSize);
+                    pa_stream_write(stream, data, chunkSize, NULL, 0, PA_SEEK_RELATIVE);
                     stereoPacker.out.flush();
-                    pa_stream_write(stream, data, actualSize, NULL, 0, PA_SEEK_RELATIVE);
-                    remaining -= actualSize;
-                    continue;
                 }
+                return;
             }
-            
-            // If no data available, write silence
+        }
+
+        // If no data available, write silence
+        void* data;
+        size_t chunkSize = length;
+        if (pa_stream_begin_write(stream, &data, &chunkSize) == 0) {
             memset(data, 0, chunkSize);
             pa_stream_write(stream, data, chunkSize, NULL, 0, PA_SEEK_RELATIVE);
-            remaining -= chunkSize;
         }
     }
 
