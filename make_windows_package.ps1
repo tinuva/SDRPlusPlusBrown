@@ -29,7 +29,7 @@ cp 'C:/Program Files/PothosSDR/bin/bladeRF.dll' sdrpp_windows_x64/
 cp $build_dir/source_modules/file_source/$RELDIR/file_source.dll sdrpp_windows_x64/modules/
 cp $build_dir/source_modules/hl2_source/$RELDIR/hl2_source.dll sdrpp_windows_x64/modules/
 
-#cp $build_dir/source_modules/fobossdr_source/Release/fobossdr_source.dll sdrpp_windows_x64/modules/
+#cp $build_dir/source_modules/fobossdr_source/$RELDIR/fobossdr_source.dll sdrpp_windows_x64/modules/
 #cp 'C:/Program Files/RigExpert/Fobos/bin/fobos.dll' sdrpp_windows_x64/
 
 cp $build_dir/source_modules/hackrf_source/$RELDIR/hackrf_source.dll sdrpp_windows_x64/modules/
@@ -40,19 +40,22 @@ cp $build_dir/source_modules/hermes_source/$RELDIR/hermes_source.dll sdrpp_windo
 cp $build_dir/source_modules/limesdr_source/$RELDIR/limesdr_source.dll sdrpp_windows_x64/modules/
 cp 'C:/Program Files/PothosSDR/bin/LimeSuite.dll' sdrpp_windows_x64/
 
+cp $build_dir/source_modules/network_source/$RELDIR/network_source.dll sdrpp_windows_x64/modules/
+
 cp $build_dir/source_modules/perseus_source/$RELDIR/perseus_source.dll sdrpp_windows_x64/modules/
+
 cp 'C:/Program Files/PothosSDR/bin/perseus-sdr.dll' sdrpp_windows_x64/
 
 cp $build_dir/source_modules/plutosdr_source/$RELDIR/plutosdr_source.dll sdrpp_windows_x64/modules/
 cp 'C:/Program Files/PothosSDR/bin/libiio.dll' sdrpp_windows_x64/
 cp 'C:/Program Files/PothosSDR/bin/libad9361.dll' sdrpp_windows_x64/
 
-cp $build_dir/source_modules/rfnm_source/Release/rfnm_source.dll sdrpp_windows_x64/modules/
+cp $build_dir/source_modules/rfnm_source/$RELDIR/rfnm_source.dll sdrpp_windows_x64/modules/
 cp 'C:/Program Files/RFNM/bin/rfnm.dll' sdrpp_windows_x64/
 cp 'C:/Program Files/RFNM/bin/spdlog.dll' sdrpp_windows_x64/
 cp 'C:/Program Files/RFNM/bin/fmt.dll' sdrpp_windows_x64/
 
-cp $build_dir/source_modules/rfspace_source/Release/rfspace_source.dll sdrpp_windows_x64/modules/
+cp $build_dir/source_modules/rfspace_source/$RELDIR/rfspace_source.dll sdrpp_windows_x64/modules/
 
 cp $build_dir/source_modules/rtl_sdr_source/$RELDIR/rtl_sdr_source.dll sdrpp_windows_x64/modules/
 cp 'C:/Program Files/PothosSDR/bin/rtlsdr.dll' sdrpp_windows_x64/

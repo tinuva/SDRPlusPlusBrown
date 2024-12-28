@@ -421,6 +421,29 @@ int sdrpp_main(int argc, char* argv[]) {
         menuElements[menuElements.size() - 1]["open"] = p.second;
     }
 
+    defConfig["menuElements"][0]["name"] = "Source";
+    defConfig["menuElements"][0]["open"] = true;
+
+    defConfig["menuElements"][1]["name"] = "Radio";
+    defConfig["menuElements"][1]["open"] = true;
+
+    defConfig["menuElements"][2]["name"] = "Recorder";
+    defConfig["menuElements"][2]["open"] = true;
+
+    defConfig["menuElements"][3]["name"] = "Sinks";
+    defConfig["menuElements"][3]["open"] = true;
+
+    defConfig["menuElements"][4]["name"] = "Frequency Manager";
+    defConfig["menuElements"][4]["open"] = true;
+
+    defConfig["menuElements"][5]["name"] = "VFO Color";
+    defConfig["menuElements"][5]["open"] = true;
+
+    defConfig["menuElements"][6]["name"] = "Band Plan";
+    defConfig["menuElements"][6]["open"] = true;
+
+    defConfig["menuElements"][7]["name"] = "Display";
+    defConfig["menuElements"][7]["open"] = true;
 
 #ifdef __ANDROID__
     defConfig["menuWidth"] = 700;
@@ -450,6 +473,8 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["moduleInstances"]["Hermes Source"]["enabled"] = true;
     defConfig["moduleInstances"]["LimeSDR Source"]["module"] = "limesdr_source";
     defConfig["moduleInstances"]["LimeSDR Source"]["enabled"] = true;
+    defConfig["moduleInstances"]["Network Source"]["module"] = "network_source";
+    defConfig["moduleInstances"]["Network Source"]["enabled"] = true;
     defConfig["moduleInstances"]["PerseusSDR Source"]["module"] = "perseus_source";
     defConfig["moduleInstances"]["PerseusSDR Source"]["enabled"] = true;
     defConfig["moduleInstances"]["PlutoSDR Source"]["module"] = "plutosdr_source";
@@ -514,10 +539,20 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["modules"] = json::array();
     defConfig["offsetMode"] = (int)0; // Off
     defConfig["offset"] = 0.0;
+
+    defConfig["offsets"]["SpyVerter"] = 120000000.0;
+    defConfig["offsets"]["Ham-It-Up"] = 125000000.0;
+    defConfig["offsets"]["MMDS S-band (1998MHz)"] = -1998000000.0;
+    defConfig["offsets"]["DK5AV X-Band"] = -6800000000.0;
+    defConfig["offsets"]["Ku LNB (9750MHz)"] = -9750000000.0;
+    defConfig["offsets"]["Ku LNB (10700MHz)"] = -10700000000.0;
+
+    defConfig["selectedOffset"] = "None";
+    defConfig["manualOffset"] = 0.0;
     defConfig["showMenu"] = true;
     defConfig["showWaterfall"] = true;
     defConfig["source"] = "";
-    defConfig["decimationPower"] = 0;
+    defConfig["decimation"] = 1;
     defConfig["iqCorrection"] = false;
     defConfig["invertIQ"] = false;
     defConfig["operatorCallsign"] = "";
@@ -611,23 +646,6 @@ int sdrpp_main(int argc, char* argv[]) {
             core::configManager.conf[item.key()] = defConfig[item.key()];
         }
     }
-
-    // Remove unused elements
-    /*
-    auto items = core::configManager.conf.items();
-    flog::info("items={}",(void*)&items);
-    std::vector<std::string> keysToErase;
-    for (auto const& item : items) {
-        if (!defConfig.contains(item.key())) {
-            flog::info("Unused key in config {0}, repairing", item.key());
-            keysToErase.push_back(item.key());
-        }
-        flog::info("ok item: {}", item.key());
-    }
-    for (auto const& key : keysToErase) {
-        core::configManager.conf.erase(key);
-    }
-     */
 
     // Update to new module representation in config if needed
     for (auto [_name, inst] : core::configManager.conf["moduleInstances"].items()) {

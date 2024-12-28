@@ -107,16 +107,13 @@ jobs:
 
 
     build_macos_intel:
-      runs-on: macos-14
+      runs-on: macos-13
 
       steps:
         - uses: actions/checkout@v4
 
         - name: Create Build Environment
           run: cmake -E make_directory ${{runner.workspace}}/build
-
-#        - name: Update brew repositories
-#          run: brew update
 
         - name: Install dependencies
           run: HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 brew install pkg-config libusb fftw glfw airspy airspyhf portaudio hackrf libbladerf codec2 zstd autoconf automake libtool spdlog && pip3 install mako --break-system-packages
@@ -135,9 +132,6 @@ jobs:
 
         - name: Install LimeSuite
           run: git clone https://github.com/myriadrf/LimeSuite && cd LimeSuite && mkdir builddir && cd builddir && cmake -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DCMAKE_BUILD_TYPE=Release .. && make -j3 && sudo make install && cd ../../
-
-#        - name: Install libperseus
-#          run: git clone https://github.com/Microtelecom/libperseus-sdr && cd libperseus-sdr && autoreconf -i && ./configure --prefix=/usr/local && make && sudo make install && cd ..
 
         - name: Install librfnm
           run: git clone https://github.com/AlexandreRouma/librfnm && cd librfnm && mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make && sudo make install && cd ..
@@ -319,35 +313,6 @@ jobs:
           if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_debian_bookworm_amd64.deb -R ${{github.repository}} --clobber
 
-#    build_ubuntu_focal:
-#        runs-on: ubuntu-latest
-#
-#        steps:
-#        - uses: actions/checkout@v4
-#
-#        - name: Create Docker Image
-#          run: cd $GITHUB_WORKSPACE/docker_builds/ubuntu_focal && docker build . --tag sdrpp_build
-#
-#        - name: Run Container
-#          run: docker run --name build -v $GITHUB_WORKSPACE:/root/SDRPlusPlus --env BUILD_NO="-$GITHUB_RUN_NUMBER" sdrpp_build /root/do_build.sh
-#
-#        - name: Recover Deb Archive
-#          working-directory: ${{runner.workspace}}
-#          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_ubuntu_focal_amd64.deb
-#
-#        - name: Save Deb Archive
-#          uses: actions/upload-artifact@v4
-#          with:
-#              name: sdrpp_ubuntu_focal_amd64
-#              path: ${{runner.workspace}}/sdrpp_ubuntu_focal_amd64.deb
-#
-#        - name: Update Nightly
-#          run: gh release upload rolling ${{runner.workspace}}/sdrpp_ubuntu_focal_amd64.deb -R ${{github.repository}} --clobber
-#        - name: Update Stable
-#          if: contains(github.ref_name, 'stable')
-#          run: gh release upload stable ${{runner.workspace}}/sdrpp_ubuntu_focal_amd64.deb -R ${{github.repository}} --clobber
-
-
     build_ubuntu_jammy:
       runs-on: ubuntu-latest
 
@@ -375,32 +340,56 @@ jobs:
           if: contains(github.ref_name, 'stable')
           run: gh release upload stable ${{runner.workspace}}/sdrpp_ubuntu_jammy_amd64.deb -R ${{github.repository}} --clobber
 
-    build_ubuntu_mantic:
+
+    build_ubuntu_noble:
         runs-on: ubuntu-latest
 
         steps:
         - uses: actions/checkout@v4
 
         - name: Create Docker Image
-          run: cd $GITHUB_WORKSPACE/docker_builds/ubuntu_mantic && docker build . --tag sdrpp_build
+          run: cd $GITHUB_WORKSPACE/docker_builds/ubuntu_noble && docker build . --tag sdrpp_build
 
         - name: Run Container
           run: docker run --name build -v $GITHUB_WORKSPACE:/root/SDRPlusPlus --env BUILD_NO="-$GITHUB_RUN_NUMBER" sdrpp_build /root/do_build.sh
 
         - name: Recover Deb Archive
           working-directory: ${{runner.workspace}}
-          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_ubuntu_mantic_amd64.deb
+          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_ubuntu_noble_amd64.deb
 
         - name: Save Deb Archive
           uses: actions/upload-artifact@v4
           with:
-              name: sdrpp_ubuntu_mantic_amd64
-              path: ${{runner.workspace}}/sdrpp_ubuntu_mantic_amd64.deb
+              name: sdrpp_ubuntu_noble_amd64
+              path: ${{runner.workspace}}/sdrpp_ubuntu_noble_amd64.deb
         - name: Update Nightly
-          run: gh release upload rolling ${{runner.workspace}}/sdrpp_ubuntu_mantic_amd64.deb -R ${{github.repository}} --clobber
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp_ubuntu_noble_amd64.deb -R ${{github.repository}} --clobber
         - name: Update Stable
           if: contains(github.ref_name, 'stable')
-          run: gh release upload stable ${{runner.workspace}}/sdrpp_ubuntu_mantic_amd64.deb -R ${{github.repository}} --clobber
+          run: gh release upload stable ${{runner.workspace}}/sdrpp_ubuntu_noble_amd64.deb -R ${{github.repository}} --clobber
+
+    build_ubuntu_oracular:
+        runs-on: ubuntu-latest
+
+        steps:
+        - uses: actions/checkout@v4
+        
+        - name: Create Docker Image
+          run: cd $GITHUB_WORKSPACE/docker_builds/ubuntu_oracular && docker build . --tag sdrpp_build
+
+        - name: Run Container
+          run: docker run --name build -v $GITHUB_WORKSPACE:/root/SDRPlusPlus --env BUILD_NO="-$GITHUB_RUN_NUMBER" sdrpp_build /root/do_build.sh
+
+        - name: Recover Deb Archive
+          working-directory: ${{runner.workspace}}
+          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./
+
+        - name: Save Deb Archive
+          uses: actions/upload-artifact@v4
+          with:
+              name: sdrpp_ubuntu_oracular_amd64
+              path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+
 
     build_android:
         runs-on: ubuntu-latest
