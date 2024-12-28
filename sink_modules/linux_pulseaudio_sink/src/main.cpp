@@ -325,7 +325,6 @@ public:
         this->name = name;
         provider.create = create_sink;
         provider.ctx = this;
-
         sigpath::sinkManager.registerSinkProvider("PulseAudio", provider);
     }
 
