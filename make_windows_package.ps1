@@ -76,6 +76,7 @@ cp $build_dir/source_modules/kiwisdr_source/$RELDIR/kiwisdr_source.dll sdrpp_win
 
 # Copy sink modules
 cp $build_dir/sink_modules/audio_sink/$RELDIR/audio_sink.dll sdrpp_windows_x64/modules/
+cp $build_dir/sink_modules/brown_audio_sink/$RELDIR/brown_audio_sink.dll sdrpp_windows_x64/modules/
 cp "C:/Program Files (x86)/RtAudio/bin/rtaudio.dll" sdrpp_windows_x64/
 
 cp $build_dir/sink_modules/network_sink/$RELDIR/network_sink.dll sdrpp_windows_x64/modules/
