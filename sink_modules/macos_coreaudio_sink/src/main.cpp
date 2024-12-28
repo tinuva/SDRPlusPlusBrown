@@ -150,6 +150,11 @@ public:
                 config.release(true);
             }
         }
+        
+        if (underflow != 0) {
+            ImGui::SameLine();
+            ImGui::Text("Underflow %d", underflow);
+        }
     }
 
 private:
@@ -402,6 +407,7 @@ private:
     int srId = 0;
     int devId = -1;
     bool running = false;
+    int underflow = 0; // 1 = small underflow, 2 = full underflow
 
     std::vector<AudioDevice> devices;
     double sampleRate = 48000;
