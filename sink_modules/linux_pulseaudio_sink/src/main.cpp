@@ -227,14 +227,14 @@ private:
 
         // Connect stream to device
         pa_buffer_attr buffer_attr = {
-            .maxlength = (uint32_t)-1,
-            .tlength = (uint32_t)(sampleRate * 0.1), // 100ms buffer
+            .maxlength = (uint32_t)(sampleRate * 0.1 * sizeof(dsp::stereo_t)), // 100ms buffer
+            .tlength = (uint32_t)(sampleRate * 0.05 * sizeof(dsp::stereo_t)), // 50ms target
             .prebuf = (uint32_t)-1,
-            .minreq = (uint32_t)-1,
-            .fragsize = (uint32_t)-1
+            .minreq = (uint32_t)(sampleRate * 0.01 * sizeof(dsp::stereo_t)), // 10ms minimum
+            .fragsize = (uint32_t)(sampleRate * 0.01 * sizeof(dsp::stereo_t)) // 10ms fragments
         };
 
-        int flags = PA_STREAM_ADJUST_LATENCY | PA_STREAM_AUTO_TIMING_UPDATE;
+        int flags = PA_STREAM_ADJUST_LATENCY | PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_INTERPOLATE_TIMING;
         if (pa_stream_connect_playback(stream, dev.name.c_str(), &buffer_attr, (pa_stream_flags_t)flags, NULL, NULL) < 0) {
             flog::error("Could not connect PulseAudio stream");
             return false;
@@ -289,6 +289,7 @@ private:
                     size_t actualSize = std::min(chunkSize, (size_t)count * sizeof(dsp::stereo_t));
                     memcpy(data, stereoPacker.out.readBuf, actualSize);
                     stereoPacker.out.flush();
+                    pa_stream_write(stream, data, actualSize, NULL, 0, PA_SEEK_RELATIVE);
                     remaining -= actualSize;
                     continue;
                 }
@@ -296,46 +297,8 @@ private:
             
             // If no data available, write silence
             memset(data, 0, chunkSize);
+            pa_stream_write(stream, data, chunkSize, NULL, 0, PA_SEEK_RELATIVE);
             remaining -= chunkSize;
-        }
-        if (!gui::mainWindow.isPlaying()) {
-            // Write silence
-            void* data;
-            size_t size = length;
-            pa_stream_begin_write(stream, &data, &size);
-            memset(data, 0, size);
-            pa_stream_write(stream, data, size, NULL, 0, PA_SEEK_RELATIVE);
-            return;
-        }
-
-        // Read audio data from packer
-        int count = 0;
-        if (stereoPacker.out.isDataReady()) {
-            count = stereoPacker.out.read();
-            if (count <= 0) {
-                return;
-            }
-        }
-
-        // Write data to PulseAudio
-        void* data;
-        size_t size = std::min(length, (size_t)count * sizeof(dsp::stereo_t));
-        pa_stream_begin_write(stream, &data, &size);
-
-        int samples = size / sizeof(dsp::stereo_t);
-        dsp::stereo_t* out = (dsp::stereo_t*)data;
-
-        for (int i = 0; i < samples; i++) {
-            out[i] = stereoPacker.out.readBuf[i];
-        }
-
-        pa_stream_write(stream, data, size, NULL, 0, PA_SEEK_RELATIVE);
-        stereoPacker.out.flush();
-
-        if (samples < count) {
-            underflow = 1;
-        } else {
-            underflow = 0;
         }
     }
 
