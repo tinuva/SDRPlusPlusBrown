@@ -9,6 +9,7 @@
 #include <config.h>
 #include <core.h>
 #include <pulse/pulseaudio.h>
+#include <sys/time.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -297,7 +298,7 @@ private:
         if (pa_stream_get_latency(stream, &latency, NULL) == 0) {
             // Calculate when we need the next callback
             pa_usec_t nextCallback = latency / 2; // Request data halfway through current buffer
-            pa_timeval tv = { (time_t)(nextCallback / 1000000), (suseconds_t)(nextCallback % 1000000) };
+            timeval tv = { (time_t)(nextCallback / 1000000), (suseconds_t)(nextCallback % 1000000) };
             pa_mainloop_api_once(mainloop_api, &tv, [](pa_mainloop_api*a, void* userdata) {
                 pa_stream_trigger((pa_stream*)userdata, NULL, NULL);
             }, stream);
