@@ -277,9 +277,8 @@ private:
         // Process audio data in chunks
         size_t remaining = length;
         while (remaining > 0) {
-            size_t chunkSize = std::min(remaining, (size_t)stereoPacker.out.getDataSize() * sizeof(dsp::stereo_t));
-            
             void* data;
+            size_t chunkSize = remaining;
             if (pa_stream_begin_write(stream, &data, &chunkSize) != 0) {
                 break;
             }
@@ -287,14 +286,16 @@ private:
             if (stereoPacker.out.isDataReady()) {
                 int count = stereoPacker.out.read();
                 if (count > 0) {
-                    memcpy(data, stereoPacker.out.readBuf, chunkSize);
+                    size_t actualSize = std::min(chunkSize, (size_t)count * sizeof(dsp::stereo_t));
+                    memcpy(data, stereoPacker.out.readBuf, actualSize);
                     stereoPacker.out.flush();
+                    remaining -= actualSize;
+                    continue;
                 }
-            } else {
-                memset(data, 0, chunkSize);
             }
-
-            pa_stream_write(stream, data, chunkSize, NULL, 0, PA_SEEK_RELATIVE);
+            
+            // If no data available, write silence
+            memset(data, 0, chunkSize);
             remaining -= chunkSize;
         }
         if (!gui::mainWindow.isPlaying()) {
