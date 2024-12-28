@@ -266,27 +266,34 @@ private:
         void* data;
         size_t chunkSize = length;
         
-        if (pa_stream_begin_write(stream, &data, &chunkSize) == 0) {
-            if (gui::mainWindow.isPlaying() && stereoPacker.out.isDataReady()) {
-                int count = stereoPacker.out.read();
-                if (count > 0) {
-                    size_t bytesToWrite = std::min(chunkSize, (size_t)count * sizeof(dsp::stereo_t));
-                    memcpy(data, stereoPacker.out.readBuf, bytesToWrite);
-                    stereoPacker.out.flush();
-                    
-                    // If we didn't fill the entire buffer, fill the rest with silence
-                    if (bytesToWrite < chunkSize) {
-                        memset((uint8_t*)data + bytesToWrite, 0, chunkSize - bytesToWrite);
-                    }
-                } else {
-                    memset(data, 0, chunkSize);
-                }
-            } else {
-                memset(data, 0, chunkSize);
-            }
-            pa_stream_write(stream, data, chunkSize, NULL, 0, PA_SEEK_RELATIVE);
-            flog::info("Wrote something, bytes: {}", chunkSize);
+        if (pa_stream_begin_write(stream, &data, &chunkSize) != 0) {
+            return;
         }
+
+        // Always write silence to keep the stream active
+        memset(data, 0, chunkSize);
+
+        // If we have audio data, mix it in
+        if (gui::mainWindow.isPlaying() && stereoPacker.out.isDataReady()) {
+            int count = stereoPacker.out.read();
+            if (count > 0) {
+                size_t bytesToWrite = std::min(chunkSize, (size_t)count * sizeof(dsp::stereo_t));
+                // Mix the audio data with the silence buffer
+                dsp::stereo_t* out = (dsp::stereo_t*)data;
+                dsp::stereo_t* in = stereoPacker.out.readBuf;
+                for (size_t i = 0; i < bytesToWrite / sizeof(dsp::stereo_t); i++) {
+                    out[i].l += in[i].l;
+                    out[i].r += in[i].r;
+                }
+                stereoPacker.out.flush();
+            }
+        }
+
+        pa_stream_write(stream, data, chunkSize, NULL, 0, PA_SEEK_RELATIVE);
+        flog::info("Wrote buffer, bytes: {}", chunkSize);
+
+        // Request another callback immediately
+        pa_stream_trigger(stream, NULL, NULL);
     }
 
     void enumerateDevices() {
