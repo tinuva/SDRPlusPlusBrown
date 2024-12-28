@@ -298,12 +298,12 @@ private:
         if (pa_stream_get_latency(stream, &latency, NULL) == 0) {
             // Calculate when we need the next callback
             pa_usec_t nextCallback = latency / 2; // Request data halfway through current buffer
-            timeval tv = { (time_t)(nextCallback / 1000000), (suseconds_t)(nextCallback % 1000000) };
-            // Define the callback function
-            static auto triggerCallback = [](pa_mainloop_api* a, void* userdata) {
+            // Schedule the trigger using the mainloop's timer
+            pa_time_event* te;
+            pa_mainloop_api_time_new(mainloop_api, nextCallback, [](pa_mainloop_api*a, pa_time_event*e, const struct timeval*t, void* userdata) {
                 pa_stream_trigger((pa_stream*)userdata, NULL, NULL);
-            };
-            pa_mainloop_api_once(mainloop_api, &tv, triggerCallback, stream);
+                pa_mainloop_api_time_free(a, e);
+            }, stream, &te);
         } else {
             // Fallback to immediate trigger if we can't get latency
             pa_stream_trigger(stream, NULL, NULL);
