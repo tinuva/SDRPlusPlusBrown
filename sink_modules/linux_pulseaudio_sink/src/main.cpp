@@ -262,42 +262,28 @@ private:
     }
 
     void writeCallback(size_t length) {
-        // Ensure we're in the main thread
-        if (!gui::mainWindow.isPlaying()) {
-            // Write silence
-            void* data;
-            size_t size = length;
-            if (pa_stream_begin_write(stream, &data, &size) == 0) {
-                memset(data, 0, size);
-                pa_stream_write(stream, data, size, NULL, 0, PA_SEEK_RELATIVE);
-            }
-            return;
-        }
-
-        // Always request data from the packer
-        if (stereoPacker.out.isDataReady()) {
-            int count = stereoPacker.out.read();
-            if (count > 0) {
-                // Calculate how much we can write
-                size_t bytesToWrite = std::min(length, (size_t)count * sizeof(dsp::stereo_t));
-                
-                // Write the data
-                void* data;
-                size_t chunkSize = bytesToWrite;
-                if (pa_stream_begin_write(stream, &data, &chunkSize) == 0) {
-                    memcpy(data, stereoPacker.out.readBuf, chunkSize);
-                    pa_stream_write(stream, data, chunkSize, NULL, 0, PA_SEEK_RELATIVE);
-                    stereoPacker.out.flush();
-                }
-                return;
-            }
-        }
-
-        // If no data available, write silence
+        // Always write something to keep the stream active
         void* data;
         size_t chunkSize = length;
+        
         if (pa_stream_begin_write(stream, &data, &chunkSize) == 0) {
-            memset(data, 0, chunkSize);
+            if (gui::mainWindow.isPlaying() && stereoPacker.out.isDataReady()) {
+                int count = stereoPacker.out.read();
+                if (count > 0) {
+                    size_t bytesToWrite = std::min(chunkSize, (size_t)count * sizeof(dsp::stereo_t));
+                    memcpy(data, stereoPacker.out.readBuf, bytesToWrite);
+                    stereoPacker.out.flush();
+                    
+                    // If we didn't fill the entire buffer, fill the rest with silence
+                    if (bytesToWrite < chunkSize) {
+                        memset((uint8_t*)data + bytesToWrite, 0, chunkSize - bytesToWrite);
+                    }
+                } else {
+                    memset(data, 0, chunkSize);
+                }
+            } else {
+                memset(data, 0, chunkSize);
+            }
             pa_stream_write(stream, data, chunkSize, NULL, 0, PA_SEEK_RELATIVE);
         }
     }
