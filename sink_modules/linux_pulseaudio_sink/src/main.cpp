@@ -293,24 +293,14 @@ private:
         pa_stream_write(stream, data, chunkSize, NULL, 0, PA_SEEK_RELATIVE);
         flog::info("Wrote buffer, bytes: {}", chunkSize);
 
-        // Update timing and request more data
-        pa_usec_t latency;
-        if (pa_stream_get_latency(stream, &latency, NULL) == 0) {
-            // Calculate when we need the next callback
-            pa_usec_t nextCallback = latency / 2; // Request data halfway through current buffer
-                
-            // Schedule the trigger using a timeout
-            struct timeval tv = {
-                .tv_sec = nextCallback / 1000000,
-                .tv_usec = nextCallback % 1000000
-            };
-            pa_mainloop_api_once(mainloop_api, [](pa_mainloop_api* a, void* userdata) {
-                pa_stream_trigger((pa_stream*)userdata, NULL, NULL);
-            }, stream);
-        } else {
-            // Fallback to immediate trigger if we can't get latency
-            pa_stream_trigger(stream, NULL, NULL);
-        }
+        // Always request another callback after a short delay
+        struct timeval tv = {
+            .tv_sec = 0,
+            .tv_usec = 10000 // 10ms delay
+        };
+        pa_mainloop_api_once(mainloop_api, [](pa_mainloop_api* a, void* userdata) {
+            pa_stream_trigger((pa_stream*)userdata, NULL, NULL);
+        }, stream);
     }
 
     void enumerateDevices() {
