@@ -45,9 +45,22 @@ public:
         // Connect to PulseAudio server
         pa_context_connect(context, NULL, PA_CONTEXT_NOFLAGS, NULL);
 
-        // Wait for connection
-        while (pa_context_get_state(context) != PA_CONTEXT_READY) {
+        // Set state callback
+        pa_context_set_state_callback(context, [](pa_context* c, void* userdata) {
+            PulseAudioSink* _this = (PulseAudioSink*)userdata;
+            if (pa_context_get_state(c) == PA_CONTEXT_READY) {
+                _this->contextReady = true;
+            }
+        }, this);
+
+        // Wait for connection with timeout
+        int timeout = 100; // 100 iterations = ~1 second
+        while (!contextReady && timeout-- > 0) {
             pa_mainloop_iterate(mainloop, 1, NULL);
+        }
+        if (!contextReady) {
+            flog::error("Failed to connect to PulseAudio server");
+            return;
         }
 
         // Get available devices
@@ -200,7 +213,14 @@ private:
             return false;
         }
 
-        // Set write callback
+        // Set stream callbacks
+        pa_stream_set_state_callback(stream, [](pa_stream* s, void* userdata) {
+            PulseAudioSink* _this = (PulseAudioSink*)userdata;
+            if (pa_stream_get_state(s) == PA_STREAM_READY) {
+                _this->streamReady = true;
+            }
+        }, this);
+
         pa_stream_set_write_callback(stream, [](pa_stream* s, size_t length, void* userdata) {
             ((PulseAudioSink*)userdata)->writeCallback(length);
         }, this);
@@ -220,6 +240,16 @@ private:
             return false;
         }
 
+        // Wait for stream to be ready with timeout
+        timeout = 100; // 100 iterations = ~1 second
+        while (!streamReady && timeout-- > 0) {
+            pa_mainloop_iterate(mainloop, 1, NULL);
+        }
+        if (!streamReady) {
+            flog::error("Failed to initialize PulseAudio stream");
+            return false;
+        }
+
         stereoPacker.start();
         return true;
     }
@@ -232,6 +262,41 @@ private:
     }
 
     void writeCallback(size_t length) {
+        // Ensure we're in the main thread
+        if (!gui::mainWindow.isPlaying()) {
+            // Write silence
+            void* data;
+            size_t size = length;
+            if (pa_stream_begin_write(stream, &data, &size) == 0) {
+                memset(data, 0, size);
+                pa_stream_write(stream, data, size, NULL, 0, PA_SEEK_RELATIVE);
+            }
+            return;
+        }
+
+        // Process audio data in chunks
+        size_t remaining = length;
+        while (remaining > 0) {
+            size_t chunkSize = std::min(remaining, (size_t)stereoPacker.out.getDataSize() * sizeof(dsp::stereo_t));
+            
+            void* data;
+            if (pa_stream_begin_write(stream, &data, &chunkSize) != 0) {
+                break;
+            }
+
+            if (stereoPacker.out.isDataReady()) {
+                int count = stereoPacker.out.read();
+                if (count > 0) {
+                    memcpy(data, stereoPacker.out.readBuf, chunkSize);
+                    stereoPacker.out.flush();
+                }
+            } else {
+                memset(data, 0, chunkSize);
+            }
+
+            pa_stream_write(stream, data, chunkSize, NULL, 0, PA_SEEK_RELATIVE);
+            remaining -= chunkSize;
+        }
         if (!gui::mainWindow.isPlaying()) {
             // Write silence
             void* data;
@@ -317,6 +382,8 @@ private:
     pa_mainloop_api* mainloop_api = nullptr;
     pa_context* context = nullptr;
     pa_stream* stream = nullptr;
+    bool contextReady = false;
+    bool streamReady = false;
 };
 
 class PulseAudioSinkModule : public ModuleManager::Instance {
