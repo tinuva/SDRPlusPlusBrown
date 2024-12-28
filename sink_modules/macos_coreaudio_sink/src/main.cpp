@@ -15,7 +15,7 @@
 SDRPP_MOD_INFO{
     /* Name:            */ "macos_coreaudio_sink",
     /* Description:     */ "CoreAudio sink module for macOS",
-    /* Author:          */ "Your Name",
+    /* Author:          */ "Sanny Sanoff and his aider",
     /* Version:         */ 0, 1, 0,
     /* Max instances    */ 1
 };
@@ -35,8 +35,7 @@ public:
         _stream = stream;
         _streamName = streamName;
         s2m.init(_stream->sinkOut);
-        monoPacker.init(&s2m.out, 512);
-        stereoPacker.init(_stream->sinkOut, 512);
+        stereoPacker.init(_stream->sinkOut, 1024);
 
         // Get available devices
         enumerateDevices();
@@ -263,6 +262,8 @@ private:
         stereoPacker.stop();
     }
 
+    std::vector<dsp::stereo_t> stereoBuffer;
+
     static OSStatus renderCallback(void* inRefCon,
                                  AudioUnitRenderActionFlags* ioActionFlags,
                                  const AudioTimeStamp* inTimeStamp,
@@ -281,19 +282,27 @@ private:
             return noErr;
         }
 
+        memset(left, 0, inNumberFrames * sizeof(float));
+        memset(right, 0, inNumberFrames * sizeof(float));
+
         // Read audio data from packer
         int count = _this->stereoPacker.out.read();
         if (count < 0) {
-            memset(left, 0, inNumberFrames * sizeof(float));
-            memset(right, 0, inNumberFrames * sizeof(float));
             return noErr;
         }
+        _this->stereoBuffer.resize(_this->stereoBuffer.size() + count);
+
+        std::copy(_this->stereoBuffer.end(), _this->stereoBuffer.end() + count, _this->stereoPacker.out.readBuf);
+
+        int limit = std::min<uint32_t>(inNumberFrames, _this->stereoBuffer.size());
 
         // Copy data to output buffers
-        for (UInt32 i = 0; i < inNumberFrames; i++) {
-            left[i] = _this->stereoPacker.out.readBuf[i].l;
-            right[i] = _this->stereoPacker.out.readBuf[i].r;
+        for (UInt32 i = 0; i < limit; i++) {
+            left[i] = _this->stereoBuffer[i].l;
+            right[i] = _this->stereoBuffer[i].r;
         }
+
+        _this->stereoBuffer.erase(_this->stereoBuffer.begin(), _this->stereoBuffer.begin() + limit);
 
         _this->stereoPacker.out.flush();
         return noErr;
@@ -375,7 +384,6 @@ private:
 
     SinkManager::Stream* _stream;
     dsp::convert::StereoToMono s2m;
-    dsp::buffer::Packer<float> monoPacker;
     dsp::buffer::Packer<dsp::stereo_t> stereoPacker;
 
     std::string _streamName;
