@@ -180,14 +180,14 @@ private:
             return false;
         }
 
-        // Set stream format
+        // Set stream format with lower latency settings
         AudioStreamBasicDescription streamFormat = {
             .mSampleRate = sampleRate,
             .mFormatID = kAudioFormatLinearPCM,
-            .mFormatFlags = kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked,
-            .mBytesPerPacket = sizeof(float) * 2,
+            .mFormatFlags = kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked | kAudioFormatFlagIsNonInterleaved,
+            .mBytesPerPacket = sizeof(float),
             .mFramesPerPacket = 1,
-            .mBytesPerFrame = sizeof(float) * 2,
+            .mBytesPerFrame = sizeof(float),
             .mChannelsPerFrame = 2,
             .mBitsPerChannel = sizeof(float) * 8,
             .mReserved = 0
@@ -228,6 +228,18 @@ private:
             return false;
         }
 
+        // Set buffer frame size for lower latency
+        UInt32 bufferFrameSize = 256; // Smaller buffer size for lower latency
+        status = AudioUnitSetProperty(audioUnit,
+                                    kAudioDevicePropertyBufferFrameSize,
+                                    kAudioUnitScope_Global,
+                                    0,
+                                    &bufferFrameSize,
+                                    sizeof(bufferFrameSize));
+        if (status != noErr) {
+            flog::warn("Could not set buffer frame size, using default");
+        }
+
         // Start audio unit
         status = AudioOutputUnitStart(audioUnit);
         if (status != noErr) {
@@ -235,6 +247,8 @@ private:
             return false;
         }
 
+        // Set packer buffer size to match audio unit buffer size
+        stereoPacker.setSampleCount(bufferFrameSize);
         stereoPacker.start();
         return true;
     }
@@ -257,17 +271,31 @@ private:
                                  AudioBufferList* ioData) {
         CoreAudioSink* _this = (CoreAudioSink*)inRefCon;
 
+        // Get pointers to output buffers
+        float* left = (float*)ioData->mBuffers[0].mData;
+        float* right = (float*)ioData->mBuffers[1].mData;
+
         if (!gui::mainWindow.isPlaying()) {
-            memset(ioData->mBuffers[0].mData, 0, ioData->mBuffers[0].mDataByteSize);
+            memset(left, 0, inNumberFrames * sizeof(float));
+            memset(right, 0, inNumberFrames * sizeof(float));
             return noErr;
         }
 
+        // Read audio data from packer
         int count = _this->stereoPacker.out.read();
-        if (count < 0) { return noErr; }
+        if (count < 0) {
+            memset(left, 0, inNumberFrames * sizeof(float));
+            memset(right, 0, inNumberFrames * sizeof(float));
+            return noErr;
+        }
 
-        memcpy(ioData->mBuffers[0].mData, _this->stereoPacker.out.readBuf, inNumberFrames * sizeof(dsp::stereo_t));
+        // Copy data to output buffers
+        for (UInt32 i = 0; i < inNumberFrames; i++) {
+            left[i] = _this->stereoPacker.out.readBuf[i].l;
+            right[i] = _this->stereoPacker.out.readBuf[i].r;
+        }
+
         _this->stereoPacker.out.flush();
-
         return noErr;
     }
 
