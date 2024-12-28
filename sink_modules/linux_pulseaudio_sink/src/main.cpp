@@ -241,7 +241,7 @@ private:
         }
 
         // Wait for stream to be ready with timeout
-        timeout = 100; // 100 iterations = ~1 second
+        int timeout = 100; // 100 iterations = ~1 second
         while (!streamReady && timeout-- > 0) {
             pa_mainloop_iterate(mainloop, 1, NULL);
         }
