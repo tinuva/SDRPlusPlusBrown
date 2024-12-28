@@ -35,7 +35,7 @@ public:
         _stream = stream;
         _streamName = streamName;
         s2m.init(_stream->sinkOut);
-        stereoPacker.init(_stream->sinkOut, 1024);
+        stereoPacker.init(_stream->sinkOut, 8192);
 
         // Get available devices
         enumerateDevices();
@@ -152,8 +152,8 @@ public:
         }
         
         if (underflow != 0) {
-            ImGui::SameLine();
-            ImGui::Text("Underflow %d", underflow);
+            // ImGui::SameLine();
+            // ImGui::Text("Underflow %d", underflow);
         }
     }
 
@@ -233,7 +233,7 @@ private:
         }
 
         // Set buffer frame size for lower latency
-        UInt32 bufferFrameSize = 256; // Smaller buffer size for lower latency
+        UInt32 bufferFrameSize = 4096;
         status = AudioUnitSetProperty(audioUnit,
                                     kAudioDevicePropertyBufferFrameSize,
                                     kAudioUnitScope_Global,

@@ -136,7 +136,7 @@ public:
                 deviceIds.push_back(i);
                 deviceIds.push_back(i);
             } catch (const std::exception e) {
-                flog::error("AudioSinkModule Error getting audio device ({}) info: {}", i, e.what());
+                flog::error("BrownAudioSinkModule Error getting audio device ({}) info: {}", i, e.what());
             }
         }
         selectByName(device);
@@ -258,7 +258,7 @@ public:
         case RtAudioErrorType::RTAUDIO_WARNING:
         case RtAudioErrorType::RTAUDIO_NO_DEVICES_FOUND:
         case RtAudioErrorType::RTAUDIO_DEVICE_DISCONNECT:
-            flog::warn("AudioSinkModule Warning: {} ({})", errorText, (int)type);
+            flog::warn("BrownAudioSinkModule Warning: {} ({})", errorText, (int)type);
             break;
         default:
             throw std::runtime_error(errorText);
@@ -426,21 +426,22 @@ private:
         int receivedFromPacker = 0;
         if (_this->playBuffer.size() < nBufferFrames && _this->stereoPacker.out.isDataReady()) {
             //            flog::info("_this->stereoPacker.out.read()....");
+
             int count = _this->stereoPacker.out.read(); // something has to be here
                                                         //            flog::info("_this->stereoPacker.out.read() count={}", count);
 //            _this->spackerTracker.add(count);
-            receivedFromPacker += count;
-            if (count > 0) {
-                int oldSize = _this->playBuffer.size();
-                _this->playBuffer.resize(_this->playBuffer.size() + count);
-                memmove(_this->playBuffer.data() + oldSize, _this->stereoPacker.out.readBuf, count * sizeof(dsp::stereo_t));
+            if (count >= 0) {
+                receivedFromPacker += count;
+                if (count > 0) {
+                    int oldSize = _this->playBuffer.size();
+                    _this->playBuffer.resize(_this->playBuffer.size() + count);
+                    memmove(_this->playBuffer.data() + oldSize, _this->stereoPacker.out.readBuf, count * sizeof(dsp::stereo_t));
+                }
+                else {
+                }
+                _this->stereoPacker.out.flush();
             }
-            else {
-            }
-            _this->stereoPacker.out.flush();
 //            flog::info("_this->stereoPacker.out.flushed");
-        }
-        else {
         }
 
         if (_this->playBuffer.size() >= nBufferFrames) {
@@ -537,12 +538,12 @@ public:
         provider.create = create_sink;
         provider.ctx = this;
 
-        sigpath::sinkManager.registerSinkProvider("Audio", provider);
+        sigpath::sinkManager.registerSinkProvider("Brown Audio", provider);
     }
 
     ~AudioSinkModule() {
         // Unregister sink, this will automatically stop and delete all instances of the audio sink
-        sigpath::sinkManager.unregisterSinkProvider("Audio");
+        sigpath::sinkManager.unregisterSinkProvider("Brown Audio");
     }
 
     void postInit() {}

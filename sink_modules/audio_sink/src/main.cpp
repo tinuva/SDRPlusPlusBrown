@@ -221,7 +221,7 @@ private:
 
     static int callback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData) {
         AudioSink* _this = (AudioSink*)userData;
-        int count = _this->stereoPacker.out.read();
+        int count = _this->stereoPacker.out.isDataReady() ? _this->stereoPacker.out.read() : -1;
         if (count < 0) { return 0; }
 
         memcpy(outputBuffer, _this->stereoPacker.out.readBuf, nBufferFrames * sizeof(dsp::stereo_t));

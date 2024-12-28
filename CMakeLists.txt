@@ -279,6 +279,11 @@ add_subdirectory("sink_modules/audio_sink")
 add_subdirectory("sink_modules/brown_audio_sink")
 endif (OPT_BUILD_AUDIO_SINK)
 
+if(APPLE)
+    add_subdirectory("sink_modules/macos_coreaudio_sink")
+endif()
+
+
 if (OPT_BUILD_PORTAUDIO_SINK)
 add_subdirectory("sink_modules/portaudio_sink")
 endif (OPT_BUILD_PORTAUDIO_SINK)
