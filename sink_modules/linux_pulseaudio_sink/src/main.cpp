@@ -285,6 +285,7 @@ private:
                 memset(data, 0, chunkSize);
             }
             pa_stream_write(stream, data, chunkSize, NULL, 0, PA_SEEK_RELATIVE);
+            flog::info("Wrote something, bytes: {}", chunkSize);
         }
     }
 
