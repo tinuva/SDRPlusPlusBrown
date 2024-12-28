@@ -282,17 +282,24 @@ private:
             return noErr;
         }
 
+
         memset(left, 0, inNumberFrames * sizeof(float));
         memset(right, 0, inNumberFrames * sizeof(float));
 
         // Read audio data from packer
-        int count = _this->stereoPacker.out.read();
-        if (count < 0) {
-            return noErr;
+        int count = 0;
+        if (_this->stereoPacker.out.isDataReady()) {
+            count = _this->stereoPacker.out.read();
+            if (count <= 0) {
+                return noErr;
+            }
         }
         _this->stereoBuffer.resize(_this->stereoBuffer.size() + count);
 
-        std::copy(_this->stereoBuffer.end(), _this->stereoBuffer.end() + count, _this->stereoPacker.out.readBuf);
+        // replace with loop
+        for (int i = 0; i < count; i++) {
+            _this->stereoBuffer[i] = _this->stereoPacker.out.readBuf[i];
+        }
 
         int limit = std::min<uint32_t>(inNumberFrames, _this->stereoBuffer.size());
 
@@ -301,9 +308,13 @@ private:
             left[i] = _this->stereoBuffer[i].l;
             right[i] = _this->stereoBuffer[i].r;
         }
+        if (limit < inNumberFrames) {
+            _this->underflow = 1;
+        } else {
+            _this->underflow = 0;
+        }
 
         _this->stereoBuffer.erase(_this->stereoBuffer.begin(), _this->stereoBuffer.begin() + limit);
-
         _this->stereoPacker.out.flush();
         return noErr;
     }
