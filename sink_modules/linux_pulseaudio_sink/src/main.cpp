@@ -136,7 +136,7 @@ private:
                         // Set stream callbacks
                         pa_stream_set_state_callback(_paStream, [](pa_stream* s, void* userdata) {
                             auto _this = (PulseAudioSink*)userdata;
-                            flog::info("Stream state changed to {}", pa_stream_get_state(s));
+                            flog::info("Stream state changed to {}", std::to_string(pa_stream_get_state(s)));
                         }, this);
                     
                         pa_stream_set_write_callback(_paStream, [](pa_stream* s, size_t length, void* userdata) {
