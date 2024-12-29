@@ -63,10 +63,9 @@ public:
                     break;
                 }
                 
-                // Check if mainloop is in valid state
-                pa_mainloop_state state = pa_mainloop_get_state(mainloop);
-                if (state != PA_MAINLOOP_RUNNING && state != PA_MAINLOOP_PREPARED) {
-                    flog::error("PulseAudio mainloop in invalid state: {}", state);
+                // Check if mainloop is still valid
+                if (!mainloop) {
+                    flog::error("PulseAudio mainloop is null");
                     break;
                 }
 
@@ -114,10 +113,8 @@ public:
 
         // Clean up mainloop
         if (mainloop) {
-            pa_mainloop_state state = pa_mainloop_get_state(mainloop);
-            if (state == PA_MAINLOOP_RUNNING || state == PA_MAINLOOP_PREPARED) {
-                pa_mainloop_quit(mainloop, 0);
-            }
+            // Just quit the mainloop if it exists
+            pa_mainloop_quit(mainloop, 0);
             pa_mainloop_free(mainloop);
             mainloop = nullptr;
         }
