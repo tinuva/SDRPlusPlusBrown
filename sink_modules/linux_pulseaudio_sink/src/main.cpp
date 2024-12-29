@@ -147,7 +147,7 @@ private:
                             auto _this = (PulseAudioSink*)userdata;
                             pa_stream_state_t state = pa_stream_get_state(s);
                             flog::info("Stream state changed to {} ({})", 
-                                state, 
+                                std::to_string(state),
                                 state == PA_STREAM_UNCONNECTED ? "UNCONNECTED" :
                                 state == PA_STREAM_CREATING ? "CREATING" :
                                 state == PA_STREAM_READY ? "READY" :
@@ -168,9 +168,9 @@ private:
                                 const pa_sample_spec* ss = pa_stream_get_sample_spec(s);
                                 if (ss) {
                                     flog::info("Sample spec: format={}, rate={}, channels={}",
-                                        ss->format,
-                                        ss->rate,
-                                        ss->channels);
+                                        (int)ss->format,
+                                        (int)ss->rate,
+                                        (int)ss->channels);
                                 }
                             }
                         }, this);
@@ -219,12 +219,12 @@ private:
                         // Check stream state after write
                         pa_stream_state_t state = pa_stream_get_state(_paStream);
                         if (state != PA_STREAM_READY) {
-                            flog::warn("Stream state after write: {}", state);
+                            flog::warn("Stream state after write: {}", (int)state);
                         }
                         
                         // Check if stream is corked
                         int corked = 0;
-                        pa_stream_is_corked(_paStream, &corked);
+                        corked = pa_stream_is_corked(_paStream);
                         if (corked) {
                             flog::warn("Stream is corked - no audio will be played");
                         }
