@@ -145,7 +145,34 @@ private:
                         // Set stream callbacks
                         pa_stream_set_state_callback(_paStream, [](pa_stream* s, void* userdata) {
                             auto _this = (PulseAudioSink*)userdata;
-                            flog::info("Stream state changed to {}", std::to_string(pa_stream_get_state(s)));
+                            pa_stream_state_t state = pa_stream_get_state(s);
+                            flog::info("Stream state changed to {} ({})", 
+                                state, 
+                                state == PA_STREAM_UNCONNECTED ? "UNCONNECTED" :
+                                state == PA_STREAM_CREATING ? "CREATING" :
+                                state == PA_STREAM_READY ? "READY" :
+                                state == PA_STREAM_FAILED ? "FAILED" :
+                                state == PA_STREAM_TERMINATED ? "TERMINATED" : "UNKNOWN");
+                            
+                            if (state == PA_STREAM_READY) {
+                                const pa_buffer_attr* buffer_attr = pa_stream_get_buffer_attr(s);
+                                if (buffer_attr) {
+                                    flog::info("Buffer attributes: maxlength={}, tlength={}, prebuf={}, minreq={}, fragsize={}",
+                                        buffer_attr->maxlength,
+                                        buffer_attr->tlength,
+                                        buffer_attr->prebuf,
+                                        buffer_attr->minreq,
+                                        buffer_attr->fragsize);
+                                }
+                                
+                                const pa_sample_spec* ss = pa_stream_get_sample_spec(s);
+                                if (ss) {
+                                    flog::info("Sample spec: format={}, rate={}, channels={}",
+                                        ss->format,
+                                        ss->rate,
+                                        ss->channels);
+                                }
+                            }
                         }, this);
                     
                         pa_stream_set_write_callback(_paStream, [](pa_stream* s, size_t length, void* userdata) {
@@ -180,10 +207,27 @@ private:
                         flog::info("Sample {}: L={} R={}", i, _audioBuffer[i].l, _audioBuffer[i].r);
                     }
                     
-                    int ret = pa_stream_write(_paStream, _audioBuffer.data(), 
-                        _audioBuffer.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
+                    size_t bytesToWrite = _audioBuffer.size() * sizeof(dsp::stereo_t);
+                    flog::info("Attempting to write {} bytes ({} samples) to PulseAudio", bytesToWrite, _audioBuffer.size());
+                    
+                    int ret = pa_stream_write(_paStream, _audioBuffer.data(), bytesToWrite, NULL, 0, PA_SEEK_RELATIVE);
                     if (ret < 0) {
                         flog::error("pa_stream_write failed: {}", pa_strerror(ret));
+                    } else {
+                        flog::info("Successfully wrote {} bytes to PulseAudio", bytesToWrite);
+                        
+                        // Check stream state after write
+                        pa_stream_state_t state = pa_stream_get_state(_paStream);
+                        if (state != PA_STREAM_READY) {
+                            flog::warn("Stream state after write: {}", state);
+                        }
+                        
+                        // Check if stream is corked
+                        int corked = 0;
+                        pa_stream_is_corked(_paStream, &corked);
+                        if (corked) {
+                            flog::warn("Stream is corked - no audio will be played");
+                        }
                     }
                     _audioBuffer.clear();
                 }
