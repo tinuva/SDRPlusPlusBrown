@@ -190,6 +190,7 @@ private:
             }
         }, this);
 
+
         while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
             pa_mainloop_iterate(pa_context_get_mainloop(context), 1, NULL);
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
