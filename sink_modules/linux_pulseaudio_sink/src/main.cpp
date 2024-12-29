@@ -128,7 +128,29 @@ private:
                     // Create stream if not exists
                     if (!_paStream) {
                         _paStream = pa_stream_new(context, "SDR++ Audio", &ss, NULL);
-                        pa_stream_connect_playback(_paStream, _deviceName.empty() ? NULL : _deviceName.c_str(), NULL, PA_STREAM_NOFLAGS, NULL, NULL);
+                        if (!_paStream) {
+                            flog::error("Failed to create PulseAudio stream");
+                            return;
+                        }
+                    
+                        // Set stream callbacks
+                        pa_stream_set_state_callback(_paStream, [](pa_stream* s, void* userdata) {
+                            auto _this = (PulseAudioSink*)userdata;
+                            flog::info("Stream state changed to {}", pa_stream_get_state(s));
+                        }, this);
+                    
+                        pa_stream_set_write_callback(_paStream, [](pa_stream* s, size_t length, void* userdata) {
+                            auto _this = (PulseAudioSink*)userdata;
+                            flog::info("Write callback: {} bytes requested", length);
+                        }, this);
+                    
+                        int ret = pa_stream_connect_playback(_paStream, 
+                            _deviceName.empty() ? NULL : _deviceName.c_str(), 
+                            NULL, PA_STREAM_NOFLAGS, NULL, NULL);
+                        if (ret < 0) {
+                            flog::error("pa_stream_connect_playback failed: {}", pa_strerror(ret));
+                            return;
+                        }
                     }
                     
                     // Wait for stream to be ready
@@ -142,7 +164,18 @@ private:
                 if (_streamReady) {
                     // Write audio data
                     std::lock_guard<std::mutex> lock(_audioMutex);
-                    pa_stream_write(_paStream, _audioBuffer.data(), _audioBuffer.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
+                    flog::info("Writing {} samples to PulseAudio", _audioBuffer.size());
+                    
+                    // Print first few samples for debugging
+                    for (int i = 0; i < std::min(4, (int)_audioBuffer.size()); i++) {
+                        flog::info("Sample {}: L={} R={}", i, _audioBuffer[i].l, _audioBuffer[i].r);
+                    }
+                    
+                    int ret = pa_stream_write(_paStream, _audioBuffer.data(), 
+                        _audioBuffer.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
+                    if (ret < 0) {
+                        flog::error("pa_stream_write failed: {}", pa_strerror(ret));
+                    }
                     _audioBuffer.clear();
                 }
             }
