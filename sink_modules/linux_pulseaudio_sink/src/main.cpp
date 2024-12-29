@@ -229,13 +229,13 @@ private:
                     // Write audio data
                     std::lock_guard<std::mutex> lock(_audioMutex);
                     size_t numSamples = _audioBuffer.size();
-                
+                    
                     if (_testSineWave) {
                         // Generate test sine wave at 440 Hz
                         const float freq = 440.0f;
                         const float sampleRate = 48000.0f;
                         const float phaseInc = 2.0f * M_PI * freq / sampleRate;
-                    
+                        
                         for (size_t i = 0; i < numSamples; i++) {
                             float sample = 0.5f * sinf(_testPhase);
                             _audioBuffer[i].l = sample;
@@ -246,34 +246,75 @@ private:
                             }
                         }
                     }
-                
+                    
                     flog::info("Writing {} samples to PulseAudio", numSamples);
-                
+                    
                     // Print first few samples for debugging
                     for (int i = 0; i < std::min(4, (int)numSamples); i++) {
                         flog::info("Sample {}: L={} R={}", i, _audioBuffer[i].l, _audioBuffer[i].r);
                     }
-                
+                    
                     size_t bytesToWrite = numSamples * sizeof(dsp::stereo_t);
                     flog::info("Attempting to write {} bytes ({} samples) to PulseAudio", bytesToWrite, numSamples);
-                
+                    
+                    // Check stream state before write
+                    pa_stream_state_t state = pa_stream_get_state(_paStream);
+                    flog::info("Stream state before write: {}", 
+                        state == PA_STREAM_UNCONNECTED ? "UNCONNECTED" :
+                        state == PA_STREAM_CREATING ? "CREATING" :
+                        state == PA_STREAM_READY ? "READY" :
+                        state == PA_STREAM_FAILED ? "FAILED" :
+                        state == PA_STREAM_TERMINATED ? "TERMINATED" : "UNKNOWN");
+
+                    // Check if stream is suspended
+                    pa_stream_state_t suspend_state = pa_stream_is_suspended(_paStream);
+                    if (suspend_state) {
+                        flog::warn("Stream is suspended - attempting to resume");
+                        pa_operation* op = pa_stream_cork(_paStream, 0, NULL, NULL);
+                        if (op) pa_operation_unref(op);
+                    }
+
+                    // Check stream volume
+                    pa_cvolume volume;
+                    if (pa_stream_get_volume(_paStream, &volume) >= 0) {
+                        flog::info("Stream volume: {}", pa_cvolume_avg(&volume));
+                    }
+
                     int ret = pa_stream_write(_paStream, _audioBuffer.data(), bytesToWrite, NULL, 0, PA_SEEK_RELATIVE);
                     if (ret < 0) {
                         flog::error("pa_stream_write failed: {}", pa_strerror(ret));
                     } else {
                         flog::info("Successfully wrote {} bytes to PulseAudio", bytesToWrite);
-                        
+                            
                         // Check stream state after write
-                        pa_stream_state_t state = pa_stream_get_state(_paStream);
-                        if (state != PA_STREAM_READY) {
-                            flog::warn("Stream state after write: {}", (int)state);
-                        }
-                        
+                        state = pa_stream_get_state(_paStream);
+                        flog::info("Stream state after write: {}", 
+                            state == PA_STREAM_UNCONNECTED ? "UNCONNECTED" :
+                            state == PA_STREAM_CREATING ? "CREATING" :
+                            state == PA_STREAM_READY ? "READY" :
+                            state == PA_STREAM_FAILED ? "FAILED" :
+                            state == PA_STREAM_TERMINATED ? "TERMINATED" : "UNKNOWN");
+                            
                         // Check if stream is corked
-                        int corked = 0;
-                        corked = pa_stream_is_corked(_paStream);
+                        int corked = pa_stream_is_corked(_paStream);
                         if (corked) {
                             flog::warn("Stream is corked - no audio will be played");
+                            // Attempt to uncork
+                            pa_operation* op = pa_stream_cork(_paStream, 0, NULL, NULL);
+                            if (op) pa_operation_unref(op);
+                        }
+
+                        // Check if stream is muted
+                        int muted = pa_stream_is_muted(_paStream);
+                        if (muted) {
+                            flog::warn("Stream is muted - no audio will be played");
+                        }
+
+                        // Check latency
+                        pa_usec_t latency;
+                        int negative;
+                        if (pa_stream_get_latency(_paStream, &latency, &negative) >= 0) {
+                            flog::info("Stream latency: {} μs", latency);
                         }
                     }
                     _audioBuffer.clear();
