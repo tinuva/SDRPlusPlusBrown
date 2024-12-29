@@ -369,8 +369,21 @@ private:
         // Wait for operation to complete with timeout
         timeout = 200; // 200 iterations = ~2 seconds
         while (timeout-- > 0) {
-            pa_mainloop_iterate(mainloop, 1, NULL);
-            
+            // Check if mainloop is still valid
+            if (!mainloop) {
+                flog::error("PulseAudio mainloop is null during device enumeration");
+                break;
+            }
+
+            // Only iterate if context is ready
+            if (pa_context_get_state(context) == PA_CONTEXT_READY) {
+                int ret = pa_mainloop_iterate(mainloop, 1, NULL);
+                if (ret < 0) {
+                    flog::error("PulseAudio mainloop iteration failed during device enumeration");
+                    break;
+                }
+            }
+
             pa_operation_state_t state = pa_operation_get_state(op);
             if (state != PA_OPERATION_RUNNING) {
                 break;
