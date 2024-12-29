@@ -155,7 +155,7 @@ private:
                     
                         int ret = pa_stream_connect_playback(_paStream, 
                             _deviceName.empty() ? NULL : _deviceName.c_str(), 
-                            &buffer_attr, PA_STREAM_ADJUST_LATENCY | PA_STREAM_AUTO_TIMING_UPDATE, NULL, NULL);
+                            &buffer_attr, (pa_stream_flags_t)(PA_STREAM_ADJUST_LATENCY | PA_STREAM_AUTO_TIMING_UPDATE), NULL, NULL);
                         if (ret < 0) {
                             flog::error("pa_stream_connect_playback failed: {}", pa_strerror(ret));
                             return;
