@@ -54,15 +54,14 @@ public:
             }
         }, this);
 
-        // Wait for connection with timeout
-        int timeout = 100; // 100 iterations = ~1 second
-        while (!contextReady && timeout-- > 0) {
-            pa_mainloop_iterate(mainloop, 1, NULL);
-        }
-        if (!contextReady) {
-            flog::error("Failed to connect to PulseAudio server");
-            return;
-        }
+        // Start mainloop thread
+        mainloopRunning = true;
+        mainloopThread = std::thread([this]() {
+            while (mainloopRunning) {
+                pa_mainloop_iterate(mainloop, 1, NULL);
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        });
 
         // Get available devices
         enumerateDevices();
@@ -90,6 +89,11 @@ public:
             pa_context_unref(context);
         }
         if (mainloop) {
+            // Stop mainloop thread
+            mainloopRunning = false;
+            if (mainloopThread.joinable()) {
+                mainloopThread.join();
+            }
             pa_mainloop_free(mainloop);
         }
     }
@@ -244,7 +248,7 @@ private:
         // Wait for stream to be ready with timeout
         int timeout = 100; // 100 iterations = ~1 second
         while (!streamReady && timeout-- > 0) {
-            pa_mainloop_iterate(mainloop, 1, NULL);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         if (!streamReady) {
             flog::error("Failed to initialize PulseAudio stream");
@@ -340,6 +344,8 @@ private:
     pa_stream* stream = nullptr;
     bool contextReady = false;
     bool streamReady = false;
+    bool mainloopRunning = false;
+    std::thread mainloopThread;
 };
 
 class PulseAudioSinkModule : public ModuleManager::Instance {
