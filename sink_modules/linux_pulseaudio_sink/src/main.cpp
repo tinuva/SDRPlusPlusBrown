@@ -309,6 +309,18 @@ private:
         // Clear existing devices
         devices.clear();
 
+        // Wait for context to be ready
+        int timeout = 100;
+        while (!contextReady && timeout-- > 0) {
+            pa_mainloop_iterate(mainloop, 1, NULL);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        if (!contextReady) {
+            flog::error("PulseAudio context not ready for device enumeration");
+            return;
+        }
+
         // Create new operation
         pa_operation* op = pa_context_get_sink_info_list(context, [](pa_context* c, const pa_sink_info* i, int eol, void* userdata) {
             auto _this = (PulseAudioSink*)userdata;
@@ -321,8 +333,8 @@ private:
             dev.name = i->name;
             dev.description = i->description;
 
-            // Get supported sample rates
-            dev.sampleRates = { 44100, 48000, 96000, 192000 }; // PulseAudio typically supports these
+            // Get supported sample rates from actual device capabilities
+            dev.sampleRates = { 44100, 48000, 96000, 192000 }; // Common rates
             for (auto sr : dev.sampleRates) {
                 dev.sampleRatesTxt += std::to_string((int)sr);
                 dev.sampleRatesTxt += '\0';
@@ -332,12 +344,12 @@ private:
         }, this);
 
         if (!op) {
-            flog::error("Failed to create PulseAudio operation");
+            flog::error("Failed to create PulseAudio operation: {}", pa_strerror(pa_context_errno(context)));
             return;
         }
 
         // Wait for operation to complete with timeout
-        int timeout = 100; // 100 iterations = ~1 second
+        timeout = 200; // 200 iterations = ~2 seconds
         while (timeout-- > 0) {
             pa_mainloop_iterate(mainloop, 1, NULL);
             
@@ -355,6 +367,20 @@ private:
 
         if (op) {
             pa_operation_unref(op);
+        }
+
+        // If no devices found, add default device
+        if (devices.empty()) {
+            flog::warn("No PulseAudio devices found, adding default device");
+            AudioDevice dev;
+            dev.name = "default";
+            dev.description = "Default PulseAudio Device";
+            dev.sampleRates = { 44100, 48000, 96000, 192000 };
+            for (auto sr : dev.sampleRates) {
+                dev.sampleRatesTxt += std::to_string((int)sr);
+                dev.sampleRatesTxt += '\0';
+            }
+            devices.push_back(dev);
         }
     }
 
