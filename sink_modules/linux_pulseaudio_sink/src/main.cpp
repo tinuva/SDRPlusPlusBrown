@@ -267,7 +267,7 @@ private:
                         state == PA_STREAM_TERMINATED ? "TERMINATED" : "UNKNOWN");
 
                     // Check if stream is suspended
-                    pa_stream_state_t suspend_state = pa_stream_is_suspended(_paStream);
+                    auto suspend_state = pa_stream_is_suspended(_paStream);
                     if (suspend_state) {
                         flog::warn("Stream is suspended - attempting to resume");
                         pa_operation* op = pa_stream_cork(_paStream, 0, NULL, NULL);
