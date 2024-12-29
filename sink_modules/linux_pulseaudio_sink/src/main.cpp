@@ -85,8 +85,8 @@ public:
 
 private:
     void audioThread() {
-        pa_mainloop* mainloop = pa_mainloop_new();
-        pa_mainloop_api* api = pa_mainloop_get_api(mainloop);
+        _mainloop = pa_mainloop_new();
+        pa_mainloop_api* api = pa_mainloop_get_api(_mainloop);
         pa_context* context = pa_context_new(api, "SDR++ PulseAudio Sink");
 
         pa_context_connect(context, NULL, PA_CONTEXT_NOFLAGS, NULL);
@@ -175,7 +175,10 @@ private:
         // Clean up
         pa_context_disconnect(context);
         pa_context_unref(context);
-        pa_mainloop_free(mainloop);
+        if (_mainloop) {
+            pa_mainloop_free(_mainloop);
+            _mainloop = nullptr;
+        }
     }
 
     void enumerateDevices(pa_context* context) {
@@ -192,7 +195,7 @@ private:
 
 
         while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
-            pa_mainloop_iterate(mainloop, 1, NULL);
+            pa_mainloop_iterate(_mainloop, 1, NULL);
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
@@ -213,6 +216,7 @@ private:
 
     std::mutex _audioMutex;
     std::vector<dsp::stereo_t> _audioBuffer;
+    pa_mainloop* _mainloop = nullptr;
 };
 
 class PulseAudioSinkModule : public ModuleManager::Instance {
