@@ -274,10 +274,18 @@ private:
                         if (op) pa_operation_unref(op);
                     }
 
-                    // Check stream volume
-                    pa_cvolume volume;
-                    if (pa_stream_get_volume(_paStream, &volume) >= 0) {
-                        flog::info("Stream volume: {}", pa_cvolume_avg(&volume));
+                    // Get sink info to check volume
+                    pa_operation* op = pa_context_get_sink_info_by_name(context, 
+                        _deviceName.empty() ? NULL : _deviceName.c_str(),
+                        [](pa_context* c, const pa_sink_info* i, int eol, void* userdata) {
+                            if (eol) return;
+                            flog::info("Sink volume: {}", pa_cvolume_avg(&i->volume));
+                        }, this);
+                    if (op) {
+                        while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
+                            pa_mainloop_iterate(_mainloop, 1, NULL);
+                        }
+                        pa_operation_unref(op);
                     }
 
                     int ret = pa_stream_write(_paStream, _audioBuffer.data(), bytesToWrite, NULL, 0, PA_SEEK_RELATIVE);
