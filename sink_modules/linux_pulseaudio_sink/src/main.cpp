@@ -312,10 +312,20 @@ private:
                             if (op) pa_operation_unref(op);
                         }
 
-                        // Check if stream is muted
-                        int muted = pa_stream_is_muted(_paStream);
-                        if (muted) {
-                            flog::warn("Stream is muted - no audio will be played");
+                        // Check if sink is muted
+                        pa_operation* op = pa_context_get_sink_info_by_name(context, 
+                            _deviceName.empty() ? NULL : _deviceName.c_str(),
+                            [](pa_context* c, const pa_sink_info* i, int eol, void* userdata) {
+                                if (eol) return;
+                                if (i->mute) {
+                                    flog::warn("Sink is muted - no audio will be played");
+                                }
+                            }, this);
+                        if (op) {
+                            while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
+                                pa_mainloop_iterate(_mainloop, 1, NULL);
+                            }
+                            pa_operation_unref(op);
                         }
 
                         // Check latency
