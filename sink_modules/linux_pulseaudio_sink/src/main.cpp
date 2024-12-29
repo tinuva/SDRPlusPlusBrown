@@ -327,14 +327,31 @@ private:
         // Clear existing devices
         devices.clear();
 
-        // Wait for context to be ready
+        // Wait for context to be ready with proper state checking
         int timeout = 100;
-        while (!contextReady && timeout-- > 0) {
-            pa_mainloop_iterate(mainloop, 1, NULL);
+        while (timeout-- > 0) {
+            pa_context_state_t state = pa_context_get_state(context);
+            if (state == PA_CONTEXT_READY) {
+                break;
+            }
+            if (state == PA_CONTEXT_FAILED || state == PA_CONTEXT_TERMINATED) {
+                flog::error("PulseAudio context failed or terminated");
+                return;
+            }
+            
+            // Only iterate if context is in a state that allows it
+            if (state == PA_CONTEXT_CONNECTING || state == PA_CONTEXT_AUTHORIZING || state == PA_CONTEXT_SETTING_NAME) {
+                int ret = pa_mainloop_iterate(mainloop, 1, NULL);
+                if (ret < 0) {
+                    flog::error("PulseAudio mainloop iteration failed");
+                    return;
+                }
+            }
+            
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
-        if (!contextReady) {
+        if (pa_context_get_state(context) != PA_CONTEXT_READY) {
             flog::error("PulseAudio context not ready for device enumeration");
             return;
         }
