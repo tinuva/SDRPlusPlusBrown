@@ -236,15 +236,15 @@ private:
 
         // Connect stream to device
         pa_buffer_attr buffer_attr = {
-            .maxlength = (uint32_t)(sampleRate * 0.05 * sizeof(dsp::stereo_t)), // 50ms buffer
-            .tlength = (uint32_t)(sampleRate * 0.01 * sizeof(dsp::stereo_t)), // 10ms target
+            .maxlength = (uint32_t)(sampleRate * 0.1 * sizeof(dsp::stereo_t)), // 100ms buffer
+            .tlength = (uint32_t)(sampleRate * 0.02 * sizeof(dsp::stereo_t)), // 20ms target
             .prebuf = (uint32_t)-1,
-            .minreq = (uint32_t)(sampleRate * 0.002 * sizeof(dsp::stereo_t)), // 2ms minimum
-            .fragsize = (uint32_t)(sampleRate * 0.002 * sizeof(dsp::stereo_t)) // 2ms fragments
+            .minreq = (uint32_t)(sampleRate * 0.005 * sizeof(dsp::stereo_t)), // 5ms minimum
+            .fragsize = (uint32_t)(sampleRate * 0.005 * sizeof(dsp::stereo_t)) // 5ms fragments
         };
 
         int flags = PA_STREAM_ADJUST_LATENCY | PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_INTERPOLATE_TIMING | PA_STREAM_START_CORKED;
-        if (pa_stream_connect_playback(stream, dev.name.c_str(), &buffer_attr, (pa_stream_flags_t)flags, NULL, NULL) < 0) {
+        if (pa_stream_connect_playback(stream, dev.name.c_str(), &buffer_attr, (pa_stream_flags_t)flags, NULL, NULL) != 0) {
             flog::error("Could not connect PulseAudio stream");
             return false;
         }
@@ -257,21 +257,6 @@ private:
         }
         if (!streamReady) {
             flog::error("Failed to initialize PulseAudio stream");
-            return false;
-        }
-
-        // Set buffer attributes for low latency
-        pa_buffer_attr buffer_attr = {
-            .maxlength = (uint32_t)(sampleRate * 0.1 * sizeof(dsp::stereo_t)), // 100ms buffer
-            .tlength = (uint32_t)(sampleRate * 0.02 * sizeof(dsp::stereo_t)), // 20ms target
-            .prebuf = (uint32_t)-1,
-            .minreq = (uint32_t)(sampleRate * 0.005 * sizeof(dsp::stereo_t)), // 5ms minimum
-            .fragsize = (uint32_t)(sampleRate * 0.005 * sizeof(dsp::stereo_t)) // 5ms fragments
-        };
-
-        // Update stream buffer attributes
-        if (pa_stream_set_buffer_attr(stream, &buffer_attr, NULL, NULL) < 0) {
-            flog::error("Could not set PulseAudio buffer attributes");
             return false;
         }
 
