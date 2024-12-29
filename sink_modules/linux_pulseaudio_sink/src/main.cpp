@@ -274,12 +274,26 @@ private:
                         if (op) pa_operation_unref(op);
                     }
 
-                    // Get sink info to check volume
+                    // Get sink info and set volume
                     pa_operation* op = pa_context_get_sink_info_by_name(context, 
                         _deviceName.empty() ? NULL : _deviceName.c_str(),
                         [](pa_context* c, const pa_sink_info* i, int eol, void* userdata) {
                             if (eol) return;
+                            auto _this = (PulseAudioSink*)userdata;
                             flog::info("Sink volume: {}", pa_cvolume_avg(&i->volume));
+                                
+                            // If volume is 0, set it to 50%
+                            if (pa_cvolume_avg(&i->volume) == 0) {
+                                pa_cvolume volume = i->volume;
+                                pa_cvolume_set(&volume, i->channel_map.channels, PA_VOLUME_NORM/2);
+                                    
+                                pa_operation* vol_op = pa_context_set_sink_volume_by_name(c, 
+                                    i->name, &volume, NULL, NULL);
+                                if (vol_op) {
+                                    pa_operation_unref(vol_op);
+                                }
+                                flog::info("Set sink volume to 50%");
+                            }
                         }, this);
                     if (op) {
                         while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
