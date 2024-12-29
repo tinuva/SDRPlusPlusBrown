@@ -93,7 +93,7 @@ private:
 
         // Wait for context to be ready
         while (_running && pa_context_get_state(context) != PA_CONTEXT_READY) {
-            pa_mainloop_iterate(mainloop, 1, NULL);
+            pa_mainloop_iterate(_mainloop, 1, NULL);
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
@@ -129,7 +129,7 @@ private:
 
                 // Wait for stream to be ready
                 while (pa_stream_get_state(stream) != PA_STREAM_READY && _running) {
-                    pa_mainloop_iterate(mainloop, 1, NULL);
+                    pa_mainloop_iterate(_mainloop, 1, NULL);
                     std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 }
 
@@ -157,7 +157,7 @@ private:
 
                 // Wait for stream to be ready
                 while (pa_stream_get_state(stream) != PA_STREAM_READY && _running) {
-                    pa_mainloop_iterate(mainloop, 1, NULL);
+                    pa_mainloop_iterate(_mainloop, 1, NULL);
                     std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 }
 
