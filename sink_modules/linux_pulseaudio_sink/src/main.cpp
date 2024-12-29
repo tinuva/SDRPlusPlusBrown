@@ -299,11 +299,19 @@ private:
     }
 
     void enumerateDevices() {
+        std::unique_lock<std::mutex> lock(operationMutex);
+        
+        // Clear existing devices
+        devices.clear();
+
+        // Create new operation
         pa_operation* op = pa_context_get_sink_info_list(context, [](pa_context* c, const pa_sink_info* i, int eol, void* userdata) {
             auto _this = (PulseAudioSink*)userdata;
             
             if (eol) { return; }
 
+            std::unique_lock<std::mutex> lock(_this->operationMutex);
+            
             AudioDevice dev;
             dev.name = i->name;
             dev.description = i->description;
@@ -318,10 +326,31 @@ private:
             _this->devices.push_back(dev);
         }, this);
 
-        while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
-            pa_mainloop_iterate(mainloop, 1, NULL);
+        if (!op) {
+            flog::error("Failed to create PulseAudio operation");
+            return;
         }
-        pa_operation_unref(op);
+
+        // Wait for operation to complete with timeout
+        int timeout = 100; // 100 iterations = ~1 second
+        while (timeout-- > 0) {
+            pa_mainloop_iterate(mainloop, 1, NULL);
+            
+            pa_operation_state_t state = pa_operation_get_state(op);
+            if (state != PA_OPERATION_RUNNING) {
+                break;
+            }
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        if (timeout <= 0) {
+            flog::warn("PulseAudio device enumeration timed out");
+        }
+
+        if (op) {
+            pa_operation_unref(op);
+        }
     }
 
     SinkManager::Stream* _stream;
@@ -346,6 +375,7 @@ private:
     bool streamReady = false;
     bool mainloopRunning = false;
     std::thread mainloopThread;
+    std::mutex operationMutex;
 };
 
 class PulseAudioSinkModule : public ModuleManager::Instance {
