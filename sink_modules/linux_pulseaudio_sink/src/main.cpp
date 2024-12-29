@@ -58,12 +58,26 @@ public:
         mainloopRunning = true;
         mainloopThread = std::thread([this]() {
             while (mainloopRunning) {
+                if (!mainloop) {
+                    flog::error("PulseAudio mainloop is null");
+                    break;
+                }
+                
+                // Check if mainloop is in valid state
+                pa_mainloop_state state = pa_mainloop_get_state(mainloop);
+                if (state != PA_MAINLOOP_RUNNING && state != PA_MAINLOOP_PREPARED) {
+                    flog::error("PulseAudio mainloop in invalid state: {}", state);
+                    break;
+                }
+
                 int ret = pa_mainloop_iterate(mainloop, 1, NULL);
                 if (ret < 0) {
                     flog::error("PulseAudio mainloop iteration failed");
                     break;
                 }
-                // Don't sleep here - we want immediate processing
+                
+                // Small sleep to prevent busy-waiting
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
         });
 
@@ -92,13 +106,20 @@ public:
             pa_context_disconnect(context);
             pa_context_unref(context);
         }
+        // Stop mainloop thread
+        mainloopRunning = false;
+        if (mainloopThread.joinable()) {
+            mainloopThread.join();
+        }
+
+        // Clean up mainloop
         if (mainloop) {
-            // Stop mainloop thread
-            mainloopRunning = false;
-            if (mainloopThread.joinable()) {
-                mainloopThread.join();
+            pa_mainloop_state state = pa_mainloop_get_state(mainloop);
+            if (state == PA_MAINLOOP_RUNNING || state == PA_MAINLOOP_PREPARED) {
+                pa_mainloop_quit(mainloop, 0);
             }
             pa_mainloop_free(mainloop);
+            mainloop = nullptr;
         }
     }
 
