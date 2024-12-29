@@ -102,7 +102,7 @@ private:
 
         // Main audio loop
         while (_running) {
-            if (!_stream || !_playing) {
+            if (!_playing) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 continue;
             }
@@ -126,13 +126,13 @@ private:
 
                 if (!_streamReady) {
                     // Create stream if not exists
-                    if (!_stream) {
-                        _stream = pa_stream_new(context, "SDR++ Audio", &ss, NULL);
-                        pa_stream_connect_playback(_stream, _deviceName.empty() ? NULL : _deviceName.c_str(), NULL, PA_STREAM_NOFLAGS, NULL, NULL);
+                    if (!_paStream) {
+                        _paStream = pa_stream_new(context, "SDR++ Audio", &ss, NULL);
+                        pa_stream_connect_playback(_paStream, _deviceName.empty() ? NULL : _deviceName.c_str(), NULL, PA_STREAM_NOFLAGS, NULL, NULL);
                     }
                     
                     // Wait for stream to be ready
-                    while (pa_stream_get_state(_stream) != PA_STREAM_READY && _running) {
+                    while (pa_stream_get_state(_paStream) != PA_STREAM_READY && _running) {
                         pa_mainloop_iterate(_mainloop, 1, NULL);
                         std::this_thread::sleep_for(std::chrono::milliseconds(10));
                     }
@@ -142,7 +142,7 @@ private:
                 if (_streamReady) {
                     // Write audio data
                     std::lock_guard<std::mutex> lock(_audioMutex);
-                    pa_stream_write(_stream, _audioBuffer.data(), _audioBuffer.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
+                    pa_stream_write(_paStream, _audioBuffer.data(), _audioBuffer.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
                     _audioBuffer.clear();
                 }
             }
@@ -150,7 +150,7 @@ private:
                 if (_streamReady) {
                     // Output silence if no data available
                     std::vector<dsp::stereo_t> silence(512, {0.0f, 0.0f});
-                    pa_stream_write(_stream, silence.data(), silence.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
+                    pa_stream_write(_paStream, silence.data(), silence.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
                 }
             }
 
@@ -158,10 +158,10 @@ private:
         }
 
         // Clean up
-        if (_stream) {
-            pa_stream_disconnect(_stream);
-            pa_stream_unref(_stream);
-            _stream = nullptr;
+        if (_paStream) {
+            pa_stream_disconnect(_paStream);
+            pa_stream_unref(_paStream);
+            _paStream = nullptr;
         }
         pa_context_disconnect(context);
         pa_context_unref(context);
@@ -207,6 +207,7 @@ private:
     std::mutex _audioMutex;
     std::vector<dsp::stereo_t> _audioBuffer;
     pa_mainloop* _mainloop = nullptr;
+    pa_stream* _paStream = nullptr;
     bool _streamReady = false;
 };
 
