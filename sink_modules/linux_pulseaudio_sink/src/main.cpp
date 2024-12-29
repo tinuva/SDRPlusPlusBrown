@@ -34,6 +34,10 @@ public:
         // Initialize packer
         stereoPacker.init(_stream->sinkOut, 512);
         
+        // Testing flag for sine wave generation
+        _testSineWave = false;
+        _testPhase = 0.0f;
+        
         // Load config
         config.acquire();
         if (!config.conf.contains(_streamName)) {
@@ -80,6 +84,11 @@ public:
             config.acquire();
             config.conf[_streamName]["device"] = _deviceName;
             config.release(true);
+        }
+
+        // Add test sine wave toggle
+        if (ImGui::Checkbox("Test Sine Wave", &_testSineWave)) {
+            _testPhase = 0.0f; // Reset phase when toggling
         }
     }
 
@@ -219,16 +228,35 @@ private:
                 if (_streamReady) {
                     // Write audio data
                     std::lock_guard<std::mutex> lock(_audioMutex);
-                    flog::info("Writing {} samples to PulseAudio", _audioBuffer.size());
+                    size_t numSamples = _audioBuffer.size();
+                
+                    if (_testSineWave) {
+                        // Generate test sine wave at 440 Hz
+                        const float freq = 440.0f;
+                        const float sampleRate = 48000.0f;
+                        const float phaseInc = 2.0f * M_PI * freq / sampleRate;
                     
+                        for (size_t i = 0; i < numSamples; i++) {
+                            float sample = 0.5f * sinf(_testPhase);
+                            _audioBuffer[i].l = sample;
+                            _audioBuffer[i].r = sample;
+                            _testPhase += phaseInc;
+                            if (_testPhase > 2.0f * M_PI) {
+                                _testPhase -= 2.0f * M_PI;
+                            }
+                        }
+                    }
+                
+                    flog::info("Writing {} samples to PulseAudio", numSamples);
+                
                     // Print first few samples for debugging
-                    for (int i = 0; i < std::min(4, (int)_audioBuffer.size()); i++) {
+                    for (int i = 0; i < std::min(4, (int)numSamples); i++) {
                         flog::info("Sample {}: L={} R={}", i, _audioBuffer[i].l, _audioBuffer[i].r);
                     }
-                    
-                    size_t bytesToWrite = _audioBuffer.size() * sizeof(dsp::stereo_t);
-                    flog::info("Attempting to write {} bytes ({} samples) to PulseAudio", bytesToWrite, _audioBuffer.size());
-                    
+                
+                    size_t bytesToWrite = numSamples * sizeof(dsp::stereo_t);
+                    flog::info("Attempting to write {} bytes ({} samples) to PulseAudio", bytesToWrite, numSamples);
+                
                     int ret = pa_stream_write(_paStream, _audioBuffer.data(), bytesToWrite, NULL, 0, PA_SEEK_RELATIVE);
                     if (ret < 0) {
                         flog::error("pa_stream_write failed: {}", pa_strerror(ret));
@@ -316,6 +344,10 @@ private:
     pa_mainloop* _mainloop = nullptr;
     pa_stream* _paStream = nullptr;
     bool _streamReady = false;
+    
+    // Testing variables
+    bool _testSineWave;
+    float _testPhase;
 };
 
 class PulseAudioSinkModule : public ModuleManager::Instance {
