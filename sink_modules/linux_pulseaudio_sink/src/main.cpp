@@ -97,8 +97,21 @@ private:
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
-        // Enumerate devices
+        // Enumerate devices and log detailed info
         enumerateDevices(context);
+        
+        // Log current default sink
+        pa_operation* op = pa_context_get_server_info(context, [](pa_context* c, const pa_server_info* i, void* userdata) {
+            auto _this = (PulseAudioSink*)userdata;
+            flog::info("PulseAudio server info:");
+            flog::info("  Default sink: {}", i->default_sink_name);
+            flog::info("  Sample spec: {} Hz, {} channels", i->sample_spec.rate, i->sample_spec.channels);
+        }, this);
+        
+        while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
+            pa_mainloop_iterate(_mainloop, 1, NULL);
+        }
+        pa_operation_unref(op);
 
         // Main audio loop
         while (_running) {
@@ -187,6 +200,12 @@ private:
                             flog::error("pa_stream_connect_playback failed: {}", pa_strerror(ret));
                             return;
                         }
+                        
+                        // Explicitly uncork the stream
+                        pa_operation* op = pa_stream_cork(_paStream, 0, NULL, NULL);
+                        if (op) {
+                            pa_operation_unref(op);
+                        }
                     }
                     
                     // Wait for stream to be ready
@@ -267,6 +286,8 @@ private:
             if (_this->_deviceName == i->name) {
                 _this->_selectedDevice = _this->_devices.size() - 1;
             }
+            flog::info("Found audio device: {} ({} channels, {} Hz)", 
+                i->name, i->channel_map.channels, i->sample_spec.rate);
         }, this);
 
 
