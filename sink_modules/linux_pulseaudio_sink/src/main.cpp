@@ -124,55 +124,45 @@ private:
                     .channels = 2
                 };
 
-                pa_stream* stream = pa_stream_new(context, "SDR++ Audio", &ss, NULL);
-                pa_stream_connect_playback(stream, _deviceName.empty() ? NULL : _deviceName.c_str(), NULL, PA_STREAM_NOFLAGS, NULL, NULL);
-
-                // Wait for stream to be ready
-                while (pa_stream_get_state(stream) != PA_STREAM_READY && _running) {
-                    pa_mainloop_iterate(_mainloop, 1, NULL);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                if (!_streamReady) {
+                    // Create stream if not exists
+                    if (!_stream) {
+                        _stream = pa_stream_new(context, "SDR++ Audio", &ss, NULL);
+                        pa_stream_connect_playback(_stream, _deviceName.empty() ? NULL : _deviceName.c_str(), NULL, PA_STREAM_NOFLAGS, NULL, NULL);
+                    }
+                    
+                    // Wait for stream to be ready
+                    while (pa_stream_get_state(_stream) != PA_STREAM_READY && _running) {
+                        pa_mainloop_iterate(_mainloop, 1, NULL);
+                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    }
+                    _streamReady = true;
                 }
 
-                if (pa_stream_get_state(stream) == PA_STREAM_READY) {
+                if (_streamReady) {
                     // Write audio data
                     std::lock_guard<std::mutex> lock(_audioMutex);
-                    pa_stream_write(stream, _audioBuffer.data(), _audioBuffer.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
+                    pa_stream_write(_stream, _audioBuffer.data(), _audioBuffer.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
                     _audioBuffer.clear();
                 }
-
-                pa_stream_disconnect(stream);
-                pa_stream_unref(stream);
             }
             else {
-                // Output silence if no data available
-                std::vector<dsp::stereo_t> silence(512, {0.0f, 0.0f});
-                pa_sample_spec ss = {
-                    .format = PA_SAMPLE_FLOAT32LE,
-                    .rate = 48000,
-                    .channels = 2
-                };
-
-                pa_stream* stream = pa_stream_new(context, "SDR++ Audio", &ss, NULL);
-                pa_stream_connect_playback(stream, _deviceName.empty() ? NULL : _deviceName.c_str(), NULL, PA_STREAM_NOFLAGS, NULL, NULL);
-
-                // Wait for stream to be ready
-                while (pa_stream_get_state(stream) != PA_STREAM_READY && _running) {
-                    pa_mainloop_iterate(_mainloop, 1, NULL);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                if (_streamReady) {
+                    // Output silence if no data available
+                    std::vector<dsp::stereo_t> silence(512, {0.0f, 0.0f});
+                    pa_stream_write(_stream, silence.data(), silence.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
                 }
-
-                if (pa_stream_get_state(stream) == PA_STREAM_READY) {
-                    pa_stream_write(stream, silence.data(), silence.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
-                }
-
-                pa_stream_disconnect(stream);
-                pa_stream_unref(stream);
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
         // Clean up
+        if (_stream) {
+            pa_stream_disconnect(_stream);
+            pa_stream_unref(_stream);
+            _stream = nullptr;
+        }
         pa_context_disconnect(context);
         pa_context_unref(context);
         if (_mainloop) {
@@ -217,6 +207,8 @@ private:
     std::mutex _audioMutex;
     std::vector<dsp::stereo_t> _audioBuffer;
     pa_mainloop* _mainloop = nullptr;
+    pa_stream* _stream = nullptr;
+    bool _streamReady = false;
 };
 
 class PulseAudioSinkModule : public ModuleManager::Instance {
