@@ -207,7 +207,6 @@ private:
     std::mutex _audioMutex;
     std::vector<dsp::stereo_t> _audioBuffer;
     pa_mainloop* _mainloop = nullptr;
-    pa_stream* _stream = nullptr;
     bool _streamReady = false;
 };
 
