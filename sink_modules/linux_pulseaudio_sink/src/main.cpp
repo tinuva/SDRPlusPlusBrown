@@ -263,7 +263,6 @@ private:
     }
 
     void writeCallback(size_t length) {
-        // Always write something to keep the stream active
         void* data;
         size_t chunkSize = length;
         
@@ -271,36 +270,28 @@ private:
             return;
         }
 
-        // Always write silence to keep the stream active
-        memset(data, 0, chunkSize);
-
-        // If we have audio data, mix it in
+        // If we have audio data, write it directly
         if (gui::mainWindow.isPlaying() && stereoPacker.out.isDataReady()) {
             int count = stereoPacker.out.read();
             if (count > 0) {
                 size_t bytesToWrite = std::min(chunkSize, (size_t)count * sizeof(dsp::stereo_t));
-                // Mix the audio data with the silence buffer
-                dsp::stereo_t* out = (dsp::stereo_t*)data;
-                dsp::stereo_t* in = stereoPacker.out.readBuf;
-                for (size_t i = 0; i < bytesToWrite / sizeof(dsp::stereo_t); i++) {
-                    out[i].l += in[i].l;
-                    out[i].r += in[i].r;
-                }
+                memcpy(data, stereoPacker.out.readBuf, bytesToWrite);
                 stereoPacker.out.flush();
+                
+                // If we didn't fill the entire buffer, zero the rest
+                if (bytesToWrite < chunkSize) {
+                    memset((uint8_t*)data + bytesToWrite, 0, chunkSize - bytesToWrite);
+                }
+            } else {
+                // No data available, write silence
+                memset(data, 0, chunkSize);
             }
+        } else {
+            // Not playing, write silence
+            memset(data, 0, chunkSize);
         }
 
         pa_stream_write(stream, data, chunkSize, NULL, 0, PA_SEEK_RELATIVE);
-        flog::info("Wrote buffer, bytes: {}", chunkSize);
-
-        // Always request another callback after a short delay
-        struct timeval tv = {
-            .tv_sec = 0,
-            .tv_usec = 10000 // 10ms delay
-        };
-        pa_mainloop_api_once(mainloop_api, [](pa_mainloop_api* a, void* userdata) {
-            pa_stream_trigger((pa_stream*)userdata, NULL, NULL);
-        }, stream);
     }
 
     void enumerateDevices() {
