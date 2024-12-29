@@ -9,7 +9,10 @@
 #include <config.h>
 #include <core.h>
 #include <pulse/pulseaudio.h>
-#include <sys/time.h>
+#include <atomic>
+#include <mutex>
+#include <vector>
+#include <thread>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -25,436 +28,190 @@ ConfigManager config;
 
 class PulseAudioSink : SinkManager::Sink {
 public:
-    struct AudioDevice {
-        std::string name;
-        std::string description;
-        std::vector<double> sampleRates;
-        std::string sampleRatesTxt;
-    };
-
-    PulseAudioSink(SinkManager::Stream* stream, std::string streamName) {
-        _stream = stream;
-        _streamName = streamName;
-        s2m.init(_stream->sinkOut);
-        stereoPacker.init(_stream->sinkOut, 8192);
-
-        // Initialize PulseAudio mainloop
-        mainloop = pa_mainloop_new();
-        mainloop_api = pa_mainloop_get_api(mainloop);
-        context = pa_context_new(mainloop_api, "SDR++ PulseAudio Sink");
-
-        // Connect to PulseAudio server
-        pa_context_connect(context, NULL, PA_CONTEXT_NOFLAGS, NULL);
-
-        // Set state callback
-        pa_context_set_state_callback(context, [](pa_context* c, void* userdata) {
-            PulseAudioSink* _this = (PulseAudioSink*)userdata;
-            if (pa_context_get_state(c) == PA_CONTEXT_READY) {
-                _this->contextReady = true;
-            }
-        }, this);
-
-        // Start mainloop thread
-        mainloopRunning = true;
-        mainloopThread = std::thread([this]() {
-            while (mainloopRunning) {
-                if (!mainloop) {
-                    flog::error("PulseAudio mainloop is null");
-                    break;
-                }
-                
-                // Check if mainloop is still valid
-                if (!mainloop) {
-                    flog::error("PulseAudio mainloop is null");
-                    break;
-                }
-
-                int ret = pa_mainloop_iterate(mainloop, 1, NULL);
-                if (ret < 0) {
-                    flog::error("PulseAudio mainloop iteration failed");
-                    break;
-                }
-                
-                // Small sleep to prevent busy-waiting
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            }
-        });
-
-        // Get available devices
-        enumerateDevices();
-
+    PulseAudioSink(SinkManager::Stream* stream, std::string streamName) : 
+        _stream(stream), _streamName(streamName) {
+        
+        // Initialize packer
+        stereoPacker.init(_stream->sinkOut, 512);
+        
         // Load config
         config.acquire();
         if (!config.conf.contains(_streamName)) {
             config.conf[_streamName]["device"] = "";
-            config.conf[_streamName]["devices"] = json({});
         }
-        std::string device = config.conf[_streamName]["device"];
+        _deviceName = config.conf[_streamName]["device"];
         config.release(true);
 
-        selectByName(device);
+        // Start audio thread
+        _running = true;
+        _audioThread = std::thread(&PulseAudioSink::audioThread, this);
     }
 
     ~PulseAudioSink() {
         stop();
-        if (stream) {
-            pa_stream_disconnect(stream);
-            pa_stream_unref(stream);
-        }
-        if (context) {
-            pa_context_disconnect(context);
-            pa_context_unref(context);
-        }
-        // Stop mainloop thread
-        mainloopRunning = false;
-        if (mainloopThread.joinable()) {
-            mainloopThread.join();
-        }
-
-        // Clean up mainloop
-        if (mainloop) {
-            // Just quit the mainloop if it exists
-            pa_mainloop_quit(mainloop, 0);
-            pa_mainloop_free(mainloop);
-            mainloop = nullptr;
+        if (_audioThread.joinable()) {
+            _running = false;
+            _audioThread.join();
         }
     }
 
     void start() {
-        if (running) { return; }
-        running = doStart();
+        if (_playing) return;
+        _playing = true;
+        stereoPacker.start();
     }
 
     void stop() {
-        if (!running) { return; }
-        doStop();
-        running = false;
-    }
-
-    void selectFirst() {
-        if (!devices.empty()) {
-            selectById(0);
-        }
-    }
-
-    void selectByName(std::string name) {
-        for (int i = 0; i < devices.size(); i++) {
-            if (devices[i].name == name) {
-                selectById(i);
-                return;
-            }
-        }
-        selectFirst();
-    }
-
-    void selectById(int id) {
-        if (id < 0 || id >= devices.size()) { return; }
-        
-        devId = id;
-        auto& dev = devices[devId];
-
-        // Load sample rate from config
-        config.acquire();
-        if (!config.conf[_streamName]["devices"].contains(dev.name)) {
-            config.conf[_streamName]["devices"][dev.name] = dev.sampleRates[0];
-        }
-        sampleRate = config.conf[_streamName]["devices"][dev.name];
-        config.release(true);
-
-        // Find sample rate ID
-        bool found = false;
-        for (int i = 0; i < dev.sampleRates.size(); i++) {
-            if (dev.sampleRates[i] == sampleRate) {
-                srId = i;
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            sampleRate = dev.sampleRates[0];
-            srId = 0;
-        }
-
-        _stream->setSampleRate(sampleRate);
-
-        if (running) {
-            doStop();
-            doStart();
-        }
+        if (!_playing) return;
+        _playing = false;
+        stereoPacker.stop();
     }
 
     void menuHandler() {
         float menuWidth = ImGui::GetContentRegionAvail().x;
 
-        // Device selection
         ImGui::SetNextItemWidth(menuWidth);
-        if (ImGui::Combo(("##_pulseaudio_sink_dev_" + _streamName).c_str(), &devId, [](void* data, int idx, const char** out_text) {
-            auto devices = (std::vector<AudioDevice>*)data;
-            *out_text = devices->at(idx).description.c_str();
+        if (ImGui::Combo(("##_pulseaudio_sink_dev_" + _streamName).c_str(), &_selectedDevice, [](void* data, int idx, const char** out_text) {
+            auto devices = (std::vector<std::string>*)data;
+            *out_text = devices->at(idx).c_str();
             return true;
-        }, &devices, devices.size())) {
-            selectById(devId);
+        }, &_devices, _devices.size())) {
+            _deviceName = _devices[_selectedDevice];
             config.acquire();
-            config.conf[_streamName]["device"] = devices[devId].name;
+            config.conf[_streamName]["device"] = _deviceName;
             config.release(true);
-        }
-
-        // Sample rate selection
-        if (devId >= 0 && devId < devices.size()) {
-            ImGui::SetNextItemWidth(menuWidth);
-            if (ImGui::Combo(("##_pulseaudio_sink_sr_" + _streamName).c_str(), &srId, devices[devId].sampleRatesTxt.c_str())) {
-                sampleRate = devices[devId].sampleRates[srId];
-                _stream->setSampleRate(sampleRate);
-                if (running) {
-                    doStop();
-                    doStart();
-                }
-                config.acquire();
-                config.conf[_streamName]["devices"][devices[devId].name] = sampleRate;
-                config.release(true);
-            }
-        }
-        
-        if (underflow != 0) {
-            // ImGui::SameLine();
-            // ImGui::Text("Underflow %d", underflow);
         }
     }
 
 private:
-    bool doStart() {
-        if (devId < 0 || devId >= devices.size()) { return false; }
-        
-        auto& dev = devices[devId];
-        
-        // Create stream
-        pa_sample_spec ss = {
-            .format = PA_SAMPLE_FLOAT32LE,
-            .rate = (uint32_t)sampleRate,
-            .channels = 2
-        };
+    void audioThread() {
+        pa_mainloop* mainloop = pa_mainloop_new();
+        pa_mainloop_api* api = pa_mainloop_get_api(mainloop);
+        pa_context* context = pa_context_new(api, "SDR++ PulseAudio Sink");
 
-        stream = pa_stream_new(context, "SDR++ Audio", &ss, NULL);
-        if (!stream) {
-            flog::error("Could not create PulseAudio stream");
-            return false;
-        }
+        pa_context_connect(context, NULL, PA_CONTEXT_NOFLAGS, NULL);
 
-        // Set stream callbacks
-        pa_stream_set_state_callback(stream, [](pa_stream* s, void* userdata) {
-            PulseAudioSink* _this = (PulseAudioSink*)userdata;
-            if (pa_stream_get_state(s) == PA_STREAM_READY) {
-                _this->streamReady = true;
-            }
-        }, this);
-
-        pa_stream_set_write_callback(stream, [](pa_stream* s, size_t length, void* userdata) {
-            ((PulseAudioSink*)userdata)->writeCallback(length);
-        }, this);
-
-        // Connect stream to device
-        pa_buffer_attr buffer_attr = {
-            .maxlength = (uint32_t)(sampleRate * 0.1 * sizeof(dsp::stereo_t)), // 100ms buffer
-            .tlength = (uint32_t)(sampleRate * 0.02 * sizeof(dsp::stereo_t)), // 20ms target
-            .prebuf = (uint32_t)-1,
-            .minreq = (uint32_t)(sampleRate * 0.005 * sizeof(dsp::stereo_t)), // 5ms minimum
-            .fragsize = (uint32_t)(sampleRate * 0.005 * sizeof(dsp::stereo_t)) // 5ms fragments
-        };
-
-        int flags = PA_STREAM_ADJUST_LATENCY | PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_INTERPOLATE_TIMING | PA_STREAM_START_CORKED;
-        if (pa_stream_connect_playback(stream, dev.name.c_str(), &buffer_attr, (pa_stream_flags_t)flags, NULL, NULL) != 0) {
-            flog::error("Could not connect PulseAudio stream");
-            return false;
-        }
-
-        // Wait for stream to be ready with timeout
-        int timeout = 100; // 100 iterations = ~1 second
-        while (!streamReady && timeout-- > 0) {
+        // Wait for context to be ready
+        while (_running && pa_context_get_state(context) != PA_CONTEXT_READY) {
             pa_mainloop_iterate(mainloop, 1, NULL);
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-        if (!streamReady) {
-            flog::error("Failed to initialize PulseAudio stream");
-            return false;
-        }
 
-        stereoPacker.start();
-        return true;
-    }
+        // Enumerate devices
+        enumerateDevices(context);
 
-    void doStop() {
-        if (stream) {
-            pa_stream_disconnect(stream);
-        }
-        stereoPacker.stop();
-    }
+        // Main audio loop
+        while (_running) {
+            if (!_stream || !_playing) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                continue;
+            }
 
-    void writeCallback(size_t length) {
-        void* data;
-        size_t chunkSize = length;
-        
-        if (pa_stream_begin_write(stream, &data, &chunkSize) != 0) {
-            return;
-        }
-
-        // If we have audio data, write it directly
-        if (gui::mainWindow.isPlaying() && stereoPacker.out.isDataReady()) {
-            int count = stereoPacker.out.read();
+            // Get audio data from packer
+            int count = stereoPacker.out.isDataReady() ? stereoPacker.out.read() : -1;
             if (count > 0) {
-                size_t bytesToWrite = std::min(chunkSize, (size_t)count * sizeof(dsp::stereo_t));
-                memcpy(data, stereoPacker.out.readBuf, bytesToWrite);
+                std::lock_guard<std::mutex> lock(_audioMutex);
+                _audioBuffer.resize(count);
+                memcpy(_audioBuffer.data(), stereoPacker.out.readBuf, count * sizeof(dsp::stereo_t));
                 stereoPacker.out.flush();
-                
-                // If we didn't fill the entire buffer, zero the rest
-                if (bytesToWrite < chunkSize) {
-                    memset((uint8_t*)data + bytesToWrite, 0, chunkSize - bytesToWrite);
+            }
+
+            // Write to PulseAudio
+            if (!_audioBuffer.empty()) {
+                pa_sample_spec ss = {
+                    .format = PA_SAMPLE_FLOAT32LE,
+                    .rate = 48000,
+                    .channels = 2
+                };
+
+                pa_stream* stream = pa_stream_new(context, "SDR++ Audio", &ss, NULL);
+                pa_stream_connect_playback(stream, _deviceName.empty() ? NULL : _deviceName.c_str(), NULL, PA_STREAM_NOFLAGS, NULL, NULL);
+
+                // Wait for stream to be ready
+                while (pa_stream_get_state(stream) != PA_STREAM_READY && _running) {
+                    pa_mainloop_iterate(mainloop, 1, NULL);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 }
-            } else {
-                // No data available, write silence
-                memset(data, 0, chunkSize);
-            }
-        } else {
-            // Not playing, write silence
-            memset(data, 0, chunkSize);
-        }
 
-        pa_stream_write(stream, data, chunkSize, NULL, 0, PA_SEEK_RELATIVE);
-    }
-
-    void enumerateDevices() {
-        std::unique_lock<std::mutex> lock(operationMutex);
-        
-        // Clear existing devices
-        devices.clear();
-
-        // Wait for context to be ready with proper state checking
-        int timeout = 100;
-        while (timeout-- > 0) {
-            pa_context_state_t state = pa_context_get_state(context);
-            if (state == PA_CONTEXT_READY) {
-                break;
-            }
-            if (state == PA_CONTEXT_FAILED || state == PA_CONTEXT_TERMINATED) {
-                flog::error("PulseAudio context failed or terminated");
-                return;
-            }
-            
-            // Only iterate if context is in a state that allows it
-            if (state == PA_CONTEXT_CONNECTING || state == PA_CONTEXT_AUTHORIZING || state == PA_CONTEXT_SETTING_NAME) {
-                int ret = pa_mainloop_iterate(mainloop, 1, NULL);
-                if (ret < 0) {
-                    flog::error("PulseAudio mainloop iteration failed");
-                    return;
+                if (pa_stream_get_state(stream) == PA_STREAM_READY) {
+                    // Write audio data
+                    std::lock_guard<std::mutex> lock(_audioMutex);
+                    pa_stream_write(stream, _audioBuffer.data(), _audioBuffer.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
+                    _audioBuffer.clear();
                 }
+
+                pa_stream_disconnect(stream);
+                pa_stream_unref(stream);
             }
-            
+            else {
+                // Output silence if no data available
+                std::vector<dsp::stereo_t> silence(512, {0.0f, 0.0f});
+                pa_sample_spec ss = {
+                    .format = PA_SAMPLE_FLOAT32LE,
+                    .rate = 48000,
+                    .channels = 2
+                };
+
+                pa_stream* stream = pa_stream_new(context, "SDR++ Audio", &ss, NULL);
+                pa_stream_connect_playback(stream, _deviceName.empty() ? NULL : _deviceName.c_str(), NULL, PA_STREAM_NOFLAGS, NULL, NULL);
+
+                // Wait for stream to be ready
+                while (pa_stream_get_state(stream) != PA_STREAM_READY && _running) {
+                    pa_mainloop_iterate(mainloop, 1, NULL);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                }
+
+                if (pa_stream_get_state(stream) == PA_STREAM_READY) {
+                    pa_stream_write(stream, silence.data(), silence.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
+                }
+
+                pa_stream_disconnect(stream);
+                pa_stream_unref(stream);
+            }
+
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
-        if (pa_context_get_state(context) != PA_CONTEXT_READY) {
-            flog::error("PulseAudio context not ready for device enumeration");
-            return;
-        }
+        // Clean up
+        pa_context_disconnect(context);
+        pa_context_unref(context);
+        pa_mainloop_free(mainloop);
+    }
 
-        // Create new operation
+    void enumerateDevices(pa_context* context) {
         pa_operation* op = pa_context_get_sink_info_list(context, [](pa_context* c, const pa_sink_info* i, int eol, void* userdata) {
             auto _this = (PulseAudioSink*)userdata;
             
-            if (eol) { return; }
+            if (eol) return;
 
-            std::unique_lock<std::mutex> lock(_this->operationMutex);
-            
-            AudioDevice dev;
-            dev.name = i->name;
-            dev.description = i->description;
-
-            // Get supported sample rates from actual device capabilities
-            dev.sampleRates = { 44100, 48000, 96000, 192000 }; // Common rates
-            for (auto sr : dev.sampleRates) {
-                dev.sampleRatesTxt += std::to_string((int)sr);
-                dev.sampleRatesTxt += '\0';
+            _this->_devices.push_back(i->name);
+            if (_this->_deviceName == i->name) {
+                _this->_selectedDevice = _this->_devices.size() - 1;
             }
-
-            _this->devices.push_back(dev);
         }, this);
 
-        if (!op) {
-            flog::error("Failed to create PulseAudio operation: {}", pa_strerror(pa_context_errno(context)));
-            return;
-        }
-
-        // Wait for operation to complete with timeout
-        timeout = 200; // 200 iterations = ~2 seconds
-        while (timeout-- > 0) {
-            // Check if mainloop is still valid
-            if (!mainloop) {
-                flog::error("PulseAudio mainloop is null during device enumeration");
-                break;
-            }
-
-            // Only iterate if context is ready
-            if (pa_context_get_state(context) == PA_CONTEXT_READY) {
-                int ret = pa_mainloop_iterate(mainloop, 1, NULL);
-                if (ret < 0) {
-                    flog::error("PulseAudio mainloop iteration failed during device enumeration");
-                    break;
-                }
-            }
-
-            pa_operation_state_t state = pa_operation_get_state(op);
-            if (state != PA_OPERATION_RUNNING) {
-                break;
-            }
-            
+        while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
+            pa_mainloop_iterate(pa_context_get_mainloop(context), 1, NULL);
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
-        if (timeout <= 0) {
-            flog::warn("PulseAudio device enumeration timed out");
-        }
-
-        if (op) {
-            pa_operation_unref(op);
-        }
-
-        // If no devices found, add default device
-        if (devices.empty()) {
-            flog::warn("No PulseAudio devices found, adding default device");
-            AudioDevice dev;
-            dev.name = "default";
-            dev.description = "Default PulseAudio Device";
-            dev.sampleRates = { 44100, 48000, 96000, 192000 };
-            for (auto sr : dev.sampleRates) {
-                dev.sampleRatesTxt += std::to_string((int)sr);
-                dev.sampleRatesTxt += '\0';
-            }
-            devices.push_back(dev);
-        }
+        pa_operation_unref(op);
     }
 
     SinkManager::Stream* _stream;
-    dsp::convert::StereoToMono s2m;
     dsp::buffer::Packer<dsp::stereo_t> stereoPacker;
 
     std::string _streamName;
+    std::string _deviceName;
+    std::vector<std::string> _devices;
+    int _selectedDevice = 0;
 
-    int srId = 0;
-    int devId = -1;
-    bool running = false;
-    int underflow = 0;
+    std::atomic<bool> _running{false};
+    std::atomic<bool> _playing{false};
+    std::thread _audioThread;
 
-    std::vector<AudioDevice> devices;
-    double sampleRate = 48000;
-
-    pa_mainloop* mainloop = nullptr;
-    pa_mainloop_api* mainloop_api = nullptr;
-    pa_context* context = nullptr;
-    pa_stream* stream = nullptr;
-    bool contextReady = false;
-    bool streamReady = false;
-    bool mainloopRunning = false;
-    std::thread mainloopThread;
-    std::mutex operationMutex;
+    std::mutex _audioMutex;
+    std::vector<dsp::stereo_t> _audioBuffer;
 };
 
 class PulseAudioSinkModule : public ModuleManager::Instance {
