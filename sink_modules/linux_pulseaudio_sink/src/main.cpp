@@ -124,10 +124,19 @@ private:
                     .channels = 2
                 };
 
+                pa_buffer_attr buffer_attr = {
+                    .maxlength = (uint32_t)-1,
+                    .tlength = 512 * sizeof(dsp::stereo_t),
+                    .prebuf = (uint32_t)-1,
+                    .minreq = 512 * sizeof(dsp::stereo_t),
+                    .fragsize = (uint32_t)-1
+                };
+
                 if (!_streamReady) {
                     // Create stream if not exists
                     if (!_paStream) {
                         _paStream = pa_stream_new(context, "SDR++ Audio", &ss, NULL);
+                        pa_stream_set_buffer_attr(_paStream, &buffer_attr, NULL, NULL);
                         if (!_paStream) {
                             flog::error("Failed to create PulseAudio stream");
                             return;
@@ -146,7 +155,7 @@ private:
                     
                         int ret = pa_stream_connect_playback(_paStream, 
                             _deviceName.empty() ? NULL : _deviceName.c_str(), 
-                            NULL, PA_STREAM_NOFLAGS, NULL, NULL);
+                            &buffer_attr, PA_STREAM_ADJUST_LATENCY | PA_STREAM_AUTO_TIMING_UPDATE, NULL, NULL);
                         if (ret < 0) {
                             flog::error("pa_stream_connect_playback failed: {}", pa_strerror(ret));
                             return;
