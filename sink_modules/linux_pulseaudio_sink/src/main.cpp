@@ -177,23 +177,7 @@ private:
                                 state == PA_STREAM_TERMINATED ? "TERMINATED" : "UNKNOWN");
                             
                             if (state == PA_STREAM_READY) {
-                                const pa_buffer_attr* buffer_attr = pa_stream_get_buffer_attr(s);
-                                if (buffer_attr) {
-                                    flog::info("Buffer attributes: maxlength={}, tlength={}, prebuf={}, minreq={}, fragsize={}",
-                                        buffer_attr->maxlength,
-                                        buffer_attr->tlength,
-                                        buffer_attr->prebuf,
-                                        buffer_attr->minreq,
-                                        buffer_attr->fragsize);
-                                }
-                                
-                                const pa_sample_spec* ss = pa_stream_get_sample_spec(s);
-                                if (ss) {
-                                    flog::info("Sample spec: format={}, rate={}, channels={}",
-                                        (int)ss->format,
-                                        (int)ss->rate,
-                                        (int)ss->channels);
-                                }
+                                // Buffer attributes and sample spec are valid
                             }
                         }, this);
                     
