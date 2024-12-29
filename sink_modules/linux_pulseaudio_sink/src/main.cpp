@@ -198,8 +198,7 @@ private:
                         }, this);
                     
                         pa_stream_set_write_callback(_paStream, [](pa_stream* s, size_t length, void* userdata) {
-                            auto _this = (PulseAudioSink*)userdata;
-                            flog::info("Write callback: {} bytes requested", length);
+                            // Write callback triggered
                         }, this);
                     
                         int ret = pa_stream_connect_playback(_paStream, 
@@ -247,24 +246,8 @@ private:
                         }
                     }
                     
-                    flog::info("Writing {} samples to PulseAudio", numSamples);
-                    
-                    // Print first few samples for debugging
-                    for (int i = 0; i < std::min(4, (int)numSamples); i++) {
-                        flog::info("Sample {}: L={} R={}", i, _audioBuffer[i].l, _audioBuffer[i].r);
-                    }
-                    
                     size_t bytesToWrite = numSamples * sizeof(dsp::stereo_t);
-                    flog::info("Attempting to write {} bytes ({} samples) to PulseAudio", bytesToWrite, numSamples);
-                    
-                    // Check stream state before write
                     pa_stream_state_t state = pa_stream_get_state(_paStream);
-                    flog::info("Stream state before write: {}", 
-                        state == PA_STREAM_UNCONNECTED ? "UNCONNECTED" :
-                        state == PA_STREAM_CREATING ? "CREATING" :
-                        state == PA_STREAM_READY ? "READY" :
-                        state == PA_STREAM_FAILED ? "FAILED" :
-                        state == PA_STREAM_TERMINATED ? "TERMINATED" : "UNKNOWN");
 
                     // Check if stream is suspended
                     auto suspend_state = pa_stream_is_suspended(_paStream);
@@ -306,22 +289,8 @@ private:
                     if (ret < 0) {
                         flog::error("pa_stream_write failed: {}", pa_strerror(ret));
                     } else {
-                        flog::info("Successfully wrote {} bytes to PulseAudio", bytesToWrite);
-                            
-                        // Check stream state after write
-                        state = pa_stream_get_state(_paStream);
-                        flog::info("Stream state after write: {}", 
-                            state == PA_STREAM_UNCONNECTED ? "UNCONNECTED" :
-                            state == PA_STREAM_CREATING ? "CREATING" :
-                            state == PA_STREAM_READY ? "READY" :
-                            state == PA_STREAM_FAILED ? "FAILED" :
-                            state == PA_STREAM_TERMINATED ? "TERMINATED" : "UNKNOWN");
-                            
                         // Check if stream is corked
-                        int corked = pa_stream_is_corked(_paStream);
-                        if (corked) {
-                            flog::warn("Stream is corked - no audio will be played");
-                            // Attempt to uncork
+                        if (pa_stream_is_corked(_paStream)) {
                             pa_operation* op = pa_stream_cork(_paStream, 0, NULL, NULL);
                             if (op) pa_operation_unref(op);
                         }
@@ -332,7 +301,7 @@ private:
                             [](pa_context* c, const pa_sink_info* i, int eol, void* userdata) {
                                 if (eol) return;
                                 if (i->mute) {
-                                    flog::warn("Sink is muted - no audio will be played");
+                                    flog::warn("Sink is muted");
                                 }
                             }, this);
                         if (op) {
@@ -340,13 +309,6 @@ private:
                                 pa_mainloop_iterate(_mainloop, 1, NULL);
                             }
                             pa_operation_unref(op);
-                        }
-
-                        // Check latency
-                        pa_usec_t latency;
-                        int negative;
-                        if (pa_stream_get_latency(_paStream, &latency, &negative) >= 0) {
-                            flog::info("Stream latency: {} μs", latency);
                         }
                     }
                     _audioBuffer.clear();
@@ -387,8 +349,7 @@ private:
             if (_this->_deviceName == i->name) {
                 _this->_selectedDevice = _this->_devices.size() - 1;
             }
-            flog::info("Found audio device: {} ({} channels, {} Hz)", 
-                i->name, i->channel_map.channels, i->sample_spec.rate);
+            // Found audio device
         }, this);
 
 
