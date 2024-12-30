@@ -543,7 +543,6 @@ private:
 
     void enumerateDevices() {
         devices.clear();
-        micDevices.clear();
         AudioObjectPropertyAddress prop = {
             .mSelector = kAudioHardwarePropertyDevices,
             .mScope = kAudioObjectPropertyScopeGlobal,
