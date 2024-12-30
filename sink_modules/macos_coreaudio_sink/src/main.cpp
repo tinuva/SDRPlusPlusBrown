@@ -29,9 +29,30 @@ public:
         std::string name;
         std::vector<double> sampleRates;
         std::string sampleRatesTxt;
+        bool isInput = false;
     };
 
+    dsp::stream<dsp::stereo_t> microphone = "coreaudio_sink.microphone";
+    AudioUnit inputUnit = nullptr;
+    bool useMic = false;
+    int micDevId = -1;
+
     CoreAudioSink(SinkManager::Stream* stream, std::string streamName) {
+        // Load mic config
+        config.acquire();
+        if (config.conf[_streamName].contains("useMic")) {
+            useMic = config.conf[_streamName]["useMic"];
+        }
+        if (config.conf[_streamName].contains("micDevice")) {
+            std::string micDevice = config.conf[_streamName]["micDevice"];
+            for (int i = 0; i < micDevices.size(); i++) {
+                if (micDevices[i].name == micDevice) {
+                    micDevId = i;
+                    break;
+                }
+            }
+        }
+        config.release();
         _stream = stream;
         _streamName = streamName;
         s2m.init(_stream->sinkOut);
@@ -157,6 +178,38 @@ public:
             // ImGui::SameLine();
             // ImGui::Text("Underflow %d", underflow);
         }
+
+        // Microphone section
+        if (ImGui::CollapsingHeader("Microphone")) {
+            // Use microphone checkbox
+            if (ImGui::Checkbox("Use Microphone", &useMic)) {
+                config.acquire();
+                config.conf[_streamName]["useMic"] = useMic;
+                config.release(true);
+                if (running) {
+                    doStop();
+                    doStart();
+                }
+            }
+
+            // Microphone device selection
+            if (useMic) {
+                ImGui::SetNextItemWidth(menuWidth);
+                if (ImGui::Combo("##_coreaudio_sink_mic_dev", &micDevId, [](void* data, int idx, const char** out_text) {
+                    auto devices = (std::vector<AudioDevice>*)data;
+                    *out_text = devices->at(idx).name.c_str();
+                    return true;
+                }, &micDevices, micDevices.size())) {
+                    config.acquire();
+                    config.conf[_streamName]["micDevice"] = micDevices[micDevId].name;
+                    config.release(true);
+                    if (running) {
+                        doStop();
+                        doStart();
+                    }
+                }
+            }
+        }
     }
 
 private:
@@ -276,10 +329,139 @@ private:
             return false;
         }
 
+        // Set up microphone input if enabled
+        if (useMic && micDevId >= 0 && micDevId < micDevices.size()) {
+            AudioComponentDescription desc = {
+                .componentType = kAudioUnitType_Output,
+                .componentSubType = kAudioUnitSubType_HALOutput,
+                .componentManufacturer = kAudioUnitManufacturer_Apple,
+                .componentFlags = 0,
+                .componentFlagsMask = 0
+            };
+
+            AudioComponent comp = AudioComponentFindNext(NULL, &desc);
+            if (!comp) {
+                flog::error("Could not find audio component for microphone");
+                return false;
+            }
+
+            status = AudioComponentInstanceNew(comp, &inputUnit);
+            if (status != noErr) {
+                flog::error("Could not create microphone audio unit");
+                return false;
+            }
+
+            // Set microphone device
+            status = AudioUnitSetProperty(inputUnit,
+                                        kAudioOutputUnitProperty_CurrentDevice,
+                                        kAudioUnitScope_Global,
+                                        0,
+                                        &micDevices[micDevId].id,
+                                        sizeof(micDevices[micDevId].id));
+            if (status != noErr) {
+                flog::error("Could not set microphone device");
+                return false;
+            }
+
+            // Set stream format
+            AudioStreamBasicDescription streamFormat = {
+                .mSampleRate = sampleRate,
+                .mFormatID = kAudioFormatLinearPCM,
+                .mFormatFlags = kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked,
+                .mBytesPerPacket = sizeof(float),
+                .mFramesPerPacket = 1,
+                .mBytesPerFrame = sizeof(float),
+                .mChannelsPerFrame = 1,
+                .mBitsPerChannel = sizeof(float) * 8,
+                .mReserved = 0
+            };
+
+            status = AudioUnitSetProperty(inputUnit,
+                                        kAudioUnitProperty_StreamFormat,
+                                        kAudioUnitScope_Output,
+                                        1,
+                                        &streamFormat,
+                                        sizeof(streamFormat));
+            if (status != noErr) {
+                flog::error("Could not set microphone stream format");
+                return false;
+            }
+
+            // Set input callback
+            AURenderCallbackStruct callback = {
+                .inputProc = inputCallback,
+                .inputProcRefCon = this
+            };
+
+            status = AudioUnitSetProperty(inputUnit,
+                                        kAudioOutputUnitProperty_SetInputCallback,
+                                        kAudioUnitScope_Global,
+                                        0,
+                                        &callback,
+                                        sizeof(callback));
+            if (status != noErr) {
+                flog::error("Could not set microphone input callback");
+                return false;
+            }
+
+            // Initialize and start microphone
+            status = AudioUnitInitialize(inputUnit);
+            if (status != noErr) {
+                flog::error("Could not initialize microphone audio unit");
+                return false;
+            }
+
+            status = AudioOutputUnitStart(inputUnit);
+            if (status != noErr) {
+                flog::error("Could not start microphone audio unit");
+                return false;
+            }
+
+            sigpath::sinkManager.defaultInputAudio.setInput(&microphone);
+            sigpath::sinkManager.defaultInputAudio.start();
+        }
+
         // Set packer buffer size to match audio unit buffer size
         stereoPacker.setSampleCount(bufferFrameSize);
         stereoPacker.start();
         return true;
+    }
+
+    static OSStatus inputCallback(void* inRefCon,
+                                AudioUnitRenderActionFlags* ioActionFlags,
+                                const AudioTimeStamp* inTimeStamp,
+                                UInt32 inBusNumber,
+                                UInt32 inNumberFrames,
+                                AudioBufferList* ioData) {
+        CoreAudioSink* _this = (CoreAudioSink*)inRefCon;
+
+        AudioBufferList bufferList;
+        bufferList.mNumberBuffers = 1;
+        bufferList.mBuffers[0].mDataByteSize = inNumberFrames * sizeof(float);
+        bufferList.mBuffers[0].mData = malloc(inNumberFrames * sizeof(float));
+        bufferList.mBuffers[0].mNumberChannels = 1;
+
+        OSStatus status = AudioUnitRender(_this->inputUnit,
+                                        ioActionFlags,
+                                        inTimeStamp,
+                                        inBusNumber,
+                                        inNumberFrames,
+                                        &bufferList);
+        if (status != noErr) {
+            free(bufferList.mBuffers[0].mData);
+            return status;
+        }
+
+        float* input = (float*)bufferList.mBuffers[0].mData;
+        auto out = (dsp::stereo_t*)_this->microphone.writeBuf;
+        for (UInt32 i = 0; i < inNumberFrames; i++) {
+            out[i].l = input[i];
+            out[i].r = input[i];
+        }
+        _this->microphone.swap(inNumberFrames);
+
+        free(bufferList.mBuffers[0].mData);
+        return noErr;
     }
 
     void doStop() {
@@ -289,7 +471,17 @@ private:
             AudioComponentInstanceDispose(audioUnit);
             audioUnit = nullptr;
         }
+        if (inputUnit) {
+            AudioOutputUnitStop(inputUnit);
+            AudioUnitUninitialize(inputUnit);
+            AudioComponentInstanceDispose(inputUnit);
+            inputUnit = nullptr;
+        }
         stereoPacker.stop();
+        if (useMic) {
+            sigpath::sinkManager.defaultInputAudio.stop();
+            sigpath::sinkManager.defaultInputAudio.setInput(nullptr);
+        }
     }
 
     std::vector<dsp::stereo_t> stereoBuffer;
@@ -350,6 +542,8 @@ private:
     }
 
     void enumerateDevices() {
+        devices.clear();
+        micDevices.clear();
         AudioObjectPropertyAddress prop = {
             .mSelector = kAudioHardwarePropertyDevices,
             .mScope = kAudioObjectPropertyScopeGlobal,
@@ -396,6 +590,7 @@ private:
                 AudioBufferList* bufferList = (AudioBufferList*)malloc(size);
                 status = AudioObjectGetPropertyData(device.id, &prop, 0, NULL, &size, bufferList);
                 if (status == noErr && bufferList->mNumberBuffers > 0) {
+                    device.isInput = false;
                     // Get supported sample rates
                     prop.mSelector = kAudioDevicePropertyAvailableNominalSampleRates;
                     status = AudioObjectGetPropertyDataSize(device.id, &prop, 0, NULL, &size);
@@ -426,6 +621,20 @@ private:
                     if (!device.sampleRates.empty()) {
                         devices.push_back(device);
                     }
+                }
+                free(bufferList);
+            }
+
+            // Check if device has input channels
+            prop.mSelector = kAudioDevicePropertyStreamConfiguration;
+            prop.mScope = kAudioDevicePropertyScopeInput;
+            status = AudioObjectGetPropertyDataSize(device.id, &prop, 0, NULL, &size);
+            if (status == noErr) {
+                AudioBufferList* bufferList = (AudioBufferList*)malloc(size);
+                status = AudioObjectGetPropertyData(device.id, &prop, 0, NULL, &size, bufferList);
+                if (status == noErr && bufferList->mNumberBuffers > 0) {
+                    device.isInput = true;
+                    micDevices.push_back(device);
                 }
                 free(bufferList);
             }
