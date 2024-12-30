@@ -40,6 +40,11 @@ public:
     CoreAudioSink(SinkManager::Stream* stream, std::string streamName) {
         // Load mic config
         config.acquire();
+        _stream = stream;
+        _streamName = streamName;
+        // Get available devices
+        enumerateDevices();
+
         if (!config.conf.contains(_streamName)) {
             config.conf[_streamName] = json({});
         }
@@ -56,13 +61,8 @@ public:
             }
         }
         config.release(true);
-        _stream = stream;
-        _streamName = streamName;
         s2m.init(_stream->sinkOut);
         stereoPacker.init(_stream->sinkOut, 8192);
-
-        // Get available devices
-        enumerateDevices();
 
         // Load config
         config.acquire();

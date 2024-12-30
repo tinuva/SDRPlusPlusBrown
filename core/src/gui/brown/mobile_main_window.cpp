@@ -3021,7 +3021,7 @@ void QSOPanel::startAudioPipeline() {
         while (true) {
             int rd = audioIn.read();
 
-            if (rd < 0) {
+            if (rd < 0 || !gui::mainWindow.pvt->audioRecorder.running) {
                 flog::info("Breaking the tx audio in loop");
                 break;
             }
