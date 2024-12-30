@@ -40,6 +40,9 @@ public:
     CoreAudioSink(SinkManager::Stream* stream, std::string streamName) {
         // Load mic config
         config.acquire();
+        if (!config.conf.contains(_streamName)) {
+            config.conf[_streamName] = json({});
+        }
         if (config.conf[_streamName].contains("useMic")) {
             useMic = config.conf[_streamName]["useMic"];
         }
@@ -52,7 +55,7 @@ public:
                 }
             }
         }
-        config.release();
+        config.release(true);
         _stream = stream;
         _streamName = streamName;
         s2m.init(_stream->sinkOut);
