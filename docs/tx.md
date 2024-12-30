@@ -3,6 +3,7 @@
 
 ## Recent news (few tx features are reported in main document)
 
+* 2024-12-30: must use sink supporting microphone input (not default "Audio" sink)
 * 2024-05-XX: client/server mode enhancement: TX and baseband compression, password for access.
 * 2024-01-XX: bluetooth headset support on android
 * 2023-06-12: It is possible to specify direct address of Hermes Lite, if broadcast scanning does not work for your specific network configuration.
@@ -28,6 +29,8 @@ Sofa was the primary driving factor for this software development, and I will ad
 including small logbook for QSO logging etc. Jokes aside, portable use was primary goal.
 
 Update Spring 2024: You can choose to use the Bluetooth headset on Android. Remote (client/server) SDR++ mode for SSB transmit is now working, too. You can use lossy baseband (waterfall) compression to reduce wifi/mobile traffic.
+
+Update December 2024: You must  use "Brown Audio" Sink or "New PortAudio" Sink or "Macos CoreAudio" Sink or "Linux PulseAudio" Sink to enable micriphone input.
 
 See example QSO video [https://www.youtube.com/watch?v=CGCXxUXLwr4](https://www.youtube.com/watch?v=CGCXxUXLwr4)
 

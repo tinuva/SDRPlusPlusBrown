@@ -91,7 +91,6 @@ void Scanner::render() {
         ImGui::LeftLabel("Scan Interval (ms)");
         ImGui::SetNextItemWidth(100);
         if (ImGui::InputFloat("##scanner_interval", &scanIntervalMs, 10.0f, 50.0f, "%.1f")) {
-            scanIntervalMs = std::max(10.0f, scanIntervalMs);
             auto& config = getFrequencyManagerConfig();
             config.acquire();
             config.conf["scanner"]["scanIntervalMs"] = scanIntervalMs;
@@ -102,7 +101,6 @@ void Scanner::render() {
         ImGui::LeftLabel("Listen Time (s)");
         ImGui::SetNextItemWidth(100);
         if (ImGui::InputFloat("##scanner_listen", &listenTimeSec, 0.1f, 1.0f, "%.1f")) {
-            listenTimeSec = std::max(0.1f, listenTimeSec);
             auto& config = getFrequencyManagerConfig();
             config.acquire();
             config.conf["scanner"]["listenTimeSec"] = listenTimeSec;
@@ -116,7 +114,7 @@ void Scanner::render() {
         ImGui::LeftLabel("Noise Floor (dB)");
         ImGui::SetNextItemWidth(100);
         if (ImGui::InputFloat("##scanner_noise_floor", &noiseFloor, 1.0f, 5.0f, "%.1f")) {
-            noiseFloor = std::max(0.0f, std::min(40.0f, noiseFloor));
+            noiseFloor = std::max<float>(0.0f, std::min<float>(40.0f, noiseFloor));
             auto& config = getFrequencyManagerConfig();
             config.acquire();
             config.conf["scanner"]["noiseFloor"] = noiseFloor;
@@ -133,7 +131,6 @@ void Scanner::render() {
         ImGui::LeftLabel("Signal Margin (dB)");
         ImGui::SetNextItemWidth(100);
         if (ImGui::InputFloat("##scanner_signal_margin", &signalMarginDb, 0.1f, 1.0f, "%.1f")) {
-            signalMarginDb = std::max(0.1f, signalMarginDb);
             auto& config = getFrequencyManagerConfig();
             config.acquire();
             config.conf["scanner"]["signalMarginDb"] = signalMarginDb;

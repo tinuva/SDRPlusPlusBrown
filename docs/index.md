@@ -38,6 +38,8 @@ read on below.
   * record and then transmit the SSB CQ call to the air.
   * [transmit CQ](#self-monitoring-using-digital-modes) in CW/FT8/WSPR in one button. (some kind of QSO dialogue is planned for later where applicable)
 * Improved client-server protocol: [baseband compression](https://www.youtube.com/watch?v=dH-8xuz9nAA), buffering, password authentication, TX support.
+* Frequency manager scanning: [video here](https://youtu.be/j5xObndyVHs)
+* Native audio sinks for macos (direct CoreAudio) and linux (PulseAudio)
 * [SNR Chart](#snr-chart) during RX to compare SNR while tweaking antennas, de-noising etc.
 * [SNR Chart during TX](#websdr-view) (using multiple remote kiwisdr) to compare SNR while transmitting.
 * RBN/pskreporter/WSPRnet continuous monitoring for your own call (estimate your signal when tuning your antenna)

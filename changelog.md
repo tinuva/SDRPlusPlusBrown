@@ -2,6 +2,11 @@
 
 Newest entries are at the top.
 
+2024.12.30
+
+* Native CoreAudio driver for MacOS. It is now possible to use MacOS audio devices directly, without PortAudio and other intermediate libs.
+* Frequency manager: added scanner. Will scan your pre-defined frequencies, with squelch. Highly configurable.
+
 2024.06.02
 
 * SDR++Brown server: baseband compression, TX capability (Hermes Lite 2), buffering, password authentication.
