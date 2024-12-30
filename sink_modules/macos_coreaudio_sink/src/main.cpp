@@ -113,6 +113,21 @@ public:
 
         _stream->setSampleRate(sampleRate);
 
+        // Update audio unit with new device
+        if (audioUnit) {
+            AudioDeviceID newDeviceID = devices[devId].id;
+            OSStatus status = AudioUnitSetProperty(audioUnit,
+                                                 kAudioOutputUnitProperty_CurrentDevice,
+                                                 kAudioUnitScope_Global,
+                                                 0,
+                                                 &newDeviceID,
+                                                 sizeof(newDeviceID));
+            if (status != noErr) {
+                flog::error("Failed to set audio unit device");
+            }
+        }
+        
+        // Restart audio if running
         if (running) {
             doStop();
             doStart();
