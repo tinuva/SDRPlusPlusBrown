@@ -523,17 +523,43 @@ private:
 
     void doStop() {
         if (audioUnit) {
-            AudioOutputUnitStop(audioUnit);
-            AudioUnitUninitialize(audioUnit);
-            AudioComponentInstanceDispose(audioUnit);
+            // Stop and uninitialize in the correct order
+            OSStatus status = AudioOutputUnitStop(audioUnit);
+            if (status != noErr) {
+                flog::warn("Failed to stop audio unit: {}", status);
+            }
+            
+            status = AudioUnitUninitialize(audioUnit);
+            if (status != noErr) {
+                flog::warn("Failed to uninitialize audio unit: {}", status);
+            }
+            
+            status = AudioComponentInstanceDispose(audioUnit);
+            if (status != noErr) {
+                flog::warn("Failed to dispose audio unit: {}", status);
+            }
             audioUnit = nullptr;
         }
+        
         if (inputUnit) {
-            AudioOutputUnitStop(inputUnit);
-            AudioUnitUninitialize(inputUnit);
-            AudioComponentInstanceDispose(inputUnit);
+            // Stop and uninitialize in the correct order
+            OSStatus status = AudioOutputUnitStop(inputUnit);
+            if (status != noErr) {
+                flog::warn("Failed to stop input unit: {}", status);
+            }
+            
+            status = AudioUnitUninitialize(inputUnit);
+            if (status != noErr) {
+                flog::warn("Failed to uninitialize input unit: {}", status);
+            }
+            
+            status = AudioComponentInstanceDispose(inputUnit);
+            if (status != noErr) {
+                flog::warn("Failed to dispose input unit: {}", status);
+            }
             inputUnit = nullptr;
         }
+        
         stereoPacker.stop();
         if (useMic) {
             sigpath::sinkManager.defaultInputAudio.stop();
