@@ -201,7 +201,7 @@ public:
                     return true;
                 }, &devices, devices.size())) {
                     config.acquire();
-                    config.conf[_streamName]["micDevice"] = micDevices[micDevId].name;
+                    config.conf[_streamName]["micDevice"] = devices[micDevId].name;
                     config.release(true);
                     if (running) {
                         doStop();
@@ -633,7 +633,7 @@ private:
                 status = AudioObjectGetPropertyData(device.id, &prop, 0, NULL, &size, bufferList);
                 if (status == noErr && bufferList->mNumberBuffers > 0) {
                     device.isInput = true;
-                    micDevices.push_back(device);
+                    devices.push_back(device);
                 }
                 free(bufferList);
             }
