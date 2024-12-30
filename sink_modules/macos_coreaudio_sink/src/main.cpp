@@ -198,14 +198,42 @@ public:
             // Microphone device selection
             if (useMic) {
                 ImGui::SetNextItemWidth(menuWidth);
-                if (ImGui::Combo("##_coreaudio_sink_mic_dev", &micDevId, [](void* data, int idx, const char** out_text) {
-                    auto devices = (std::vector<AudioDevice>*)data;
-                    *out_text = devices->at(idx).name.c_str();
-                    return true;
-                }, &devices, devices.size())) {
+                
+                // Build list of input devices
+                std::vector<AudioDevice> inputDevices;
+                std::string inputDevList;
+                for (auto& dev : devices) {
+                    if (dev.isInput) {
+                        inputDevices.push_back(dev);
+                        inputDevList += dev.name;
+                        inputDevList += '\0';
+                    }
+                }
+
+                // Find current micDevId in input devices
+                int currentMicDevIdx = 0;
+                if (micDevId >= 0 && micDevId < devices.size()) {
+                    for (int i = 0; i < inputDevices.size(); i++) {
+                        if (inputDevices[i].id == devices[micDevId].id) {
+                            currentMicDevIdx = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (ImGui::Combo("##_coreaudio_sink_mic_dev", &currentMicDevIdx, inputDevList.c_str())) {
+                    // Find the selected device in main devices list
+                    for (int i = 0; i < devices.size(); i++) {
+                        if (devices[i].id == inputDevices[currentMicDevIdx].id) {
+                            micDevId = i;
+                            break;
+                        }
+                    }
+                    
                     config.acquire();
                     config.conf[_streamName]["micDevice"] = devices[micDevId].name;
                     config.release(true);
+                    
                     if (running) {
                         doStop();
                         doStart();
