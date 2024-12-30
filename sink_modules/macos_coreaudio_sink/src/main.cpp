@@ -388,35 +388,46 @@ private:
                 CFRelease(name);
             }
 
-            // Get supported sample rates
-            prop.mSelector = kAudioDevicePropertyAvailableNominalSampleRates;
+            // Check if device has output channels
+            prop.mSelector = kAudioDevicePropertyStreamConfiguration;
+            prop.mScope = kAudioDevicePropertyScopeOutput;
             status = AudioObjectGetPropertyDataSize(device.id, &prop, 0, NULL, &size);
             if (status == noErr) {
-                AudioValueRange* ranges = (AudioValueRange*)malloc(size);
-                status = AudioObjectGetPropertyData(device.id, &prop, 0, NULL, &size, ranges);
-                if (status == noErr) {
-                    UInt32 rangeCount = size / sizeof(AudioValueRange);
-                    for (UInt32 j = 0; j < rangeCount; j++) {
-                        double min = ranges[j].mMinimum;
-                        double max = ranges[j].mMaximum;
-                        // Add common rates between min and max
-                        if (min <= 44100 && max >= 44100) device.sampleRates.push_back(44100);
-                        if (min <= 48000 && max >= 48000) device.sampleRates.push_back(48000);
-                        if (min <= 96000 && max >= 96000) device.sampleRates.push_back(96000);
-                        if (min <= 192000 && max >= 192000) device.sampleRates.push_back(192000);
+                AudioBufferList* bufferList = (AudioBufferList*)malloc(size);
+                status = AudioObjectGetPropertyData(device.id, &prop, 0, NULL, &size, bufferList);
+                if (status == noErr && bufferList->mNumberBuffers > 0) {
+                    // Get supported sample rates
+                    prop.mSelector = kAudioDevicePropertyAvailableNominalSampleRates;
+                    status = AudioObjectGetPropertyDataSize(device.id, &prop, 0, NULL, &size);
+                    if (status == noErr) {
+                        AudioValueRange* ranges = (AudioValueRange*)malloc(size);
+                        status = AudioObjectGetPropertyData(device.id, &prop, 0, NULL, &size, ranges);
+                        if (status == noErr) {
+                            UInt32 rangeCount = size / sizeof(AudioValueRange);
+                            for (UInt32 j = 0; j < rangeCount; j++) {
+                                double min = ranges[j].mMinimum;
+                                double max = ranges[j].mMaximum;
+                                // Add common rates between min and max
+                                if (min <= 44100 && max >= 44100) device.sampleRates.push_back(44100);
+                                if (min <= 48000 && max >= 48000) device.sampleRates.push_back(48000);
+                                if (min <= 96000 && max >= 96000) device.sampleRates.push_back(96000);
+                                if (min <= 192000 && max >= 192000) device.sampleRates.push_back(192000);
+                            }
+                            // Sort and create text list
+                            std::sort(device.sampleRates.begin(), device.sampleRates.end());
+                            for (auto sr : device.sampleRates) {
+                                device.sampleRatesTxt += std::to_string((int)sr);
+                                device.sampleRatesTxt += '\0';
+                            }
+                        }
+                        free(ranges);
                     }
-                    // Sort and create text list
-                    std::sort(device.sampleRates.begin(), device.sampleRates.end());
-                    for (auto sr : device.sampleRates) {
-                        device.sampleRatesTxt += std::to_string((int)sr);
-                        device.sampleRatesTxt += '\0';
+
+                    if (!device.sampleRates.empty()) {
+                        devices.push_back(device);
                     }
                 }
-                free(ranges);
-            }
-
-            if (!device.sampleRates.empty()) {
-                devices.push_back(device);
+                free(bufferList);
             }
         }
 
