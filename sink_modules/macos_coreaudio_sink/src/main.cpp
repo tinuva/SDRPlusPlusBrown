@@ -180,23 +180,30 @@ private:
             return false;
         }
 
-        // Set the selected device ID
-        OSStatus status = AudioUnitSetProperty(audioUnit,
-                                             kAudioOutputUnitProperty_CurrentDevice,
-                                             kAudioUnitScope_Global,
-                                             0,
-                                             &dev.id,
-                                             sizeof(dev.id));
-        if (status != noErr) {
-            flog::error("Could not set audio unit device");
-            return false;
-        }
         if (!comp) {
             flog::error("Could not find audio component");
             return false;
         }
 
-        status = AudioComponentInstanceNew(comp, &audioUnit);
+        // Create the audio unit first
+        OSStatus status = AudioComponentInstanceNew(comp, &audioUnit);
+        if (status != noErr) {
+            flog::error("Could not create audio unit instance");
+            return false;
+        }
+
+        // Now set the selected device ID
+        status = AudioUnitSetProperty(audioUnit,
+                                    kAudioOutputUnitProperty_CurrentDevice,
+                                    kAudioUnitScope_Global,
+                                    0,
+                                    &dev.id,
+                                    sizeof(dev.id));
+        if (status != noErr) {
+            flog::error("Could not set audio unit device");
+            AudioComponentInstanceDispose(audioUnit);
+            return false;
+        }
         if (status != noErr) {
             flog::error("Could not create audio unit instance");
             return false;
