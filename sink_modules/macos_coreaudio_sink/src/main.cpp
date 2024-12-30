@@ -178,16 +178,32 @@ private:
         
         auto& dev = devices[devId];
         
-        // Create output audio unit
+        // Create output audio unit for the selected device
         AudioComponentDescription desc = {
             .componentType = kAudioUnitType_Output,
-            .componentSubType = kAudioUnitSubType_DefaultOutput,
+            .componentSubType = kAudioUnitSubType_HALOutput,  // Use HAL for specific device
             .componentManufacturer = kAudioUnitManufacturer_Apple,
             .componentFlags = 0,
             .componentFlagsMask = 0
         };
 
         AudioComponent comp = AudioComponentFindNext(NULL, &desc);
+        if (!comp) {
+            flog::error("Could not find audio component for device");
+            return false;
+        }
+
+        // Set the selected device ID
+        OSStatus status = AudioUnitSetProperty(audioUnit,
+                                             kAudioOutputUnitProperty_CurrentDevice,
+                                             kAudioUnitScope_Global,
+                                             0,
+                                             &dev.id,
+                                             sizeof(dev.id));
+        if (status != noErr) {
+            flog::error("Could not set audio unit device");
+            return false;
+        }
         if (!comp) {
             flog::error("Could not find audio component");
             return false;
