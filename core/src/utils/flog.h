@@ -5,6 +5,9 @@
 #include <mutex>
 #include "sdrpp_export.h"
 
+#define FORMAT_BUF_SIZE 16
+#define ESCAPE_CHAR     '\\'
+
 namespace flog {
     enum Type {
         TYPE_DEBUG,
@@ -63,13 +66,22 @@ namespace flog {
         __genArgList__(args, others...);
     }
 
-    // Logging functions
+    // Formatting function
+    std::string formatString(const char* fmt, const std::vector<std::string>& args);
+    
     template <typename... Args>
-    void log(Type type, const char* fmt, Args... args) {
+    inline std::string format(const char* fmt, Args... args) {
         std::vector<std::string> _args;
         _args.reserve(sizeof...(args));
         __genArgList__(_args, args...);
-        __log__(type, fmt, _args);
+        return formatString(fmt, _args);
+    }
+
+    // Logging functions
+    template <typename... Args>
+    void log(Type type, const char* fmt, Args... args) {
+        std::string formatted = format(fmt, args...);
+        __log__(type, formatted.c_str(), {});
     }
 
     template <typename... Args>

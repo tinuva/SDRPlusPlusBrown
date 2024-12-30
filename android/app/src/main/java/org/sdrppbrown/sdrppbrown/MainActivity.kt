@@ -423,9 +423,9 @@ class MainActivity : NativeActivity(), SensorEventListener {
         } finally {
             connection?.disconnect()
         }
-
         return response
     }
+
     private fun makeUsbPermissionIntent(): PendingIntent? {
         try {
             return PendingIntent.getBroadcast(

@@ -68,6 +68,7 @@ public:
         dsp::stream<dsp::stereo_t>* sinkOut;
 
         Event<float> srChange;
+        dsp::audio::Volume volumeAjust;
 
     private:
         dsp::stream<dsp::stereo_t> _in0;
@@ -78,7 +79,6 @@ public:
         dsp::routing::Merger<dsp::stereo_t> merger;         // multiple inputs
         SinkManager::Sink* sink;
         dsp::stream<dsp::stereo_t> volumeInput;
-        dsp::audio::Volume volumeAjust;
         std::mutex ctrlMtx;
         float _sampleRate;
         int providerId = 0;
@@ -175,6 +175,7 @@ public:
     // 1 = cw tone
     // 2 = click sound
     std::atomic<int> toneGenerator;
+    Stream * recentStreeam = nullptr;
 
     struct StreamHook {
         enum SourceType {

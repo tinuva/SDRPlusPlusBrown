@@ -340,7 +340,8 @@ void SinkManager::showVolumeSlider(std::string name, std::string prefix, float w
         core::configManager.release(true);
     }
     if (sameLine) { ImGui::SetCursorPosY(ypos); }
-    //ImGui::SetCursorPosY(ypos);
+
+    this->recentStreeam = stream;
 }
 
 void SinkManager::loadStreamConfig(std::string name) {

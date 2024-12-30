@@ -80,7 +80,14 @@ namespace net::websock {
             buffer.resize(len);
             socket->sendstr(buffer);
 //            flog::info("<= {}", str);
-            //
+        }
+
+        void sendBinary(const std::vector<uint8_t>& data) {
+            std::string buffer;
+            buffer.resize(data.size() + 200, ' ');
+            int len = makeFrame(BINARY_FRAME, (unsigned char*)data.data(), data.size(), (unsigned char *)buffer.data(), buffer.size());
+            buffer.resize(len);
+            socket->sendstr(buffer);
         }
 
         // PARTS were taken from https://github.com/katzarsky/WebSocket

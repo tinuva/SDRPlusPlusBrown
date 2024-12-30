@@ -1292,6 +1292,8 @@ struct MobileMainWindowPrivate {
     std::vector<dsp::stereo_t> callCq;
 
     ScanningSWRData ssdata;
+    
+
 
     MobileMainWindowPrivate() : player("main_window_qso_record_player"), callCQlayer("call_cq_preview") {
     }
@@ -1327,6 +1329,7 @@ struct MobileMainWindowPrivate {
 
     void end() {
         audioRecorder.end();
+        // Stop mic stream thread
     }
 
     void addQsoRecord(QSORecord r) {

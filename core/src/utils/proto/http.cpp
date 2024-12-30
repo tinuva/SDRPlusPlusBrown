@@ -8,6 +8,89 @@
 #include "../../backends/android/android_backend.h"
 #endif
 
+#ifdef __APPLE__
+
+#include <Security/Security.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <CoreServices/CoreServices.h>
+
+// Add framework imports for SSL
+#include <CFNetwork/CFNetwork.h>
+#include <Security/SecureTransport.h>
+
+namespace {
+    std::pair<std::vector<uint8_t>, std::string> darwin_https_transact(const std::string& host, const std::vector<uint8_t>& send) {
+        // Create SSL context
+        CFStringRef hostStr = CFStringCreateWithCString(kCFAllocatorDefault, host.c_str(), kCFStringEncodingUTF8);
+        CFStreamCreatePairWithSocketToHost(kCFAllocatorDefault, hostStr, 443, NULL, NULL);
+        
+        // Create SSL read/write streams
+        CFReadStreamRef readStream;
+        CFWriteStreamRef writeStream;
+        CFStreamCreatePairWithSocketToHost(kCFAllocatorDefault, hostStr, 443, &readStream, &writeStream);
+        CFRelease(hostStr);
+        
+        // Configure SSL
+        CFMutableDictionaryRef sslSettings = CFDictionaryCreateMutable(kCFAllocatorDefault, 0,
+            &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+        CFDictionarySetValue(sslSettings, kCFStreamSSLPeerName, hostStr);
+        CFReadStreamSetProperty(readStream, kCFStreamPropertySSLSettings, sslSettings);
+        CFWriteStreamSetProperty(writeStream, kCFStreamPropertySSLSettings, sslSettings);
+        CFRelease(sslSettings);
+        
+        // Open streams
+        if (!CFReadStreamOpen(readStream) || !CFWriteStreamOpen(writeStream)) {
+            CFRelease(readStream);
+            CFRelease(writeStream);
+            return std::make_pair(std::vector<uint8_t>(), "Failed to open SSL streams");
+        }
+        
+        // Write all data
+        CFIndex totalWritten = 0;
+        while (totalWritten < send.size()) {
+            CFIndex written = CFWriteStreamWrite(writeStream, send.data() + totalWritten, send.size() - totalWritten);
+            if (written <= 0) {
+                CFReadStreamClose(readStream);
+                CFWriteStreamClose(writeStream);
+                CFRelease(readStream);
+                CFRelease(writeStream);
+                return std::make_pair(std::vector<uint8_t>(), "Error writing to SSL stream");
+            }
+            totalWritten += written;
+        }
+        
+        // Read response
+        std::vector<uint8_t> response;
+        uint8_t buffer[4096];
+        while (true) {
+            CFIndex bytesRead = CFReadStreamRead(readStream, buffer, sizeof(buffer));
+            if (bytesRead > 0) {
+                response.insert(response.end(), buffer, buffer + bytesRead);
+            } else if (bytesRead == 0) {
+                break; // End of stream
+            } else {
+                CFReadStreamClose(readStream);
+                CFWriteStreamClose(writeStream);
+                CFRelease(readStream);
+                CFRelease(writeStream);
+                return std::make_pair(std::vector<uint8_t>(), "Error reading from SSL stream");
+            }
+        }
+        
+        // Clean up
+        CFReadStreamClose(readStream);
+        CFWriteStreamClose(writeStream);
+        CFRelease(readStream);
+        CFRelease(writeStream);
+        
+        return std::make_pair(response, "");
+    }
+}
+
+
+
+#endif
+
 namespace net::http {
 
     std::string userAgent = "sdr++brown";
@@ -139,6 +222,42 @@ namespace net::http {
         }
         cookies.parseForCookies(rshdr);
         return receiveResponse(http, rshdr, sock);
+    }
+
+    /** this function performs secure connection using SSL to port 443 of given host, and performs complete send/receive transaction, then disconnects
+     *  it returns response data and error text (second part of pair). If no error, empty string is returned.
+     */
+
+    std::pair<ResponseHeader, std::string> parseHttpResponse(const std::string& fullResponse) {
+        // Find the end of headers (double newline)
+        size_t headerEnd = fullResponse.find("\r\n\r\n");
+        if (headerEnd == std::string::npos) {
+            throw std::runtime_error("Invalid HTTP response - missing header/body separator");
+        }
+
+        // Parse the header
+        ResponseHeader header;
+        header.deserialize(fullResponse.substr(0, headerEnd));
+
+        // Extract the body
+        std::string body = fullResponse.substr(headerEnd + 4);
+
+        return {header, body};
+    }
+
+    std::pair<std::vector<uint8_t>, std::string> https_transact(const std::string &host, std::vector<uint8_t> send) {
+#ifdef __ANDROID__
+        return std::make_pair(std::vector<uint8_t>(), "not yet implemented");
+#elif defined(__linux__)
+        return std::make_pair(std::vector<uint8_t>(), "not yet implemented");
+#elif defined(__APPLE__)
+        return darwin_https_transact(host, send);
+#elif defined(_WIN32)
+        return std::make_pair(std::vector<uint8_t>(), "not yet implemented");
+#else
+        return std::make_pair(std::vector<uint8_t>(), "not yet implemented");
+#endif
+        return std::make_pair(std::vector<uint8_t>(), "");
     }
 
     std::string Client::post(const std::string &url, const std::string &formData) {

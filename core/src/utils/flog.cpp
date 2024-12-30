@@ -16,9 +16,6 @@
 #endif
 
 
-#define FORMAT_BUF_SIZE 16
-#define ESCAPE_CHAR     '\\'
-
 namespace flog {
 
     std::mutex outMtx;
@@ -61,7 +58,7 @@ namespace flog {
     };
 #endif
 
-    void __log__(Type type, const char* fmt, const std::vector<std::string>& args) {
+    std::string formatString(const char* fmt, const std::vector<std::string>& args) {
         // Reserve a buffer for the final output
         int argCount = args.size();
         int fmtLen = strlen(fmt) + 1;
@@ -70,9 +67,6 @@ namespace flog {
         std::string out;
         out.reserve(totSize);
         
-        // Get output stream depending on type
-        FILE* outStream = (type == TYPE_ERROR) ? stderr : stdout;
-
         // Parse format string
         bool escaped = false;
         int formatCounter = 0;
@@ -145,6 +139,14 @@ namespace flog {
                 if (formatLen < FORMAT_BUF_SIZE) { formatBuf[formatLen++] = c; }
             }
         }
+        return out;
+    }
+
+    void __log__(Type type, const char* fmt, const std::vector<std::string>& args) {
+        std::string out = formatString(fmt, args);
+        
+        // Get output stream depending on type
+        FILE* outStream = (type == TYPE_ERROR) ? stderr : stdout;
 
         // Get time
         auto now = std::chrono::system_clock::now();

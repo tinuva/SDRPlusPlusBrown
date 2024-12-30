@@ -27,6 +27,10 @@ namespace dsp::routing {
             base_type::tempStart();
         }
 
+        bool hasInput() {
+            return base_type::_in != nullptr;
+        }
+
         void unbindStream(stream<T>* stream) {
             assert(base_type::_block_init);
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);

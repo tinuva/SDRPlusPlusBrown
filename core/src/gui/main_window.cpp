@@ -31,6 +31,14 @@
 #include <gui/widgets/snr_meter.h>
 #include <gui/tuner.h>
 #include <dsp/buffer/buffer.h>
+#include <utils/wstr.h>
+#include <utils/proto/http.h>
+#include <utils/mpeg.h>
+#include "brown/imgui-notify/imgui_notify.h"
+#include "utils/proto/brown_ai.h"
+#include "../../decoder_modules/radio/src/radio_interface.h"
+
+static BrownAIClient brownAIClient;
 
 
 void MainWindow::init() {
@@ -494,6 +502,19 @@ void MainWindow::ShowLogWindow() {
     ImGui::End();
 }
 
+void initBrownAIClient(std::function<void(const std::string&, const std::string&)> callback) {
+    static bool initialized = false;
+    if (initialized) return;
+    
+    brownAIClient.init("ny.san.systems:8080"); // Change this to your Brown AI server address
+    brownAIClient.onCommandReceived = [callback](const std::string& command) {
+        // Process the command received from Brown AI server
+        callback("", command);
+    };
+    brownAIClient.start();
+    initialized = true;
+}
+
 void MainWindow::draw() {
     auto ctm = currentTimeNanos();
     ImGui::WaterfallVFO* vfo;
@@ -511,6 +532,105 @@ void MainWindow::draw() {
         core::configManager.release(true);
     }
     ImGui::PopID();
+
+    // Handle space key for microphone input
+    static bool wasSpacePressed = false;
+    static std::vector<dsp::stereo_t> micSamples;
+    
+    if (ImGui::IsKeyPressed(ImGuiKey_Space, false)  && sigpath::sinkManager.defaultInputAudio.hasInput()) {
+        spacePressed = true;
+        if (!wasSpacePressed) {
+            sigpath::sinkManager.setAllMuted(true);
+            // Start recording
+            micSamples.clear();
+            micStream.clearReadStop();
+            micStream.clearWriteStop();
+            sigpath::sinkManager.defaultInputAudio.bindStream(&micStream);
+            wasSpacePressed = true;
+
+            // Start mic stream thread if not already running
+            if (!micThread) {
+                micThreadRunning = true;
+                micThread = std::make_shared<std::thread>([this]() {
+                    SetThreadName("MicStreamReader");
+                    while (micThreadRunning) {
+                        int rd = micStream.read();
+                        if (rd > 0) {
+                            std::lock_guard<std::mutex> lck(micSamplesMutex);
+                            micSamples.insert(micSamples.end(), micStream.readBuf, micStream.readBuf + rd);
+                            micStream.flush();
+                        }
+                        else if (rd < 0) {
+                            break;
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    mainThreadTasksMutex.lock();
+    for(auto& task : mainThreadTasks) {
+        task();
+    }
+    mainThreadTasks.clear();
+    mainThreadTasksMutex.unlock();
+
+    if (ImGui::IsKeyReleased(ImGuiKey_Space)) {
+        spacePressed = false;
+        if (wasSpacePressed) {
+            flog::info("Space key released");
+            sigpath::sinkManager.setAllMuted(false);
+            // Stop recording
+            sigpath::sinkManager.defaultInputAudio.unbindStream(&micStream);
+            wasSpacePressed = false;
+            
+            // Stop mic stream thread
+            if (micThread) {
+                micThreadRunning = false;
+                micStream.stopReader();
+                if (micThread->joinable()) {
+                    micThread->join();
+                }
+                micThread.reset();
+            }
+            
+            // micSamples now contains all recorded audio
+            flog::info("Recorded {} microphone samples", (int)micSamples.size());
+            auto [speechFile, extension] = mpeg::produce_speech_file_for_whisper(micSamples, 48000);
+            flog::info("Compressed to {} bytes as {}", (int)speechFile.size(), extension);
+            initBrownAIClient([this](const std::string& whisperResult, const std::string& result) {
+                try {
+                    // Parse JSON response
+                    auto json = nlohmann::json::parse(result);
+                    
+                    // Check for error
+                    if (json.contains("error") && !json["error"].empty()) {
+                        flog::error("Brown AI error: {}", json["error"].get<std::string>());
+                        ImGui::InsertNotification({ImGuiToastType_Error, 5000, "Brown AI error: %s", json["error"].get<std::string>().c_str()});
+                        return;
+                    }
+                    
+                    // Extract command if present
+                    std::string command = json.value("command", "");
+                    if (command.empty()) {
+                        flog::warn("Empty command received from Brown AI");
+                        ImGui::InsertNotification({ImGuiToastType_Warning, 5000, "Empty command received"});
+                        return;
+                    }
+                    
+                    // Process the command
+                    flog::info("Response from Brown AI: {}", command);
+                    this->performDetectedLLMAction(whisperResult, command);
+                } catch (const std::exception& e) {
+                    flog::error("Failed to parse Brown AI response: {}", e.what());
+                    ImGui::InsertNotification({ImGuiToastType_Error, 5000, "Failed to parse Brown AI response"});
+                }
+            });
+            brownAIClient.sendAudioData(speechFile);
+
+        }
+    }
 
     ImGui::SameLine();
 
@@ -742,10 +862,33 @@ void MainWindow::draw() {
 
     this->drawBottomWindows(0);
 
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.f);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(43.f / 255.f, 43.f / 255.f, 43.f / 255.f, 100.f / 255.f));
+    ImGui::PushFont(style::notificationFont);
+    ImGui::RenderNotifications();
+    ImGui::PopFont();
+    ImGui::PopStyleVar(1); // Don't forget to Pop()
+    ImGui::PopStyleColor(1);
+
+
     ImGui::End();
 
     if (showCredits) {
         credits::show();
+    }
+
+    // Draw listening popup if space is pressed
+    if (spacePressed) {
+        ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f), 
+                               ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowBgAlpha(0.7f);
+        if (ImGui::Begin("##ListeningPopup", nullptr, 
+                        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | 
+                        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | 
+                        ImGuiWindowFlags_NoNav)) {
+            ImGui::Text("Listening... Please give your command...");
+            ImGui::End();
+        }
     }
 
     lastDrawTime = (currentTimeNanos() - ctm)/1000;
@@ -771,6 +914,156 @@ void MainWindow::setPlayState(bool _playing) {
 
 bool MainWindow::sdrIsRunning() {
     return playing;
+}
+
+
+
+int hzRange(double freq) {
+    return round(log10(freq)/3);
+}
+
+void MainWindow::performDetectedLLMAction(const std::string &whisperResult, std::string command) {
+    std::string detectedCommand;
+    flog::info("Whisper result: {}", whisperResult);
+    flog::info("Detected command: {}", detectedCommand);
+
+    if (command.empty()) {
+        return;
+    }
+    if (command[0] == ':') { // just lazy
+        command = command.substr(1);
+    }
+
+    // Split command into lines
+    std::istringstream stream(command);
+    std::string line;
+    std::string lastCaps;
+    while (std::getline(stream, line)) {
+        // Find last line containing "COMMAND"
+        size_t pos = line.find("COMMAND");
+        if (pos != std::string::npos) {
+            // Extract everything after "COMMAND"
+            detectedCommand = line.substr(pos + 8); // maybe semi
+        }
+        // check, if line is all capitals, assitn to lastCaps
+        bool allCaps = true;
+        for (char c : line) {
+            if (!std::isupper(c) && std::isalpha(c)) {
+                allCaps = false;
+                break;
+            }
+        }
+        if (allCaps) {
+            lastCaps = line;
+        }
+    }
+
+    if (detectedCommand.empty() && lastCaps.empty()) {
+        flog::info("Invalid LLM reply, no command: {}", command);
+        ImGui::InsertNotification({ImGuiToastType_Info, 5000, "Invalid LLM reply, no command"});
+    }
+
+    if (!detectedCommand.empty()) {
+        detectedCommand.erase(0, detectedCommand.find_first_not_of(' '));
+        detectedCommand.erase(detectedCommand.find_last_not_of(' ') + 1);
+    } else {
+        detectedCommand = lastCaps;
+    }
+    // Trim leading/trailing whitespace
+
+    // Split into parts by spaces
+    std::vector<std::string> parts;
+    std::istringstream iss(detectedCommand);
+    std::string part;
+    while (iss >> part) {
+        parts.push_back(part);
+    }
+
+    if (parts[0] == "VOLUME_UP") {
+        if (sigpath::sinkManager.recentStreeam) {
+            auto volume = sigpath::sinkManager.recentStreeam->getVolume();
+            volume += 0.2;
+            if (volume > 1.0) {
+                volume = 1.0;
+            }
+            sigpath::sinkManager.recentStreeam->setVolume(volume);
+        }
+    }
+    if (parts[0] == "VOLUME_DOWN") {
+        if (sigpath::sinkManager.recentStreeam) {
+            auto volume = sigpath::sinkManager.recentStreeam->getVolume();
+            volume -= 0.2;
+            if (volume <= 0) {
+                volume = 0;
+            }
+            sigpath::sinkManager.recentStreeam->setVolume(volume);
+        }
+    }
+        auto vfo = gui::waterfall.selectedVFO;
+    if (parts[0] == "USB") {
+        auto mode = RADIO_IFACE_MODE_USB;
+        core::modComManager.callInterface(vfo, RADIO_IFACE_CMD_SET_MODE, &mode, NULL);
+    }
+    if (parts[0] == "LSB") {
+        auto mode = RADIO_IFACE_MODE_LSB;
+        core::modComManager.callInterface(vfo, RADIO_IFACE_CMD_SET_MODE, &mode, NULL);
+    }
+    if (parts[0] == "AM") {
+        auto mode = RADIO_IFACE_MODE_AM;
+        core::modComManager.callInterface(vfo, RADIO_IFACE_CMD_SET_MODE, &mode, NULL);
+    }
+    if (parts[0] == "FM") {
+        auto mode = RADIO_IFACE_MODE_NFM;
+        core::modComManager.callInterface(vfo, RADIO_IFACE_CMD_SET_MODE, &mode, NULL);
+    }
+    if (parts[0] == "STOP") {
+        setPlayState(false);
+    }
+    if (parts[0] == "START") {
+        setPlayState(false);
+    }
+    if (parts[0] == "MUTE") {
+        if (sigpath::sinkManager.recentStreeam) {
+            sigpath::sinkManager.recentStreeam->volumeAjust.setMuted(!sigpath::sinkManager.recentStreeam->volumeAjust.getMuted());
+        }
+    }
+    if (parts[0] == "FREQ") {
+        float freq = atof(parts[1].c_str());
+        float mult = 1;
+        if (parts.size() > 2) {
+            if (parts[2][0] == 'K' || parts[2][0]=='k') {
+                mult = 1e3;
+            }
+            if (parts[2][0] == 'M' || parts[2][0]=='m') {
+                mult = 1e6;
+            }
+        }
+        float currentFrequency = gui::waterfall.getCenterFrequency();
+        double intPartF;
+        float frac = std::modf((double)freq, &intPartF);
+        long long intPart = (long long)intPartF;
+        double newFreq = 0;
+        if (frac != 0 && mult == 1) {  // e.g 1.7
+            mult = 1e6; // mhz
+            newFreq = mult * freq;   // make 1.7 mhz
+        } else if (mult * freq < 100000 && mult == 1e3) { // 1200 khz spoken as 1.200 khz
+                mult = 1e6;
+                newFreq = mult * freq;
+        } else if (mult == 1e6) { // exact mhz freq
+            newFreq = mult * freq;
+        } else {
+            while (hzRange(freq) < hzRange(currentFrequency)) {
+                freq *= 1000;
+            }
+            while (hzRange(freq) > hzRange(currentFrequency)) {
+                freq /= 1000;
+            }
+            newFreq = freq;
+        }
+        tuner::tune(tuningMode, gui::waterfall.selectedVFO, newFreq);
+    }
+
+    ImGui::InsertNotification({ImGuiToastType_Info, 5000, "Voice command: %s", detectedCommand.c_str()});
 }
 
 bool MainWindow::isPlaying() {

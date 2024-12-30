@@ -45,6 +45,9 @@ add_library(sdrpp_core SHARED ${SRC} ${BACKEND_SRC})
 if(APPLE)
     target_link_libraries(sdrpp_core PUBLIC "-framework CoreFoundation")
     target_link_libraries(sdrpp_core PUBLIC "-framework Accelerate")
+    target_link_libraries(sdrpp_core PUBLIC "-framework Security")
+    target_link_libraries(sdrpp_core PUBLIC "-framework CFNetwork")
+    target_link_libraries(sdrpp_core PUBLIC "-framework AudioToolbox")
 endif()
 
 

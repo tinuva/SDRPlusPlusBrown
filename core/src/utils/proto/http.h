@@ -328,6 +328,10 @@ namespace net::http {
     };
 
 
+    std::pair<std::vector<uint8_t>, std::string> https_transact(const std::string &host, std::vector<uint8_t> send);
+
+    // Parse a full HTTP response string into header and body
+    std::pair<ResponseHeader, std::string> parseHttpResponse(const std::string& fullResponse);
 
 
 

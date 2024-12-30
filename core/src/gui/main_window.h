@@ -12,7 +12,7 @@
 
 #define WINDOW_FLAGS ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
 
-class MainWindow {
+class MainWindow{
 public:
     virtual void init();
     virtual void end() {}
@@ -23,6 +23,8 @@ public:
         this->updateWaterfallZoomBandwidth(bw);
     }
     bool sdrIsRunning();
+
+    void performDetectedLLMAction(const std::string &whisperResult, std::string command);
 
     static float* acquireFFTBuffer(void* ctx);
     static void releaseFFTBuffer(void* ctx);
@@ -35,6 +37,7 @@ public:
 
     bool lockWaterfallControls = false;
     bool playButtonLocked = false;
+    bool spacePressed = false;
 
     Event<bool> onPlayStateChange;
     Event<ImGuiContext *> onWaterfallDrawn;
@@ -52,6 +55,23 @@ public:
 
     bool logWindow = false;
     bool showMenu = true;
+
+    // Mic stream handling
+    dsp::stream<dsp::stereo_t> micStream;
+    std::shared_ptr<std::thread> micThread;
+    std::atomic<bool> micThreadRunning = false;
+    std::mutex micSamplesMutex;
+
+    // Main thread task queue
+    std::vector<std::function<void()>> mainThreadTasks;
+    std::mutex mainThreadTasksMutex;
+
+    // Add a task to be executed on the main thread
+    void addMainThreadTask(std::function<void()> task) {
+        std::lock_guard<std::mutex> lock(mainThreadTasksMutex);
+        mainThreadTasks.push_back(task);
+    }
+
 
 protected:
     static void vfoAddedHandler(VFOManager::VFO* vfo, void* ctx);
