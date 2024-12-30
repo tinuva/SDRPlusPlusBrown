@@ -351,6 +351,32 @@ private:
                 return false;
             }
 
+            // Enable input on the audio unit
+            UInt32 enableInput = 1;
+            status = AudioUnitSetProperty(inputUnit,
+                                        kAudioOutputUnitProperty_EnableIO,
+                                        kAudioUnitScope_Input,
+                                        1, // Input element
+                                        &enableInput,
+                                        sizeof(enableInput));
+            if (status != noErr) {
+                flog::error("Could not enable input on microphone device");
+                return false;
+            }
+
+            // Disable output on the audio unit
+            UInt32 disableOutput = 0;
+            status = AudioUnitSetProperty(inputUnit,
+                                        kAudioOutputUnitProperty_EnableIO,
+                                        kAudioUnitScope_Output,
+                                        0, // Output element
+                                        &disableOutput,
+                                        sizeof(disableOutput));
+            if (status != noErr) {
+                flog::error("Could not disable output on microphone device");
+                return false;
+            }
+
             // Set microphone device
             status = AudioUnitSetProperty(inputUnit,
                                         kAudioOutputUnitProperty_CurrentDevice,
@@ -359,7 +385,7 @@ private:
                                         &devices[micDevId].id,
                                         sizeof(devices[micDevId].id));
             if (status != noErr) {
-                flog::error("Could not set microphone device");
+                flog::error("Could not set microphone device: {}", status);
                 return false;
             }
 
