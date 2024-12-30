@@ -45,8 +45,8 @@ public:
         }
         if (config.conf[_streamName].contains("micDevice")) {
             std::string micDevice = config.conf[_streamName]["micDevice"];
-            for (int i = 0; i < micDevices.size(); i++) {
-                if (micDevices[i].name == micDevice) {
+            for (int i = 0; i < devices.size(); i++) {
+                if (devices[i].isInput && devices[i].name == micDevice) {
                     micDevId = i;
                     break;
                 }
@@ -199,7 +199,7 @@ public:
                     auto devices = (std::vector<AudioDevice>*)data;
                     *out_text = devices->at(idx).name.c_str();
                     return true;
-                }, &micDevices, micDevices.size())) {
+                }, &devices, devices.size())) {
                     config.acquire();
                     config.conf[_streamName]["micDevice"] = micDevices[micDevId].name;
                     config.release(true);
@@ -330,7 +330,7 @@ private:
         }
 
         // Set up microphone input if enabled
-        if (useMic && micDevId >= 0 && micDevId < micDevices.size()) {
+        if (useMic && micDevId >= 0 && micDevId < devices.size() && devices[micDevId].isInput) {
             AudioComponentDescription desc = {
                 .componentType = kAudioUnitType_Output,
                 .componentSubType = kAudioUnitSubType_HALOutput,
@@ -356,8 +356,8 @@ private:
                                         kAudioOutputUnitProperty_CurrentDevice,
                                         kAudioUnitScope_Global,
                                         0,
-                                        &micDevices[micDevId].id,
-                                        sizeof(micDevices[micDevId].id));
+                                        &devices[micDevId].id,
+                                        sizeof(devices[micDevId].id));
             if (status != noErr) {
                 flog::error("Could not set microphone device");
                 return false;
