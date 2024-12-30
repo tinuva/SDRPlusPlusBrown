@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include "config.h"
 
 struct FrequencyBookmark {
     double frequency;
@@ -24,3 +25,6 @@ struct TransientBookmarkManager {
     virtual void refreshWaterfallBookmarks(bool lockConfig = true) = 0;
     virtual const char *getModesList() = 0;
 };
+
+void applyBookmark(FrequencyBookmark bm, std::string vfoName);
+ConfigManager &getFrequencyManagerConfig();

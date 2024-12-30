@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include "utils/wstr.h"
 #include "frequency_manager.h"
+#include "scanner.h"
 #include "../../radio/src/radio_module_interface.h"
 
 SDRPP_MOD_INFO{
@@ -39,6 +40,11 @@ enum {
 };
 
 const char* bookmarkDisplayModesTxt = "Off\0Top\0Bottom\0";
+
+
+ConfigManager &getFrequencyManagerConfig() {
+    return config;
+}
 
 class FrequencyManagerModule : public ModuleManager::Instance, public TransientBookmarkManager {
 public:
@@ -97,27 +103,6 @@ public:
     }
 
 private:
-    static void applyBookmark(FrequencyBookmark bm, std::string vfoName) {
-        if (vfoName == "") {
-            // TODO: Replace with proper tune call
-            gui::waterfall.setCenterFrequency(bm.frequency);
-            gui::waterfall.centerFreqMoved = true;
-        }
-        else {
-            for(auto x: core::moduleManager.instances) {
-                Instance *pInstance = x.second.instance;
-                auto radio = (RadioModuleInterface *)pInstance->getInterface("RadioModuleInterface");
-                if (radio && x.first == vfoName) {
-                    int mode = radio->getDemodByIndex(bm.modeIndex);
-                    float bandwidth = bm.bandwidth;
-                    core::modComManager.callInterface(vfoName, RADIO_IFACE_CMD_SET_MODE, &mode, NULL);
-                    core::modComManager.callInterface(vfoName, RADIO_IFACE_CMD_SET_BANDWIDTH, &bandwidth, NULL);
-                }
-            }
-            tuner::tune(tuner::TUNER_MODE_NORMAL, vfoName, bm.frequency);
-        }
-    }
-
     bool bookmarkEditDialog() {
         bool open = true;
         gui::mainWindow.lockWaterfallControls = true;
@@ -424,6 +409,17 @@ private:
             _this->deleteListOpen = true;
         }
         if (_this->selectedListName == "") { style::endDisabled(); }
+
+        // Update scanner with current bookmarks
+        std::vector<std::string> bookmarkNames;
+        for (auto& [name, bm] : _this->bookmarks) {
+            bookmarkNames.push_back(name);
+        }
+        _this->scanner.setBookmarks(bookmarkNames, _this->bookmarks);
+        
+        // Update and render scanner section
+        _this->scanner.update(ImGui::GetIO().DeltaTime);
+        _this->scanner.render();
 
         // List delete confirmation
         if (ImGui::GenericDialog(("freq_manager_del_list_confirm" + _this->name).c_str(), _this->deleteListOpen, GENERIC_DIALOG_BUTTONS_YES_NO, [_this]() {
@@ -835,9 +831,33 @@ again:
     std::string firstEditedListName;
 
     std::vector<WaterfallBookmark> waterfallBookmarks;
+    Scanner scanner{this};
 
     int bookmarkDisplayMode = 0;
 };
+
+void applyBookmark(FrequencyBookmark bm, std::string vfoName) {
+    if (vfoName == "") {
+        // TODO: Replace with proper tune call
+        gui::waterfall.setCenterFrequency(bm.frequency);
+        gui::waterfall.centerFreqMoved = true;
+    }
+    else {
+        for(auto x: core::moduleManager.instances) {
+            ModuleManager::Instance *pInstance = x.second.instance;
+            auto radio = (RadioModuleInterface *)pInstance->getInterface("RadioModuleInterface");
+            if (radio && x.first == vfoName) {
+                int mode = radio->getDemodByIndex(bm.modeIndex);
+                float bandwidth = bm.bandwidth;
+                core::modComManager.callInterface(vfoName, RADIO_IFACE_CMD_SET_MODE, &mode, NULL);
+                core::modComManager.callInterface(vfoName, RADIO_IFACE_CMD_SET_BANDWIDTH, &bandwidth, NULL);
+            }
+        }
+        tuner::tune(tuner::TUNER_MODE_NORMAL, vfoName, bm.frequency);
+    }
+}
+
+
 
 MOD_EXPORT void _INIT_() {
     json def = json({});
@@ -845,6 +865,14 @@ MOD_EXPORT void _INIT_() {
     def["bookmarkDisplayMode"] = BOOKMARK_DISP_MODE_TOP;
     def["lists"]["General"]["showOnWaterfall"] = true;
     def["lists"]["General"]["bookmarks"] = json::object();
+    
+    // Scanner defaults
+    def["scanner"] = json::object();
+    def["scanner"]["scanIntervalMs"] = 100.0f;
+    def["scanner"]["listenTimeSec"] = 10.0f;
+    def["scanner"]["noiseFloor"] = -120.0f;
+    def["scanner"]["signalMarginDb"] = 6.0f;
+    def["scanner"]["squelchEnabled"] = false;
 
     config.setPath(std::string(core::getRoot()) + "/frequency_manager_config.json");
     config.load(def);

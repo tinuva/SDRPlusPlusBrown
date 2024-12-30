@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 project(frequency_manager)
 
-file(GLOB SRC "src/*.cpp")
+file(GLOB SRC "src/*.cpp" "src/scanner.cpp")
 
 include(${SDRPP_MODULE_CMAKE})
 
