@@ -74,7 +74,7 @@ func main() {
 	fmt.Printf("Sending secret key: %s\n", secret)
 
 	// Create WebSocket connection
-	conn, _, err := websocket.DefaultDialer.Dial("ws://172.245.27.247:8080/ws", nil)
+	conn, _, err := websocket.DefaultDialer.Dial("ws://brownai.san.systems:8080/ws", nil)
 	if err != nil {
 		fmt.Printf("Error connecting to WebSocket: %v\n", err)
 		return

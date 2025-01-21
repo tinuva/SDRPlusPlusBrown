@@ -506,7 +506,7 @@ void initBrownAIClient(std::function<void(const std::string&, const std::string&
     static bool initialized = false;
     if (initialized) return;
     
-    brownAIClient.init("ny.san.systems:8080"); // Change this to your Brown AI server address
+    brownAIClient.init("brownai.san.systems:8080"); // Change this to your Brown AI server address
     brownAIClient.onCommandReceived = [callback](const std::string& command) {
         // Process the command received from Brown AI server
         callback("", command);
@@ -566,6 +566,34 @@ void MainWindow::draw() {
                     }
                 });
             }
+            initBrownAIClient([this](const std::string& whisperResult, const std::string& result) {
+                try {
+                    // Parse JSON response
+                    auto json = nlohmann::json::parse(result);
+
+                    // Check for error
+                    if (json.contains("error") && !json["error"].empty()) {
+                        flog::error("Brown AI error: {}", json["error"].get<std::string>());
+                        ImGui::InsertNotification({ImGuiToastType_Error, 5000, "Brown AI error: %s", json["error"].get<std::string>().c_str()});
+                        return;
+                    }
+
+                    // Extract command if present
+                    std::string command = json.value("command", "");
+                    if (command.empty()) {
+                        flog::warn("Empty command received from Brown AI");
+                        ImGui::InsertNotification({ImGuiToastType_Warning, 5000, "Empty command received"});
+                        return;
+                    }
+
+                    // Process the command
+                    flog::info("Response from Brown AI: {}", command);
+                    this->performDetectedLLMAction(whisperResult, command);
+                } catch (const std::exception& e) {
+                    flog::error("Failed to parse Brown AI response: {}", e.what());
+                    ImGui::InsertNotification({ImGuiToastType_Error, 5000, "Failed to parse Brown AI response"});
+                }
+            });
         }
     }
 
@@ -599,34 +627,6 @@ void MainWindow::draw() {
             flog::info("Recorded {} microphone samples", (int)micSamples.size());
             auto [speechFile, extension] = mpeg::produce_speech_file_for_whisper(micSamples, 48000);
             flog::info("Compressed to {} bytes as {}", (int)speechFile.size(), extension);
-            initBrownAIClient([this](const std::string& whisperResult, const std::string& result) {
-                try {
-                    // Parse JSON response
-                    auto json = nlohmann::json::parse(result);
-                    
-                    // Check for error
-                    if (json.contains("error") && !json["error"].empty()) {
-                        flog::error("Brown AI error: {}", json["error"].get<std::string>());
-                        ImGui::InsertNotification({ImGuiToastType_Error, 5000, "Brown AI error: %s", json["error"].get<std::string>().c_str()});
-                        return;
-                    }
-                    
-                    // Extract command if present
-                    std::string command = json.value("command", "");
-                    if (command.empty()) {
-                        flog::warn("Empty command received from Brown AI");
-                        ImGui::InsertNotification({ImGuiToastType_Warning, 5000, "Empty command received"});
-                        return;
-                    }
-                    
-                    // Process the command
-                    flog::info("Response from Brown AI: {}", command);
-                    this->performDetectedLLMAction(whisperResult, command);
-                } catch (const std::exception& e) {
-                    flog::error("Failed to parse Brown AI response: {}", e.what());
-                    ImGui::InsertNotification({ImGuiToastType_Error, 5000, "Failed to parse Brown AI response"});
-                }
-            });
             brownAIClient.sendAudioData(speechFile);
 
         }
@@ -931,7 +931,7 @@ void MainWindow::performDetectedLLMAction(const std::string &whisperResult, std:
         return;
     }
     if (command[0] == ':') { // just lazy
-        command = command.substr(1);
+        command = "COMMAND"+command;
     }
 
     // Split command into lines
@@ -943,7 +943,7 @@ void MainWindow::performDetectedLLMAction(const std::string &whisperResult, std:
         size_t pos = line.find("COMMAND");
         if (pos != std::string::npos) {
             // Extract everything after "COMMAND"
-            detectedCommand = line.substr(pos + 8); // maybe semi
+            detectedCommand = line.substr(pos + 8); // and colon
         }
         // check, if line is all capitals, assitn to lastCaps
         bool allCaps = true;
@@ -971,12 +971,16 @@ void MainWindow::performDetectedLLMAction(const std::string &whisperResult, std:
     }
     // Trim leading/trailing whitespace
 
+
     // Split into parts by spaces
     std::vector<std::string> parts;
-    std::istringstream iss(detectedCommand);
-    std::string part;
-    while (iss >> part) {
-        parts.push_back(part);
+    splitStringV(detectedCommand," ", parts);
+    while(parts.size()) {
+        if (parts[0] == "") {
+            parts.erase(parts.begin(), parts.begin()+1);
+        } else {
+            break;
+        }
     }
 
     if (parts[0] == "VOLUME_UP") {
@@ -1020,7 +1024,7 @@ void MainWindow::performDetectedLLMAction(const std::string &whisperResult, std:
         setPlayState(false);
     }
     if (parts[0] == "START") {
-        setPlayState(false);
+        setPlayState(true);
     }
     if (parts[0] == "MUTE") {
         if (sigpath::sinkManager.recentStreeam) {
@@ -1049,7 +1053,7 @@ void MainWindow::performDetectedLLMAction(const std::string &whisperResult, std:
         } else if (mult * freq < 100000 && mult == 1e3) { // 1200 khz spoken as 1.200 khz
                 mult = 1e6;
                 newFreq = mult * freq;
-        } else if (mult == 1e6) { // exact mhz freq
+        } else if (mult == 1e6 || mult == 1e3) { // exact mhz freq
             newFreq = mult * freq;
         } else {
             while (hzRange(freq) < hzRange(currentFrequency)) {
