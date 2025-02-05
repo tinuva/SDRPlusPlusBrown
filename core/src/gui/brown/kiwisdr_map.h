@@ -9,6 +9,7 @@
 #include <fstream>
 #include "gui/widgets/simple_widgets.h"
 #include "utils/proto/kiwisdr.h"
+#include "utils/proto/http.h"
 #include <gui/brown/geomap.h>
 
 

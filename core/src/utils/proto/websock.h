@@ -1,6 +1,7 @@
 #pragma once
 #include <map>
 #include <string>
+#include "../net.h"
 #include "http.h"
 #include <stdio.h>
 #include <random>
@@ -11,7 +12,7 @@
 namespace net::websock {
 
     struct WSClient {
-        std::shared_ptr<net::Socket> socket;
+        std::shared_ptr<::net::Socket> socket;
         std::string path;
         std::random_device rd;
         std::default_random_engine e1;
