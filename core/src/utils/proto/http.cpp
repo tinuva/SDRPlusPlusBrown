@@ -1,7 +1,13 @@
-#include "http.h"
+#pragma once
+
 #include <inttypes.h>
 #include <regex>
 #include <utils/flog.h>
+#include <cstdint>
+#include <string>
+#include <vector>
+
+#include "http.h"
 
 
 #ifdef __ANDROID__

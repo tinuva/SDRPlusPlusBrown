@@ -1,8 +1,10 @@
-#include "mpeg.h"
+#pragma once
+
 #include <vector>
 #include <cstdint>
 #include <cstring>
 
+#include "mpeg.h"
 #include "flog.h"
 
 #ifdef __APPLE__
