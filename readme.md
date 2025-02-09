@@ -48,3 +48,4 @@ Found an issue? Fork is worse than original? File an [issue](https://github.com/
   * use this filename (debug2.keystore) in app/build.gradle along with passwords in the signingConfigs -> debug section.
 
 Good luck.
+
