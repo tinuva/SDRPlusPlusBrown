@@ -26,6 +26,8 @@ SDRPP_MOD_INFO{
 
 ConfigManager config;
 
+#define DEFAULT_SAMPLE_RATE 48000
+
 class PulseAudioSink : SinkManager::Sink {
 public:
     PulseAudioSink(SinkManager::Stream* stream, std::string streamName) : 
@@ -61,6 +63,7 @@ public:
 
     void start() {
         if (_playing) return;
+        _stream->setSampleRate(DEFAULT_SAMPLE_RATE);
         _playing = true;
         stereoPacker.start();
     }
@@ -93,6 +96,9 @@ public:
     }
 
 private:
+
+    int zzz;
+
     void audioThread() {
         _mainloop = pa_mainloop_new();
         pa_mainloop_api* api = pa_mainloop_get_api(_mainloop);
@@ -122,6 +128,8 @@ private:
         }
         pa_operation_unref(op);
 
+        _streamReady = false;
+
         // Main audio loop
         while (_running) {
             if (!_playing) {
@@ -142,7 +150,7 @@ private:
             if (!_audioBuffer.empty()) {
                 pa_sample_spec ss = {
                     .format = PA_SAMPLE_FLOAT32LE,
-                    .rate = 48000,
+                    .rate = DEFAULT_SAMPLE_RATE,
                     .channels = 2
                 };
 
@@ -216,7 +224,7 @@ private:
                     if (_testSineWave) {
                         // Generate test sine wave at 440 Hz
                         const float freq = 440.0f;
-                        const float sampleRate = 48000.0f;
+                        const float sampleRate = ss.rate;
                         const float phaseInc = 2.0f * M_PI * freq / sampleRate;
                         
                         for (size_t i = 0; i < numSamples; i++) {
@@ -241,32 +249,35 @@ private:
                         if (op) pa_operation_unref(op);
                     }
 
-                    // Get sink info and set volume
-                    pa_operation* op = pa_context_get_sink_info_by_name(context, 
-                        _deviceName.empty() ? NULL : _deviceName.c_str(),
-                        [](pa_context* c, const pa_sink_info* i, int eol, void* userdata) {
-                            if (eol) return;
-                            auto _this = (PulseAudioSink*)userdata;
-                            flog::info("Sink volume: {}", pa_cvolume_avg(&i->volume));
-                                
-                            // If volume is 0, set it to 50%
-                            if (pa_cvolume_avg(&i->volume) == 0) {
-                                pa_cvolume volume = i->volume;
-                                pa_cvolume_set(&volume, i->channel_map.channels, PA_VOLUME_NORM/2);
-                                    
-                                pa_operation* vol_op = pa_context_set_sink_volume_by_name(c, 
-                                    i->name, &volume, NULL, NULL);
-                                if (vol_op) {
-                                    pa_operation_unref(vol_op);
+                    if (!_volumeSet) {
+                        _volumeSet = true;
+
+                        // Get sink info and set volume
+                        pa_operation* op = pa_context_get_sink_info_by_name(context,
+                            _deviceName.empty() ? NULL : _deviceName.c_str(),
+                            [](pa_context* c, const pa_sink_info* i, int eol, void* userdata) {
+                                if (eol) return;
+                                auto _this = (PulseAudioSink*)userdata;
+
+                                // If volume is 0, set it to 50%
+                                if (pa_cvolume_avg(&i->volume) == 0) {
+                                    pa_cvolume volume = i->volume;
+                                    pa_cvolume_set(&volume, i->channel_map.channels, PA_VOLUME_NORM/2);
+
+                                    pa_operation* vol_op = pa_context_set_sink_volume_by_name(c,
+                                        i->name, &volume, NULL, NULL);
+                                    if (vol_op) {
+                                        pa_operation_unref(vol_op);
+                                    }
+                                    flog::info("Set sink volume to 50%");
                                 }
-                                flog::info("Set sink volume to 50%");
+                            }, this);
+                        if (op) {
+                            while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
+                                pa_mainloop_iterate(_mainloop, 1, NULL);
                             }
-                        }, this);
-                    if (op) {
-                        while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
-                            pa_mainloop_iterate(_mainloop, 1, NULL);
+                            pa_operation_unref(op);
                         }
-                        pa_operation_unref(op);
                     }
 
                     int ret = pa_stream_write(_paStream, _audioBuffer.data(), bytesToWrite, NULL, 0, PA_SEEK_RELATIVE);
@@ -297,16 +308,16 @@ private:
                     }
                     _audioBuffer.clear();
                 }
-            }
-            else {
+            } else {
                 if (_streamReady) {
                     // Output silence if no data available
-                    std::vector<dsp::stereo_t> silence(512, {0.0f, 0.0f});
-                    pa_stream_write(_paStream, silence.data(), silence.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
+//                    std::vector<dsp::stereo_t> silence(512, {0.0f, 0.0f});
+//                    pa_stream_write(_paStream, silence.data(), silence.size() * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
+
                 }
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
         // Clean up
@@ -362,6 +373,7 @@ private:
     pa_mainloop* _mainloop = nullptr;
     pa_stream* _paStream = nullptr;
     bool _streamReady = false;
+    bool _volumeSet = false;
     
     // Testing variables
     bool _testSineWave;
