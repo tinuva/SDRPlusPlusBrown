@@ -163,52 +163,11 @@ private:
                 };
 
                 if (!_streamReady) {
-                    // Create stream if not exists
-                    if (!_paStream) {
-                        _paStream = pa_stream_new(context, "SDR++ Audio", &ss, NULL);
-                        pa_stream_set_buffer_attr(_paStream, &buffer_attr, NULL, NULL);
-                        if (!_paStream) {
-                            flog::error("Failed to create PulseAudio stream");
-                            return;
-                        }
-                    
-                        // Set stream callbacks
-                        pa_stream_set_state_callback(_paStream, [](pa_stream* s, void* userdata) {
-                            auto _this = (PulseAudioSink*)userdata;
-                            pa_stream_state_t state = pa_stream_get_state(s);
-                            flog::info("Stream state changed to {} ({})", 
-                                std::to_string(state),
-                                state == PA_STREAM_UNCONNECTED ? "UNCONNECTED" :
-                                state == PA_STREAM_CREATING ? "CREATING" :
-                                state == PA_STREAM_READY ? "READY" :
-                                state == PA_STREAM_FAILED ? "FAILED" :
-                                state == PA_STREAM_TERMINATED ? "TERMINATED" : "UNKNOWN");
-                            
-                            if (state == PA_STREAM_READY) {
-                                // Buffer attributes and sample spec are valid
-                            }
-                        }, this);
-                    
-                        pa_stream_set_write_callback(_paStream, [](pa_stream* s, size_t length, void* userdata) {
-                            // Write callback triggered
-                        }, this);
-                    
-                        int ret = pa_stream_connect_playback(_paStream, 
-                            _deviceName.empty() ? NULL : _deviceName.c_str(), 
-                            &buffer_attr, (pa_stream_flags_t)(PA_STREAM_ADJUST_LATENCY | PA_STREAM_AUTO_TIMING_UPDATE), NULL, NULL);
-                        if (ret < 0) {
-                            flog::error("pa_stream_connect_playback failed: {}", pa_strerror(ret));
-                            return;
-                        }
-                        
-                        // Explicitly uncork the stream
-                        pa_operation* op = pa_stream_cork(_paStream, 0, NULL, NULL);
-                        if (op) {
-                            pa_operation_unref(op);
-                        }
+                    if (!createStream(context)) {
+                        flog::error("Failed to create PulseAudio stream");
+                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                        continue;
                     }
-                    
-                    // Wait for stream to be ready
                     while (pa_stream_get_state(_paStream) != PA_STREAM_READY && _running) {
                         pa_mainloop_iterate(_mainloop, 1, NULL);
                         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -354,6 +313,61 @@ private:
         }
 
         pa_operation_unref(op);
+    }
+
+    bool createStream(pa_context* context) {
+         pa_sample_spec ss = {
+             .format = PA_SAMPLE_FLOAT32LE,
+             .rate = DEFAULT_SAMPLE_RATE,
+             .channels = 2
+         };
+
+         pa_buffer_attr buffer_attr = {
+             .maxlength = (uint32_t)-1,
+             .tlength = 512 * sizeof(dsp::stereo_t),
+             .prebuf = (uint32_t)-1,
+             .minreq = 512 * sizeof(dsp::stereo_t),
+             .fragsize = (uint32_t)-1
+         };
+
+         if (!_paStream) {
+             _paStream = pa_stream_new(context, "SDR++ Audio", &ss, NULL);
+             if (!_paStream) {
+                 flog::error("Failed to create PulseAudio stream");
+                 return false;
+             }
+             pa_stream_set_buffer_attr(_paStream, &buffer_attr, NULL, NULL);
+             
+             pa_stream_set_state_callback(_paStream, [](pa_stream* s, void* userdata) {
+                 auto _this = (PulseAudioSink*)userdata;
+                 pa_stream_state_t state = pa_stream_get_state(s);
+                 flog::info("Stream state changed to {} ({})", 
+                     std::to_string(state),
+                     state == PA_STREAM_UNCONNECTED ? "UNCONNECTED" :
+                     state == PA_STREAM_CREATING ? "CREATING" :
+                     state == PA_STREAM_READY ? "READY" :
+                     state == PA_STREAM_FAILED ? "FAILED" :
+                     state == PA_STREAM_TERMINATED ? "TERMINATED" : "UNKNOWN");
+             }, this);
+             
+             pa_stream_set_write_callback(_paStream, [](pa_stream* s, size_t length, void* userdata) {
+                 // Write callback triggered
+             }, this);
+             
+             int ret = pa_stream_connect_playback(_paStream, 
+                 _deviceName.empty() ? NULL : _deviceName.c_str(), 
+                 &buffer_attr, (pa_stream_flags_t)(PA_STREAM_ADJUST_LATENCY | PA_STREAM_AUTO_TIMING_UPDATE), NULL, NULL);
+             if (ret < 0) {
+                 flog::error("pa_stream_connect_playback failed: {}", pa_strerror(ret));
+                 return false;
+             }
+             
+             pa_operation* op = pa_stream_cork(_paStream, 0, NULL, NULL);
+             if (op) {
+                 pa_operation_unref(op);
+             }
+         }
+         return true;
     }
 
     SinkManager::Stream* _stream;
