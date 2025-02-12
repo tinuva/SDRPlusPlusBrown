@@ -35,7 +35,7 @@ read on below.
 * [Noise Reduction](#noise-reduction) - both for audio frequency and baseband (visual noise reduction!)
 * [Hermes Lite 2 support](#hermes-lite-2-support) - hl2_source plugin (don't confuse with hermes_source).
 * [Transmit mode](#transmit-mode) for Hermes Lite 2 - SSB QSO supported in full. See the [MANUAL](tx.md)
-  * record and then transmit the SSB CQ call to the air.
+  * record and then transmit the SSB CQ call to the air. (use Brown Audio Source)
   * [transmit CQ](#self-monitoring-using-digital-modes) in CW/FT8/WSPR in one button. (some kind of QSO dialogue is planned for later where applicable)
 * Improved client-server protocol: [baseband compression](https://www.youtube.com/watch?v=dH-8xuz9nAA), buffering, password authentication, TX support.
 * Frequency manager scanning: [video here](https://youtu.be/j5xObndyVHs)
@@ -47,13 +47,14 @@ read on below.
   * single-button save of the audio recording of your QSO (wav file) up to 3 minutes long.
   * spotted/worked callsigns are displayed on the fft (frequency manager - temporary records)
 * Saving of zoom parameters between sessions
+* Experimental voice control (use Brown Audio Source) - probably will run out of tokens (hardcoded key for now).
 * Mouse wheel support on the sliders
 * Optimized FFT on Macos using vDSP in Accelerate framework
 * Unicode support in fonts (Cyrillic), filenames and installation path (UTF-8), on Windows, too.
 * For Airspy HF+, added Fill-In option which cuts edge sides of the spectrum which are attenuated (low passed) by hardware.
 * When replaying WAV file, shows the timestamp, matching the factual time of the recording. Also, File replayer support in client-server mode.
 * [KiwiSDR support](#kiwisdr-support) (12 KHz bandwidth)
-* [Multiple output audio devices support](#multiple-output-audio-devices-support). Also, possibility to output to the left or right channel only.
+* [Multiple output audio devices support](#multiple-output-audio-devices-support). Also, possibility to output to the left or right channel only. (use Brown Audio Source)
 * Android Audio Device selection (bluetooth/external headset supported in QSO).
 * [More display scaling factors](#more-display-scaling-factors). Android: Forced landscape mode, thicker sliders.
 * [Bandwidth change slider](#bandwidth-slider) to easily edit bandwidth on touch devices.

@@ -2,9 +2,9 @@
 
 Newest entries are at the top.
 
-2025.02.12
+2024.12.31
 
-Disabled Brown Audio Sink by default. 
+* Experimental voice control - not for production use - will fail because free API key. 
 
 2024.12.30
 
