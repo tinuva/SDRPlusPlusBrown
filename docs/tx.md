@@ -59,7 +59,9 @@ Sofa-style video here: [https://youtu.be/URkedh_fJyc](https://youtu.be/URkedh_fJ
 ### Selection of the source
 
 As of May 2023, Hermes Lite 2 and compatible is used. You must use hl2_source in sdr++. There's hermes_source,
-which is intended to receive only, from upstream, i'm not talking about it. 
+which is intended to receive only, from upstream, i'm not talking about it.
+
+!! Please use brown_audio (instead of audio) sink for TX / microphone functionality.
 
 In the list of drivers, select "Hermes Lite 2". If it's missing, use Module Manager, add module called "hl2_source". 
 Select it from dropdown, type name in the empty text field, and press (+)

@@ -2,6 +2,10 @@
 
 Newest entries are at the top.
 
+2025.02.12
+
+Disabled Brown Audio Sink by default. 
+
 2024.12.30
 
 * Native CoreAudio driver for MacOS. It is now possible to use MacOS audio devices directly, without PortAudio and other intermediate libs.
