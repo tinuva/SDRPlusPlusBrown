@@ -11,6 +11,7 @@
 #include <uhd/device.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <utils/optionlist.h>
+#include <utils/freq_formatting.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
@@ -143,7 +144,7 @@ public:
         for (const auto& l : srList) {
             double step = (l.step() == 0.0) ? 100e3 : l.step();
             for (double f = l.start(); f <= l.stop(); f += step) {
-                samplerates.define(f, getBandwdithScaled(f), f);
+                samplerates.define(f, utils::formatFreq(f), f);
             }
         }
 
@@ -164,7 +165,7 @@ public:
         for (const auto& r : bwRange) {
             double step = (r.step() == 0.0) ? 100e3 : r.step();
             for (double i = r.start(); i <= r.stop(); i += step) {
-                bandwidths.define((int)i, getBandwdithScaled(i), i);
+                bandwidths.define((int)i, utils::formatFreq(i), i);
             }
         }
 
@@ -448,18 +449,23 @@ private:
     void worker() {
         // TODO: Select a better buffer size that will avoid bad timing
         int bufferSize = sampleRate / 200;
-        while (true) {
-            uhd::rx_metadata_t meta;
-            void* ptr[] = { stream.writeBuf };
-            uhd::rx_streamer::buffs_type buffers(ptr, 1);
-            int len = streamer->recv(stream.writeBuf, bufferSize, meta, 1.0);
-            if (len < 0) { break; }
-            if (len != bufferSize) {
-                printf("%d\n", len);
+        try {
+            while (true) {
+                uhd::rx_metadata_t meta;
+                void* ptr[] = { stream.writeBuf };
+                uhd::rx_streamer::buffs_type buffers(ptr, 1);
+                int len = streamer->recv(stream.writeBuf, bufferSize, meta, 1.0);
+                if (len < 0) { break; }
+                if (len != bufferSize) {
+                    printf("%d\n", len);
+                }
+                if (len) {
+                    if (!stream.swap(len)) { break; }
+                }
             }
-            if (len) {
-                if (!stream.swap(len)) { break; }
-            }
+        }
+        catch (const std::exception& e) {
+            flog::error("Failed to receive samples: {}", e.what());
         }
     }
 
