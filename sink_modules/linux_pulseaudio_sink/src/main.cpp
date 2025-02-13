@@ -143,7 +143,7 @@ private:
             }
 
             // Let packer process data
-            stereoPacker.process();
+            //stereoPacker.process();
         }
 
         // Clean up
@@ -203,7 +203,7 @@ private:
 
              pa_stream_set_write_callback(_paStream, [](pa_stream* s, size_t length, void* userdata) {
                 PulseAudioSink* _this = static_cast<PulseAudioSink*>(userdata);
-                size_t available = _this->stereoPacker.out.getAvailable();
+                size_t available = _this->stereoPacker.out.isDataReady() ? _this->stereoPacker.out.read() : -1;
 
                 if(available > 0) {
                     void* data;
@@ -211,9 +211,11 @@ private:
                     size_t toWrite = std::min(available, length/sizeof(dsp::stereo_t));
 
                     if(toWrite > 0) {
-                        _this->stereoPacker.out.read((dsp::stereo_t*)data, toWrite);
-                        pa_stream_write(s, data, toWrite * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE);
+                        memcpy(data, _this->stereoPacker.out.readBuf, available * sizeof(dsp::stereo_t));
+                        //int rd = _this->stereoPacker.out.read((dsp::stereo_t*)data, toWrite);
+                        pa_stream_write(s, data, toWrite * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE); // dropping non-written data
                     }
+                    _this->stereoPacker.out.flush();
                 }
             }, this);
 
