@@ -413,7 +413,7 @@ namespace server {
         }
 
         // Compress data if needed and fill out header fields
-        if ((startCommandArguments.clientCapsRequested & CLIENT_CAPS_BASEDATA_METADATA)) {
+        if ((startCommandArguments.clientCapsRequested & CLIENT_CAPS_BASEDATA_METADATA && false)) {
             bb_pkt_hdr->type = PACKET_TYPE_BASEBAND_WITH_METADATA;
             StreamMetadata *sm = (StreamMetadata*)&bbuf[sizeof(PacketHeader)];
             sm->version = 1;
