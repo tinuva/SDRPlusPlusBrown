@@ -239,17 +239,18 @@ private:
 
              pa_stream_set_write_callback(_paStream, [](pa_stream* s, size_t length, void* userdata) {
                 PulseAudioSink* _this = static_cast<PulseAudioSink*>(userdata);
-                size_t available = _this->stereoPacker.out.isDataReady() ? _this->stereoPacker.out.read() : -1;
+                //int available = _this->stereoPacker.out.isDataReady() ? _this->stereoPacker.out.read() : -1;
+                int available = _this->stereoPacker.out.read();
 
                 // flog::info("Write callback triggered, requesting {} bytes", length);
-                if(available <= 0) {
-                    flog::warn("No data available in packer buffer");
-                    _this->sendSilence(s, length);
+                if(available < 0) {
+                    // flog::warn("No data available in packer buffer");
+                    // _this->sendSilence(s, 1 * sizeof(dsp::stereo_t));
                     return;
                 }
                 void* data;
                 pa_stream_begin_write(s, &data, &length);
-                size_t toWrite = std::min(available, length/sizeof(dsp::stereo_t));
+                int toWrite = std::min<int>(available, length/sizeof(dsp::stereo_t));
                 // flog::info("Writing {} samples to PulseAudio", toWrite);
 
                 if(toWrite > 0) {
