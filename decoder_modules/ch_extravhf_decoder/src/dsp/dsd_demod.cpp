@@ -706,7 +706,7 @@ namespace dsp {
             max = 15000;
             min = -15000;
             center = 0;
-            sprintf(errStr, "");
+            errStr[0] = '\0';
             sprintf(fsubtype, "              ");
             sprintf(ftype, "             ");
             errs = 0;

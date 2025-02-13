@@ -122,7 +122,12 @@ void doDecode(const char *mode, const char *path, int threads, std::function<voi
         fprintf(stderr,"ERROR Cannot alloc %lld\n", size);
         exit(1);
     }
-    (void)fread((void *)buf, size, 1, f);
+    if (fread((void *)buf, size, 1, f) != 1) {
+        fprintf(stderr, "Failed to read file\n");
+        free(buf);
+        fclose(f);
+        return;
+    }
     fclose(f);
     riff::ChunkHeader *riffHeader = (riff::ChunkHeader *)(buf);
     riff::ChunkHeader *fmtHeader = (riff::ChunkHeader *)(buf + 12);

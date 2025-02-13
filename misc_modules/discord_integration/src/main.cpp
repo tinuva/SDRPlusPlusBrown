@@ -113,13 +113,13 @@ private:
 
             // Print out frequency to buffer
             if (selectedFreq >= 1000000.0) {
-                snprintf(freq, sizeof freq, "%.3lfMHz %s", selectedFreq / 1000000.0, mode);
+                snprintf(freq, sizeof freq, "%.3lfMHz %.32s", selectedFreq / 1000000.0, mode);
             }
             else if (selectedFreq >= 1000.0) {
-                snprintf(freq, sizeof freq, "%.3lfKHz %s", selectedFreq / 1000.0, mode);
+                snprintf(freq, sizeof freq, "%.3lfKHz %.32s", selectedFreq / 1000.0, mode);
             }
             else {
-                snprintf(freq, sizeof freq, "%.3lfHz %s", selectedFreq, mode);
+                snprintf(freq, sizeof freq, "%.3lfHz %.32s", selectedFreq, mode);
             }
 
             // Fill in the rest of the details and send to discord

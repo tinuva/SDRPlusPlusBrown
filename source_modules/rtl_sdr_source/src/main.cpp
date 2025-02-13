@@ -128,7 +128,7 @@ public:
             int snErr = rtlsdr_get_device_usb_strings(i, NULL, NULL, snBuf);
 
             // Build name
-            snprintf(buf, sizeof buf, "[%s] %s##%d", (!snErr && snBuf[0]) ? snBuf : "No Serial", devName, i);
+            snprintf(buf, sizeof buf, "[%.64s] %.64s##%d", (!snErr && snBuf[0]) ? snBuf : "No Serial", devName, i);
             devNames.push_back(buf);
             devListTxt += buf;
             devListTxt += '\0';

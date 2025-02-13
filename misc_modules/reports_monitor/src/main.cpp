@@ -691,7 +691,7 @@ private:
                         ImGui::SameLine();
                         ImGui::Text("%s", buf);
                     } else {
-                        ImGui::Text("");
+                        // Removed zero-length Text call
                     }
                     ImGui::TableSetColumnIndex(col++);
                     ImGui::Text("%s", report.reportedCallsign.c_str());
@@ -708,7 +708,7 @@ private:
                         ImGui::SameLine();
                         ImGui::Text("%s", buf);
                     } else {
-                        ImGui::Text("");
+                        // Removed zero-length Text call
                     }
 
                     ImGui::TableSetColumnIndex(col++);
