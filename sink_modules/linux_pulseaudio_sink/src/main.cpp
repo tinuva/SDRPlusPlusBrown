@@ -103,6 +103,19 @@ private:
         pa_mainloop_run(_mainloop, NULL);
     }
 
+    static std::string pa_context_state_to_string(pa_context_state_t state) {
+        switch (state) {
+        case PA_CONTEXT_UNCONNECTED: return "UNCONNECTED";
+        case PA_CONTEXT_CONNECTING: return "CONNECTING";
+        case PA_CONTEXT_AUTHORIZING: return "AUTHORIZING";
+        case PA_CONTEXT_SETTING_NAME: return "SETTING_NAME";
+        case PA_CONTEXT_READY: return "READY";
+        case PA_CONTEXT_FAILED: return "FAILED";
+        case PA_CONTEXT_TERMINATED: return "TERMINATED";
+        default: return "UNKNOWN (" + std::to_string(state) + ")";
+        }
+    }
+
     void audioThread() {
         _mainloop = pa_mainloop_new();
         pa_mainloop_api* api = pa_mainloop_get_api(_mainloop);
@@ -153,7 +166,6 @@ private:
             }
 
             // Let packer process data
-            stereoPacker.process();
         }
 
         // Clean up
@@ -171,21 +183,30 @@ private:
     }
 
     void enumerateDevices(pa_context* context) {
-        pa_operation* op = pa_context_get_sink_info_list(context,
-            [](pa_context* c, const pa_sink_info* i, int eol, void* userdata) {
+        pa_operation* op = pa_context_get_sink_info_list(context, [](pa_context* c, const pa_sink_info* i, int eol, void* userdata) {
                 PulseAudioSink* _this = static_cast<PulseAudioSink*>(userdata);
                 if(eol) return;
                 _this->_devices.push_back(i->name);
                 if(i->name == _this->_deviceName) {
                     _this->_selectedDevice = _this->_devices.size() - 1;
-                }
-            }, this);
+                } }, this);
 
         while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
         pa_operation_unref(op);
+    }
+
+    static std::string pa_stream_state_to_string(pa_stream_state_t state) {
+        switch (state) {
+        case PA_STREAM_UNCONNECTED: return "UNCONNECTED";
+        case PA_STREAM_CREATING: return "CREATING";
+        case PA_STREAM_READY: return "READY";
+        case PA_STREAM_FAILED: return "FAILED";
+        case PA_STREAM_TERMINATED: return "TERMINATED";
+        default: return "UNKNOWN (" + std::to_string(state) + ")";
+        }
     }
 
     bool createStream(pa_context* context) {
@@ -221,13 +242,13 @@ private:
                     flog::warn("No data available in packer buffer");
                     return;
                 }
-                flog::info("Writing {} samples to PulseAudio", toWrite);
                 void* data;
                 pa_stream_begin_write(s, &data, &length);
                 size_t toWrite = std::min(available, length/sizeof(dsp::stereo_t));
+                flog::info("Writing {} samples to PulseAudio", toWrite);
 
                 if(toWrite > 0) {
-                    memcpy(data, _this->stereoPacker.out.readBuf, available * sizeof(dsp::stereo_t));
+                    memcpy(data, _this->stereoPacker.out.readBuf, toWrite * sizeof(dsp::stereo_t));
                     //int rd = _this->stereoPacker.out.read((dsp::stereo_t*)data, toWrite);
                     pa_stream_write(s, data, toWrite * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE); // dropping non-written data
                 }
