@@ -182,6 +182,13 @@ private:
         }
     }
 
+    void sendSilence(pa_stream* s, size_t length) {
+        void* data;
+        pa_stream_begin_write(s, &data, &length);
+        memset(data, 0, length);
+        pa_stream_write(s, data, length, NULL, 0, PA_SEEK_RELATIVE);
+    }
+
     void enumerateDevices(pa_context* context) {
         pa_operation* op = pa_context_get_sink_info_list(context, [](pa_context* c, const pa_sink_info* i, int eol, void* userdata) {
                 PulseAudioSink* _this = static_cast<PulseAudioSink*>(userdata);
@@ -240,6 +247,7 @@ private:
                 flog::info("Write callback triggered, requesting {} bytes", length);
                 if(available <= 0) {
                     flog::warn("No data available in packer buffer");
+                    _this->sendSilence(s, length);
                     return;
                 }
                 void* data;
