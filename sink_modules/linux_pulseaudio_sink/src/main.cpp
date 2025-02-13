@@ -160,10 +160,7 @@ private:
 
         // Main audio loop
         while (_running) {
-            if (!_playing) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                continue;
-            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
             // Let packer process data
         }
@@ -244,7 +241,7 @@ private:
                 PulseAudioSink* _this = static_cast<PulseAudioSink*>(userdata);
                 size_t available = _this->stereoPacker.out.isDataReady() ? _this->stereoPacker.out.read() : -1;
 
-                flog::info("Write callback triggered, requesting {} bytes", length);
+                // flog::info("Write callback triggered, requesting {} bytes", length);
                 if(available <= 0) {
                     flog::warn("No data available in packer buffer");
                     _this->sendSilence(s, length);
@@ -253,7 +250,7 @@ private:
                 void* data;
                 pa_stream_begin_write(s, &data, &length);
                 size_t toWrite = std::min(available, length/sizeof(dsp::stereo_t));
-                flog::info("Writing {} samples to PulseAudio", toWrite);
+                // flog::info("Writing {} samples to PulseAudio", toWrite);
 
                 if(toWrite > 0) {
                     memcpy(data, _this->stereoPacker.out.readBuf, toWrite * sizeof(dsp::stereo_t));
