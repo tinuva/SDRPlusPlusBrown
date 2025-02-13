@@ -76,8 +76,8 @@ private:
     }
 
     void updatePresence() {
-        char freq[32];
-        char mode[32];
+        char freq[200];
+        char mode[200];
         double selectedFreq = gui::freqSelect.frequency;
         std::string selectedName = gui::waterfall.selectedVFO;
         strcpy(mode, "Raw");
