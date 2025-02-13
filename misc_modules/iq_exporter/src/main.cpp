@@ -78,7 +78,7 @@ public:
         // Define packet sizes
         for (int i = 8; i <= 32768; i <<= 1) {
             char buf[16];
-            snprintf(buf, sizeof buf, "%d Bytes", i);
+            snprintf(buf, sizeof buf, "%d Bytes", std::min(i, 9999));
             packetSizes.define(i, buf, i);
         }
 
