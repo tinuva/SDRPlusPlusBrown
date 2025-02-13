@@ -106,22 +106,27 @@ private:
     void audioThread() {
         _mainloop = pa_mainloop_new();
         pa_mainloop_api* api = pa_mainloop_get_api(_mainloop);
-        pa_context* context = pa_context_new(api, "SDR++ PulseAudio Sink");
-        pa_context_connect(context, NULL, PA_CONTEXT_NOFLAGS, NULL);
+        _paContext = pa_context_new(api, "SDR++ PulseAudio Sink");
+        pa_context_set_state_callback(_paContext, [](pa_context* c, void* userdata) {
+            PulseAudioSink* _this = static_cast<PulseAudioSink*>(userdata);
+            pa_context_state_t state = pa_context_get_state(c);
+            flog::info("Context state changed to: {}", pa_context_state_to_string(state));
+        }, this);
+        pa_context_connect(_paContext, NULL, PA_CONTEXT_NOFLAGS, NULL);
 
         // Start mainloop in separate thread
         std::thread paThread(&PulseAudioSink::paThreadFunc, this);
 
         // Wait for context to be ready
-        while (_running && pa_context_get_state(context) != PA_CONTEXT_READY) {
+        while (_running && pa_context_get_state(_paContext) != PA_CONTEXT_READY) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
         // Enumerate devices and log detailed info
-        enumerateDevices(context);
+        enumerateDevices(_paContext);
 
         // Log current default sink
-        pa_operation* op = pa_context_get_server_info(context, [](pa_context* c, const pa_server_info* i, void* userdata) {
+        pa_operation* op = pa_context_get_server_info(_paContext, [](pa_context* c, const pa_server_info* i, void* userdata) {
             auto _this = (PulseAudioSink*)userdata;
             flog::info("PulseAudio server info:");
             flog::info("  Default sink: {}", i->default_sink_name);
@@ -135,6 +140,11 @@ private:
 
         _streamReady = false;
 
+        if(!createStream(_paContext)) {
+            flog::error("Failed to create PulseAudio stream");
+            return;
+        }
+
         // Main audio loop
         while (_running) {
             if (!_playing) {
@@ -143,7 +153,7 @@ private:
             }
 
             // Let packer process data
-            //stereoPacker.process();
+            stereoPacker.process();
         }
 
         // Clean up
@@ -152,8 +162,8 @@ private:
             pa_stream_unref(_paStream);
             _paStream = nullptr;
         }
-        pa_context_disconnect(context);
-        pa_context_unref(context);
+        pa_context_disconnect(_paContext);
+        pa_context_unref(_paContext);
         if (_mainloop) {
             pa_mainloop_free(_mainloop);
             _mainloop = nullptr;
@@ -179,6 +189,7 @@ private:
     }
 
     bool createStream(pa_context* context) {
+        flog::info("Creating PulseAudio stream for device: {}", _deviceName.empty() ? "default" : _deviceName);
          pa_sample_spec ss = {
              .format = PA_SAMPLE_FLOAT32LE,
              .rate = DEFAULT_SAMPLE_RATE,
@@ -205,29 +216,38 @@ private:
                 PulseAudioSink* _this = static_cast<PulseAudioSink*>(userdata);
                 size_t available = _this->stereoPacker.out.isDataReady() ? _this->stereoPacker.out.read() : -1;
 
-                if(available > 0) {
-                    void* data;
-                    pa_stream_begin_write(s, &data, &length);
-                    size_t toWrite = std::min(available, length/sizeof(dsp::stereo_t));
-
-                    if(toWrite > 0) {
-                        memcpy(data, _this->stereoPacker.out.readBuf, available * sizeof(dsp::stereo_t));
-                        //int rd = _this->stereoPacker.out.read((dsp::stereo_t*)data, toWrite);
-                        pa_stream_write(s, data, toWrite * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE); // dropping non-written data
-                    }
-                    _this->stereoPacker.out.flush();
+                flog::info("Write callback triggered, requesting {} bytes", length);
+                if(available <= 0) {
+                    flog::warn("No data available in packer buffer");
+                    return;
                 }
+                flog::info("Writing {} samples to PulseAudio", toWrite);
+                void* data;
+                pa_stream_begin_write(s, &data, &length);
+                size_t toWrite = std::min(available, length/sizeof(dsp::stereo_t));
+
+                if(toWrite > 0) {
+                    memcpy(data, _this->stereoPacker.out.readBuf, available * sizeof(dsp::stereo_t));
+                    //int rd = _this->stereoPacker.out.read((dsp::stereo_t*)data, toWrite);
+                    pa_stream_write(s, data, toWrite * sizeof(dsp::stereo_t), NULL, 0, PA_SEEK_RELATIVE); // dropping non-written data
+                }
+                _this->stereoPacker.out.flush();
             }, this);
 
             pa_stream_set_state_callback(_paStream, [](pa_stream* s, void* userdata) {
-                // Handle state changes
+                PulseAudioSink* _this = static_cast<PulseAudioSink*>(userdata);
+                pa_stream_state_t state = pa_stream_get_state(s);
+                flog::info("Stream state changed to: {}", pa_stream_state_to_string(state));
+                if(state == PA_STREAM_FAILED) {
+                    flog::error("Stream error: {}", pa_strerror(pa_context_errno(_this->_paContext)));
+                }
             }, this);
 
              int ret = pa_stream_connect_playback(_paStream,
                  _deviceName.empty() ? NULL : _deviceName.c_str(),
                  &buffer_attr, (pa_stream_flags_t)(PA_STREAM_ADJUST_LATENCY | PA_STREAM_AUTO_TIMING_UPDATE), NULL, NULL);
              if (ret < 0) {
-                 flog::error("pa_stream_connect_playback failed: {}", pa_strerror(ret));
+                 flog::error("pa_stream_connect_playback failed ({}): {}", ret, pa_strerror(ret));
                  return false;
              }
 
@@ -255,6 +275,7 @@ private:
     std::vector<dsp::stereo_t> _audioBuffer;
     pa_mainloop* _mainloop = nullptr;
     pa_stream* _paStream = nullptr;
+    pa_context* _paContext = nullptr;
     bool _streamReady = false;
     bool _volumeSet = false;
 
