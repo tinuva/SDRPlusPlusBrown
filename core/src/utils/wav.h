@@ -100,7 +100,9 @@ namespace wav {
 #ifndef NDEBUG
 #ifndef _WIN32
             if (f) {
-                ftruncate(fileno(f), 0); // windows version?
+                if (ftruncate(fileno(f), 0) < 0) { // windows version?
+                    // Ignore truncate errors
+                }
                 fseek(f, 0, SEEK_SET);
             }
 #endif

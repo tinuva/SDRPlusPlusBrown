@@ -1,5 +1,3 @@
-#pragma once
-
 #include <inttypes.h>
 #include <regex>
 #include <utils/flog.h>
@@ -515,7 +513,7 @@ namespace net::http {
 
     std::string ChunkHeader::serialize() {
         char buf[64];
-        snprintf(buf, sizeof buf, "%" PRIX64 "\r\n", (unsigned long long)length);
+        snprintf(buf, sizeof buf, "%llX\r\n", (unsigned long long)length);
         return buf;
     }
 

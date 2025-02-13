@@ -39,8 +39,8 @@ namespace hrfreq {
         }
 
         // Concat the suffix
-        char finalBuf[128];
-        sprintf(finalBuf, "%s%s", numBuf, suffix);
+        char finalBuf[256];
+        snprintf(finalBuf, sizeof(finalBuf), "%s%s", numBuf, suffix);
 
         // Return the final string
         return finalBuf;

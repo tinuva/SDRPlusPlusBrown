@@ -157,7 +157,9 @@ namespace core {
         res.terminated = true;
         res.wstatus = wstatus;
 //        flog::info("FORKSERVER, sending pid death: {}", q);
-        (void)write(forkResult[1], &res, sizeof(res));
+        if (write(forkResult[1], &res, sizeof(res)) < 0) {
+            flog::warn("Failed to write fork result");
+        }
 #endif
     }
 
@@ -242,7 +244,9 @@ namespace core {
                     if (err < 0) {
                         perror("exec");
                     }
-                    (void)write(1, "\nBefore process exit\n", strlen("\nBefore process exit\n"));
+                    if (write(1, "\nBefore process exit\n", strlen("\nBefore process exit\n")) < 0) {
+                        // Ignore error on process exit
+                    }
                     close(0);
                     close(1);
                     close(2);
@@ -256,7 +260,9 @@ namespace core {
                     res.seq = cmd.seq;
                     res.pid = newPid;
 //                    flog::info("FORKSERVER ({}), sending pid: {}", cmd.info, newPid);
-                    write(forkResult[1], &res, sizeof(res));
+                    if (write(forkResult[1], &res, sizeof(res)) < 0) {
+                        flog::warn("Failed to write fork result");
+                    }
                 }
             }
         }
