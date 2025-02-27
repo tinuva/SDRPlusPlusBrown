@@ -21,93 +21,137 @@ namespace tuner {
     }
 
     void normalTuning(std::string vfoName, double freq) {
+        // If no VFO name is provided, use centerTuning instead
         if (vfoName == "") {
             centerTuning(vfoName, freq);
             return;
         }
-        if (gui::waterfall.vfos.find(vfoName) == gui::waterfall.vfos.end()) { return; }
-
+        
+        // Check if VFO exists
+        if (gui::waterfall.vfos.find(vfoName) == gui::waterfall.vfos.end()) {
+            return;
+        }
+    
+        // Get the VFO object
+        ImGui::WaterfallVFO* vfo = gui::waterfall.vfos[vfoName];
+        
+        // Get current waterfall view properties
         double viewBW = gui::waterfall.getViewBandwidth();
         double BW = gui::waterfall.getBandwidth();
-
-        ImGui::WaterfallVFO* vfo = gui::waterfall.vfos[vfoName];
-
-        double currentOff = vfo->centerOffset;
-        double currentTune = gui::waterfall.getCenterFrequency() + vfo->generalOffset;
-        double delta = freq - currentTune;
-
-        double newVFO = currentOff + delta;
+        double currentCenterFreq = gui::waterfall.getCenterFrequency();
+        
+        // Get usable bandwidth percentage for current source
+        float usableBwPercent = 100.0f;
+        const std::string& currentSource = sigpath::sourceManager.getSelectedName();
+        
+        if (!currentSource.empty()) {
+            core::configManager.acquire();
+            if (core::configManager.conf["usableBandwidth"].contains(currentSource)) {
+                usableBwPercent = core::configManager.conf["usableBandwidth"][currentSource];
+            }
+            core::configManager.release();
+        }
+        
+        // Calculate actual usable bandwidth and its boundaries
+        double usableBW = (BW * usableBwPercent) / 100.0;
+        double unusableBWHalf = (BW - usableBW) / 2.0;
+        
+        // Define boundaries of usable bandwidth (relative to center frequency)
+        double usableBottom = -usableBW / 2.0;
+        double usableTop = usableBW / 2.0;
+        
+        // Calculate current VFO position and desired new frequency
+        double currentVFOOffset = vfo->centerOffset;
+        double currentTuneFreq = currentCenterFreq + vfo->generalOffset;
+        double deltaFreq = freq - currentTuneFreq;
+        
+        // Calculate VFO bandwidth
         double vfoBW = vfo->bandwidth;
-        double vfoBottom = newVFO - (vfoBW / 2.0);
-        double vfoTop = newVFO + (vfoBW / 2.0);
-
-        double view = gui::waterfall.getViewOffset();
-        double viewBottom = view - (viewBW / 2.0);
-        double viewTop = view + (viewBW / 2.0);
-
-        double bottom = -(BW / 2.0);
-        double top = (BW / 2.0);
-
-        // VFO still fints in the view
-        if (vfoBottom > viewBottom && vfoTop < viewTop) {
-            sigpath::vfoManager.setCenterOffset(vfoName, newVFO);
-            return;
-        }
-
-        // VFO too low for current SDR tuning
-        if (vfoBottom < bottom) {
-            gui::waterfall.setViewOffset((BW / 2.0) - (viewBW / 2.0));
-            double newVFOOffset = (BW / 2.0) - (vfoBW / 2.0) - (viewBW / 10.0);
-            sigpath::vfoManager.setOffset(vfoName, newVFOOffset);
-            gui::waterfall.setCenterFrequency(freq - newVFOOffset);
-            sigpath::sourceManager.tune(freq - newVFOOffset);
-            return;
-        }
-
-        // VFO too high for current SDR tuning
-        if (vfoTop > top) {
-            gui::waterfall.setViewOffset((viewBW / 2.0) - (BW / 2.0));
-            double newVFOOffset = (vfoBW / 2.0) - (BW / 2.0) + (viewBW / 10.0);
-            sigpath::vfoManager.setOffset(vfoName, newVFOOffset);
-            gui::waterfall.setCenterFrequency(freq - newVFOOffset);
-            sigpath::sourceManager.tune(freq - newVFOOffset);
-            return;
-        }
-
-        // VFO is still without the SDR's bandwidth
-        if (delta < 0) {
-            double newViewOff = vfoTop - (viewBW / 2.0) + (viewBW / 10.0);
-            double newViewBottom = newViewOff - (viewBW / 2.0);
-
-            if (newViewBottom > bottom) {
-                gui::waterfall.setViewOffset(newViewOff);
-                sigpath::vfoManager.setCenterOffset(vfoName, newVFO);
-                return;
+        
+        // Calculate the proposed new VFO position
+        double newVFOPos = currentVFOOffset + deltaFreq;
+        double newVFOBottom = newVFOPos - (vfoBW / 2.0);
+        double newVFOTop = newVFOPos + (vfoBW / 2.0);
+        
+        // Case 1: Requested position would place VFO within usable bandwidth
+        if (newVFOBottom >= usableBottom && newVFOTop <= usableTop) {
+            // Check if the VFO would be visible in the current view
+            double viewOffset = gui::waterfall.getViewOffset();
+            double viewBottom = viewOffset - (viewBW / 2.0);
+            double viewTop = viewOffset + (viewBW / 2.0);
+            
+            if (newVFOBottom >= viewBottom && newVFOTop <= viewTop) {
+                // VFO is within current view, just update the offset
+                sigpath::vfoManager.setCenterOffset(vfoName, newVFOPos);
+            } else {
+                // VFO would be outside current view, adjust view to include it
+                double newViewOffset = newVFOPos; // Center view on VFO
+                
+                // Ensure view is within usable bandwidth
+                if (newViewOffset - (viewBW / 2.0) < usableBottom) {
+                    newViewOffset = usableBottom + (viewBW / 2.0);
+                } else if (newViewOffset + (viewBW / 2.0) > usableTop) {
+                    newViewOffset = usableTop - (viewBW / 2.0);
+                }
+                
+                gui::waterfall.setViewOffset(newViewOffset);
+                sigpath::vfoManager.setCenterOffset(vfoName, newVFOPos);
             }
-
-            gui::waterfall.setViewOffset((BW / 2.0) - (viewBW / 2.0));
-            double newVFOOffset = (BW / 2.0) - (vfoBW / 2.0) - (viewBW / 10.0);
-            sigpath::vfoManager.setCenterOffset(vfoName, newVFOOffset);
-            gui::waterfall.setCenterFrequency(freq - newVFOOffset);
-            sigpath::sourceManager.tune(freq - newVFOOffset);
+            return;
         }
+        
+        // Case 2: Requested position would place VFO outside usable bandwidth
+        // We need to adjust by retuning the SDR
+        
+        // Calculate new SDR center frequency and VFO offset
+        double newVFOOffset;
+        
+        if (deltaFreq < 0) {
+            // Moving to a lower frequency
+            // Place VFO one VFO bandwidth away from the upper edge of usable bandwidth
+            newVFOOffset = usableTop - (vfoBW * 1.5);
+            
+            // Ensure the VFO is still within usable bandwidth
+            if (newVFOOffset - (vfoBW / 2.0) < usableBottom) {
+                newVFOOffset = usableBottom + (vfoBW / 2.0);
+            }
+        } else {
+            // Moving to a higher frequency
+            // Place VFO one VFO bandwidth away from the lower edge of usable bandwidth
+            newVFOOffset = usableBottom + (vfoBW * 1.5);
+            
+            // Ensure the VFO is still within usable bandwidth
+            if (newVFOOffset + (vfoBW / 2.0) > usableTop) {
+                newVFOOffset = usableTop - (vfoBW / 2.0);
+            }
+        }
+        
+        // Calculate new SDR center frequency based on target frequency and new VFO offset
+        double newSDRFreq = freq - newVFOOffset;
+        
+        // Update SDR tuning and VFO position
+        sigpath::vfoManager.setOffset(vfoName, newVFOOffset);
+        gui::waterfall.setCenterFrequency(newSDRFreq);
+        sigpath::sourceManager.tune(newSDRFreq);
+        
+        // Adjust view to ensure the VFO is visible
+        // If view bandwidth is greater than or equal to usable bandwidth, center the view
+        if (viewBW >= usableBW) {
+            gui::waterfall.setViewOffset(0.0);
+        } 
+        // Otherwise, position view to show the VFO
         else {
-            double newViewOff = vfoBottom + (viewBW / 2.0) - (viewBW / 10.0);
-            double newViewTop = newViewOff + (viewBW / 2.0);
-
-            if (newViewTop < top) {
-                gui::waterfall.setViewOffset(newViewOff);
-                sigpath::vfoManager.setCenterOffset(vfoName, newVFO);
-                return;
+            double viewHalfBW = viewBW / 2.0;
+            
+            if (newVFOOffset < 0) {
+                // If VFO is in the lower half of usable bandwidth
+                gui::waterfall.setViewOffset(usableBottom + viewHalfBW);
+            } else {
+                // If VFO is in the upper half of usable bandwidth
+                gui::waterfall.setViewOffset(usableTop - viewHalfBW);
             }
-
-            gui::waterfall.setViewOffset((viewBW / 2.0) - (BW / 2.0));
-            double newVFOOffset = (vfoBW / 2.0) - (BW / 2.0) + (viewBW / 10.0);
-            sigpath::vfoManager.setCenterOffset(vfoName, newVFOOffset);
-            gui::waterfall.setCenterFrequency(freq - newVFOOffset);
-            sigpath::sourceManager.tune(freq - newVFOOffset);
         }
-    }
+    }    
 
     void iqTuning(double freq) {
         gui::waterfall.setCenterFrequency(freq);

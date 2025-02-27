@@ -291,6 +291,15 @@ namespace ImGui {
         window->DrawList->AddLine(ImVec2(fftAreaMin.x, fftAreaMin.y),
                                   ImVec2(fftAreaMin.x, fftAreaMax.y - 1),
                                   text, style::uiScale);
+
+        // Draw center frequency indicator
+        double centerFreqPos = fftAreaMin.x + ((centerFreq - lowerFreq) * horizScale);
+        if (centerFreqPos >= fftAreaMin.x && centerFreqPos <= fftAreaMax.x) {
+            float markerSize = 4.0f * style::uiScale;
+            ImVec2 markerMin(centerFreqPos - markerSize, fftAreaMax.y - markerSize);
+            ImVec2 markerMax(centerFreqPos + markerSize, fftAreaMax.y + markerSize);
+            window->DrawList->AddRectFilled(markerMin, markerMax, IM_COL32(255, 255, 255, 255));
+        }
     }
 
     void WaterFall::drawWaterfall() {

@@ -284,9 +284,9 @@ add_subdirectory("sink_modules/audio_sink")
 add_subdirectory("sink_modules/brown_audio_sink")
 endif (OPT_BUILD_AUDIO_SINK)
 
-#if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     add_subdirectory("sink_modules/linux_pulseaudio_sink")
-#endif ()
+endif ()
 
 if(APPLE)
     add_subdirectory("sink_modules/macos_coreaudio_sink")
