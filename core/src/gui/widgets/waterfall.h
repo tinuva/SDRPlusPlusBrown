@@ -106,6 +106,9 @@ namespace ImGui {
         void setBandwidth(double bandWidth);
         double getBandwidth();
 
+        void setUsableSpectrumRatio(double spectrumratio);
+        double getUsableSpectrumRatio();
+
         void setViewBandwidth(double bandWidth);
         double getViewBandwidth();
 
@@ -295,6 +298,7 @@ namespace ImGui {
         int fftHeight;           // Height of the fft graph, taken from window size, in pixels
         int waterfallHeight = 0; // Height of the waterfall, taken from window size, in pixels
 
+		double usableSpectrumRatio;
         double viewBandwidth;
         double viewOffset;
 
