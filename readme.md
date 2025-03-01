@@ -4,7 +4,7 @@
 
 Please see [upstream project page](https://github.com/AlexandreRouma/SDRPlusPlus) for the basic list of its features.
 
-Last merge: 2025-02-12
+Last merge: 2025-02-27
 
 Please see [brown fork page](https://sdrpp-brown.san.systems) for list of fork features.
 
