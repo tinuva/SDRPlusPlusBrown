@@ -18,7 +18,7 @@ namespace core {
     SDRPP_EXPORT CommandArgsParser args;
     SDRPP_EXPORT const char *getRoot();
 
-    void setInputSampleRate(double samplerate,double bandwidth = 0.0);
+    void setInputSampleRate(double samplerate, double bandwidth = 0.0);
 
     constexpr int NARGUMENTS = 20000;
     struct SpawnCommand {

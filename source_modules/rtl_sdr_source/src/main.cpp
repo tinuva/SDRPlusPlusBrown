@@ -265,7 +265,7 @@ private:
 
     static void menuSelected(void* ctx) {
         RTLSDRSourceModule* _this = (RTLSDRSourceModule*)ctx;
-        core::setInputSampleRate(_this->sampleRate);
+        propagateInputSampleRate(_this);
         flog::info("RTLSDRSourceModule '{0}': Menu Select!", _this->name);
     }
 
@@ -349,6 +349,12 @@ private:
         flog::info("RTLSDRSourceModule '{0}': Tune: {1}!", _this->name, freq);
     }
 
+    float usableBw = 100.0f;
+
+    static void propagateInputSampleRate(RTLSDRSourceModule *_this) {
+        return core::setInputSampleRate(_this->sampleRate, _this->sampleRate * _this -> usableBw / 100.0);
+    }
+
     static void menuHandler(void* ctx) {
         RTLSDRSourceModule* _this = (RTLSDRSourceModule*)ctx;
 
@@ -357,7 +363,8 @@ private:
         SmGui::ForceSync();
         if (SmGui::Combo(CONCAT("##_rtlsdr_dev_sel_", _this->name), &_this->devId, _this->devListTxt.c_str())) {
             _this->selectById(_this->devId);
-            core::setInputSampleRate(_this->sampleRate);
+            propagateInputSampleRate(_this);
+
             if (_this->selectedDevName != "") {
                 config.acquire();
                 config.conf["device"] = _this->selectedDevName;
@@ -367,7 +374,7 @@ private:
 
         if (SmGui::Combo(CONCAT("##_rtlsdr_sr_sel_", _this->name), &_this->srId, _this->sampleRateListTxt.c_str())) {
             _this->sampleRate = sampleRates[_this->srId];
-            core::setInputSampleRate(_this->sampleRate);
+            propagateInputSampleRate(_this);
             if (_this->selectedDevName != "") {
                 config.acquire();
                 config.conf["devices"][_this->selectedDevName]["sampleRate"] = _this->sampleRate;
@@ -381,7 +388,7 @@ private:
         if (SmGui::Button(CONCAT("Refresh##_rtlsdr_refr_", _this->name)/*, ImVec2(refreshBtnWdith, 0)*/)) {
             _this->refresh();
             _this->selectByName(_this->selectedDevName);
-            core::setInputSampleRate(_this->sampleRate);
+            propagateInputSampleRate(_this);
         }
 
         if (_this->running) { SmGui::EndDisabled(); }
@@ -458,6 +465,16 @@ private:
                 }
             }
         }
+
+
+
+        /*
+        // code used for debugging
+        ImGui::LeftLabel("Usable BW");
+        if (ImGui::SliderFloat("##_sdrpp_usable_bw", &_this->usableBw, 50.0f, 100.0f, "%.1f%%")) {
+            propagateInputSampleRate(_this);
+        }
+        */
 
         
         if (_this->tunerAgc || _this->gainList.size() == 0) { SmGui::EndDisabled(); }

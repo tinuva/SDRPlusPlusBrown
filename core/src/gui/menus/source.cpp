@@ -334,33 +334,15 @@ namespace sourcemenu {
             core::configManager.conf["iqCorrection"] = iqCorrection;
             core::configManager.release(true);
         }
-//        ImGui::SameLine();
+
         if (ImGui::Checkbox("Invert IQ##_sdrpp_inv_iq", &invertIQ)) {
             sigpath::iqFrontEnd.setInvertIQ(invertIQ);
             core::configManager.acquire();
             core::configManager.conf["invertIQ"] = invertIQ;
             core::configManager.release(true);
         }
-#if 0
-        // Usable Bandwidth Slider
-        float usableBw = 100.0f;
-        if (!selectedSource.empty()) {
-            core::configManager.acquire();
-            if (core::configManager.conf["usableBandwidth"].contains(selectedSource)) {
-                usableBw = core::configManager.conf["usableBandwidth"][selectedSource];
-            }
-            core::configManager.release();
-        }
 
-        ImGui::LeftLabel("Usable BW");
-        if (ImGui::SliderFloat("##_sdrpp_usable_bw", &usableBw, 50.0f, 100.0f, "%.1f%%")) {
-            if (!selectedSource.empty()) {
-                core::configManager.acquire();
-                core::configManager.conf["usableBandwidth"][selectedSource] = usableBw;
-                core::configManager.release(true);
-            }
-        }
-#endif
+
         ImGui::LeftLabel("Offset mode");
         ImGui::SetNextItemWidth(itemWidth - ImGui::GetCursorPosX() - 2.0f*(lineHeight + 1.5f*spacing));
         if (ImGui::Combo("##_sdrpp_offset", &offsetId, offsets.txt)) {

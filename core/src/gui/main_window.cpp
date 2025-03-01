@@ -97,12 +97,7 @@ void MainWindow::init() {
 
     // Set default values for waterfall in case no source init's it
     gui::waterfall.setBandwidth(DEFAULT_SAMPLE_RATE);
-	gui::waterfall.setViewBandwidth(DEFAULT_SAMPLE_RATE * gui::waterfall.getUsableSpectrumRatio());
-
-    //waterfallPlan = dsp::arrays::allocateFFTWPlan(false, fftSize);
-//    fft_in = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
-//    fft_out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
-//    fftwPlanImplFFTW = fftwf_plan_dft_1d(fftSize, fft_in, fft_out, FFTW_FORWARD, FFTW_ESTIMATE);
+    gui::waterfall.setViewBandwidth(DEFAULT_SAMPLE_RATE * gui::waterfall.getUsableSpectrumRatio());
 
     sigpath::iqFrontEnd.init(&dummyStream, DEFAULT_SAMPLE_RATE, true, 1, false, 1024, 20.0, IQFrontEnd::FFTWindow::NUTTALL, acquireFFTBuffer, releaseFFTBuffer, this);
     sigpath::iqFrontEnd.start();
@@ -1086,11 +1081,12 @@ void MainWindow::updateWaterfallZoomBandwidth(float bw) {
     double delta = wfBw - 1000.0;
     double finalBw = std::min<double>(1000.0 + (factor * delta), wfBw);
 
-	gui::waterfall.setViewBandwidth(finalBw * gui::waterfall.getUsableSpectrumRatio());
+    gui::waterfall.setViewBandwidth(finalBw * gui::waterfall.getUsableSpectrumRatio());
     if (vfo != NULL) {
         gui::waterfall.setViewOffset(vfo->centerOffset); // center vfo on screen
     }
 }
+
 void MainWindow::handleWaterfallInput(ImGui::WaterfallVFO* vfo) {
     if (!lockWaterfallControls && ImGui::GetTopMostPopupModal() == NULL) {
         // Handle arrow keys
