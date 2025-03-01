@@ -39,7 +39,7 @@ namespace tuner {
         double viewBW = gui::waterfall.getViewBandwidth();
         double BW = gui::waterfall.getBandwidth();
         double currentCenterFreq = gui::waterfall.getCenterFrequency();
-        
+        #if 0
         // Get usable bandwidth percentage for current source
         float usableBwPercent = 100.0f;
         const std::string& currentSource = sigpath::sourceManager.getSelectedName();
@@ -54,6 +54,11 @@ namespace tuner {
         
         // Calculate actual usable bandwidth and its boundaries
         double usableBW = (BW * usableBwPercent) / 100.0;
+		#endif
+		// Get usable Spectrum percentage for current source
+		double usableSpectrumRatio = gui::waterfall.getUsableSpectrumRatio();
+		// Calculate actual usable bandwidth and its boundaries
+		double usableBW = (BW * usableSpectrumRatio);
         double unusableBWHalf = (BW - usableBW) / 2.0;
         
         // Define boundaries of usable bandwidth (relative to center frequency)

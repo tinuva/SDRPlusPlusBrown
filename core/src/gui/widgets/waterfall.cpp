@@ -176,6 +176,7 @@ namespace ImGui {
         waterfallFb = new uint32_t[1];
         tempDataForUpdateWaterfallFb = new float[1];
 
+		usableSpectrumRatio = 1.0;
         viewBandwidth = 1.0;
         wholeBandwidth = 1.0;
 
@@ -1350,9 +1351,10 @@ namespace ImGui {
     }
 
     void WaterFall::setBandwidth(double bandWidth) {
-        double currentRatio = viewBandwidth / wholeBandwidth;
+ //     double currentRatio = viewBandwidth / wholeBandwidth;
         wholeBandwidth = bandWidth;
-        setViewBandwidth(bandWidth * currentRatio);
+//      setViewBandwidth(bandWidth * currentRatio);
+		setViewBandwidth(bandWidth * usableSpectrumRatio);
         for (auto const& [name, vfo] : vfos) {
             if (vfo->lowerOffset < -(bandWidth / 2)) {
                 vfo->setCenterOffset(-(bandWidth / 2));
@@ -1367,6 +1369,14 @@ namespace ImGui {
     double WaterFall::getBandwidth() {
         return wholeBandwidth;
     }
+
+	void WaterFall::setUsableSpectrumRatio(double spectrumratio) {
+		usableSpectrumRatio = spectrumratio;
+	}
+
+	double WaterFall::getUsableSpectrumRatio() {
+		return usableSpectrumRatio;
+	}
 
     void WaterFall::setViewBandwidth(double bandWidth) {
         MEASURE_LOCK_GUARD(buf_mtx);

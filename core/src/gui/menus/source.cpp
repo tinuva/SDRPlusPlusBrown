@@ -334,14 +334,14 @@ namespace sourcemenu {
             core::configManager.conf["iqCorrection"] = iqCorrection;
             core::configManager.release(true);
         }
-        ImGui::SameLine();
+//        ImGui::SameLine();
         if (ImGui::Checkbox("Invert IQ##_sdrpp_inv_iq", &invertIQ)) {
             sigpath::iqFrontEnd.setInvertIQ(invertIQ);
             core::configManager.acquire();
             core::configManager.conf["invertIQ"] = invertIQ;
             core::configManager.release(true);
         }
-
+#if 0
         // Usable Bandwidth Slider
         float usableBw = 100.0f;
         if (!selectedSource.empty()) {
@@ -360,7 +360,7 @@ namespace sourcemenu {
                 core::configManager.release(true);
             }
         }
-
+#endif
         ImGui::LeftLabel("Offset mode");
         ImGui::SetNextItemWidth(itemWidth - ImGui::GetCursorPosX() - 2.0f*(lineHeight + 1.5f*spacing));
         if (ImGui::Combo("##_sdrpp_offset", &offsetId, offsets.txt)) {

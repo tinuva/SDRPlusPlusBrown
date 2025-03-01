@@ -87,20 +87,26 @@ namespace core {
     }
 
 
-    void setInputSampleRate(double samplerate) {
+    void setInputSampleRate(double samplerate,double bandwidth) {
         // Forward this to the server
         if (args["server"].b()) {
             server::setInputSampleRate(samplerate);
             return;
         }
 
+		double usableSpectrumRatio = 1.0;
+		if(bandwidth > 0.0)
+			usableSpectrumRatio = bandwidth / samplerate;
+
         // Update IQ frontend input samplerate and get effective samplerate
         sigpath::iqFrontEnd.setSampleRate(samplerate);
         double effectiveSr = sigpath::iqFrontEnd.getEffectiveSamplerate();
 
         // Reset zoom
+		gui::waterfall.setUsableSpectrumRatio(usableSpectrumRatio);
         gui::waterfall.setBandwidth(effectiveSr);
         gui::waterfall.setViewOffset(0);
+		gui::waterfall.setViewBandwidth(effectiveSr * usableSpectrumRatio);
         gui::mainWindow.updateZoom();
 
         // Debug logs
