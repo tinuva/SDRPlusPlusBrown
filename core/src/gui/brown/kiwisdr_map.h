@@ -81,6 +81,7 @@ struct KiwiSDRMapSelector {
                             serversList = loadServersList();
 
                             if (serversList) {
+                                int totallyParsed = 0;
                                 for (const auto& entry : *serversList) {
                                     ServerEntry serverEntry;
 
@@ -90,8 +91,13 @@ struct KiwiSDRMapSelector {
 
                                         if (entry["offline"].get<std::string>() == "no") {
                                             std::string gps_str = entry["gps"].get<std::string>();
-                                            geomap::GeoCoordinates geo;
+                                            geomap::GeoCoordinates geo = {0.0, 0.0};
                                             sscanf(gps_str.c_str(), "(%lf, %lf)", &geo.latitude, &geo.longitude);
+                                            if (geo.latitude == 0 || geo.longitude == 0) {
+                                                flog::warn("Parsing geo coordinates: \"{}\" => {},{}", gps_str, geo.latitude, geo.longitude);
+                                            } else if (totallyParsed < 10) {
+                                                flog::info("Parsing geo coordinates: \"{}\" => {},{}", gps_str, geo.latitude, geo.longitude);
+                                            }
                                             serverEntry.gps = geomap::geoToCartesian(geo).toImVec2();
                                             serverEntry.name = entry["name"].get<std::string>();
                                             serverEntry.loc = entry["loc"].get<std::string>();
@@ -103,9 +109,11 @@ struct KiwiSDRMapSelector {
                                             serverEntry.users = atoi(entry["users"].get<std::string>().c_str());
                                             serverEntry.usersmax = atoi(entry["users_max"].get<std::string>().c_str());
                                             servers.push_back(serverEntry);
+                                            totallyParsed++;
                                         }
                                     }
                                 }
+                                flog::info("Parsed {} servers",totallyParsed);
                             }
 
                             std::sort(servers.begin(), servers.end(), [](const ServerEntry& a, const ServerEntry& b) {
