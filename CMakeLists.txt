@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 project(sdrpp)
 
+
 if(CMAKE_INSTALL_PREFIX MATCHES "^/usr")       # default prefix
     if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
         set(CMAKE_INSTALL_PREFIX "/usr/local")
@@ -10,18 +11,6 @@ if(CMAKE_INSTALL_PREFIX MATCHES "^/usr")       # default prefix
 else()
     # keep the prefix as user wants
 endif()
-#
-## Configure toolchain for android
-#if (ANDROID)
-#    set(CMAKE_SHARED_LINKER_FLAGS
-#        "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate"
-#    )
-#    set(CMAKE_C_STANDARD 11)
-#    set(CMAKE_CXX_STANDARD 14)
-#    set(CMAKE_CXX14_EXTENSION_COMPILE_OPTION "-std=c++17")
-#    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -s")
-#    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -s")
-#endif (ANDROID)
 
 # Backends
 option(OPT_BACKEND_GLFW "Use the GLFW backend" ON)
@@ -31,40 +20,40 @@ option(OPT_BACKEND_ANDROID "Use the Android backend" OFF)
 option(OPT_OVERRIDE_STD_FILESYSTEM "Use a local version of std::filesystem on systems that don't have it yet" OFF)
 
 # Sources
-option(OPT_BUILD_AIRSPY_SOURCE "Build Airspy Source Module (Dependencies: libairspy)" ON)
-option(OPT_BUILD_AIRSPYHF_SOURCE "Build Airspy HF+ Source Module (Dependencies: libairspyhf)" ON)
-option(OPT_BUILD_AUDIO_SOURCE "Build Audio Source Module (Dependencies: rtaudio)" ON)
+option(OPT_BUILD_AIRSPY_SOURCE "Build Airspy Source Module (Dependencies: libairspy)" OFF)
+option(OPT_BUILD_AIRSPYHF_SOURCE "Build Airspy HF+ Source Module (Dependencies: libairspyhf)" OFF)
+option(OPT_BUILD_AUDIO_SOURCE "Build Audio Source Module (Dependencies: rtaudio)" OFF)
 option(OPT_BUILD_BADGESDR_SOURCE "Build BadgeSDR Source Module (Dependencies: libusb)" OFF)
 option(OPT_BUILD_BLADERF_SOURCE "Build BladeRF Source Module (Dependencies: libbladeRF)" OFF)
 option(OPT_BUILD_FILE_SOURCE "Wav file source" ON)
 option(OPT_BUILD_FOBOSSDR_SOURCE "Build FobosSDR Source Module (Dependencies: libfobos)" OFF)
-option(OPT_BUILD_HACKRF_SOURCE "Build HackRF Source Module (Dependencies: libhackrf)" ON)
-option(OPT_BUILD_HAROGIC_SOURCE "Build Harogic Source Module (Dependencies: htra_api)" OFF)
-option(OPT_BUILD_HERMES_SOURCE "Build Hermes Source Module (no dependencies required)" ON)
+option(OPT_BUILD_HACKRF_SOURCE "Build HackRF Source Module (Dependencies: libhackrf)" OFF)
+#option(OPT_BUILD_HAROGIC_SOURCE "Build Harogic Source Module (Dependencies: htra_api)" OFF)
+option(OPT_BUILD_HERMES_SOURCE "Build Hermes Source Module (no dependencies required)" OFF)
 option(OPT_BUILD_KCSDR_SOURCE "Build KCSDR Source Module (Dependencies: libkcsdr)" OFF)
 option(OPT_BUILD_LIMESDR_SOURCE "Build LimeSDR Source Module (Dependencies: liblimesuite)" OFF)
-option(OPT_BUILD_NETWORK_SOURCE "Build Network Source Module (no dependencies required)" ON)
+option(OPT_BUILD_NETWORK_SOURCE "Build Network Source Module (no dependencies required)" OFF)
 option(OPT_BUILD_PERSEUS_SOURCE "Build Perseus Source Module (Dependencies: libperseus-sdr)" OFF)
-option(OPT_BUILD_PLUTOSDR_SOURCE "Build PlutoSDR Source Module (Dependencies: libiio, libad9361)" ON)
+option(OPT_BUILD_PLUTOSDR_SOURCE "Build PlutoSDR Source Module (Dependencies: libiio, libad9361)" OFF)
 option(OPT_BUILD_RFNM_SOURCE "Build RFNM Source Module (Dependencies: librfnm)" OFF)
-option(OPT_BUILD_RFSPACE_SOURCE "Build RFspace Source Module (no dependencies required)" ON)
-option(OPT_BUILD_RTL_SDR_SOURCE "Build RTL-SDR Source Module (Dependencies: librtlsdr)" ON)
-option(OPT_BUILD_RTL_TCP_SOURCE "Build RTL-TCP Source Module (no dependencies required)" ON)
+option(OPT_BUILD_RFSPACE_SOURCE "Build RFspace Source Module (no dependencies required)" OFF)
+option(OPT_BUILD_RTL_SDR_SOURCE "Build RTL-SDR Source Module (Dependencies: librtlsdr)" OFF)
+option(OPT_BUILD_RTL_TCP_SOURCE "Build RTL-TCP Source Module (no dependencies required)" OFF)
 option(OPT_BUILD_SDRPP_SERVER_SOURCE "Build SDR++ Server Source Module (no dependencies required)" ON)
 option(OPT_BUILD_SDRPLAY_SOURCE "Build SDRplay Source Module (Dependencies: libsdrplay)" OFF)
 option(OPT_BUILD_SOAPY_SOURCE "Build SoapySDR Source Module (Dependencies: soapysdr)" OFF)
 option(OPT_BUILD_SPECTRAN_SOURCE "Build Spectran Source Module (Dependencies: Aaronia RTSA Suite)" OFF)
-option(OPT_BUILD_SPECTRAN_HTTP_SOURCE "Build Spectran HTTP Source Module (no dependencies required)" ON)
-option(OPT_BUILD_SPYSERVER_SOURCE "Build SpyServer Source Module (no dependencies required)" ON)
+option(OPT_BUILD_SPECTRAN_HTTP_SOURCE "Build Spectran HTTP Source Module (no dependencies required)" OFF)
+option(OPT_BUILD_SPYSERVER_SOURCE "Build SpyServer Source Module (no dependencies required)" OFF)
 option(OPT_BUILD_HL2_SOURCE "Build Hermes Lite 2 Source Module" ON)
 option(OPT_BUILD_USRP_SOURCE "Build USRP Source Module (libuhd)" OFF)
 option(OPT_BUILD_KIWISDR_SOURCE "Build KiwiSDR (web) Source Module" ON)
 
 # Sinks
-option(OPT_BUILD_ANDROID_AUDIO_SINK "Build Android Audio Sink Module (Dependencies: AAudio, only for android)" OFF)
+#option(OPT_BUILD_ANDROID_AUDIO_SINK "Build Android Audio Sink Module (Dependencies: AAudio, only for android)" OFF)
 option(OPT_BUILD_AUDIO_SINK "Build Audio Sink Module (Dependencies: rtaudio)" ON)
-option(OPT_BUILD_NETWORK_SINK "Build Audio Sink Module (no dependencies required)" ON)
-option(OPT_BUILD_MPEG_ADTS_SINK "Build MPEG ADTS Sink Module (lame will be used)" ON)
+option(OPT_BUILD_NETWORK_SINK "Build Audio Sink Module (no dependencies required)" OFF)
+option(OPT_BUILD_MPEG_ADTS_SINK "Build MPEG ADTS Sink Module (lame will be used)" OFF)
 option(OPT_BUILD_NEW_PORTAUDIO_SINK "Build the new PortAudio Sink Module (Dependencies: portaudio)" ON)
 option(OPT_BUILD_PORTAUDIO_SINK "Build PortAudio Sink Module (Dependencies: portaudio)" OFF)
 
@@ -74,24 +63,24 @@ option(OPT_BUILD_DAB_DECODER "Build the DAB/DAB+ decoder (no dependencies requir
 option(OPT_BUILD_FALCON9_DECODER "Build the falcon9 live decoder (Dependencies: ffplay)" OFF)
 option(OPT_BUILD_KG_SSTV_DECODER "Build the M17 decoder module (no dependencies required)" OFF)
 option(OPT_BUILD_M17_DECODER "Build the M17 decoder module (Dependencies: codec2)" OFF)
-option(OPT_BUILD_CH_EXTRAVHF_DECODER "Build the extra VHF decoder module" ON)
+option(OPT_BUILD_CH_EXTRAVHF_DECODER "Build the extra VHF decoder module" OFF)
 option(OPT_BUILD_FT8_DECODER "Build the FT8 decoder module" ON)
 option(OPT_BUILD_DSDCC_DECODER "Build the DSDCC decoder module" OFF)
-option(OPT_BUILD_METEOR_DEMODULATOR "Build the meteor demodulator module (no dependencies required)" ON)
-option(OPT_BUILD_PAGER_DECODER "Build the pager decoder module (no dependencies required)" ON)
+option(OPT_BUILD_METEOR_DEMODULATOR "Build the meteor demodulator module (no dependencies required)" OF)
+option(OPT_BUILD_PAGER_DECODER "Build the pager decoder module (no dependencies required)" OF)
 option(OPT_BUILD_RADIO "Main audio modulation decoder (AM, FM, SSB, etc...)" ON)
 option(OPT_BUILD_RYFI_DECODER "RyFi data link decoder" OFF)
 option(OPT_BUILD_VOR_RECEIVER "VOR beacon receiver" OFF)
 option(OPT_BUILD_WEATHER_SAT_DECODER "Build the HRPT decoder module (no dependencies required)" OFF)
 
 # Misc
-option(OPT_BUILD_DISCORD_PRESENCE "Build the Discord Rich Presence module" ON)
+option(OPT_BUILD_DISCORD_PRESENCE "Build the Discord Rich Presence module" OFF)
 option(OPT_BUILD_FREQUENCY_MANAGER "Build the Frequency Manager module" ON)
 option(OPT_BUILD_IQ_EXPORTER "Build the IQ Exporter module" ON)
 option(OPT_BUILD_RECORDER "Audio and baseband recorder" ON)
 option(OPT_BUILD_RIGCTL_CLIENT "Rigctl client to make SDR++ act as a panadapter" ON)
 option(OPT_BUILD_RIGCTL_SERVER "Rigctl backend for controlling SDR++ with software like gpredict" ON)
-option(OPT_BUILD_TCI_SERVER "TCI backend for controlling SDR++ with sunsdr and similar software" ON)
+option(OPT_BUILD_TCI_SERVER "TCI backend for controlling SDR++ with sunsdr and similar software" OFF)
 option(OPT_BUILD_SCANNER "Frequency scanner" ON)
 option(OPT_BUILD_SCHEDULER "Build the scheduler" OFF)
 option(OPT_BUILD_NOISE_REDUCTION_LOGMMSE "Build LOGMMSE noise reduction" ON)
@@ -150,6 +139,12 @@ endif (ANDROID)
 
 # Core of SDR++
 add_subdirectory("core")
+
+# Tests are added conditionally
+if(BUILD_TESTS)
+    enable_testing()
+    include(CTest)
+endif()
 
 # Source modules
 if (OPT_BUILD_AIRSPY_SOURCE)
@@ -302,7 +297,7 @@ add_subdirectory("sink_modules/network_sink")
 endif (OPT_BUILD_NETWORK_SINK)
 
 if (OPT_BUILD_MPEG_ADTS_SINK)
-add_subdirectory("sink_modules/mpeg_adts_sink")
+#add_subdirectory("sink_modules/mpeg_adts_sink")
 endif (OPT_BUILD_MPEG_ADTS_SINK)
 
 if (NOT ANDROID)
@@ -334,7 +329,7 @@ add_subdirectory("decoder_modules/m17_decoder")
 endif (OPT_BUILD_M17_DECODER)
 
 if (OPT_BUILD_CH_EXTRAVHF_DECODER)
-add_subdirectory("decoder_modules/ch_extravhf_decoder")
+#add_subdirectory("decoder_modules/ch_extravhf_decoder")
 endif (OPT_BUILD_CH_EXTRAVHF_DECODER)
 
 
@@ -466,7 +461,7 @@ if (MSVC)
         foreach(DLL IN LISTS CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS)
             set(REDIST_DLLS_STR COMMAND xcopy /F \"${DLL}\" \"$<TARGET_FILE_DIR:sdrpp>\" /Y ${REDIST_DLLS_STR})
         endforeach()
-        
+
         # Create target
         add_custom_target(do_always_msvc ALL ${REDIST_DLLS_STR})
     endif ()
@@ -514,3 +509,8 @@ configure_file(${CMAKE_SOURCE_DIR}/cmake_uninstall.cmake ${CMAKE_CURRENT_BINARY_
 add_custom_target(uninstall ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 
 # Create headers target
+
+# Test options
+option(BUILD_TESTS "Build test suite" OFF)
+option(ENABLE_COVERAGE "Enable code coverage" OFF)
+

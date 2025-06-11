@@ -1717,17 +1717,8 @@ void MobileMainWindow::draw() {
     buttonsWidth *= buttonsWidthScale;
     defaultButtonsWidth *= buttonsWidthScale;
 
-    if (demoWindow) {
-        lockWaterfallControls = true;
-        ImGui::ShowDemoWindow();
-    }
-    if (logWindow) {
-        lockWaterfallControls = true;
-        ShowLogWindow();
-    }
-    if (showCredits) {
-        lockWaterfallControls = true;
-    }
+    this->displayVariousWindows();
+
 
     if (showMenu) {
         menuWidth = core::configManager.conf["menuWidth"];
@@ -2493,6 +2484,7 @@ MobileMainWindow::MobileMainWindow() : MainWindow(),
     cwPanel = std::make_shared<CWPanel>();
     audioWaterfall = std::make_shared<SubWaterfall>(trxAudioSampleRate, 5000, "Audio Heard");
 }
+
 
 int mwedit;
 long long lastMwEdit = 0;
