@@ -918,25 +918,27 @@ public:
             ImGui::Text("Error: %s", _this->ft4decoder.decodeError);
             ImGui::PopStyleColor();
         }
-        //
-        // PSK Reporter
-        //
-        ImGui::LeftLabel("PSKReporter");
-        ImGui::BeginDisabled();
-        if (ImGui::Checkbox(CONCAT("##_enable_psk_reporter_", _this->name), &_this->enablePSKReporter)) {
-            config.acquire();
-            config.conf[_this->name]["enablePSKReporter"] = _this->enablePSKReporter;
-            config.release(true);
-        }
-        ImGui::EndDisabled();
-        ImGui::SameLine();
-        ImGui::Text("using callsign:");
-        ImGui::SameLine();
-        ImGui::FillWidth();
-        if (sigpath::iqFrontEnd.operatorCallsign == "") {
-            ImGui::Text("[set up in source menu]");
-        } else {
-            ImGui::Text("%s", sigpath::iqFrontEnd.operatorCallsign.c_str());
+        if (false) {
+            //
+            // PSK Reporter not completed yet
+            //
+            ImGui::LeftLabel("PSKReporter");
+            ImGui::BeginDisabled();
+            if (ImGui::Checkbox(CONCAT("##_enable_psk_reporter_", _this->name), &_this->enablePSKReporter)) {
+                config.acquire();
+                config.conf[_this->name]["enablePSKReporter"] = _this->enablePSKReporter;
+                config.release(true);
+            }
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            ImGui::Text("using callsign:");
+            ImGui::SameLine();
+            ImGui::FillWidth();
+            if (sigpath::iqFrontEnd.operatorCallsign == "") {
+                ImGui::Text("[set up in source menu]");
+            } else {
+                ImGui::Text("%s", sigpath::iqFrontEnd.operatorCallsign.c_str());
+            }
         }
         ImGui::LeftLabel("ALL.TXT log");
         if (ImGui::Checkbox(CONCAT("##_enable_alltxt_", _this->name), &_this->enableAllTXT)) {
