@@ -92,24 +92,33 @@ struct KiwiSDRMapSelector {
                                         if (entry["offline"].get<std::string>() == "no") {
                                             std::string gps_str = entry["gps"].get<std::string>();
                                             geomap::GeoCoordinates geo = {0.0, 0.0};
-                                            sscanf(gps_str.c_str(), "(%lf, %lf)", &geo.latitude, &geo.longitude);
-                                            if (geo.latitude == 0 || geo.longitude == 0) {
-                                                flog::warn("Parsing geo coordinates: \"{}\" => {},{}", gps_str, geo.latitude, geo.longitude);
-                                            } else if (totallyParsed < 10) {
-                                                flog::info("Parsing geo coordinates: \"{}\" => {},{}", gps_str, geo.latitude, geo.longitude);
+
+                                            std::stringstream ss(gps_str);
+                                            ss.imbue(std::locale::classic());          // force '.' as decimal separator
+
+                                            char discard;
+                                            ss >> discard          // '('
+                                               >> geo.latitude
+                                               >> discard          // ','
+                                               >> geo.longitude
+                                               >> discard;         // ')'
+
+                                            if (!ss) {
+                                                flog::warn("Parsing geo coordinates failed: \"{}\"", gps_str);
+                                            } else {
+                                                serverEntry.gps = geomap::geoToCartesian(geo).toImVec2();
+                                                serverEntry.name = entry["name"].get<std::string>();
+                                                serverEntry.loc = entry["loc"].get<std::string>();
+                                                serverEntry.url = entry["url"].get<std::string>();
+                                                if (entry.contains("antenna")) {
+                                                    serverEntry.antenna = entry["antenna"].get<std::string>();
+                                                }
+                                                sscanf(entry["snr"].get<std::string>().c_str(), "%f,%f", &serverEntry.maxSnr, &serverEntry.secondSnr);
+                                                serverEntry.users = atoi(entry["users"].get<std::string>().c_str());
+                                                serverEntry.usersmax = atoi(entry["users_max"].get<std::string>().c_str());
+                                                servers.push_back(serverEntry);
+                                                totallyParsed++;
                                             }
-                                            serverEntry.gps = geomap::geoToCartesian(geo).toImVec2();
-                                            serverEntry.name = entry["name"].get<std::string>();
-                                            serverEntry.loc = entry["loc"].get<std::string>();
-                                            serverEntry.url = entry["url"].get<std::string>();
-                                            if (entry.contains("antenna")) {
-                                                serverEntry.antenna = entry["antenna"].get<std::string>();
-                                            }
-                                            sscanf(entry["snr"].get<std::string>().c_str(), "%f,%f", &serverEntry.maxSnr, &serverEntry.secondSnr);
-                                            serverEntry.users = atoi(entry["users"].get<std::string>().c_str());
-                                            serverEntry.usersmax = atoi(entry["users_max"].get<std::string>().c_str());
-                                            servers.push_back(serverEntry);
-                                            totallyParsed++;
                                         }
                                     }
                                 }
