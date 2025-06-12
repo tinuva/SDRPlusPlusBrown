@@ -297,7 +297,7 @@ add_subdirectory("sink_modules/network_sink")
 endif (OPT_BUILD_NETWORK_SINK)
 
 if (OPT_BUILD_MPEG_ADTS_SINK)
-#add_subdirectory("sink_modules/mpeg_adts_sink")
+add_subdirectory("sink_modules/mpeg_adts_sink")
 endif (OPT_BUILD_MPEG_ADTS_SINK)
 
 if (NOT ANDROID)
@@ -329,9 +329,8 @@ add_subdirectory("decoder_modules/m17_decoder")
 endif (OPT_BUILD_M17_DECODER)
 
 if (OPT_BUILD_CH_EXTRAVHF_DECODER)
-#add_subdirectory("decoder_modules/ch_extravhf_decoder")
+add_subdirectory("decoder_modules/ch_extravhf_decoder")
 endif (OPT_BUILD_CH_EXTRAVHF_DECODER)
-
 
 if (OPT_BUILD_FT8_DECODER)
     add_subdirectory("decoder_modules/ft8_decoder")
