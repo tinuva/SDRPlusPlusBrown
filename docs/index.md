@@ -8,7 +8,8 @@
 * [Telegram group](https://t.me/sdrpp_hermes_fork) for feedback.
 * [Transmitting HOWTO](tx.md)  how to transmit SSB using Hermes Lite 2 and SDR++Brown.
 
-**Please do not report bugs in this fork to original author. Use original one.**
+**Please do not report bugs in this fork to original author. Use original application, it works better.**
+
 **Report bugs in this fork on its github page, in ISSUES.**
 
 ## What is SDR++ (and its fork)
