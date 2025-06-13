@@ -2,6 +2,9 @@
 
 [Changelog](changelog.md)
 
+**Please do not report bugs in this fork to original author. Use original one.** 
+**Report bugs in this fork on this page, in ISSUES.** 
+
 Please see [upstream project page](https://github.com/AlexandreRouma/SDRPlusPlus) for the basic list of its features.
 
 Last merge: 2025-06-11

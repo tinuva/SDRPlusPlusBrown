@@ -314,7 +314,20 @@ jobs:
           run: gh release upload stable ${{runner.workspace}}/sdrpp_debian_bookworm_amd64.deb -R ${{github.repository}} --clobber
 
     build_ubuntu_jammy:
-      runs-on: ubuntu-latest
+
+      strategy:
+        matrix:
+          include:
+            # AMD64 (what you already have)
+            - arch: amd64
+              runner: ubuntu-latest
+              deb_name: sdrpp_ubuntu_jammy_amd64.deb
+            # ARM64
+            - arch: arm64
+              runner: ubuntu-22.04-arm   # or ubuntu-24.04-arm
+              deb_name: sdrpp_ubuntu_jammy_arm64.deb
+
+      runs-on: ${{ matrix.runner }}
 
       steps:
         - uses: actions/checkout@v4
@@ -327,18 +340,19 @@ jobs:
 
         - name: Recover Deb Archive
           working-directory: ${{runner.workspace}}
-          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_amd64.deb ./sdrpp_ubuntu_jammy_amd64.deb
+          run: docker cp build:/root/SDRPlusPlus/sdrpp_debian_${{matrix.arch}}.deb ./sdrpp_ubuntu_jammy_${{matrix.arch}}.deb
 
         - name: Save Deb Archive
           uses: actions/upload-artifact@v4
           with:
-            name: sdrpp_ubuntu_jammy_amd64
-            path: ${{runner.workspace}}/sdrpp_ubuntu_jammy_amd64.deb
+            name: sdrpp_ubuntu_jammy_${{matrix.arch}}
+            path: ${{runner.workspace}}/sdrpp_ubuntu_jammy_${{matrix.arch}}.deb
+
         - name: Update Nightly
-          run: gh release upload rolling ${{runner.workspace}}/sdrpp_ubuntu_jammy_amd64.deb -R ${{github.repository}} --clobber
+          run: gh release upload rolling ${{runner.workspace}}/sdrpp_ubuntu_jammy_${{matrix.arch}}.deb -R ${{github.repository}} --clobber
         - name: Update Stable
           if: contains(github.ref_name, 'stable')
-          run: gh release upload stable ${{runner.workspace}}/sdrpp_ubuntu_jammy_amd64.deb -R ${{github.repository}} --clobber
+          run: gh release upload stable ${{runner.workspace}}/sdrpp_ubuntu_jammy_${{matrix.arch}}.deb -R ${{github.repository}} --clobber
 
 
     build_ubuntu_noble:

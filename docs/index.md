@@ -8,6 +8,9 @@
 * [Telegram group](https://t.me/sdrpp_hermes_fork) for feedback.
 * [Transmitting HOWTO](tx.md)  how to transmit SSB using Hermes Lite 2 and SDR++Brown.
 
+**Please do not report bugs in this fork to original author. Use original one.**
+**Report bugs in this fork on its github page, in ISSUES.**
+
 ## What is SDR++ (and its fork)
 
 This is the software that allows display and decoding of radio frequency signals on PC and Android. To run the software, you
